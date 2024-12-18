@@ -18,10 +18,13 @@ package com.android.bluetooth.a2dp;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
 
 import static com.android.bluetooth.Utils.checkCallerTargetSdk;
 
 import static java.util.Objects.requireNonNull;
+import static java.util.Objects.requireNonNullElseGet;
 
 import android.annotation.NonNull;
 import android.annotation.RequiresPermission;
@@ -57,7 +60,6 @@ import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.ActiveDeviceManager;
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.btservice.AudioRoutingManager;
 import com.android.bluetooth.btservice.MetricsLogger;
 import com.android.bluetooth.btservice.ProfileService;
 import com.android.bluetooth.btservice.ServiceFactory;
@@ -84,17 +86,17 @@ public class A2dpService extends ProfileService {
     private static A2dpService sA2dpService;
 
     private final A2dpNativeInterface mNativeInterface;
+    private final A2dpCodecConfig mA2dpCodecConfig;
     private final AdapterService mAdapterService;
     private final AudioManager mAudioManager;
     private final DatabaseManager mDatabaseManager;
     private final CompanionDeviceManager mCompanionDeviceManager;
     private final Looper mLooper;
     private final Handler mHandler;
-
-    private HandlerThread mStateMachinesThread;
+    // Upper limit of all A2DP devices that are Connected or Connecting
+    private final int mMaxConnectedAudioDevices;
 
     @VisibleForTesting ServiceFactory mFactory = new ServiceFactory();
-    private A2dpCodecConfig mA2dpCodecConfig;
 
     @GuardedBy("mStateMachines")
     private BluetoothDevice mActiveDevice;
@@ -106,33 +108,51 @@ public class A2dpService extends ProfileService {
     // Protect setActiveDevice()/removeActiveDevice() so all invoked is handled sequentially
     private final Object mActiveSwitchingGuard = new Object();
 
-    // Timeout for state machine thread join, to prevent potential ANR.
-    private static final int SM_THREAD_JOIN_TIMEOUT_MS = 1000;
-
     // Upper limit of all A2DP devices: Bonded or Connected
     private static final int MAX_A2DP_STATE_MACHINES = 50;
-    // Upper limit of all A2DP devices that are Connected or Connecting
-    private int mMaxConnectedAudioDevices = 1;
     // A2DP Offload Enabled in platform
-    boolean mA2dpOffloadEnabled = false;
+    private final boolean mA2dpOffloadEnabled;
 
     private final AudioManagerAudioDeviceCallback mAudioManagerAudioDeviceCallback =
             new AudioManagerAudioDeviceCallback();
 
     public A2dpService(AdapterService adapterService) {
-        this(adapterService, A2dpNativeInterface.getInstance(), Looper.getMainLooper());
+        this(adapterService, null, Looper.getMainLooper());
     }
 
     @VisibleForTesting
     A2dpService(AdapterService adapterService, A2dpNativeInterface nativeInterface, Looper looper) {
         super(requireNonNull(adapterService));
         mAdapterService = adapterService;
-        mNativeInterface = requireNonNull(nativeInterface);
+        mNativeInterface =
+                requireNonNullElseGet(
+                        nativeInterface,
+                        () ->
+                                new A2dpNativeInterface(
+                                        adapterService,
+                                        new A2dpNativeCallback(adapterService, this)));
         mDatabaseManager = requireNonNull(mAdapterService.getDatabase());
         mAudioManager = requireNonNull(getSystemService(AudioManager.class));
         mCompanionDeviceManager = requireNonNull(getSystemService(CompanionDeviceManager.class));
         mLooper = requireNonNull(looper);
         mHandler = new Handler(mLooper);
+
+        mMaxConnectedAudioDevices = mAdapterService.getMaxConnectedAudioDevices();
+        Log.i(TAG, "Max connected audio devices set to " + mMaxConnectedAudioDevices);
+
+        mA2dpCodecConfig = new A2dpCodecConfig(this, mNativeInterface);
+
+        mNativeInterface.init(
+                mMaxConnectedAudioDevices,
+                mA2dpCodecConfig.codecConfigPriorities(),
+                mA2dpCodecConfig.codecConfigOffloading());
+
+        mA2dpOffloadEnabled = mAdapterService.isA2dpOffloadEnabled();
+        Log.d(TAG, "A2DP offload flag set to " + mA2dpOffloadEnabled);
+
+        mAudioManager.registerAudioDeviceCallback(mAudioManagerAudioDeviceCallback, mHandler);
+
+        setA2dpService(this);
     }
 
     public static boolean isEnabled() {
@@ -146,49 +166,6 @@ public class A2dpService extends ProfileService {
     @Override
     protected IProfileServiceBinder initBinder() {
         return new BluetoothA2dpBinder(this);
-    }
-
-    @Override
-    public void start() {
-        Log.i(TAG, "start()");
-        if (sA2dpService != null) {
-            throw new IllegalStateException("start() called twice");
-        }
-
-        // Step 2: Get maximum number of connected audio devices
-        mMaxConnectedAudioDevices = mAdapterService.getMaxConnectedAudioDevices();
-        Log.i(TAG, "Max connected audio devices set to " + mMaxConnectedAudioDevices);
-
-        // Step 3: Start handler thread for state machines
-        // Setup Handler.
-        mStateMachines.clear();
-
-        if (!Flags.a2dpServiceLooper()) {
-            mStateMachinesThread = new HandlerThread("A2dpService.StateMachines");
-            mStateMachinesThread.start();
-        }
-
-        // Step 4: Setup codec config
-        mA2dpCodecConfig = new A2dpCodecConfig(this, mNativeInterface);
-
-        // Step 5: Initialize native interface
-        mNativeInterface.init(
-                mMaxConnectedAudioDevices,
-                mA2dpCodecConfig.codecConfigPriorities(),
-                mA2dpCodecConfig.codecConfigOffloading());
-
-        // Step 6: Check if A2DP is in offload mode
-        mA2dpOffloadEnabled = mAdapterService.isA2dpOffloadEnabled();
-        Log.d(TAG, "A2DP offload flag set to " + mA2dpOffloadEnabled);
-
-        // Step 7: Register Audio Device callback
-        mAudioManager.registerAudioDeviceCallback(mAudioManagerAudioDeviceCallback, mHandler);
-
-        // Step 8: Mark service as started
-        setA2dpService(this);
-
-        // Step 9: Clear active device
-        removeActiveDevice(false);
     }
 
     @Override
@@ -211,37 +188,15 @@ public class A2dpService extends ProfileService {
         // Step 6: Cleanup native interface
         mNativeInterface.cleanup();
 
-        // Step 5: Clear codec config
-        mA2dpCodecConfig = null;
-
         // Step 4: Destroy state machines and stop handler thread
         synchronized (mStateMachines) {
             for (A2dpStateMachine sm : mStateMachines.values()) {
                 sm.doQuit();
-                sm.cleanup();
             }
             mStateMachines.clear();
         }
 
-        if (mStateMachinesThread != null) {
-            try {
-                mStateMachinesThread.quitSafely();
-                mStateMachinesThread.join(SM_THREAD_JOIN_TIMEOUT_MS);
-                mStateMachinesThread = null;
-            } catch (InterruptedException e) {
-                // Do not rethrow as we are shutting down anyway
-            }
-        }
-
         mHandler.removeCallbacksAndMessages(null);
-
-        // Step 2: Reset maximum number of connected audio devices
-        mMaxConnectedAudioDevices = 1;
-    }
-
-    @Override
-    public void cleanup() {
-        Log.i(TAG, "cleanup()");
     }
 
     public static synchronized A2dpService getA2dpService() {
@@ -301,7 +256,7 @@ public class A2dpService extends ProfileService {
                 Log.e(TAG, "Cannot connect to " + device + " : no state machine");
                 return false;
             }
-            smConnect.sendMessage(A2dpStateMachine.CONNECT);
+            smConnect.sendMessage(A2dpStateMachine.MESSAGE_CONNECT);
             return true;
         }
     }
@@ -321,7 +276,7 @@ public class A2dpService extends ProfileService {
                 Log.e(TAG, "Ignored disconnect request for " + device + " : no state machine");
                 return false;
             }
-            sm.sendMessage(A2dpStateMachine.DISCONNECT);
+            sm.sendMessage(A2dpStateMachine.MESSAGE_DISCONNECT);
             return true;
         }
     }
@@ -392,13 +347,16 @@ public class A2dpService extends ProfileService {
         }
         // Check connectionPolicy and accept or reject the connection.
         int connectionPolicy = getConnectionPolicy(device);
-        int bondState = mAdapterService.getBondState(device);
-        // Allow this connection only if the device is bonded. Any attempt to connect while
-        // bonding would potentially lead to an unauthorized connection.
-        if (bondState != BluetoothDevice.BOND_BONDED) {
-            Log.w(TAG, "okToConnect: return false, bondState=" + bondState);
-            return false;
-        } else if (connectionPolicy != BluetoothProfile.CONNECTION_POLICY_UNKNOWN
+        if (!Flags.donotValidateBondStateFromProfiles()) {
+            int bondState = mAdapterService.getBondState(device);
+            // Allow this connection only if the device is bonded. Any attempt to connect while
+            // bonding would potentially lead to an unauthorized connection.
+            if (bondState != BluetoothDevice.BOND_BONDED) {
+                Log.w(TAG, "okToConnect: return false, bondState=" + bondState);
+                return false;
+            }
+        }
+        if (connectionPolicy != BluetoothProfile.CONNECTION_POLICY_UNKNOWN
                 && connectionPolicy != BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
             if (!isOutgoingRequest) {
                 HeadsetService headsetService = HeadsetService.getHeadsetService();
@@ -521,11 +479,13 @@ public class A2dpService extends ProfileService {
     @VisibleForTesting
     public boolean setSilenceMode(@NonNull BluetoothDevice device, boolean silence) {
         Log.d(TAG, "setSilenceMode(" + device + "): " + silence);
-        if (silence && Objects.equals(mActiveDevice, device)) {
-            removeActiveDevice(true);
-        } else if (!silence && mActiveDevice == null) {
-            // Set the device as the active device if currently no active device.
-            setActiveDevice(device);
+        synchronized (mStateMachines) {
+            if (silence && Objects.equals(mActiveDevice, device)) {
+                removeActiveDevice(true);
+            } else if (!silence && mActiveDevice == null) {
+                // Set the device as the active device if currently no active device.
+                setActiveDevice(device);
+            }
         }
         if (!mNativeInterface.setSilenceDevice(device, silence)) {
             Log.e(TAG, "Cannot set " + device + " silence mode " + silence + " in native layer");
@@ -749,7 +709,9 @@ public class A2dpService extends ProfileService {
     public void setCodecConfigPreference(BluetoothDevice device, BluetoothCodecConfig codecConfig) {
         Log.d(TAG, "setCodecConfigPreference(" + device + "): " + Objects.toString(codecConfig));
         if (device == null) {
-            device = mActiveDevice;
+            synchronized (mStateMachines) {
+                device = mActiveDevice;
+            }
         }
         if (device == null) {
             Log.e(TAG, "setCodecConfigPreference: Invalid device");
@@ -776,7 +738,9 @@ public class A2dpService extends ProfileService {
     public void enableOptionalCodecs(BluetoothDevice device) {
         Log.d(TAG, "enableOptionalCodecs(" + device + ")");
         if (device == null) {
-            device = mActiveDevice;
+            synchronized (mStateMachines) {
+                device = mActiveDevice;
+            }
         }
         if (device == null) {
             Log.e(TAG, "enableOptionalCodecs: Invalid device");
@@ -804,7 +768,9 @@ public class A2dpService extends ProfileService {
     public void disableOptionalCodecs(BluetoothDevice device) {
         Log.d(TAG, "disableOptionalCodecs(" + device + ")");
         if (device == null) {
-            device = mActiveDevice;
+            synchronized (mStateMachines) {
+                device = mActiveDevice;
+            }
         }
         if (device == null) {
             Log.e(TAG, "disableOptionalCodecs: Invalid device");
@@ -920,15 +886,17 @@ public class A2dpService extends ProfileService {
 
     // Handle messages from native (JNI) to Java
     void messageFromNative(A2dpStackEvent stackEvent) {
-        requireNonNull(stackEvent.device);
+        if (!isAvailable()) {
+            Log.w(TAG, "messageFromNative(): service is not available");
+            return;
+        }
+        BluetoothDevice device = requireNonNull(stackEvent.device);
         synchronized (mStateMachines) {
-            BluetoothDevice device = stackEvent.device;
             A2dpStateMachine sm = mStateMachines.get(device);
             if (sm == null) {
                 if (stackEvent.type == A2dpStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED) {
                     switch (stackEvent.valueInt) {
-                        case A2dpStackEvent.CONNECTION_STATE_CONNECTED:
-                        case A2dpStackEvent.CONNECTION_STATE_CONNECTING:
+                        case STATE_CONNECTED, STATE_CONNECTING -> {
                             // Create a new state machine only when connecting to a device
                             if (!connectionAllowedCheckMaxDevices(device)) {
                                 Log.e(
@@ -939,9 +907,7 @@ public class A2dpService extends ProfileService {
                                 return;
                             }
                             sm = getOrCreateStateMachine(device);
-                            break;
-                        default:
-                            break;
+                        }
                     }
                 }
             }
@@ -949,7 +915,7 @@ public class A2dpService extends ProfileService {
                 Log.e(TAG, "Cannot process stack event: no state machine: " + stackEvent);
                 return;
             }
-            sm.sendMessage(A2dpStateMachine.STACK_EVENT, stackEvent);
+            sm.sendMessage(A2dpStateMachine.MESSAGE_STACK_EVENT, stackEvent);
         }
     }
 
@@ -1034,17 +1000,18 @@ public class A2dpService extends ProfileService {
             }
             Log.d(TAG, "Creating a new state machine for " + device);
             sm =
-                    A2dpStateMachine.make(
-                            device,
+                    new A2dpStateMachine(
                             this,
+                            device,
                             mNativeInterface,
-                            Flags.a2dpServiceLooper() ? mLooper : mStateMachinesThread.getLooper());
+                            mA2dpOffloadEnabled,
+                            mLooper);
             mStateMachines.put(device, sm);
             return sm;
         }
     }
 
-    /* Notifications of audio device connection/disconn events. */
+    /* Notifications of audio device connection/disconnection events. */
     private class AudioManagerAudioDeviceCallback extends AudioDeviceCallback {
         @Override
         public void onAudioDevicesAdded(AudioDeviceInfo[] addedDevices) {
@@ -1193,7 +1160,12 @@ public class A2dpService extends ProfileService {
             if (sm == null) {
                 return;
             }
-            if (sm.getConnectionState() != BluetoothProfile.STATE_DISCONNECTED) {
+
+            // Bond removal implies that the ACL is disconnected and device properties are removed.
+            // If pseudo address is not same as the identity address, all further events from the
+            // native stack would get ignored. So the state machine must be removed right away.
+            if (!Flags.a2dpCleanupOnRemoveDevice()
+                    && sm.getConnectionState() != BluetoothProfile.STATE_DISCONNECTED) {
                 return;
             }
         }
@@ -1214,7 +1186,6 @@ public class A2dpService extends ProfileService {
             }
             Log.i(TAG, "removeStateMachine: removing state machine for device: " + device);
             sm.doQuit();
-            sm.cleanup();
             mStateMachines.remove(device);
         }
     }
@@ -1321,13 +1292,11 @@ public class A2dpService extends ProfileService {
         if (toState == BluetoothProfile.STATE_CONNECTED) {
             MetricsLogger.logProfileConnectionEvent(BluetoothMetricsProto.ProfileId.A2DP);
         }
-        if (!Flags.audioRoutingCentralization()) {
-            // Set the active device if only one connected device is supported and it was connected
-            if (toState == BluetoothProfile.STATE_CONNECTED && (mMaxConnectedAudioDevices == 1)) {
-                setActiveDevice(device);
-            }
-            // When disconnected, ActiveDeviceManager will call setActiveDevice(null)
+        // Set the active device if only one connected device is supported and it was connected
+        if (toState == BluetoothProfile.STATE_CONNECTED && (mMaxConnectedAudioDevices == 1)) {
+            setActiveDevice(device);
         }
+        // When disconnected, ActiveDeviceManager will call setActiveDevice(null)
 
         // Check if the device is disconnected - if unbond, remove the state machine
         if (toState == BluetoothProfile.STATE_DISCONNECTED) {
@@ -1465,11 +1434,6 @@ public class A2dpService extends ProfileService {
             A2dpService service = getServiceAndEnforceConnect(source);
             if (service == null) {
                 return false;
-            }
-            if (Flags.audioRoutingCentralization()) {
-                return ((AudioRoutingManager) service.getActiveDeviceManager())
-                        .activateDeviceProfile(device, BluetoothProfile.A2DP)
-                        .join();
             }
 
             if (device == null) {
@@ -1682,27 +1646,25 @@ public class A2dpService extends ProfileService {
     @Override
     public void dump(StringBuilder sb) {
         super.dump(sb);
-        ProfileService.println(sb, "mActiveDevice: " + mActiveDevice);
+        synchronized (mStateMachines) {
+            ProfileService.println(sb, "mActiveDevice: " + mActiveDevice);
+        }
         ProfileService.println(sb, "mMaxConnectedAudioDevices: " + mMaxConnectedAudioDevices);
-        if (mA2dpCodecConfig != null) {
-            ProfileService.println(sb, "codecConfigPriorities:");
-            for (BluetoothCodecConfig codecConfig : mA2dpCodecConfig.codecConfigPriorities()) {
-                ProfileService.println(
-                        sb,
-                        "  "
-                                + BluetoothCodecConfig.getCodecName(codecConfig.getCodecType())
-                                + ": "
-                                + codecConfig.getCodecPriority());
+        ProfileService.println(sb, "codecConfigPriorities:");
+        for (BluetoothCodecConfig codecConfig : mA2dpCodecConfig.codecConfigPriorities()) {
+            ProfileService.println(
+                    sb,
+                    "  "
+                            + BluetoothCodecConfig.getCodecName(codecConfig.getCodecType())
+                            + ": "
+                            + codecConfig.getCodecPriority());
+        }
+        ProfileService.println(sb, "mA2dpOffloadEnabled: " + mA2dpOffloadEnabled);
+        if (mA2dpOffloadEnabled) {
+            ProfileService.println(sb, "codecConfigOffloading:");
+            for (BluetoothCodecConfig codecConfig : mA2dpCodecConfig.codecConfigOffloading()) {
+                ProfileService.println(sb, "  " + codecConfig);
             }
-            ProfileService.println(sb, "mA2dpOffloadEnabled: " + mA2dpOffloadEnabled);
-            if (mA2dpOffloadEnabled) {
-                ProfileService.println(sb, "codecConfigOffloading:");
-                for (BluetoothCodecConfig codecConfig : mA2dpCodecConfig.codecConfigOffloading()) {
-                    ProfileService.println(sb, "  " + codecConfig);
-                }
-            }
-        } else {
-            ProfileService.println(sb, "mA2dpCodecConfig: null");
         }
         for (A2dpStateMachine sm : mStateMachines.values()) {
             sm.dump(sb);

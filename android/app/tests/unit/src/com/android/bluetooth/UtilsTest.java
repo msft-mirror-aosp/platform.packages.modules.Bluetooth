@@ -64,10 +64,14 @@ public class UtilsTest {
     @Rule public Expect expect = Expect.create();
 
     @Test
-    public void byteArrayToShort() {
-        byte[] valueBuf = new byte[] {0x01, 0x02};
-        short s = Utils.byteArrayToShort(valueBuf);
-        assertThat(s).isEqualTo(0x0201);
+    public void byteArrayToLong() {
+        byte[] valueBuf =
+                new byte[] {
+                    (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
+                    (byte) 0x05, (byte) 0x06, (byte) 0x07, (byte) 0x08
+                };
+        long s = Utils.byteArrayToLong(valueBuf);
+        assertThat(s).isEqualTo(0x0807060504030201L);
     }
 
     @Test
@@ -127,10 +131,13 @@ public class UtilsTest {
         boolean enabledStatus = locationManager.isLocationEnabledForUser(userHandle);
 
         locationManager.setLocationEnabledForUser(false, userHandle);
-        assertThat(Utils.checkCallerHasCoarseLocation(context, null, userHandle)).isFalse();
+        assertThat(
+                        Utils.checkCallerHasCoarseLocation(
+                                context, context.getAttributionSource(), userHandle))
+                .isFalse();
 
         locationManager.setLocationEnabledForUser(true, userHandle);
-        Utils.checkCallerHasCoarseLocation(context, null, userHandle);
+        Utils.checkCallerHasCoarseLocation(context, context.getAttributionSource(), userHandle);
         if (!enabledStatus) {
             locationManager.setLocationEnabledForUser(false, userHandle);
         }
@@ -144,10 +151,14 @@ public class UtilsTest {
         boolean enabledStatus = locationManager.isLocationEnabledForUser(userHandle);
 
         locationManager.setLocationEnabledForUser(false, userHandle);
-        assertThat(Utils.checkCallerHasCoarseOrFineLocation(context, null, userHandle)).isFalse();
+        assertThat(
+                        Utils.checkCallerHasCoarseOrFineLocation(
+                                context, context.getAttributionSource(), userHandle))
+                .isFalse();
 
         locationManager.setLocationEnabledForUser(true, userHandle);
-        Utils.checkCallerHasCoarseOrFineLocation(context, null, userHandle);
+        Utils.checkCallerHasCoarseOrFineLocation(
+                context, context.getAttributionSource(), userHandle);
         if (!enabledStatus) {
             locationManager.setLocationEnabledForUser(false, userHandle);
         }
@@ -184,67 +195,6 @@ public class UtilsTest {
         Utils.checkCallerIsSystemOrActiveOrManagedUser(context, tag);
         Utils.checkCallerIsSystemOrActiveOrManagedUser(null, tag);
         Utils.checkCallerIsSystemOrActiveUser(tag);
-    }
-
-    @Test
-    public void testCopyStream() throws Exception {
-        byte[] data = new byte[] {1, 2, 3, 4, 5, 6, 7, 8};
-        ByteArrayInputStream in = new ByteArrayInputStream(data);
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        int bufferSize = 4;
-
-        Utils.copyStream(in, out, bufferSize);
-
-        assertThat(out.toByteArray()).isEqualTo(data);
-    }
-
-    @Test
-    public void debugGetAdapterStateString() {
-        assertThat(Utils.debugGetAdapterStateString(BluetoothAdapter.STATE_OFF))
-                .isEqualTo("STATE_OFF");
-        assertThat(Utils.debugGetAdapterStateString(BluetoothAdapter.STATE_ON))
-                .isEqualTo("STATE_ON");
-        assertThat(Utils.debugGetAdapterStateString(BluetoothAdapter.STATE_TURNING_ON))
-                .isEqualTo("STATE_TURNING_ON");
-        assertThat(Utils.debugGetAdapterStateString(BluetoothAdapter.STATE_TURNING_OFF))
-                .isEqualTo("STATE_TURNING_OFF");
-        assertThat(Utils.debugGetAdapterStateString(-124)).isEqualTo("UNKNOWN");
-    }
-
-    @Test
-    public void ellipsize() {
-        if (!Build.TYPE.equals("user")) {
-            // Only ellipsize release builds
-            String input = "a_long_string";
-            assertThat(Utils.ellipsize(input)).isEqualTo(input);
-            return;
-        }
-
-        assertThat(Utils.ellipsize("ab")).isEqualTo("ab");
-        assertThat(Utils.ellipsize("abc")).isEqualTo("a⋯c");
-        assertThat(Utils.ellipsize(null)).isEqualTo(null);
-    }
-
-    @Test
-    public void safeCloseStream_inputStream_doesNotCrash() throws Exception {
-        InputStream is = mock(InputStream.class);
-        Utils.safeCloseStream(is);
-        verify(is).close();
-
-        Mockito.clearInvocations(is);
-        doThrow(new IOException()).when(is).close();
-        Utils.safeCloseStream(is);
-    }
-
-    @Test
-    public void safeCloseStream_outputStream_doesNotCrash() throws Exception {
-        OutputStream os = mock(OutputStream.class);
-        Utils.safeCloseStream(os);
-        verify(os).close();
-
-        Mockito.clearInvocations(os);
-        doThrow(new IOException()).when(os).close();
-        Utils.safeCloseStream(os);
     }
 
     @Test

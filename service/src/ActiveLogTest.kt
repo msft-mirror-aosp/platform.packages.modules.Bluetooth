@@ -42,8 +42,7 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 @kotlinx.coroutines.ExperimentalCoroutinesApi
 class ActiveLogTest {
-
-    @JvmField @Rule val testName = TestName()
+    @get:Rule val testName = TestName()
 
     @Before
     fun setUp() {

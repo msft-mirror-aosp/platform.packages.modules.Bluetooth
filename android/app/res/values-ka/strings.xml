@@ -32,7 +32,6 @@
     <string name="bt_enable_line2" msgid="1466367120348920892">"გსურთ Bluetooth-ის ახლა ჩართვა?"</string>
     <string name="bt_enable_cancel" msgid="6770180540581977614">"გაუქმება"</string>
     <string name="bt_enable_ok" msgid="4224374055813566166">"ჩართვა"</string>
-    <string name="incoming_file_confirm_title" msgid="938251186275547290">"ფაილის ტრანსფერი"</string>
     <string name="incoming_file_confirm_content" msgid="6573502088511901157">"გსურთ შემომავალი ფაილის მიღება?"</string>
     <string name="incoming_file_confirm_cancel" msgid="9205906062663982692">"უარყოფა"</string>
     <string name="incoming_file_confirm_ok" msgid="5046926299036238623">"მიღება"</string>
@@ -42,10 +41,8 @@
     <string name="incoming_file_confirm_Notification_content" msgid="2669135531488877921">"<xliff:g id="SENDER">%1$s</xliff:g> მზად არის შემდეგი ფაილის გასაგზავნად: <xliff:g id="FILE">%2$s</xliff:g>"</string>
     <string name="notification_receiving" msgid="8445265771083510696">"Bluetooth გაზიარება: <xliff:g id="FILE">%1$s</xliff:g> ფაილის მიღება"</string>
     <string name="notification_received" msgid="2330252358543000567">"Bluetooth გაზიარება: მიღებულია <xliff:g id="FILE">%1$s</xliff:g>"</string>
-    <string name="notification_received_fail" msgid="9059153354809379374">"Bluetooth გაზიარება: ფაილი <xliff:g id="FILE">%1$s</xliff:g> არ მიღებულა"</string>
     <string name="notification_sending" msgid="8269912843286868700">"Bluetooth გაზიარება: <xliff:g id="FILE">%1$s</xliff:g>-ის გაგზავნა"</string>
     <string name="notification_sent" msgid="2685202778935769332">"Bluetooth გაზიარება: გაიგზავნა <xliff:g id="FILE">%1$s</xliff:g>"</string>
-    <string name="notification_sent_complete" msgid="6293391081175517098">"დასრულდა 100%"</string>
     <string name="notification_sent_fail" msgid="7449832660578001579">"Bluetooth გაზიარება: ფაილი <xliff:g id="FILE">%1$s</xliff:g> არ გაიგზავნა"</string>
     <string name="download_title" msgid="6449408649671518102">"ფაილის ტრანსფერი"</string>
     <string name="download_line1" msgid="6449220145685308846">"გამგზავნი: „<xliff:g id="SENDER">%1$s</xliff:g>“"</string>
@@ -80,7 +77,6 @@
     <string name="enabling_progress_title" msgid="5262637688863903594">"გთხოვთ, მოითმინოთ..."</string>
     <string name="enabling_progress_content" msgid="685427201206684584">"Bluetooth-ის ჩართვა…"</string>
     <string name="bt_toast_1" msgid="8791691594887576215">"ფაილი მიღებული იქნება. შეამოწმეთ პროგრესი შეტყობინებების დაფაზე."</string>
-    <string name="bt_toast_2" msgid="2041575937953174042">"ფაილის მიღება ვერ ხერხდება."</string>
     <string name="bt_toast_3" msgid="3053157171297761920">"„<xliff:g id="SENDER">%1$s</xliff:g>“-დან ფაილის მიღება შეჩერდა"</string>
     <string name="bt_toast_4" msgid="480365991944956695">"„<xliff:g id="RECIPIENT">%1$s</xliff:g>“-თან ფაილის გაგზავნა"</string>
     <string name="bt_toast_5" msgid="4818264207982268297">"<xliff:g id="NUMBER">%1$s</xliff:g> ფაილის „<xliff:g id="RECIPIENT">%2$s</xliff:g>“-თან გაგზავნა"</string>
@@ -117,14 +113,7 @@
     <string name="transfer_menu_clear" msgid="7213491281898188730">"სიიდან ამოშლა"</string>
     <string name="transfer_clear_dlg_title" msgid="128904516163257225">"ამოშლა"</string>
     <string name="bluetooth_a2dp_sink_queue_name" msgid="7521243473328258997">"რა უკრავს"</string>
-    <string name="bluetooth_map_settings_save" msgid="8309113239113961550">"შენახვა"</string>
-    <string name="bluetooth_map_settings_cancel" msgid="3374494364625947793">"გაუქმება"</string>
-    <string name="bluetooth_map_settings_intro" msgid="4748160773998753325">"აირჩიეთ ანგარიშები, რომელთა გაზიარებაც Bluetooth-ის მეშვეობით გსურთ. დაკავშირებისას ანგარიშებზე წვდომის დადასტურება მაინც მოგიწევთ."</string>
-    <string name="bluetooth_map_settings_count" msgid="183013143617807702">"დარჩენილი სლოტი:"</string>
     <string name="bluetooth_map_settings_app_icon" msgid="3501432663809664982">"აპლიკაციის ხატულა"</string>
-    <string name="bluetooth_map_settings_title" msgid="4226030082708590023">"Bluetooth შეტყობინების გაზიარების პარამეტრები"</string>
-    <string name="bluetooth_map_settings_no_account_slots_left" msgid="755024228476065757">"ანგარიშის არჩევა ვერ ხერხდება. დარჩენილია 0 სლოტი"</string>
-    <string name="bluetooth_connected" msgid="5687474377090799447">"Bluetooth აუდიო დაკავშირებულია"</string>
     <string name="bluetooth_disconnected" msgid="6841396291728343534">"Bluetooth აუდიო გათიშულია"</string>
     <string name="a2dp_sink_mbs_label" msgid="6035366346569127155">"Bluetooth აუდიო"</string>
     <string name="bluetooth_opp_file_limit_exceeded" msgid="6612109860149473930">"4 გბაიტზე დიდი მოცულობის ფაილების გადატანა ვერ მოხერხდება"</string>
@@ -135,8 +124,7 @@
     <string name="bluetooth_stays_on_message" msgid="3669663452593157737">"თქვენს მოწყობილობას ახსოვს, რომ Bluetooth ჩართული დატოვოს თვითმფრინავის რეჟიმში. გამორთეთ Bluetooth, თუ არ გსურთ, რომ ის ჩართული იყოს."</string>
     <string name="bluetooth_and_wifi_stays_on_title" msgid="5821932798860821244">"Wi-Fi და Bluetooth ჩართული დარჩება"</string>
     <string name="bluetooth_and_wifi_stays_on_message" msgid="7848565203843882558">"თქვენს მოწყობილობას ახსოვს, რომ Wi‑Fi და Bluetooth ჩართული დატოვოს თვითმფრინავის რეჟიმში. გამორთეთ Wi-Fi და Bluetooth, თუ არ გსურთ, რომ ისინი ჩართული იყოს."</string>
-    <string name="bluetooth_enabled_auto_on_title" msgid="1799541656310353393">"Bluetooth ჩართულია ავტომატურად"</string>
-    <string name="bluetooth_enabled_auto_on_message" msgid="1070556457440100730">"ავტომატური გადატვირთვის გადართვა შესაძლებელია Bluetooth-ის პარამეტრებიდან."</string>
-    <string name="bluetooth_disable_auto_on" msgid="1085026923461565937">"გამორთვა"</string>
+    <string name="bluetooth_enabled_auto_on_title" msgid="8983664142805050578">"Bluetooth ისევ ჩაირთო"</string>
+    <string name="bluetooth_enabled_auto_on_message" msgid="2790514825041114851">"ამის შეცვლა ნებისმიერ დროს შეგიძლიათ პარამეტრებში"</string>
     <string name="bluetooth_notification_group" msgid="7251886707585872194">"Bluetooth-ის მდგომარეობის ავტომატური შეცვლა"</string>
 </resources>

@@ -160,9 +160,9 @@ class TestLeAddressManager : public LeAddressManager {
 public:
   TestLeAddressManager(common::Callback<void(std::unique_ptr<CommandBuilder>)> enqueue_command,
                        os::Handler* handler, Address public_address, uint8_t accept_list_size,
-                       uint8_t resolving_list_size)
+                       uint8_t resolving_list_size, Controller* controller)
       : LeAddressManager(enqueue_command, handler, public_address, accept_list_size,
-                         resolving_list_size) {}
+                         resolving_list_size, controller) {}
 
   AddressPolicy Register(LeAddressManagerCallback* callback) override {
     client_ = callback;
@@ -202,9 +202,10 @@ protected:
     thread_ = new os::Thread("thread", os::Thread::Priority::NORMAL);
     handler_ = new os::Handler(thread_);
     Address address({0x01, 0x02, 0x03, 0x04, 0x05, 0x06});
+    test_controller_ = new TestController;
     test_le_address_manager_ = new TestLeAddressManager(
             common::Bind(&TestAclManager::enqueue_command, common::Unretained(this)), handler_,
-            address, 0x3F, 0x3F);
+            address, 0x3F, 0x3F, test_controller_);
   }
 
   void Stop() override {
@@ -223,6 +224,7 @@ protected:
 private:
   os::Thread* thread_;
   os::Handler* handler_;
+  TestController* test_controller_ = nullptr;
   TestLeAddressManager* test_le_address_manager_;
 };
 
@@ -826,6 +828,11 @@ TEST_F(LeScanningManagerExtendedTest, on_pause_on_resume_test) {
 
   // Ensure scan is resumed (enabled)
   test_le_address_manager->client_->OnResume();
+  if (com::android::bluetooth::flags::configure_scan_on_resume()) {
+    ASSERT_EQ(OpCode::LE_SET_EXTENDED_SCAN_PARAMETERS, test_hci_layer_->GetCommand().GetOpCode());
+    test_hci_layer_->IncomingEvent(
+            LeSetExtendedScanParametersCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
+  }
   ASSERT_EQ(OpCode::LE_SET_EXTENDED_SCAN_ENABLE, test_hci_layer_->GetCommand().GetOpCode());
   test_hci_layer_->IncomingEvent(
           LeSetExtendedScanEnableCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));

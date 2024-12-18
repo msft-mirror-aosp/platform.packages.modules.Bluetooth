@@ -27,14 +27,19 @@
 #include <bluetooth/log.h>
 #include <string.h>
 
+#include <cstdint>
+
 #include "bnep_int.h"
 #include "bta/include/bta_sec_api.h"
 #include "internal_include/bt_target.h"
-#include "os/log.h"
+#include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
+#include "osi/include/fixed_queue.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_psm_types.h"
+#include "stack/include/l2cap_interface.h"
 #include "types/bluetooth/uuid.h"
+#include "types/bt_transport.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth;
@@ -112,7 +117,7 @@ void BNEP_Deregister(void) {
   bnep_cb.p_mfilter_ind_cb = NULL;
 
   bnep_cb.profile_registered = false;
-  L2CA_Deregister(BT_PSM_BNEP);
+  stack::l2cap::get_interface().L2CA_Deregister(BT_PSM_BNEP);
 }
 
 /*******************************************************************************
@@ -175,8 +180,8 @@ tBNEP_RESULT BNEP_Connect(const RawAddress& p_rem_bda, const Uuid& src_uuid, con
      */
     p_bcb->con_state = BNEP_STATE_CONN_START;
 
-    cid = L2CA_ConnectReqWithSecurity(BT_PSM_BNEP, p_bcb->rem_bda,
-                                      BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT);
+    cid = stack::l2cap::get_interface().L2CA_ConnectReqWithSecurity(
+            BT_PSM_BNEP, p_bcb->rem_bda, BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT);
     if (cid != 0) {
       p_bcb->l2cap_cid = cid;
 
@@ -308,7 +313,7 @@ tBNEP_RESULT BNEP_Disconnect(uint16_t handle) {
 
   log::verbose("BNEP_Disconnect()  for handle {}", handle);
 
-  if (!L2CA_DisconnectReq(p_bcb->l2cap_cid)) {
+  if (!stack::l2cap::get_interface().L2CA_DisconnectReq(p_bcb->l2cap_cid)) {
     log::warn("Unable to send L2CAP disconnect request peer:{} cid:{}", p_bcb->rem_bda,
               p_bcb->l2cap_cid);
   }
@@ -389,7 +394,6 @@ tBNEP_RESULT BNEP_WriteBuf(uint16_t handle, const RawAddress& dest_addr, BT_HDR*
           osi_free(p_buf);
           return BNEP_IGNORE_CMD;
         }
-
       } while (ext & 0x80);
 
       if (protocol != BNEP_802_1_P_PROTOCOL) {
@@ -494,7 +498,6 @@ tBNEP_RESULT BNEP_Write(uint16_t handle, const RawAddress& dest_addr, uint8_t* p
         if (new_len > org_len) {
           return BNEP_IGNORE_CMD;
         }
-
       } while (ext & 0x80);
 
       if (protocol != BNEP_802_1_P_PROTOCOL) {

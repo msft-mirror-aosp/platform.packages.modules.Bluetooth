@@ -49,8 +49,7 @@ inline std::string btm_ble_sec_req_act_text(const tBTM_BLE_SEC_REQ_ACT& action) 
 void btm_ble_link_sec_check(const RawAddress& bd_addr, tBTM_LE_AUTH_REQ auth_req,
                             tBTM_BLE_SEC_REQ_ACT* p_sec_req_act);
 void btm_ble_ltk_request_reply(const RawAddress& bda, bool use_stk, const Octet16& stk);
-tBTM_STATUS btm_proc_smp_cback(tSMP_EVT event, const RawAddress& bd_addr,
-                               const tSMP_EVT_DATA* p_data);
+tBTM_STATUS btm_proc_smp_cback(tSMP_EVT event, const RawAddress& bd_addr, tSMP_EVT_DATA* p_data);
 tBTM_STATUS btm_ble_set_encryption(const RawAddress& bd_addr, tBTM_BLE_SEC_ACT sec_act,
                                    uint8_t link_role);
 tBTM_STATUS btm_ble_start_encrypt(const RawAddress& bda, bool use_stk, Octet16* p_stk);
@@ -69,8 +68,8 @@ uint8_t btm_ble_read_sec_key_size(const RawAddress& bd_addr);
 tBTM_STATUS btm_ble_start_sec_check(const RawAddress& bd_addr, uint16_t psm, bool is_originator,
                                     tBTM_SEC_CALLBACK* p_callback, void* p_ref_data);
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tBTM_BLE_SEC_REQ_ACT>
     : string_formatter<tBTM_BLE_SEC_REQ_ACT, &btm_ble_sec_req_act_text> {};
-}  // namespace fmt
+}  // namespace std

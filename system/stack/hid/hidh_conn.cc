@@ -23,18 +23,22 @@
  ******************************************************************************/
 
 #include <base/functional/callback.h>
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 #include <frameworks/proto_logging/stats/enums/bluetooth/enums.pb.h>
 #include <string.h>
 
+#include <cstdint>
+
 #include "bta/include/bta_sec_api.h"
+#include "hci_error_code.h"
+#include "hid_conn.h"
 #include "hiddefs.h"
 #include "hidh_api.h"
 #include "hidh_int.h"
 #include "internal_include/bt_target.h"
-#include "l2c_api.h"
+#include "l2cap_types.h"
 #include "l2cdefs.h"
+#include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
 #include "osi/include/osi.h"
 #include "stack/include/acl_api.h"
@@ -42,7 +46,9 @@
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_log_history.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/stack_metrics_logging.h"
+#include "types/bt_transport.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth;
@@ -60,7 +66,7 @@ static void hidh_conn_retry(uint8_t dhandle);
 /******************************************************************************/
 static void hidh_l2cif_connect_ind(const RawAddress& bd_addr, uint16_t l2cap_cid, uint16_t psm,
                                    uint8_t l2cap_id);
-static void hidh_l2cif_connect_cfm(uint16_t l2cap_cid, uint16_t result);
+static void hidh_l2cif_connect_cfm(uint16_t l2cap_cid, tL2CAP_CONN result);
 static void hidh_l2cif_config_ind(uint16_t l2cap_cid, tL2CAP_CFG_INFO* p_cfg);
 static void hidh_l2cif_config_cfm(uint16_t l2cap_cid, uint16_t result, tL2CAP_CFG_INFO* p_cfg);
 static void hidh_l2cif_disconnect_ind(uint16_t l2cap_cid, bool ack_needed);
@@ -105,17 +111,19 @@ tHID_STATUS hidh_conn_reg(void) {
   hh_cb.l2cap_cfg.mtu = HID_HOST_MTU;
 
   /* Now, register with L2CAP */
-  if (!L2CA_RegisterWithSecurity(HID_PSM_CONTROL, hst_reg_info, false /* enable_snoop */, nullptr,
-                                 HID_HOST_MTU, 0, BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT)) {
+  if (!stack::l2cap::get_interface().L2CA_RegisterWithSecurity(
+              HID_PSM_CONTROL, hst_reg_info, false /* enable_snoop */, nullptr, HID_HOST_MTU, 0,
+              BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT)) {
     log::error("HID-Host Control Registration failed");
     log_counter_metrics(
             android::bluetooth::CodePathCounterKeyEnum::HIDH_ERR_L2CAP_FAILED_AT_REGISTER_CONTROL,
             1);
     return HID_ERR_L2CAP_FAILED;
   }
-  if (!L2CA_RegisterWithSecurity(HID_PSM_INTERRUPT, hst_reg_info, false /* enable_snoop */, nullptr,
-                                 HID_HOST_MTU, 0, BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT)) {
-    L2CA_Deregister(HID_PSM_CONTROL);
+  if (!stack::l2cap::get_interface().L2CA_RegisterWithSecurity(
+              HID_PSM_INTERRUPT, hst_reg_info, false /* enable_snoop */, nullptr, HID_HOST_MTU, 0,
+              BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT)) {
+    stack::l2cap::get_interface().L2CA_Deregister(HID_PSM_CONTROL);
     log::error("HID-Host Interrupt Registration failed");
     log_counter_metrics(
             android::bluetooth::CodePathCounterKeyEnum::HIDH_ERR_L2CAP_FAILED_AT_REGISTER_INTERRUPT,
@@ -148,7 +156,8 @@ tHID_STATUS hidh_conn_disconnect(uint8_t dhandle) {
 
     /* Set l2cap idle timeout to 0 (so ACL link is disconnected
      * immediately after last channel is closed) */
-    if (!L2CA_SetIdleTimeoutByBdAddr(hh_cb.devices[dhandle].addr, 0, BT_TRANSPORT_BR_EDR)) {
+    if (!stack::l2cap::get_interface().L2CA_SetIdleTimeoutByBdAddr(hh_cb.devices[dhandle].addr, 0,
+                                                                   BT_TRANSPORT_BR_EDR)) {
       log::warn("Unable to set L2CAP idle timeout peer:{}", hh_cb.devices[dhandle].addr);
     }
     /* Disconnect both interrupt and control channels */
@@ -185,7 +194,7 @@ static void hidh_l2cif_connect_ind(const RawAddress& bd_addr, uint16_t l2cap_cid
 
   /* always add incoming connection device into HID database by default */
   if (HID_HostAddDev(bd_addr, HID_SEC_REQUIRED, &i) != HID_SUCCESS) {
-    if (!L2CA_DisconnectReq(l2cap_cid)) {
+    if (!stack::l2cap::get_interface().L2CA_DisconnectReq(l2cap_cid)) {
       log::warn("Unable to send L2CAP disconnect request peer:{} cid:{}", bd_addr, l2cap_cid);
     }
     return;
@@ -193,10 +202,9 @@ static void hidh_l2cif_connect_ind(const RawAddress& bd_addr, uint16_t l2cap_cid
 
   tHID_CONN* p_hcon = &hh_cb.devices[i].conn;
 
-  BTM_LogHistory(
-          kBtmLogTag, hh_cb.devices[i].addr, "Connect request",
-          base::StringPrintf("%s state:%s", (psm == HID_PSM_CONTROL) ? "control" : "interrupt",
-                             hid_conn::state_text(p_hcon->conn_state).c_str()));
+  BTM_LogHistory(kBtmLogTag, hh_cb.devices[i].addr, "Connect request",
+                 std::format("{} state:{}", (psm == HID_PSM_CONTROL) ? "control" : "interrupt",
+                             hid_conn::state_text(p_hcon->conn_state)));
 
   /* Check we are in the correct state for this */
   if (psm == HID_PSM_INTERRUPT) {
@@ -222,7 +230,7 @@ static void hidh_l2cif_connect_ind(const RawAddress& bd_addr, uint16_t l2cap_cid
   }
 
   if (!bAccept) {
-    if (!L2CA_DisconnectReq(l2cap_cid)) {
+    if (!stack::l2cap::get_interface().L2CA_DisconnectReq(l2cap_cid)) {
       log::warn("Unable to send L2CAP disconnect request peer:{} cid:{}", bd_addr, l2cap_cid);
     }
     return;
@@ -285,7 +293,7 @@ static void hidh_on_l2cap_error(uint16_t l2cap_cid, uint16_t result) {
 
   hidh_conn_disconnect(dhandle);
 
-  if (result != L2CAP_CFG_FAILED_NO_REASON) {
+  if (result != static_cast<uint16_t>(tL2CAP_CFG_RESULT::L2CAP_CFG_FAILED_NO_REASON)) {
 #if (HID_HOST_MAX_CONN_RETRY > 0)
     if ((hh_cb.devices[dhandle].conn_tries <= HID_HOST_MAX_CONN_RETRY) &&
         (result == HCI_ERR_CONNECTION_TOUT || result == HCI_ERR_UNSPECIFIED ||
@@ -314,7 +322,7 @@ static void hidh_on_l2cap_error(uint16_t l2cap_cid, uint16_t result) {
  * Returns          void
  *
  ******************************************************************************/
-static void hidh_l2cif_connect_cfm(uint16_t l2cap_cid, uint16_t result) {
+static void hidh_l2cif_connect_cfm(uint16_t l2cap_cid, tL2CAP_CONN result) {
   uint8_t dhandle;
   tHID_CONN* p_hcon = NULL;
 
@@ -333,7 +341,7 @@ static void hidh_l2cif_connect_cfm(uint16_t l2cap_cid, uint16_t result) {
     return;
   }
 
-  if (result != L2CAP_CONN_OK) {
+  if (result != tL2CAP_CONN::L2CAP_CONN_OK) {
     // TODO: We need to provide the real HCI status if we want to retry.
     log::error("invoked with non OK status");
     return;
@@ -350,10 +358,9 @@ static void hidh_l2cif_connect_cfm(uint16_t l2cap_cid, uint16_t result) {
   } else {
     p_hcon->conn_state = HID_CONN_STATE_CONFIG;
   }
-  BTM_LogHistory(
-          kBtmLogTag, hh_cb.devices[dhandle].addr, "Configuring",
-          base::StringPrintf("control:0x%04x interrupt:0x%04x state:%s", p_hcon->ctrl_cid,
-                             p_hcon->intr_cid, hid_conn::state_text(p_hcon->conn_state).c_str()));
+  BTM_LogHistory(kBtmLogTag, hh_cb.devices[dhandle].addr, "Configuring",
+                 std::format("control:0x{:04x} interrupt:0x{:04x} state:{}", p_hcon->ctrl_cid,
+                             p_hcon->intr_cid, hid_conn::state_text(p_hcon->conn_state)));
   return;
 }
 
@@ -430,8 +437,9 @@ static void hidh_l2cif_config_cfm(uint16_t l2cap_cid, uint16_t /* initiator */,
                                                     CLOSE_EVT: Connection
                                                     Attempt was made but failed
                                                     */
-      p_hcon->intr_cid = L2CA_ConnectReqWithSecurity(HID_PSM_INTERRUPT, hh_cb.devices[dhandle].addr,
-                                                     BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT);
+      p_hcon->intr_cid = stack::l2cap::get_interface().L2CA_ConnectReqWithSecurity(
+              HID_PSM_INTERRUPT, hh_cb.devices[dhandle].addr,
+              BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT);
       if (p_hcon->intr_cid == 0) {
         log::warn("HID-Host INTR Originate failed");
         reason = HID_L2CAP_REQ_FAIL;
@@ -458,10 +466,9 @@ static void hidh_l2cif_config_cfm(uint16_t l2cap_cid, uint16_t /* initiator */,
 
     hh_cb.devices[dhandle].state = HID_DEV_CONNECTED;
     hh_cb.callback(dhandle, hh_cb.devices[dhandle].addr, HID_HDEV_EVT_OPEN, 0, NULL);
-    BTM_LogHistory(
-            kBtmLogTag, hh_cb.devices[dhandle].addr, "Connected",
-            base::StringPrintf("control:0x%04x interrupt:0x%04x state:%s", p_hcon->ctrl_cid,
-                               p_hcon->intr_cid, hid_conn::state_text(p_hcon->conn_state).c_str()));
+    BTM_LogHistory(kBtmLogTag, hh_cb.devices[dhandle].addr, "Connected",
+                   std::format("control:0x{:04x} interrupt:0x{:04x} state:{}", p_hcon->ctrl_cid,
+                               p_hcon->intr_cid, hid_conn::state_text(p_hcon->conn_state)));
   }
 }
 
@@ -495,9 +502,9 @@ static void hidh_l2cif_disconnect_ind(uint16_t l2cap_cid, bool ack_needed) {
   log::verbose("HID-Host Rcvd L2CAP disc, CID: 0x{:x}", l2cap_cid);
 
   p_hcon->conn_state = HID_CONN_STATE_DISCONNECTING;
-  BTM_LogHistory(kBtmLogTag, hh_cb.devices[dhandle].addr, "Disconnecting",
-                 base::StringPrintf("%s channel",
-                                    (l2cap_cid == p_hcon->ctrl_cid) ? "control" : "interrupt"));
+  BTM_LogHistory(
+          kBtmLogTag, hh_cb.devices[dhandle].addr, "Disconnecting",
+          std::format("{} channel", (l2cap_cid == p_hcon->ctrl_cid) ? "control" : "interrupt"));
 
   if (l2cap_cid == p_hcon->ctrl_cid) {
     p_hcon->ctrl_cid = 0;
@@ -547,7 +554,7 @@ static void hidh_l2cif_disconnect_ind(uint16_t l2cap_cid, bool ack_needed) {
 }
 
 static void hidh_l2cif_disconnect(uint16_t l2cap_cid) {
-  if (!L2CA_DisconnectReq(l2cap_cid)) {
+  if (!stack::l2cap::get_interface().L2CA_DisconnectReq(l2cap_cid)) {
     log::warn("Unable to send L2CAP disconnect request cid:{}", l2cap_cid);
   }
 
@@ -565,7 +572,7 @@ static void hidh_l2cif_disconnect(uint16_t l2cap_cid) {
     p_hcon->intr_cid = 0;
     if (p_hcon->ctrl_cid) {
       log::verbose("HID-Host Initiating L2CAP Ctrl disconnection");
-      if (!L2CA_DisconnectReq(p_hcon->ctrl_cid)) {
+      if (!stack::l2cap::get_interface().L2CA_DisconnectReq(p_hcon->ctrl_cid)) {
         log::warn("Unable to send L2CAP disconnect request cid:{}", p_hcon->ctrl_cid);
       }
       p_hcon->ctrl_cid = 0;
@@ -817,7 +824,7 @@ tHID_STATUS hidh_conn_snd_data(uint8_t dhandle, uint8_t trans_type, uint8_t para
 
     /* Send the buffer through L2CAP */
     if ((p_hcon->conn_flags & HID_CONN_FLAGS_CONGESTED) ||
-        (L2CA_DataWrite(cid, p_buf) == tL2CAP_DW_RESULT::FAILED)) {
+        (stack::l2cap::get_interface().L2CA_DataWrite(cid, p_buf) == tL2CAP_DW_RESULT::FAILED)) {
       log_counter_metrics(
               android::bluetooth::CodePathCounterKeyEnum::HIDH_ERR_CONGESTED_AT_SEND_DATA, 1);
       return HID_ERR_CONGESTED;
@@ -829,7 +836,6 @@ tHID_STATUS hidh_conn_snd_data(uint8_t dhandle, uint8_t trans_type, uint8_t para
       trans_type = HID_TRANS_DATAC;
       blank_datc = true;
     }
-
   } while ((data_size != 0) || blank_datc);
 
   return HID_SUCCESS;
@@ -861,8 +867,8 @@ tHID_STATUS hidh_conn_initiate(uint8_t dhandle) {
   p_dev->conn.conn_flags = HID_CONN_FLAGS_IS_ORIG;
 
   /* Check if L2CAP started the connection process */
-  p_dev->conn.ctrl_cid = L2CA_ConnectReqWithSecurity(HID_PSM_CONTROL, p_dev->addr,
-                                                     BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT);
+  p_dev->conn.ctrl_cid = stack::l2cap::get_interface().L2CA_ConnectReqWithSecurity(
+          HID_PSM_CONTROL, p_dev->addr, BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT);
   if (p_dev->conn.ctrl_cid == 0) {
     log::warn("HID-Host Originate failed");
     hh_cb.callback(dhandle, hh_cb.devices[dhandle].addr, HID_HDEV_EVT_CLOSE, HID_ERR_L2CAP_FAILED,
@@ -904,8 +910,8 @@ static uint8_t find_conn_by_cid(uint16_t cid) {
 }
 
 void hidh_conn_dereg(void) {
-  L2CA_Deregister(HID_PSM_CONTROL);
-  L2CA_Deregister(HID_PSM_INTERRUPT);
+  stack::l2cap::get_interface().L2CA_Deregister(HID_PSM_CONTROL);
+  stack::l2cap::get_interface().L2CA_Deregister(HID_PSM_INTERRUPT);
 }
 
 /*******************************************************************************

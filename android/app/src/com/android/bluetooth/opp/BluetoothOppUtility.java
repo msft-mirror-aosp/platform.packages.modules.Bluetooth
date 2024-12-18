@@ -301,7 +301,7 @@ public class BluetoothOppUtility {
                     BluetoothProtoEnums.BLUETOOTH_OPP_UTILITY,
                     BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
                     4);
-            e.printStackTrace();
+            Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
         }
         return false;
     }

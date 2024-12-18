@@ -15,11 +15,18 @@
  * limitations under the License.
  */
 
+#include "stack/eatt/eatt.h"
+
 #include <bluetooth/log.h>
 
-#include "eatt_impl.h"
+#include <memory>
+#include <vector>
+
+#include "stack/eatt/eatt_impl.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_psm_types.h"
+#include "stack/include/l2cap_interface.h"
+#include "stack/include/l2cdefs.h"
 #include "types/raw_address.h"
 
 using bluetooth::eatt::eatt_impl;
@@ -35,7 +42,7 @@ struct EattExtension::impl {
     if (eatt_impl_) {
       log::error("Eatt already started");
       return;
-    };
+    }
 
     /* Register server for Eatt */
     memset(&reg_info_, 0, sizeof(reg_info_));
@@ -47,7 +54,8 @@ struct EattExtension::impl {
     reg_info_.pL2CA_DataInd_Cb = eatt_data_ind;
     reg_info_.pL2CA_CreditBasedCollisionInd_Cb = eatt_collision_ind;
 
-    if (L2CA_RegisterLECoc(BT_PSM_EATT, reg_info_, BTM_SEC_NONE, {}) == 0) {
+    if (stack::l2cap::get_interface().L2CA_RegisterLECoc(BT_PSM_EATT, reg_info_, BTM_SEC_NONE,
+                                                         {}) == 0) {
       log::error("cannot register EATT");
     } else {
       eatt_impl_ = std::make_unique<eatt_impl>();
@@ -60,7 +68,7 @@ struct EattExtension::impl {
       return;
     }
     eatt_impl_.reset(nullptr);
-    L2CA_DeregisterLECoc(BT_PSM_EATT);
+    stack::l2cap::get_interface().L2CA_DeregisterLECoc(BT_PSM_EATT);
   }
 
   bool IsRunning() { return eatt_impl_ ? true : false; }
@@ -79,7 +87,7 @@ struct EattExtension::impl {
   }
 
   static void eatt_connect_cfm(const RawAddress& bda, uint16_t lcid, uint16_t peer_mtu,
-                               uint16_t result) {
+                               tL2CAP_LE_RESULT_CODE result) {
     auto p_eatt_impl = GetImplInstance();
     if (p_eatt_impl) {
       p_eatt_impl->eatt_l2cap_connect_cfm(bda, lcid, peer_mtu, result);

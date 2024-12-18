@@ -21,6 +21,7 @@
 
 #include <cstdint>
 
+#include "stack/gap/gap_int.h"
 #include "stack/include/gap_api.h"
 #include "test/common/mock_functions.h"
 #include "types/raw_address.h"
@@ -30,6 +31,11 @@ bool GAP_BleCancelReadPeerDevName(const RawAddress& /* peer_bda */) {
   return false;
 }
 bool GAP_BleReadPeerDevName(const RawAddress& /* peer_bda */, tGAP_BLE_CMPL_CBACK* /* p_cback */) {
+  inc_func_call_count(__func__);
+  return false;
+}
+bool GAP_BleReadPeerAppearance(const RawAddress& /* peer_bda */,
+                               tGAP_BLE_CMPL_CBACK* /* p_cback */) {
   inc_func_call_count(__func__);
   return false;
 }

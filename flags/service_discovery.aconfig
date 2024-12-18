@@ -10,3 +10,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "separate_service_storage"
+    namespace: "bluetooth"
+    description: "Store LE and Classic services separately"
+    bug: "382015666"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

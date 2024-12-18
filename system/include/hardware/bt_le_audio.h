@@ -25,7 +25,7 @@
 #include <ostream>
 #include <vector>
 
-#include "raw_address.h"
+#include "types/raw_address.h"
 
 namespace bluetooth {
 namespace le_audio {
@@ -298,7 +298,6 @@ typedef struct btle_audio_codec_config {
            ", frame duration: " + frame_duration_str +
            ", octets per frame: " + octets_per_frame_str + ", codec priroty: " + codec_priority_str;
   }
-
 } btle_audio_codec_config_t;
 
 class LeAudioClientCallbacks {
@@ -407,6 +406,8 @@ enum class BroadcastState {
   STOPPED = 0,
   CONFIGURING,
   CONFIGURED,
+  ENABLING,
+  DISABLING,
   STOPPING,
   STREAMING,
 };
@@ -507,6 +508,8 @@ public:
   /* Callback for the broadcast metadata change. */
   virtual void OnBroadcastMetadataChanged(uint32_t broadcast_id,
                                           const BroadcastMetadata& broadcast_metadata) = 0;
+  /* Callback for broadcast audio session create event. */
+  virtual void OnBroadcastAudioSessionCreated(bool success) = 0;
 };
 
 class LeAudioBroadcasterInterface {
@@ -544,7 +547,7 @@ public:
 } /* namespace le_audio */
 } /* namespace bluetooth */
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bluetooth::le_audio::btle_audio_codec_index_t>
     : enum_formatter<bluetooth::le_audio::btle_audio_codec_index_t> {};
@@ -563,4 +566,4 @@ struct formatter<bluetooth::le_audio::btle_audio_frame_duration_index_t>
 template <>
 struct formatter<bluetooth::le_audio::GroupStreamStatus>
     : enum_formatter<bluetooth::le_audio::GroupStreamStatus> {};
-}  // namespace fmt
+}  // namespace std

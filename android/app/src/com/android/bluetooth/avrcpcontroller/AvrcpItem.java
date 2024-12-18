@@ -269,11 +269,10 @@ public class AvrcpItem {
             return true;
         }
 
-        if (!(o instanceof AvrcpItem)) {
+        if (!(o instanceof AvrcpItem other)) {
             return false;
         }
 
-        AvrcpItem other = ((AvrcpItem) o);
         return Objects.equals(mUuid, other.getUuid())
                 && Objects.equals(mDevice, other.getDevice())
                 && mUid == other.getUid()
@@ -291,6 +290,11 @@ public class AvrcpItem {
                 && mPlayable == other.isPlayable()
                 && mBrowsable == other.isBrowsable()
                 && Objects.equals(mImageUri, other.getCoverArtLocation());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(mUuid);
     }
 
     /** Builder for an AvrcpItem */

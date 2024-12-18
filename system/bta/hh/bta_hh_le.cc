@@ -22,15 +22,30 @@
 #include <base/functional/callback.h>
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
+#include <string.h>
 
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
+#include <list>
+#include <utility>
 #include <vector>
 
 #include "bta/hh/bta_hh_int.h"
 #include "bta/include/bta_gatt_queue.h"
 #include "bta/include/bta_hh_co.h"
 #include "bta/include/bta_le_audio_api.h"
+#include "bta_api.h"
+#include "bta_gatt_api.h"
+#include "bta_hh_api.h"
+#include "btm_ble_api_types.h"
+#include "btm_sec_api_types.h"
 #include "device/include/interop.h"
+#include "gatt/database.h"
+#include "gatt_api.h"
+#include "gattdefs.h"
+#include "hardware/bt_gatt_types.h"
+#include "hiddefs.h"
 #include "osi/include/allocator.h"
 #include "osi/include/osi.h"    // ARRAY_SIZE
 #include "stack/btm/btm_sec.h"  // BTM_
@@ -40,10 +55,12 @@
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_log_history.h"
 #include "stack/include/btm_status.h"
-#include "stack/include/l2c_api.h"  // L2CA_
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/main_thread.h"
 #include "stack/include/srvc_api.h"  // tDIS_VALUE
+#include "types/ble_address_with_type.h"
 #include "types/bluetooth/uuid.h"
+#include "types/bt_transport.h"
 #include "types/raw_address.h"
 
 using bluetooth::Uuid;
@@ -195,7 +212,7 @@ void bta_hh_le_enable(void) {
     bta_hh_cb.le_cb_index[xx] = BTA_HH_IDX_INVALID;
   }
 
-  BTA_GATTC_AppRegister(bta_hh_gattc_callback, base::Bind([](uint8_t client_id, uint8_t r_status) {
+  BTA_GATTC_AppRegister(bta_hh_gattc_callback, base::Bind([](tGATT_IF client_id, uint8_t r_status) {
                           tBTA_HH bta_hh;
                           bta_hh.status = BTA_HH_ERR;
 
@@ -284,7 +301,7 @@ void bta_hh_le_open_conn(tBTA_HH_DEV_CB* p_cb) {
  *                  ID.
  *
  ******************************************************************************/
-static tBTA_HH_DEV_CB* bta_hh_le_find_dev_cb_by_conn_id(uint16_t conn_id) {
+static tBTA_HH_DEV_CB* bta_hh_le_find_dev_cb_by_conn_id(tCONN_ID conn_id) {
   for (uint8_t i = 0; i < BTA_HH_MAX_DEVICE; i++) {
     tBTA_HH_DEV_CB* p_dev_cb = &bta_hh_cb.kdev[i];
     if (p_dev_cb->in_use && p_dev_cb->conn_id == conn_id) {
@@ -454,7 +471,7 @@ tBTA_HH_LE_RPT* bta_hh_le_find_alloc_report_entry(tBTA_HH_DEV_CB* p_cb, uint8_t 
   return NULL;
 }
 
-static const gatt::Descriptor* find_descriptor_by_short_uuid(uint16_t conn_id, uint16_t char_handle,
+static const gatt::Descriptor* find_descriptor_by_short_uuid(tCONN_ID conn_id, uint16_t char_handle,
                                                              uint16_t short_uuid) {
   const gatt::Characteristic* p_char = BTA_GATTC_GetCharacteristic(conn_id, char_handle);
 
@@ -542,18 +559,16 @@ static void bta_hh_le_register_input_notif(tBTA_HH_DEV_CB* p_dev_cb, uint8_t pro
       if (register_ba && p_rpt->uuid == GATT_UUID_BATTERY_LEVEL) {
         BTA_GATTC_RegisterForNotifications(bta_hh_cb.gatt_if, p_dev_cb->link_spec.addrt.bda,
                                            p_rpt->char_inst_id);
-      }
-      /* boot mode, deregister report input notification */
-      else if (proto_mode == BTA_HH_PROTO_BOOT_MODE) {
+      } else if (proto_mode == BTA_HH_PROTO_BOOT_MODE) {
+        /* boot mode, deregister report input notification */
         if (p_rpt->uuid == GATT_UUID_HID_REPORT &&
             p_rpt->client_cfg_value == GATT_CLT_CONFIG_NOTIFICATION) {
           log::verbose("---> Deregister Report ID:{}", p_rpt->rpt_id);
           BTA_GATTC_DeregisterForNotifications(bta_hh_cb.gatt_if, p_dev_cb->link_spec.addrt.bda,
                                                p_rpt->char_inst_id);
-        }
-        /* register boot reports notification */
-        else if (p_rpt->uuid == GATT_UUID_HID_BT_KB_INPUT ||
-                 p_rpt->uuid == GATT_UUID_HID_BT_MOUSE_INPUT) {
+        } else if (p_rpt->uuid == GATT_UUID_HID_BT_KB_INPUT ||
+                   /* register boot reports notification */
+                   p_rpt->uuid == GATT_UUID_HID_BT_MOUSE_INPUT) {
           log::verbose("<--- Register Boot Report ID:{}", p_rpt->rpt_id);
           BTA_GATTC_RegisterForNotifications(bta_hh_cb.gatt_if, p_dev_cb->link_spec.addrt.bda,
                                              p_rpt->char_inst_id);
@@ -619,6 +634,13 @@ static void bta_hh_le_open_cmpl(tBTA_HH_DEV_CB* p_cb) {
     bta_hh_le_register_input_notif(p_cb, p_cb->mode, true);
     bta_hh_sm_execute(p_cb, BTA_HH_OPEN_CMPL_EVT, NULL);
 
+    // Some HOGP devices requires MTU exchange be part of the initial setup to function. The size of
+    // the requested MTU does not matter as long as the procedure is triggered.
+    if (interop_match_vendor_product_ids(INTEROP_HOGP_FORCE_MTU_EXCHANGE, p_cb->dscp_info.vendor_id,
+                                         p_cb->dscp_info.product_id)) {
+      BTA_GATTC_ConfigureMTU(p_cb->conn_id, GATT_MAX_MTU_SIZE);
+    }
+
     if (!com::android::bluetooth::flags::prevent_hogp_reconnect_when_connected()) {
       if (kBTA_HH_LE_RECONN && p_cb->status == BTA_HH_OK) {
         bta_hh_le_add_dev_bg_conn(p_cb);
@@ -655,8 +677,8 @@ static bool bta_hh_le_write_ccc(tBTA_HH_DEV_CB* p_cb, uint16_t char_handle, uint
 
 static bool bta_hh_le_write_rpt_clt_cfg(tBTA_HH_DEV_CB* p_cb);
 
-static void write_rpt_clt_cfg_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
-                                 uint16_t len, const uint8_t* value, void* data) {
+static void write_rpt_clt_cfg_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
+                                 uint16_t /*len*/, const uint8_t* /*value*/, void* data) {
   tBTA_HH_DEV_CB* p_dev_cb = (tBTA_HH_DEV_CB*)data;
   const gatt::Characteristic* characteristic = BTA_GATTC_GetOwningCharacteristic(conn_id, handle);
   if (characteristic == nullptr) {
@@ -756,8 +778,8 @@ void bta_hh_le_service_parsed(tBTA_HH_DEV_CB* p_dev_cb, tGATT_STATUS status) {
   }
 }
 
-static void write_proto_mode_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
-                                uint16_t len, const uint8_t* value, void* data) {
+static void write_proto_mode_cb(tCONN_ID /*conn_id*/, tGATT_STATUS status, uint16_t /*handle*/,
+                                uint16_t /*len*/, const uint8_t* /*value*/, void* data) {
   tBTA_HH_DEV_CB* p_dev_cb = (tBTA_HH_DEV_CB*)data;
   bta_hh_le_service_parsed(p_dev_cb, status);
 }
@@ -813,7 +835,7 @@ static bool bta_hh_le_set_protocol_mode(tBTA_HH_DEV_CB* p_cb, tBTA_HH_PROTO_MODE
  *                  application with the protocol mode.
  *
  ******************************************************************************/
-static void get_protocol_mode_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
+static void get_protocol_mode_cb(tCONN_ID /*conn_id*/, tGATT_STATUS status, uint16_t /*handle*/,
                                  uint16_t len, uint8_t* value, void* data) {
   tBTA_HH_DEV_CB* p_dev_cb = (tBTA_HH_DEV_CB*)data;
   tBTA_HH_HSDATA hs_data;
@@ -911,6 +933,14 @@ static void bta_hh_le_dis_cback(const RawAddress& addr, tDIS_VALUE* p_dis_value)
     p_cb->dscp_info.vendor_id = p_dis_value->pnp_id.vendor_id;
     p_cb->dscp_info.version = p_dis_value->pnp_id.product_version;
   }
+
+  /* TODO(b/367910199): un-serialize once multiservice HoGP is implemented */
+  if (com::android::bluetooth::flags::serialize_hogp_and_dis()) {
+    Uuid pri_srvc = Uuid::From16Bit(UUID_SERVCLASS_LE_HID);
+    BTA_GATTC_ServiceSearchRequest(p_cb->conn_id, pri_srvc);
+    return;
+  }
+
   bta_hh_le_open_cmpl(p_cb);
 }
 
@@ -933,6 +963,12 @@ static void bta_hh_le_pri_service_discovery(tBTA_HH_DEV_CB* p_cb) {
   if (!DIS_ReadDISInfo(p_cb->link_spec.addrt.bda, bta_hh_le_dis_cback, DIS_ATTR_PNP_ID_BIT)) {
     log::error("read DIS failed");
     p_cb->disc_active &= ~BTA_HH_LE_DISC_DIS;
+  } else {
+    /* TODO(b/367910199): un-serialize once multiservice HoGP is implemented */
+    if (com::android::bluetooth::flags::serialize_hogp_and_dis()) {
+      log::debug("Waiting for DIS result before starting HoGP service discovery");
+      return;
+    }
   }
 
   /* in parallel */
@@ -1005,9 +1041,8 @@ void bta_hh_security_cmpl(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* /* p_buf */)
       if (!bta_hh_le_set_protocol_mode(p_cb, p_cb->mode)) {
         bta_hh_le_open_cmpl(p_cb);
       }
-    }
-    /* start primary service discovery for HID service */
-    else {
+    } else {
+      /* start primary service discovery for HID service */
       log::verbose("Starting service discovery");
       bta_hh_le_pri_service_discovery(p_cb);
     }
@@ -1082,9 +1117,8 @@ void bta_hh_start_security(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* /* p_buf */
     log::debug("addr:{} already encrypted", p_cb->link_spec.addrt.bda);
     p_cb->status = BTA_HH_OK;
     bta_hh_sm_execute(p_cb, BTA_HH_ENC_CMPL_EVT, NULL);
-  }
-  /* if bonded and link not encrypted */
-  else if (BTM_IsLinkKeyKnown(p_cb->link_spec.addrt.bda, BT_TRANSPORT_LE)) {
+  } else if (BTM_IsLinkKeyKnown(p_cb->link_spec.addrt.bda, BT_TRANSPORT_LE)) {
+    /* if bonded and link not encrypted */
     log::debug("addr:{} bonded, not encrypted", p_cb->link_spec.addrt.bda);
     p_cb->status = BTA_HH_ERR_AUTH_FAILED;
     BTM_SetEncryption(p_cb->link_spec.addrt.bda, BT_TRANSPORT_LE, bta_hh_le_encrypt_cback, NULL,
@@ -1224,8 +1258,8 @@ static void bta_hh_le_gatt_disc_cmpl(tBTA_HH_DEV_CB* p_cb, tBTA_HH_STATUS status
   }
 }
 
-static void read_hid_info_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-                             uint8_t* value, void* data) {
+static void read_hid_info_cb(tCONN_ID /*conn_id*/, tGATT_STATUS status, uint16_t /*handle*/,
+                             uint16_t len, uint8_t* value, void* data) {
   if (status != GATT_SUCCESS) {
     log::error("error:{}", status);
     return;
@@ -1244,22 +1278,49 @@ static void read_hid_info_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t han
   STREAM_TO_UINT8(p_dev_cb->dscp_info.flag, pp);
 }
 
+static void get_iop_device_rpt_map(tBTA_HH_LE_HID_SRVC* p_srvc, uint16_t* len, uint8_t* desc) {
+  static const uint8_t residual_report_map[] = {
+          0x31, 0x81, 0x02, 0xC0, 0x05, 0x0D, 0x09, 0x54, 0x25, 0x05, 0x75, 0x07, 0x95, 0x01,
+          0x81, 0x02, 0x05, 0x01, 0x05, 0x09, 0x19, 0x01, 0x29, 0x01, 0x15, 0x00, 0x25, 0x01,
+          0x75, 0x01, 0x95, 0x01, 0x81, 0x02, 0x05, 0x0D, 0x55, 0x0C, 0x66, 0x01, 0x10, 0x47,
+          0xFF, 0xFF, 0x00, 0x00, 0x27, 0xFF, 0xFF, 0x00, 0x00, 0x75, 0x10, 0x95, 0x01, 0x09,
+          0x56, 0x81, 0x02, 0x85, 0x12, 0x09, 0x55, 0x09, 0x59, 0x25, 0x0F, 0x75, 0x08, 0x95,
+          0x01, 0xB1, 0x02, 0x06, 0x00, 0xFF, 0x85, 0x11, 0x09, 0xC5, 0x15, 0x00, 0x26, 0xFF,
+          0x00, 0x75, 0x08, 0x96, 0x00, 0x01, 0xB1, 0x02, 0xC0};
+
+  p_srvc->rpt_map = (uint8_t*)osi_malloc(*len + sizeof(residual_report_map));
+  STREAM_TO_ARRAY(p_srvc->rpt_map, desc, *len);
+  memcpy(&(p_srvc->rpt_map[*len]), residual_report_map, sizeof(residual_report_map));
+  *len = *len + sizeof(residual_report_map);
+}
 void bta_hh_le_save_report_map(tBTA_HH_DEV_CB* p_dev_cb, uint16_t len, uint8_t* desc) {
   tBTA_HH_LE_HID_SRVC* p_srvc = &p_dev_cb->hid_srvc;
 
   osi_free_and_reset((void**)&p_srvc->rpt_map);
 
   if (len > 0) {
-    p_srvc->rpt_map = (uint8_t*)osi_malloc(len);
+    // Workaround for HID report maps exceeding 512 bytes. The HID spec allows for large report
+    // maps, but Bluetooth GATT attributes have a maximum size of 512 bytes. This interop workaround
+    // extended a received truncated report map with stored values.
+    // TODO: The workaround is specific to one device, if more devices need the similar interop
+    // workaround in the future, the “cached” report mapped should be stored in a separate file.
+    if (len == GATT_MAX_ATTR_LEN &&
+        interop_match_vendor_product_ids(INTEROP_HOGP_LONG_REPORT, p_dev_cb->dscp_info.vendor_id,
+                                         p_dev_cb->dscp_info.product_id)) {
+      get_iop_device_rpt_map(p_srvc, &len, desc);
+    } else {
+      p_srvc->rpt_map = (uint8_t*)osi_malloc(len);
 
-    uint8_t* pp = desc;
-    STREAM_TO_ARRAY(p_srvc->rpt_map, pp, len);
+      uint8_t* pp = desc;
+      STREAM_TO_ARRAY(p_srvc->rpt_map, pp, len);
+    }
+
     p_srvc->descriptor.dl_len = len;
     p_srvc->descriptor.dsc_list = p_dev_cb->hid_srvc.rpt_map;
   }
 }
 
-static void read_hid_report_map_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
+static void read_hid_report_map_cb(tCONN_ID /*conn_id*/, tGATT_STATUS status, uint16_t /*handle*/,
                                    uint16_t len, uint8_t* value, void* data) {
   if (status != GATT_SUCCESS) {
     log::error("error reading characteristic:{}", status);
@@ -1270,7 +1331,7 @@ static void read_hid_report_map_cb(uint16_t conn_id, tGATT_STATUS status, uint16
   bta_hh_le_save_report_map(p_dev_cb, len, value);
 }
 
-static void read_ext_rpt_ref_desc_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
+static void read_ext_rpt_ref_desc_cb(tCONN_ID /*conn_id*/, tGATT_STATUS status, uint16_t /*handle*/,
                                      uint16_t len, uint8_t* value, void* data) {
   if (status != GATT_SUCCESS) {
     log::error("error:{}", status);
@@ -1292,7 +1353,7 @@ static void read_ext_rpt_ref_desc_cb(uint16_t conn_id, tGATT_STATUS status, uint
   log::verbose("External Report Reference UUID 0x{:04x}", p_dev_cb->hid_srvc.ext_rpt_ref);
 }
 
-static void read_report_ref_desc_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
+static void read_report_ref_desc_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
                                     uint16_t len, uint8_t* value, void* data) {
   if (status != GATT_SUCCESS) {
     log::error("error:{}", status);
@@ -1332,7 +1393,7 @@ static void read_report_ref_desc_cb(uint16_t conn_id, tGATT_STATUS status, uint1
   bta_hh_le_save_report_ref(p_dev_cb, p_rpt, rpt_type, rpt_id);
 }
 
-static void read_pref_conn_params_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
+static void read_pref_conn_params_cb(tCONN_ID /*conn_id*/, tGATT_STATUS status, uint16_t /*handle*/,
                                      uint16_t len, uint8_t* value, void* data) {
   if (status != GATT_SUCCESS) {
     log::error("error:{}", status);
@@ -1355,7 +1416,8 @@ static void read_pref_conn_params_cb(uint16_t conn_id, tGATT_STATUS status, uint
 
   // Make sure both min, and max are bigger than 11.25ms, lower values can
   // introduce audio issues if A2DP is also active.
-  L2CA_AdjustConnectionIntervals(&min_interval, &max_interval, BTM_BLE_CONN_INT_MIN_LIMIT);
+  stack::l2cap::get_interface().L2CA_AdjustConnectionIntervals(&min_interval, &max_interval,
+                                                               BTM_BLE_CONN_INT_MIN_LIMIT);
 
   // If the device has no preferred connection timeout, use the default.
   if (timeout == BTM_BLE_CONN_PARAM_UNDEF) {
@@ -1387,8 +1449,8 @@ static void read_pref_conn_params_cb(uint16_t conn_id, tGATT_STATUS status, uint
 
   get_btm_client_interface().ble.BTM_BleSetPrefConnParams(
           p_dev_cb->link_spec.addrt.bda, min_interval, max_interval, latency, timeout);
-  if (!L2CA_UpdateBleConnParams(p_dev_cb->link_spec.addrt.bda, min_interval, max_interval, latency,
-                                timeout, 0, 0)) {
+  if (!stack::l2cap::get_interface().L2CA_UpdateBleConnParams(
+              p_dev_cb->link_spec.addrt.bda, min_interval, max_interval, latency, timeout, 0, 0)) {
     log::warn("Unable to update L2CAP ble connection params peer:{}",
               p_dev_cb->link_spec.addrt.bda);
   }
@@ -1654,10 +1716,9 @@ static void bta_hh_le_input_rpt_notify(tBTA_GATTC_NOTIFY* p_data) {
 void bta_hh_le_open_fail(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data) {
   const tBTA_HH_LE_CLOSE* le_close = &p_data->le_close;
 
-  BTM_LogHistory(
-          kBtmLogTag, p_cb->link_spec.addrt.bda, "Open failed",
-          base::StringPrintf("%s reason %s", bt_transport_text(p_cb->link_spec.transport).c_str(),
-                             gatt_disconnection_reason_text(le_close->reason).c_str()));
+  BTM_LogHistory(kBtmLogTag, p_cb->link_spec.addrt.bda, "Open failed",
+                 std::format("{} reason {}", bt_transport_text(p_cb->link_spec.transport),
+                             gatt_disconnection_reason_text(le_close->reason)));
   log::warn("Open failed for device:{}", p_cb->link_spec.addrt.bda);
 
   /* open failure in the middle of service discovery, clear all services */
@@ -1701,10 +1762,9 @@ void bta_hh_le_open_fail(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data) {
 void bta_hh_gatt_close(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data) {
   const tBTA_HH_LE_CLOSE* le_close = &p_data->le_close;
 
-  BTM_LogHistory(
-          kBtmLogTag, p_cb->link_spec.addrt.bda, "Closed",
-          base::StringPrintf("%s reason %s", bt_transport_text(p_cb->link_spec.transport).c_str(),
-                             gatt_disconnection_reason_text(le_close->reason).c_str()));
+  BTM_LogHistory(kBtmLogTag, p_cb->link_spec.addrt.bda, "Closed",
+                 std::format("{} reason {}", bt_transport_text(p_cb->link_spec.transport),
+                             gatt_disconnection_reason_text(le_close->reason)));
 
   /* deregister all notification */
   bta_hh_le_deregister_input_notif(p_cb);
@@ -1772,6 +1832,24 @@ void bta_hh_le_api_disc_act(tBTA_HH_DEV_CB* p_cb) {
 
 /*******************************************************************************
  *
+ * Function         send_read_report_reply
+ *
+ * Description      send GET_REPORT_EVT to application with the report data
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+static void send_read_report_reply(uint8_t hid_handle, tBTA_HH_STATUS status, BT_HDR* rpt_data) {
+  tBTA_HH_HSDATA hs_data = {
+          .status = status,
+          .handle = hid_handle,
+          .rsp_data.p_rpt_data = rpt_data,
+  };
+  (*bta_hh_cb.p_cback)(BTA_HH_GET_RPT_EVT, (tBTA_HH*)&hs_data);
+}
+
+/*******************************************************************************
+ *
  * Function         read_report_cb
  *
  * Description      Process the Read report complete, send GET_REPORT_EVT to
@@ -1780,17 +1858,24 @@ void bta_hh_le_api_disc_act(tBTA_HH_DEV_CB* p_cb) {
  * Parameters:
  *
  ******************************************************************************/
-static void read_report_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
+static void read_report_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
                            uint8_t* value, void* data) {
   tBTA_HH_DEV_CB* p_dev_cb = (tBTA_HH_DEV_CB*)data;
   if (p_dev_cb->w4_evt != BTA_HH_GET_RPT_EVT) {
     log::warn("Unexpected Read response, w4_evt={}", bta_hh_event_text(p_dev_cb->w4_evt));
     return;
   }
+  if (com::android::bluetooth::flags::forward_get_set_report_failure_to_uhid()) {
+    p_dev_cb->w4_evt = BTA_HH_EMPTY_EVT;
+  }
 
+  uint8_t hid_handle = p_dev_cb->hid_handle;
   const gatt::Characteristic* p_char = BTA_GATTC_GetCharacteristic(conn_id, handle);
   if (p_char == nullptr) {
     log::error("Unknown handle");
+    if (com::android::bluetooth::flags::forward_get_set_report_failure_to_uhid()) {
+      send_read_report_reply(hid_handle, BTA_HH_ERR, nullptr);
+    }
     return;
   }
 
@@ -1804,38 +1889,42 @@ static void read_report_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handl
       break;
     default:
       log::error("Unexpected Read UUID: {}", p_char->uuid.ToString());
+      if (com::android::bluetooth::flags::forward_get_set_report_failure_to_uhid()) {
+        send_read_report_reply(hid_handle, BTA_HH_ERR, nullptr);
+      }
       return;
   }
 
-  tBTA_HH_HSDATA hs_data = {};
-  hs_data.status = BTA_HH_ERR;
-  hs_data.handle = p_dev_cb->hid_handle;
-  if (status == GATT_SUCCESS) {
-    tBTA_HH_LE_RPT* p_rpt;
-    const gatt::Service* p_svc = BTA_GATTC_GetOwningService(conn_id, p_char->value_handle);
-
-    p_rpt = bta_hh_le_find_report_entry(p_dev_cb, p_svc->handle, char_uuid, p_char->value_handle);
-    if (p_rpt != nullptr && len) {
-      BT_HDR* p_buf = (BT_HDR*)osi_malloc(sizeof(BT_HDR) + len + 1);
-      /* pack data send to app */
-      hs_data.status = BTA_HH_OK;
-      p_buf->len = len + 1;
-      p_buf->layer_specific = 0;
-      p_buf->offset = 0;
-
-      uint8_t* pp = (uint8_t*)(p_buf + 1);
-      /* attach report ID as the first byte of the report before sending it to
-       * USB HID driver */
-      UINT8_TO_STREAM(pp, p_rpt->rpt_id);
-      memcpy(pp, value, len);
-
-      hs_data.rsp_data.p_rpt_data = p_buf;
-    }
+  if (!com::android::bluetooth::flags::forward_get_set_report_failure_to_uhid()) {
+    p_dev_cb->w4_evt = BTA_HH_EMPTY_EVT;
   }
 
-  p_dev_cb->w4_evt = BTA_HH_EMPTY_EVT;
-  (*bta_hh_cb.p_cback)(BTA_HH_GET_RPT_EVT, (tBTA_HH*)&hs_data);
-  osi_free(hs_data.rsp_data.p_rpt_data);
+  if (status != GATT_SUCCESS) {
+    send_read_report_reply(hid_handle, BTA_HH_ERR, nullptr);
+    return;
+  }
+
+  const gatt::Service* p_svc = BTA_GATTC_GetOwningService(conn_id, p_char->value_handle);
+  const tBTA_HH_LE_RPT* p_rpt =
+          bta_hh_le_find_report_entry(p_dev_cb, p_svc->handle, char_uuid, p_char->value_handle);
+  if (p_rpt == nullptr || len == 0) {
+    send_read_report_reply(hid_handle, BTA_HH_ERR, nullptr);
+    return;
+  }
+
+  BT_HDR* p_buf = (BT_HDR*)osi_malloc(sizeof(BT_HDR) + len + 1);
+  p_buf->len = len + 1;
+  p_buf->layer_specific = 0;
+  p_buf->offset = 0;
+
+  uint8_t* pp = (uint8_t*)(p_buf + 1);
+  /* attach report ID as the first byte of the report before sending it to
+   * USB HID driver */
+  UINT8_TO_STREAM(pp, p_rpt->rpt_id);
+  memcpy(pp, value, len);
+
+  send_read_report_reply(hid_handle, BTA_HH_OK, p_buf);
+  osi_free(p_buf);
 }
 
 /*******************************************************************************
@@ -1851,8 +1940,11 @@ static void bta_hh_le_get_rpt(tBTA_HH_DEV_CB* p_cb, tBTA_HH_RPT_TYPE r_type, uin
   tBTA_HH_LE_RPT* p_rpt =
           bta_hh_le_find_rpt_by_idtype(p_cb->hid_srvc.report, p_cb->mode, r_type, rpt_id);
 
-  if (p_rpt == NULL) {
+  if (p_rpt == nullptr) {
     log::error("no matching report");
+    if (com::android::bluetooth::flags::forward_get_set_report_failure_to_uhid()) {
+      send_read_report_reply(p_cb->hid_handle, BTA_HH_ERR, nullptr);
+    }
     return;
   }
 
@@ -1860,9 +1952,34 @@ static void bta_hh_le_get_rpt(tBTA_HH_DEV_CB* p_cb, tBTA_HH_RPT_TYPE r_type, uin
   BtaGattQueue::ReadCharacteristic(p_cb->conn_id, p_rpt->char_inst_id, read_report_cb, p_cb);
 }
 
-static void write_report_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-                            const uint8_t* value, void* data) {
-  tBTA_HH_CBDATA cback_data;
+/*******************************************************************************
+ *
+ * Function         send_write_report_reply
+ *
+ * Description      send SET_REPORT_EVT to application with the report data
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+static void send_write_report_reply(uint8_t hid_handle, tBTA_HH_STATUS status, uint16_t event) {
+  tBTA_HH_CBDATA cback_data = {
+          .status = status,
+          .handle = hid_handle,
+  };
+  (*bta_hh_cb.p_cback)(event, (tBTA_HH*)&cback_data);
+}
+
+/*******************************************************************************
+ *
+ * Function         write_report_cb
+ *
+ * Description      Process the Write report complete.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+static void write_report_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
+                            uint16_t /*len*/, const uint8_t* /*value*/, void* data) {
   tBTA_HH_DEV_CB* p_dev_cb = (tBTA_HH_DEV_CB*)data;
   uint16_t cb_evt = p_dev_cb->w4_evt;
   if (cb_evt == BTA_HH_EMPTY_EVT) {
@@ -1870,10 +1987,17 @@ static void write_report_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t hand
   }
 
   log::verbose("w4_evt:{}", bta_hh_event_text(p_dev_cb->w4_evt));
+  if (com::android::bluetooth::flags::forward_get_set_report_failure_to_uhid()) {
+    p_dev_cb->w4_evt = BTA_HH_EMPTY_EVT;
+  }
 
+  uint8_t hid_handle = p_dev_cb->hid_handle;
   const gatt::Characteristic* p_char = BTA_GATTC_GetCharacteristic(conn_id, handle);
   if (p_char == nullptr) {
     log::error("Unknown characteristic handle: {}", handle);
+    if (com::android::bluetooth::flags::forward_get_set_report_failure_to_uhid()) {
+      send_write_report_reply(hid_handle, BTA_HH_ERR, cb_evt);
+    }
     return;
   }
 
@@ -1881,14 +2005,22 @@ static void write_report_cb(uint16_t conn_id, tGATT_STATUS status, uint16_t hand
   if (uuid16 != GATT_UUID_HID_REPORT && uuid16 != GATT_UUID_HID_BT_KB_INPUT &&
       uuid16 != GATT_UUID_HID_BT_MOUSE_INPUT && uuid16 != GATT_UUID_HID_BT_KB_OUTPUT) {
     log::error("Unexpected characteristic UUID: {}", p_char->uuid.ToString());
+    if (com::android::bluetooth::flags::forward_get_set_report_failure_to_uhid()) {
+      send_write_report_reply(hid_handle, BTA_HH_ERR, cb_evt);
+    }
     return;
   }
 
   /* Set Report finished */
-  cback_data.handle = p_dev_cb->hid_handle;
-  cback_data.status = (status == GATT_SUCCESS) ? BTA_HH_OK : BTA_HH_ERR;
-  p_dev_cb->w4_evt = BTA_HH_EMPTY_EVT;
-  (*bta_hh_cb.p_cback)(cb_evt, (tBTA_HH*)&cback_data);
+  if (!com::android::bluetooth::flags::forward_get_set_report_failure_to_uhid()) {
+    p_dev_cb->w4_evt = BTA_HH_EMPTY_EVT;
+  }
+
+  if (status == GATT_SUCCESS) {
+    send_write_report_reply(hid_handle, BTA_HH_OK, cb_evt);
+  } else {
+    send_write_report_reply(hid_handle, BTA_HH_ERR, cb_evt);
+  }
 }
 /*******************************************************************************
  *
@@ -1906,6 +2038,9 @@ static void bta_hh_le_write_rpt(tBTA_HH_DEV_CB* p_cb, tBTA_HH_RPT_TYPE r_type, B
 
   if (p_buf == NULL || p_buf->len == 0) {
     log::error("Illegal data");
+    if (com::android::bluetooth::flags::forward_get_set_report_failure_to_uhid()) {
+      send_write_report_reply(p_cb->hid_handle, BTA_HH_ERR, w4_evt);
+    }
     return;
   }
 
@@ -1917,6 +2052,9 @@ static void bta_hh_le_write_rpt(tBTA_HH_DEV_CB* p_cb, tBTA_HH_RPT_TYPE r_type, B
   p_rpt = bta_hh_le_find_rpt_by_idtype(p_cb->hid_srvc.report, p_cb->mode, r_type, rpt_id);
   if (p_rpt == NULL) {
     log::error("no matching report");
+    if (com::android::bluetooth::flags::forward_get_set_report_failure_to_uhid()) {
+      send_write_report_reply(p_cb->hid_handle, BTA_HH_ERR, w4_evt);
+    }
     osi_free(p_buf);
     return;
   }
@@ -2268,8 +2406,8 @@ static void bta_hh_process_cache_rpt(tBTA_HH_DEV_CB* p_cb, tBTA_HH_RPT_CACHE_ENT
   }
 }
 
-static bool bta_hh_le_iso_data_callback(const RawAddress& addr, uint16_t cis_conn_hdl,
-                                        uint8_t* data, uint16_t size, uint32_t timestamp) {
+static bool bta_hh_le_iso_data_callback(const RawAddress& addr, uint16_t /*cis_conn_hdl*/,
+                                        uint8_t* data, uint16_t size, uint32_t /*timestamp*/) {
   if (!com::android::bluetooth::flags::leaudio_dynamic_spatial_audio()) {
     log::warn("DSA not supported");
     return false;

@@ -10,7 +10,9 @@ use bt_topshim::profiles::hid_host::BthhReportType;
 use btstack::RPCProxy;
 use dbus::Path;
 
+#[allow(dead_code)]
 struct IBluetoothQACallbackDBus {}
+#[allow(dead_code)]
 struct IBluetoothQADBus {}
 
 #[generate_dbus_exporter(export_bluetooth_qa_dbus_intf, "org.chromium.bluetooth.BluetoothQA")]
@@ -63,6 +65,10 @@ impl IBluetoothQA for IBluetoothQADBus {
     fn send_hid_data(&self, addr: RawAddress, data: String) {
         dbus_generated!()
     }
+    #[dbus_method("SendHIDVirtualUnplug")]
+    fn send_hid_virtual_unplug(&self, addr: RawAddress) {
+        dbus_generated!()
+    }
 }
 
 #[dbus_proxy_obj(QACallback, "org.chromium.bluetooth.QACallback")]
@@ -93,6 +99,10 @@ impl IBluetoothQACallback for IBluetoothQACallbackDBus {
     }
     #[dbus_method("OnSendHIDDataComplete")]
     fn on_send_hid_data_completed(&mut self, status: BtStatus) {
+        dbus_generated!()
+    }
+    #[dbus_method("OnSendHIDVirtualUnplugComplete")]
+    fn on_send_hid_virtual_unplug_completed(&mut self, status: BtStatus) {
         dbus_generated!()
     }
 }

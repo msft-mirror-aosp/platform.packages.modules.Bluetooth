@@ -32,7 +32,6 @@
     <string name="bt_enable_line2" msgid="1466367120348920892">"بلوٹوتھ کو ابھی آن کریں؟"</string>
     <string name="bt_enable_cancel" msgid="6770180540581977614">"منسوخ کریں"</string>
     <string name="bt_enable_ok" msgid="4224374055813566166">"آن کریں"</string>
-    <string name="incoming_file_confirm_title" msgid="938251186275547290">"فائل کی منتقلی"</string>
     <string name="incoming_file_confirm_content" msgid="6573502088511901157">"اِن کمنگ فائل قبول کریں؟"</string>
     <string name="incoming_file_confirm_cancel" msgid="9205906062663982692">"مسترد کریں"</string>
     <string name="incoming_file_confirm_ok" msgid="5046926299036238623">"قبول کریں"</string>
@@ -42,10 +41,8 @@
     <string name="incoming_file_confirm_Notification_content" msgid="2669135531488877921">"<xliff:g id="SENDER">%1$s</xliff:g> فائل بھیجنے کیلئے تیار ہے: <xliff:g id="FILE">%2$s</xliff:g>"</string>
     <string name="notification_receiving" msgid="8445265771083510696">"بلوٹوتھ اشتراک: <xliff:g id="FILE">%1$s</xliff:g> موصول ہو رہی ہے"</string>
     <string name="notification_received" msgid="2330252358543000567">"بلوٹوتھ اشتراک: <xliff:g id="FILE">%1$s</xliff:g> موصول ہوئی"</string>
-    <string name="notification_received_fail" msgid="9059153354809379374">"بلوٹوتھ اشتراک: فائل <xliff:g id="FILE">%1$s</xliff:g> موصول نہیں ہوئی"</string>
     <string name="notification_sending" msgid="8269912843286868700">"بلوٹوتھ اشتراک: <xliff:g id="FILE">%1$s</xliff:g> بھیجی جا رہی ہے"</string>
     <string name="notification_sent" msgid="2685202778935769332">"بلوٹوتھ اشتراک: <xliff:g id="FILE">%1$s</xliff:g> بھیج دی گئی"</string>
-    <string name="notification_sent_complete" msgid="6293391081175517098">"100% مکمل"</string>
     <string name="notification_sent_fail" msgid="7449832660578001579">"بلوٹوتھ اشتراک: <xliff:g id="FILE">%1$s</xliff:g> نہیں بھیجی گئی"</string>
     <string name="download_title" msgid="6449408649671518102">"فائل کی منتقلی"</string>
     <string name="download_line1" msgid="6449220145685308846">"منجانب: \"<xliff:g id="SENDER">%1$s</xliff:g>\""</string>
@@ -80,7 +77,6 @@
     <string name="enabling_progress_title" msgid="5262637688863903594">"براہ کرم انتظار کریں…"</string>
     <string name="enabling_progress_content" msgid="685427201206684584">"بلوٹوتھ آن ہو رہا ہے…"</string>
     <string name="bt_toast_1" msgid="8791691594887576215">"فائل موصول ہوگی۔ اطلاعاتی پینل میں پیشرفت چیک کریں۔"</string>
-    <string name="bt_toast_2" msgid="2041575937953174042">"فائل موصول نہیں ہو سکتی۔"</string>
     <string name="bt_toast_3" msgid="3053157171297761920">"\"<xliff:g id="SENDER">%1$s</xliff:g>\" کی جانب سے فائل موصول ہونا بند ہو گئی"</string>
     <string name="bt_toast_4" msgid="480365991944956695">"\"<xliff:g id="RECIPIENT">%1$s</xliff:g>\" کو فائل بھیجی جا رہی ہے"</string>
     <string name="bt_toast_5" msgid="4818264207982268297">"<xliff:g id="NUMBER">%1$s</xliff:g> فائلیں \"<xliff:g id="RECIPIENT">%2$s</xliff:g>\" کو بھیجی جا رہی ہیں"</string>
@@ -117,14 +113,7 @@
     <string name="transfer_menu_clear" msgid="7213491281898188730">"فہرست سے صاف کریں"</string>
     <string name="transfer_clear_dlg_title" msgid="128904516163257225">"صاف کریں"</string>
     <string name="bluetooth_a2dp_sink_queue_name" msgid="7521243473328258997">"Now Playing"</string>
-    <string name="bluetooth_map_settings_save" msgid="8309113239113961550">"محفوظ کریں"</string>
-    <string name="bluetooth_map_settings_cancel" msgid="3374494364625947793">"منسوخ کریں"</string>
-    <string name="bluetooth_map_settings_intro" msgid="4748160773998753325">"ان اکاؤنٹس کو منتخب کریں جن کا آپ بلوٹوتھ کے ذریعے اشتراک کرنا چاہتے ہیں۔ آپ کو ابھی بھی منسلک ہوتے وقت اکاؤنٹس تک کسی بھی رسائی کو قبول کرنا ہوگا۔"</string>
-    <string name="bluetooth_map_settings_count" msgid="183013143617807702">"بچے ہوئے سلاٹس:"</string>
     <string name="bluetooth_map_settings_app_icon" msgid="3501432663809664982">"ایپلیکیشن کا آئیکن"</string>
-    <string name="bluetooth_map_settings_title" msgid="4226030082708590023">"بلوٹوتھ پیغام کے اشتراک کی ترتیبات"</string>
-    <string name="bluetooth_map_settings_no_account_slots_left" msgid="755024228476065757">"اکاؤنٹ کو منتخب نہیں کیا جا سکتا ہے۔ 0 سلاٹس باقی ہیں"</string>
-    <string name="bluetooth_connected" msgid="5687474377090799447">"بلوٹوتھ آڈیو منسلک ہے"</string>
     <string name="bluetooth_disconnected" msgid="6841396291728343534">"بلوٹوتھ آڈیو غیر منسلک ہے"</string>
     <string name="a2dp_sink_mbs_label" msgid="6035366346569127155">"بلوٹوتھ آڈیو"</string>
     <string name="bluetooth_opp_file_limit_exceeded" msgid="6612109860149473930">"‏4GB سے بڑی فائلیں منتقل نہیں کی جا سکتیں"</string>
@@ -135,8 +124,7 @@
     <string name="bluetooth_stays_on_message" msgid="3669663452593157737">"آپ کا آلہ ہوائی جہاز وضع میں بلوٹوتھ کو آن رکھنا یاد رکھتا ہے۔ اگر آپ نہیں چاہتے ہیں کہ بلوٹوتھ آن رہے تو اسے آف کریں۔"</string>
     <string name="bluetooth_and_wifi_stays_on_title" msgid="5821932798860821244">"‏Wi-Fi اور بلوٹوتھ آن رہنے دیں"</string>
     <string name="bluetooth_and_wifi_stays_on_message" msgid="7848565203843882558">"‏آپ کا آلہ ہوائی جہاز وضع میں Wi-Fi اور بلوٹوتھ کو آن رکھنا یاد رکھتا ہے۔ اگر آپ نہیں چاہتے ہیں کہ Wi-Fi اور بلوٹوتھ آن رہیں تو انہیں آف کریں۔"</string>
-    <string name="bluetooth_enabled_auto_on_title" msgid="1799541656310353393">"بلوٹوتھ خودکار طور پر فعال ہو گیا ہے"</string>
-    <string name="bluetooth_enabled_auto_on_message" msgid="1070556457440100730">"خودکار ری اسٹارٹ کو بلوٹوتھ ترتیبات میں ٹوگل کیا جا سکتا ہے۔"</string>
-    <string name="bluetooth_disable_auto_on" msgid="1085026923461565937">"آف کریں"</string>
+    <string name="bluetooth_enabled_auto_on_title" msgid="8983664142805050578">"بلوٹوتھ دوبارہ آن کر دیا گیا"</string>
+    <string name="bluetooth_enabled_auto_on_message" msgid="2790514825041114851">"آپ اسے ترتیبات میں کسی بھی وقت تبدیل کر سکتے ہیں"</string>
     <string name="bluetooth_notification_group" msgid="7251886707585872194">"بلوٹوتھ خودکار حالت میں تبدیلی"</string>
 </resources>

@@ -31,7 +31,7 @@
 #include "internal_include/bt_target.h"
 #include "osi/include/alarm.h"
 #include "osi/include/fixed_queue.h"
-#include "stack/include/l2c_api.h"
+#include "stack/include/l2cap_types.h"
 #include "stack/include/port_api.h"
 #include "stack/include/rfcdefs.h"
 #include "stack/rfcomm/rfc_state.h"
@@ -141,10 +141,10 @@ inline std::string port_connection_state_text(const tPORT_CONNECTION_STATE& stat
   RETURN_UNKNOWN_TYPE_STRING(tPORT_CONNECTION_STATE, state);
 }
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tPORT_CONNECTION_STATE> : enum_formatter<tPORT_CONNECTION_STATE> {};
-}  // namespace fmt
+}  // namespace std
 
 /*
  * Define control block containing information about PORT connection
@@ -172,8 +172,8 @@ typedef struct {
   tPORT_DATA tx; /* Control block for data from app to peer */
   tPORT_DATA rx; /* Control block for data from peer to app */
 
-  tPORT_STATE user_port_pars; /* Port parameters for user connection */
-  tPORT_STATE peer_port_pars; /* Port parameters for user connection */
+  PortSettings user_port_settings; /* Port parameters for user connection */
+  PortSettings peer_port_settings; /* Port parameters for peer connection */
 
   tPORT_CTRL local_ctrl;
   tPORT_CTRL peer_ctrl;
@@ -205,6 +205,8 @@ typedef struct {
   uint16_t keep_mtu; /* Max MTU that port can receive by server */
   uint16_t sec_mask; /* Bitmask of security requirements for this port */
                      /* see the BTM_SEC_* values in btm_api_types.h */
+  RfcommCfgInfo rfc_cfg_info; /* store optional rfc configure info for incoming */
+                              /* connection while connecting */
 } tPORT;
 
 /* Define the PORT/RFCOMM control structure

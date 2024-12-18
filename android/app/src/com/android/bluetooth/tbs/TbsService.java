@@ -348,7 +348,7 @@ public class TbsService extends ProfileService {
                                 },
                                 0);
             } catch (RemoteException e) {
-                e.printStackTrace();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
 

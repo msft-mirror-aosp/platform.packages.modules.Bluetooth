@@ -22,6 +22,8 @@
  *  mockcify.pl ver 0.5.0
  */
 
+#include <base/functional/callback.h>
+
 #include <cstdint>
 #include <functional>
 #include <optional>
@@ -519,10 +521,10 @@ extern struct btm_get_local_div btm_get_local_div;
 // p_data Return: tBTM_STATUS
 struct btm_proc_smp_cback {
   static tBTM_STATUS return_value;
-  std::function<tBTM_STATUS(tSMP_EVT event, const RawAddress& bd_addr, const tSMP_EVT_DATA* p_data)>
-          body{[](tSMP_EVT /* event */, const RawAddress& /* bd_addr */,
-                  const tSMP_EVT_DATA* /* p_data */) { return return_value; }};
-  tBTM_STATUS operator()(tSMP_EVT event, const RawAddress& bd_addr, const tSMP_EVT_DATA* p_data) {
+  std::function<tBTM_STATUS(tSMP_EVT event, const RawAddress& bd_addr, tSMP_EVT_DATA* p_data)> body{
+          [](tSMP_EVT /* event */, const RawAddress& /* bd_addr */,
+             const tSMP_EVT_DATA* /* p_data */) { return return_value; }};
+  tBTM_STATUS operator()(tSMP_EVT event, const RawAddress& bd_addr, tSMP_EVT_DATA* p_data) {
     return body(event, bd_addr, p_data);
   }
 };
@@ -572,9 +574,5 @@ extern struct read_phy_cb read_phy_cb;
 }  // namespace stack_btm_ble
 }  // namespace mock
 }  // namespace test
-
-std::optional<tBLE_BD_ADDR> BTM_BleGetIdentityAddress(const RawAddress /* address */) {
-  return std::nullopt;
-}
 
 // END mockcify generation

@@ -52,7 +52,7 @@
 #include "main/shim/entry.h"
 #include "osi/include/allocator.h"
 #include "osi/include/properties.h"
-#include "stack/gatt/connection_manager.h"
+#include "stack/connection_manager/connection_manager.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
@@ -61,17 +61,18 @@
 #include "stack/include/btm_inq.h"
 #include "stack/include/btm_status.h"
 #include "stack/include/gatt_api.h"
-#include "stack/include/l2c_api.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/main_thread.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using bluetooth::Uuid;
 using namespace bluetooth;
 
 bool ble_vnd_is_included();
-void BTIF_dm_disable();
-void BTIF_dm_enable();
 void btm_ble_scanner_init(void);
 
 static void bta_dm_check_av();
@@ -124,7 +125,7 @@ namespace {
 
 struct WaitForAllAclConnectionsToDrain {
   uint64_t time_to_wait_in_ms;
-  unsigned long TimeToWaitInMs() const { return static_cast<unsigned long>(time_to_wait_in_ms); }
+  uint64_t TimeToWaitInMs() const { return time_to_wait_in_ms; }
   void* AlarmCallbackData() const { return const_cast<void*>(static_cast<const void*>(this)); }
 
   static const WaitForAllAclConnectionsToDrain* FromAlarmCallbackData(void* data);
@@ -268,6 +269,13 @@ void BTA_dm_on_hw_on() {
     }
   }
 
+  if (com::android::bluetooth::flags::socket_settings_api()) {
+    /* Read low power processor offload features */
+    if (bta_dm_acl_cb.p_acl_cback) {
+      bta_dm_acl_cb.p_acl_cback(BTA_DM_LPP_OFFLOAD_FEATURES_READ, NULL);
+    }
+  }
+
   btm_ble_scanner_init();
 
   // Synchronize with the controller before continuing
@@ -290,11 +298,13 @@ void BTA_dm_on_hw_on() {
 void bta_dm_disable() {
   /* Set l2cap idle timeout to 0 (so BTE immediately disconnects ACL link after
    * last channel is closed) */
-  if (!L2CA_SetIdleTimeoutByBdAddr(RawAddress::kAny, 0, BT_TRANSPORT_BR_EDR)) {
+  if (!stack::l2cap::get_interface().L2CA_SetIdleTimeoutByBdAddr(RawAddress::kAny, 0,
+                                                                 BT_TRANSPORT_BR_EDR)) {
     log::warn("Unable to set L2CAP idle timeout peer:{} transport:{} timeout:{}", RawAddress::kAny,
               BT_TRANSPORT_BR_EDR, 0);
   }
-  if (!L2CA_SetIdleTimeoutByBdAddr(RawAddress::kAny, 0, BT_TRANSPORT_LE)) {
+  if (!stack::l2cap::get_interface().L2CA_SetIdleTimeoutByBdAddr(RawAddress::kAny, 0,
+                                                                 BT_TRANSPORT_LE)) {
     log::warn("Unable to set L2CAP idle timeout peer:{} transport:{} timeout:{}", RawAddress::kAny,
               BT_TRANSPORT_LE, 0);
   }
@@ -317,12 +327,9 @@ void bta_dm_disable() {
     bta_dm_disable_pm();
   }
 
-  if (com::android::bluetooth::flags::separate_service_and_device_discovery()) {
-    bta_dm_disc_disable_search();
-    bta_dm_disc_disable_disc();
-  } else {
-    bta_dm_disc_disable_search_and_disc();
-  }
+  bta_dm_disc_disable_search();
+  bta_dm_disc_disable_disc();
+
   bta_dm_cb.disabling = true;
 
   connection_manager::reset(false);
@@ -339,8 +346,7 @@ void bta_dm_disable() {
         bta_dm_disable_conn_down_timer_cback(nullptr);
         break;
       default:
-        log::debug("Set timer to delay disable initiation:{} ms",
-                   static_cast<unsigned long>(disable_delay_ms));
+        log::debug("Set timer to delay disable initiation:{} ms", disable_delay_ms);
         alarm_set_on_mloop(bta_dm_cb.disable_timer, disable_delay_ms,
                            bta_dm_disable_conn_down_timer_cback, nullptr);
     }
@@ -567,11 +573,20 @@ void bta_dm_remove_device(const RawAddress& target) {
     return;
   }
 
+  if (bta_dm_removal_pending(target)) {
+    log::warn("{} already getting removed", target);
+    return;
+  }
+
   // Find all aliases and connection status on all transports
   RawAddress pseudo_addr = target;
   RawAddress identity_addr = target;
   bool le_connected = get_btm_client_interface().peer.BTM_ReadConnectedTransportAddress(
           &pseudo_addr, BT_TRANSPORT_LE);
+  if (pseudo_addr.IsEmpty()) {
+    pseudo_addr = target;
+  }
+
   bool bredr_connected = get_btm_client_interface().peer.BTM_ReadConnectedTransportAddress(
           &identity_addr, BT_TRANSPORT_BR_EDR);
   /* If connection not found with identity address, check with pseudo address if different */
@@ -579,9 +594,6 @@ void bta_dm_remove_device(const RawAddress& target) {
     identity_addr = pseudo_addr;
     bredr_connected = get_btm_client_interface().peer.BTM_ReadConnectedTransportAddress(
             &identity_addr, BT_TRANSPORT_BR_EDR);
-  }
-  if (pseudo_addr.IsEmpty()) {
-    pseudo_addr = target;
   }
   if (identity_addr.IsEmpty()) {
     identity_addr = target;
@@ -887,8 +899,6 @@ static void bta_dm_acl_down_(const RawAddress& bd_addr, tBT_TRANSPORT transport)
     bta_dm_cb.device_list.le_count--;
   }
 
-  bta_dm_disc_acl_down(bd_addr, transport);
-
   if (bta_dm_cb.disabling) {
     if (!BTM_GetNumAclLinks()) {
       /*
@@ -950,7 +960,6 @@ static void bta_dm_acl_down(const RawAddress& bd_addr, tBT_TRANSPORT transport) 
     bta_dm_cb.device_list.le_count--;
   }
 
-  bta_dm_disc_acl_down(bd_addr, transport);
   if (bta_dm_cb.disabling && !BTM_GetNumAclLinks()) {
     /*
      * Start a timer to make sure that the profiles
@@ -1556,7 +1565,8 @@ bool bta_dm_check_if_only_hd_connected(const RawAddress& peer_addr) {
 void bta_dm_ble_set_conn_params(const RawAddress& bd_addr, uint16_t conn_int_min,
                                 uint16_t conn_int_max, uint16_t peripheral_latency,
                                 uint16_t supervision_tout) {
-  L2CA_AdjustConnectionIntervals(&conn_int_min, &conn_int_max, BTM_BLE_CONN_INT_MIN);
+  stack::l2cap::get_interface().L2CA_AdjustConnectionIntervals(&conn_int_min, &conn_int_max,
+                                                               BTM_BLE_CONN_INT_MIN);
 
   get_btm_client_interface().ble.BTM_BleSetPrefConnParams(bd_addr, conn_int_min, conn_int_max,
                                                           peripheral_latency, supervision_tout);
@@ -1566,10 +1576,11 @@ void bta_dm_ble_set_conn_params(const RawAddress& bd_addr, uint16_t conn_int_min
 void bta_dm_ble_update_conn_params(const RawAddress& bd_addr, uint16_t min_int, uint16_t max_int,
                                    uint16_t latency, uint16_t timeout, uint16_t min_ce_len,
                                    uint16_t max_ce_len) {
-  L2CA_AdjustConnectionIntervals(&min_int, &max_int, BTM_BLE_CONN_INT_MIN);
+  stack::l2cap::get_interface().L2CA_AdjustConnectionIntervals(&min_int, &max_int,
+                                                               BTM_BLE_CONN_INT_MIN);
 
-  if (!L2CA_UpdateBleConnParams(bd_addr, min_int, max_int, latency, timeout, min_ce_len,
-                                max_ce_len)) {
+  if (!stack::l2cap::get_interface().L2CA_UpdateBleConnParams(bd_addr, min_int, max_int, latency,
+                                                              timeout, min_ce_len, max_ce_len)) {
     log::error("Update connection parameters failed!");
   }
 }
@@ -1872,7 +1883,8 @@ void bta_dm_ble_subrate_request(const RawAddress& bd_addr, uint16_t subrate_min,
                                 uint16_t subrate_max, uint16_t max_latency, uint16_t cont_num,
                                 uint16_t timeout) {
   // Logging done in l2c_ble.cc
-  if (!L2CA_SubrateRequest(bd_addr, subrate_min, subrate_max, max_latency, cont_num, timeout)) {
+  if (!stack::l2cap::get_interface().L2CA_SubrateRequest(bd_addr, subrate_min, subrate_max,
+                                                         max_latency, cont_num, timeout)) {
     log::warn("Unable to set L2CAP ble subrating peer:{}", bd_addr);
   }
 }

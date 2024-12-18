@@ -19,9 +19,8 @@ import static com.google.common.truth.Truth.assertThat;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.content.Context;
+import android.bluetooth.BluetoothProfile;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.After;
@@ -50,22 +49,22 @@ public class StackEventTest {
 
     @Test
     public void testCreateConnectionStateChangedDisconnectedEvent() {
-        testConnectionStateChangedBase(StackEvent.CONNECTION_STATE_DISCONNECTED);
+        testConnectionStateChangedBase(BluetoothProfile.STATE_DISCONNECTED);
     }
 
     @Test
     public void testCreateConnectionStateChangedConnectingEvent() {
-        testConnectionStateChangedBase(StackEvent.CONNECTION_STATE_CONNECTING);
+        testConnectionStateChangedBase(BluetoothProfile.STATE_CONNECTING);
     }
 
     @Test
     public void testCreateConnectionStateChangedConnectedEvent() {
-        testConnectionStateChangedBase(StackEvent.CONNECTION_STATE_CONNECTED);
+        testConnectionStateChangedBase(BluetoothProfile.STATE_CONNECTED);
     }
 
     @Test
     public void testCreateConnectionStateChangedDisconnectingEvent() {
-        testConnectionStateChangedBase(StackEvent.CONNECTION_STATE_DISCONNECTING);
+        testConnectionStateChangedBase(BluetoothProfile.STATE_DISCONNECTING);
     }
 
     private void testConnectionStateChangedBase(int state) {

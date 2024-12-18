@@ -32,7 +32,6 @@
     <string name="bt_enable_line2" msgid="1466367120348920892">"Attivare Bluetooth adesso?"</string>
     <string name="bt_enable_cancel" msgid="6770180540581977614">"Annulla"</string>
     <string name="bt_enable_ok" msgid="4224374055813566166">"Attiva"</string>
-    <string name="incoming_file_confirm_title" msgid="938251186275547290">"Trasferimento file"</string>
     <string name="incoming_file_confirm_content" msgid="6573502088511901157">"Accettare il file in arrivo?"</string>
     <string name="incoming_file_confirm_cancel" msgid="9205906062663982692">"Rifiuta"</string>
     <string name="incoming_file_confirm_ok" msgid="5046926299036238623">"Accetta"</string>
@@ -42,10 +41,8 @@
     <string name="incoming_file_confirm_Notification_content" msgid="2669135531488877921">"<xliff:g id="SENDER">%1$s</xliff:g> vuole inviare un file: <xliff:g id="FILE">%2$s</xliff:g>"</string>
     <string name="notification_receiving" msgid="8445265771083510696">"Bluetooth: ricezione <xliff:g id="FILE">%1$s</xliff:g>"</string>
     <string name="notification_received" msgid="2330252358543000567">"Bluetooth: <xliff:g id="FILE">%1$s</xliff:g> ricevuto"</string>
-    <string name="notification_received_fail" msgid="9059153354809379374">"Bluetooth: file <xliff:g id="FILE">%1$s</xliff:g> non ricevuto"</string>
     <string name="notification_sending" msgid="8269912843286868700">"Bluetooth: invio <xliff:g id="FILE">%1$s</xliff:g>"</string>
     <string name="notification_sent" msgid="2685202778935769332">"Bluetooth: <xliff:g id="FILE">%1$s</xliff:g> inviato"</string>
-    <string name="notification_sent_complete" msgid="6293391081175517098">"100% completato"</string>
     <string name="notification_sent_fail" msgid="7449832660578001579">"Bluetooth: file <xliff:g id="FILE">%1$s</xliff:g> non inviato"</string>
     <string name="download_title" msgid="6449408649671518102">"Trasferimento file"</string>
     <string name="download_line1" msgid="6449220145685308846">"Da: \"<xliff:g id="SENDER">%1$s</xliff:g>\""</string>
@@ -80,7 +77,6 @@
     <string name="enabling_progress_title" msgid="5262637688863903594">"Attendi…"</string>
     <string name="enabling_progress_content" msgid="685427201206684584">"Attivazione Bluetooth…"</string>
     <string name="bt_toast_1" msgid="8791691594887576215">"Il file verrà ricevuto. Controlla l\'avanzamento nel pannello Notifiche."</string>
-    <string name="bt_toast_2" msgid="2041575937953174042">"Impossibile ricevere il file."</string>
     <string name="bt_toast_3" msgid="3053157171297761920">"Interruzione della ricezione del file da \"<xliff:g id="SENDER">%1$s</xliff:g>\""</string>
     <string name="bt_toast_4" msgid="480365991944956695">"Invio del file a \"<xliff:g id="RECIPIENT">%1$s</xliff:g>\""</string>
     <string name="bt_toast_5" msgid="4818264207982268297">"Invio di <xliff:g id="NUMBER">%1$s</xliff:g> file a \"<xliff:g id="RECIPIENT">%2$s</xliff:g>\""</string>
@@ -117,14 +113,7 @@
     <string name="transfer_menu_clear" msgid="7213491281898188730">"Cancella da elenco"</string>
     <string name="transfer_clear_dlg_title" msgid="128904516163257225">"Cancella"</string>
     <string name="bluetooth_a2dp_sink_queue_name" msgid="7521243473328258997">"In riproduzione"</string>
-    <string name="bluetooth_map_settings_save" msgid="8309113239113961550">"Salva"</string>
-    <string name="bluetooth_map_settings_cancel" msgid="3374494364625947793">"Annulla"</string>
-    <string name="bluetooth_map_settings_intro" msgid="4748160773998753325">"Seleziona gli account che desideri condividere tramite Bluetooth. Devi comunque accettare tutti gli accessi agli account durante la connessione."</string>
-    <string name="bluetooth_map_settings_count" msgid="183013143617807702">"Slot rimanenti:"</string>
     <string name="bluetooth_map_settings_app_icon" msgid="3501432663809664982">"Icona applicazione"</string>
-    <string name="bluetooth_map_settings_title" msgid="4226030082708590023">"Impostazioni di condivisione dei messaggi Bluetooth"</string>
-    <string name="bluetooth_map_settings_no_account_slots_left" msgid="755024228476065757">"Impossibile selezionare l\'account. Nessuno slot rimanente"</string>
-    <string name="bluetooth_connected" msgid="5687474377090799447">"Audio Bluetooth connesso"</string>
     <string name="bluetooth_disconnected" msgid="6841396291728343534">"Audio Bluetooth disconnesso"</string>
     <string name="a2dp_sink_mbs_label" msgid="6035366346569127155">"Audio Bluetooth"</string>
     <string name="bluetooth_opp_file_limit_exceeded" msgid="6612109860149473930">"Impossibile trasferire file con dimensioni superiori a 4 GB"</string>
@@ -135,8 +124,7 @@
     <string name="bluetooth_stays_on_message" msgid="3669663452593157737">"Il dispositivo memorizza che deve tenere attivo il Bluetooth in modalità aereo. Disattiva il Bluetooth se non vuoi tenerlo attivo."</string>
     <string name="bluetooth_and_wifi_stays_on_title" msgid="5821932798860821244">"Wi-Fi e Bluetooth rimangono attivi"</string>
     <string name="bluetooth_and_wifi_stays_on_message" msgid="7848565203843882558">"Il dispositivo memorizza che deve tenere attivi il Wi‑Fi e il Bluetooth in modalità aereo. Disattiva il Wi-Fi e il Bluetooth se non vuoi tenerli attivi."</string>
-    <string name="bluetooth_enabled_auto_on_title" msgid="1799541656310353393">"Il Bluetooth è stato attivato automaticamente"</string>
-    <string name="bluetooth_enabled_auto_on_message" msgid="1070556457440100730">"È possibile attivare/disattivare il riavvio automatico nelle impostazioni del Bluetooth."</string>
-    <string name="bluetooth_disable_auto_on" msgid="1085026923461565937">"Disattiva"</string>
+    <string name="bluetooth_enabled_auto_on_title" msgid="8983664142805050578">"Bluetooth riattivato"</string>
+    <string name="bluetooth_enabled_auto_on_message" msgid="2790514825041114851">"Puoi modificare questa preferenza in qualsiasi momento nelle Impostazioni"</string>
     <string name="bluetooth_notification_group" msgid="7251886707585872194">"Modifica dello stato automatico del Bluetooth"</string>
 </resources>

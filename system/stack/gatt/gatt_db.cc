@@ -26,10 +26,9 @@
 #include <string.h>
 
 #include "gatt_int.h"
-#include "l2c_api.h"
-#include "osi/include/osi.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
+#include "stack/include/l2cap_types.h"
 #include "types/bluetooth/uuid.h"
 
 using bluetooth::Uuid;
@@ -56,7 +55,7 @@ void gatts_init_service_db(tGATT_SVC_DB& db, const Uuid& service_uuid, bool is_p
   db.next_handle = s_hdl;
   db.end_handle = s_hdl + num_handle;
 
-  /* add service declration record */
+  /* add service declaration record */
   Uuid uuid = Uuid::From16Bit(is_pri ? GATT_UUID_PRI_SERVICE : GATT_UUID_SEC_SERVICE);
   tGATT_ATTR& attr = allocate_attr_in_db(db, uuid, GATT_PERM_READ);
   attr.p_value.reset(new tGATT_ATTR_VALUE);
@@ -361,7 +360,7 @@ uint16_t gatts_add_included_service(tGATT_SVC_DB& db, uint16_t s_handle, uint16_
  * Function         gatts_add_characteristic
  *
  * Description      This function add a characteristics and its descriptor into
- *                  a servce identified by the service database pointer.
+ *                  a service identified by the service database pointer.
  *
  * Parameter        db: database.
  *                  perm: permission (authentication and key size requirements)
@@ -440,7 +439,7 @@ uint16_t gatts_add_char_descr(tGATT_SVC_DB& db, tGATT_PERM perm, const Uuid& des
 /******************************************************************************/
 /* Service Attribute Database Query Utility Functions */
 /******************************************************************************/
-tGATT_ATTR* find_attr_by_handle(tGATT_SVC_DB* p_db, uint16_t handle) {
+static tGATT_ATTR* find_attr_by_handle(tGATT_SVC_DB* p_db, uint16_t handle) {
   if (!p_db) {
     return nullptr;
   }
@@ -569,12 +568,11 @@ tGATT_STATUS gatts_write_attr_perm_check(tGATT_SVC_DB* p_db, uint8_t op_code, ui
     /* LE security mode 2 level 1 and LE security mode 1 level 2 */
     if ((perm & GATT_PERM_WRITE_SIGNED) && (perm & GATT_PERM_WRITE_ENCRYPTED)) {
       perm = GATT_PERM_WRITE_ENCRYPTED;
-    }
-    /* use security mode 1 level 3 when the following condition follows */
-    /* LE security mode 2 level 2 and security mode 1 and LE */
-    else if (((perm & GATT_PERM_WRITE_SIGNED_MITM) && (perm & GATT_PERM_WRITE_ENCRYPTED)) ||
-             /* LE security mode 2 and security mode 1 level 3 */
-             ((perm & GATT_WRITE_SIGNED_PERM) && (perm & GATT_PERM_WRITE_ENC_MITM))) {
+    } else if (((perm & GATT_PERM_WRITE_SIGNED_MITM) && (perm & GATT_PERM_WRITE_ENCRYPTED)) ||
+               ((perm & GATT_WRITE_SIGNED_PERM) && (perm & GATT_PERM_WRITE_ENC_MITM))) {
+      /* use security mode 1 level 3 when the following condition follows */
+      /* LE security mode 2 level 2 and security mode 1 and LE */
+      /* LE security mode 2 and security mode 1 level 3 */
       perm = GATT_PERM_WRITE_ENC_MITM;
     }
   }
@@ -586,13 +584,12 @@ tGATT_STATUS gatts_write_attr_perm_check(tGATT_SVC_DB* p_db, uint8_t op_code, ui
   }
   if ((op_code == GATT_SIGN_CMD_WRITE) && sec_flag.is_encrypted) {
     status = GATT_INVALID_PDU;
-    log::error("Error!! sign cmd write sent on a encypted link");
+    log::error("Error!! sign cmd write sent on a encrypted link");
   } else if (!(perm & GATT_WRITE_ALLOWED)) {
     status = GATT_WRITE_NOT_PERMIT;
     log::error("GATT_WRITE_NOT_PERMIT");
-  }
-  /* require authentication, but not been authenticated */
-  else if ((perm & GATT_WRITE_AUTH_REQUIRED) && !sec_flag.is_link_key_known) {
+  } else if ((perm & GATT_WRITE_AUTH_REQUIRED) && !sec_flag.is_link_key_known) {
+    /* require authentication, but not been authenticated */
     status = GATT_INSUF_AUTHENTICATION;
     log::error("GATT_INSUF_AUTHENTICATION");
   } else if ((perm & GATT_WRITE_MITM_REQUIRED) && !sec_flag.is_link_key_authed) {
@@ -605,14 +602,13 @@ tGATT_STATUS gatts_write_attr_perm_check(tGATT_SVC_DB* p_db, uint8_t op_code, ui
              (key_size < min_key_size)) {
     status = GATT_INSUF_KEY_SIZE;
     log::error("GATT_INSUF_KEY_SIZE");
-  }
-  /* LE security mode 2 attribute  */
-  else if (perm & GATT_WRITE_SIGNED_PERM && op_code != GATT_SIGN_CMD_WRITE &&
-           !sec_flag.is_encrypted && (perm & GATT_WRITE_ALLOWED) == 0) {
+  } else if (perm & GATT_WRITE_SIGNED_PERM && op_code != GATT_SIGN_CMD_WRITE &&
+             !sec_flag.is_encrypted && (perm & GATT_WRITE_ALLOWED) == 0) {
+    /* LE security mode 2 attribute  */
     status = GATT_INSUF_AUTHENTICATION;
     log::error("GATT_INSUF_AUTHENTICATION: LE security mode 2 required");
-  } else /* writable: must be char value declaration or char descritpors */
-  {
+  } else {
+    /* writable: must be char value declaration or char descriptors */
     uint16_t max_size = 0;
 
     if (p_attr->uuid.IsEmpty()) {
@@ -702,7 +698,7 @@ static tGATT_STATUS gatts_send_app_read_request(tGATT_TCB& tcb, uint16_t cid, ui
                                                 uint16_t handle, uint16_t offset, uint32_t trans_id,
                                                 bt_gatt_db_attribute_type_t gatt_type) {
   tGATT_SRV_LIST_ELEM& el = *gatt_sr_find_i_rcb_by_handle(handle);
-  uint16_t conn_id = GATT_CREATE_CONN_ID(tcb.tcb_idx, el.gatt_if);
+  tCONN_ID conn_id = gatt_create_conn_id(tcb.tcb_idx, el.gatt_if);
 
   if (trans_id == 0) {
     trans_id = gatt_sr_enqueue_cmd(tcb, cid, op_code, handle);

@@ -106,5 +106,15 @@ public:
 
 extern tBTM_SEC_CB btm_sec_cb;
 
+#define BTM_BLE_SEC_CALLBACK(event_, bda_, data_)                                          \
+  do {                                                                                     \
+    if (btm_sec_cb.api.p_le_callback != nullptr) {                                         \
+      tBTM_STATUS status_ = (*btm_sec_cb.api.p_le_callback)((event_), (bda_), (data_));    \
+      if (status_ != tBTM_STATUS::BTM_SUCCESS) {                                           \
+        log::warn("Security callback failed {} for {}", btm_status_text(status_), (bda_)); \
+      }                                                                                    \
+    }                                                                                      \
+  } while (0)
+
 void BTM_Sec_Init();
 void BTM_Sec_Free();

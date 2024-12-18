@@ -13,15 +13,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <base/functional/bind.h>
 
+#include <base/functional/bind.h>
+#include <base/functional/callback.h>
+
+#include <algorithm>
+#include <cstdint>
+#include <list>
+#include <memory>
+#include <sstream>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+#include "bluetooth/log.h"
 #include "bta/include/bta_gatt_api.h"
 #include "bta/include/bta_ras_api.h"
 #include "bta/ras/ras_types.h"
-#include "os/logging/log_adapter.h"
+#include "btm_ble_api_types.h"
+#include "gatt/database.h"
+#include "gatt_api.h"
+#include "gattdefs.h"
+#include "gd/hci/controller_interface.h"
+#include "main/shim/entry.h"
+#include "osi/include/alarm.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_ble_addr.h"
 #include "stack/include/gap_api.h"
+#include "stack/include/l2cap_interface.h"
+#include "stack/include/main_thread.h"
+#include "types/ble_address_with_type.h"
+#include "types/bluetooth/uuid.h"
+#include "types/bt_transport.h"
+#include "types/raw_address.h"
 
 using namespace bluetooth;
 using namespace ::ras;
@@ -35,9 +59,18 @@ class RasClientImpl;
 RasClientImpl* instance;
 
 enum CallbackDataType { VENDOR_SPECIFIC_REPLY };
-static constexpr uint16_t kCachedDataSize = 10;
+enum TimeoutType { TIMEOUT_NONE, FIRST_SEGMENT, FOLLOWING_SEGMENT, RANGING_DATA_READY };
+enum RangingType { RANGING_TYPE_NONE, REAL_TIME, ON_DEMAND };
 
 class RasClientImpl : public bluetooth::ras::RasClient {
+  static constexpr uint16_t kCachedDataSize = 10;
+  static constexpr uint16_t kInvalidGattHandle = 0x0000;
+  static constexpr uint16_t kFirstSegmentRangingDataTimeoutMs = 5000;
+  static constexpr uint16_t kFollowingSegmentTimeoutMs = 1000;
+  static constexpr uint16_t kRangingDataReadyTimeoutMs = 5000;
+  static constexpr uint16_t kInvalidConnInterval = 0;  // valid value is from 0x0006 to 0x0C0
+  static constexpr uint16_t kMinimumRasMtu = 247;      // 4.1 Maximum transmission unit of RAP 1.0
+
 public:
   struct GattReadCallbackData {
     const bool is_last_;
@@ -56,7 +89,12 @@ public:
   struct RasTracker {
     RasTracker(const RawAddress& address, const RawAddress& address_for_cs)
         : address_(address), address_for_cs_(address_for_cs) {}
-    uint16_t conn_id_;
+    ~RasTracker() {
+      if (ranging_data_timeout_timer_ != nullptr) {
+        alarm_free(ranging_data_timeout_timer_);
+      }
+    }
+    tCONN_ID conn_id_;
     RawAddress address_;
     RawAddress address_for_cs_;
     const gatt::Service* service_ = nullptr;
@@ -66,10 +104,19 @@ public:
     bool is_connected_ = false;
     bool service_search_complete_ = false;
     std::vector<VendorSpecificCharacteristic> vendor_specific_characteristics_;
-    uint8_t writeReplyCounter_ = 0;
-    uint8_t writeReplySuccessCounter_ = 0;
+    uint8_t write_reply_counter_ = 0;
+    uint8_t write_reply_success_counter_ = 0;
+    alarm_t* ranging_data_timeout_timer_ = nullptr;
+    RangingType ranging_type_ = RANGING_TYPE_NONE;
+    TimeoutType timeout_type_ = TIMEOUT_NONE;
+    uint16_t conn_interval_ = kInvalidConnInterval;
+    uint16_t mtu = kDefaultGattMtu;
 
     const gatt::Characteristic* FindCharacteristicByUuid(Uuid uuid) {
+      if (service_ == nullptr) {
+        log::error("Can't find Ranging Service");
+        return nullptr;
+      }
       for (auto& characteristic : service_->characteristics) {
         if (characteristic.uuid == uuid) {
           return &characteristic;
@@ -77,6 +124,7 @@ public:
       }
       return nullptr;
     }
+
     const gatt::Characteristic* FindCharacteristicByHandle(uint16_t handle) {
       for (auto& characteristic : service_->characteristics) {
         if (characteristic.value_handle == handle) {
@@ -97,6 +145,15 @@ public:
   };
 
   void Initialize() override {
+    do_in_main_thread(base::BindOnce(&RasClientImpl::do_initialize, base::Unretained(this)));
+  }
+
+  void do_initialize() {
+    auto controller = bluetooth::shim::GetController();
+    if (controller && !controller->SupportsBleChannelSounding()) {
+      log::info("controller does not support channel sounding.");
+      return;
+    }
     BTA_GATTC_AppRegister(
             [](tBTA_GATTC_EVT event, tBTA_GATTC* p_data) {
               if (instance && p_data) {
@@ -126,9 +183,18 @@ public:
       trackers_.emplace_back(std::make_shared<RasTracker>(ble_bd_addr.bda, address));
     } else if (tracker->is_connected_) {
       log::info("Already connected");
-      uint16_t att_handle = tracker->FindCharacteristicByUuid(kRasRealTimeRangingDataCharacteristic)
-                                    ->value_handle;
-      callbacks_->OnConnected(address, att_handle, tracker->vendor_specific_characteristics_);
+      auto characteristic =
+              tracker->FindCharacteristicByUuid(kRasRealTimeRangingDataCharacteristic);
+      uint16_t real_time_att_handle =
+              characteristic == nullptr ? kInvalidGattHandle : characteristic->value_handle;
+      // Check if the Real-Time ranging unsubscribed due to timeout
+      if (characteristic != nullptr && tracker->ranging_type_ == RANGING_TYPE_NONE) {
+        tracker->ranging_type_ = REAL_TIME;
+        SubscribeCharacteristic(tracker, kRasRealTimeRangingDataCharacteristic);
+        SetTimeOutAlarm(tracker, kFirstSegmentRangingDataTimeoutMs, TimeoutType::FIRST_SEGMENT);
+      }
+      callbacks_->OnConnected(address, real_time_att_handle,
+                              tracker->vendor_specific_characteristics_, tracker->conn_interval_);
       return;
     }
     BTA_GATTC_Open(gatt_if_, ble_bd_addr.bda, BTM_BLE_DIRECT_CONNECTION, true);
@@ -172,11 +238,32 @@ public:
       case BTA_GATTC_SEARCH_CMPL_EVT: {
         OnGattServiceSearchComplete(p_data->search_cmpl);
       } break;
+      case BTA_GATTC_CFG_MTU_EVT: {
+        OnGattConfigMtu(p_data->cfg_mtu);
+      } break;
       case BTA_GATTC_NOTIF_EVT: {
         OnGattNotification(p_data->notify);
       } break;
+      case BTA_GATTC_CONN_UPDATE_EVT: {
+        OnConnUpdated(p_data->conn_update);
+      } break;
       default:
         log::warn("Unhandled event: {}", gatt_client_event_text(event));
+    }
+  }
+
+  void OnConnUpdated(const tBTA_GATTC_CONN_UPDATE& evt) const {
+    auto tracker = FindTrackerByHandle(evt.conn_id);
+    if (tracker == nullptr) {
+      log::debug("no ongoing measurement, skip");
+      return;
+    }
+    if (tracker->conn_interval_ != evt.interval) {
+      tracker->conn_interval_ = evt.interval;
+      log::info("conn interval is updated as {}", evt.interval);
+      callbacks_->OnConnIntervalUpdated(tracker->address_for_cs_, tracker->conn_interval_);
+    } else {
+      log::debug("conn interval was not updated");
     }
   }
 
@@ -203,6 +290,9 @@ public:
     }
     tracker->conn_id_ = evt.conn_id;
     tracker->is_connected_ = true;
+    tracker->conn_interval_ =
+            bluetooth::stack::l2cap::get_interface().L2CA_GetBleConnInterval(tracker->address_);
+    log::debug("The initial conn interval {}", tracker->conn_interval_);
     log::info("Search service");
     BTA_GATTC_ServiceSearchRequest(tracker->conn_id_, kRangingService);
   }
@@ -217,6 +307,7 @@ public:
       BTA_GATTC_Close(evt.conn_id);
       return;
     }
+    callbacks_->OnDisconnected(tracker->address_for_cs_);
     trackers_.remove(tracker);
   }
 
@@ -237,6 +328,9 @@ public:
         break;
       }
     }
+    // config mtu anyway, if it had been configured by others, it can get the current mtu.
+    log::info("config the MTU size as RAP minimum value {}", kMinimumRasMtu);
+    BTA_GATTC_ConfigureMTU(evt.conn_id, kMinimumRasMtu);
 
     if (tracker->service_search_complete_) {
       log::info("Service search already completed, ignore");
@@ -263,10 +357,9 @@ public:
                 vendor_specific_characteristic.characteristicUuid_);
         BTA_GATTC_ReadCharacteristic(
                 tracker->conn_id_, characteristic->value_handle, GATT_AUTH_REQ_NO_MITM,
-                [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
+                [](tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
                    uint8_t* value, void* data) {
-                  instance->OnReadCharacteristicCallback(conn_id, status, handle, len, value,
-                                                         data);
+                  instance->OnReadCharacteristicCallback(conn_id, status, handle, len, value, data);
                 },
                 nullptr);
       }
@@ -287,6 +380,20 @@ public:
               &gatt_read_callback_data_);
 
       SubscribeCharacteristic(tracker, kRasControlPointCharacteristic);
+    }
+  }
+
+  void OnGattConfigMtu(const tBTA_GATTC_CFG_MTU& evt) {
+    if (evt.status != GATT_SUCCESS) {
+      log::warn("Failed to config the MTU size:{}", evt.mtu);
+      return;
+    }
+    // the MTU is always 517 since android 14
+    log::info("conn_id=0x{:04x}, status:{}, mtu:{}", evt.conn_id, evt.status, evt.mtu);
+    auto tracker = FindTrackerByHandle(evt.conn_id);
+    if (tracker != nullptr) {
+      tracker->mtu = evt.mtu;
+      callbacks_->OnMtuChangedFromClient(tracker->address_for_cs_, evt.mtu);
     }
   }
 
@@ -349,6 +456,11 @@ public:
     std::vector<uint8_t> data;
     data.resize(evt.len);
     std::copy(evt.value, evt.value + evt.len, data.begin());
+    bool is_last = (data[0] >> 1 & 0x01);
+    alarm_cancel(tracker->ranging_data_timeout_timer_);
+    if (!is_last) {
+      SetTimeOutAlarm(tracker, kFollowingSegmentTimeoutMs, FOLLOWING_SEGMENT);
+    }
     callbacks_->OnRemoteData(tracker->address_for_cs_, data);
   }
 
@@ -380,6 +492,9 @@ public:
 
     // Send get ranging data command
     tracker->latest_ranging_counter_ = ranging_counter;
+    if (tracker->timeout_type_ == RANGING_DATA_READY) {
+      alarm_cancel(tracker->ranging_data_timeout_timer_);
+    }
     GetRangingData(ranging_counter, tracker);
   }
 
@@ -403,6 +518,7 @@ public:
     value[2] = (uint8_t)((ranging_counter >> 8) & 0xFF);
     BTA_GATTC_WriteCharValue(tracker->conn_id_, characteristic->value_handle, GATT_WRITE_NO_RSP,
                              value, GATT_AUTH_REQ_NO_MITM, GattWriteCallback, nullptr);
+    SetTimeOutAlarm(tracker, kFirstSegmentRangingDataTimeoutMs, FIRST_SEGMENT);
   }
 
   void AckRangingData(uint16_t ranging_counter, std::shared_ptr<RasTracker> tracker) {
@@ -424,17 +540,30 @@ public:
     }
   }
 
-  void GattWriteCallbackForVendorSpecificData(uint16_t conn_id, tGATT_STATUS status,
-                                              uint16_t handle, const uint8_t* value,
+  void AbortOperation(std::shared_ptr<RasTracker> tracker) {
+    log::debug("address {}", tracker->address_for_cs_);
+    auto characteristic = tracker->FindCharacteristicByUuid(kRasControlPointCharacteristic);
+    if (characteristic == nullptr) {
+      log::warn("Can't find characteristic for RAS-CP");
+      return;
+    }
+    tracker->handling_on_demand_data_ = false;
+    std::vector<uint8_t> value{static_cast<uint8_t>(Opcode::ABORT_OPERATION)};
+    BTA_GATTC_WriteCharValue(tracker->conn_id_, characteristic->value_handle, GATT_WRITE_NO_RSP,
+                             value, GATT_AUTH_REQ_NO_MITM, GattWriteCallback, nullptr);
+  }
+
+  void GattWriteCallbackForVendorSpecificData(tCONN_ID conn_id, tGATT_STATUS status,
+                                              uint16_t handle, const uint8_t* /*value*/,
                                               GattWriteCallbackData* data) {
     if (data != nullptr) {
       GattWriteCallbackData* structPtr = static_cast<GattWriteCallbackData*>(data);
       if (structPtr->type_ == CallbackDataType::VENDOR_SPECIFIC_REPLY) {
         log::info("Write vendor specific reply complete");
         auto tracker = FindTrackerByHandle(conn_id);
-        tracker->writeReplyCounter_++;
+        tracker->write_reply_counter_++;
         if (status == GATT_SUCCESS) {
-          tracker->writeReplySuccessCounter_++;
+          tracker->write_reply_success_counter_++;
         } else {
           log::error(
                   "Fail to write vendor specific reply conn_id {}, status {}, "
@@ -442,16 +571,16 @@ public:
                   conn_id, gatt_status_text(status), handle);
         }
         // All reply complete
-        if (tracker->writeReplyCounter_ == tracker->vendor_specific_characteristics_.size()) {
+        if (tracker->write_reply_counter_ == tracker->vendor_specific_characteristics_.size()) {
           log::info(
                   "All vendor specific reply write complete, size {} "
                   "successCounter {}",
                   tracker->vendor_specific_characteristics_.size(),
-                  tracker->writeReplySuccessCounter_);
-          bool success = tracker->writeReplySuccessCounter_ ==
+                  tracker->write_reply_success_counter_);
+          bool success = tracker->write_reply_success_counter_ ==
                          tracker->vendor_specific_characteristics_.size();
-          tracker->writeReplyCounter_ = 0;
-          tracker->writeReplySuccessCounter_ = 0;
+          tracker->write_reply_counter_ = 0;
+          tracker->write_reply_success_counter_ = 0;
           callbacks_->OnWriteVendorSpecificReplyComplete(tracker->address_for_cs_, success);
         }
         return;
@@ -459,8 +588,8 @@ public:
     }
   }
 
-  void GattWriteCallback(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
-                         const uint8_t* value) {
+  void GattWriteCallback(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
+                         const uint8_t* /*value*/) {
     if (status != GATT_SUCCESS) {
       log::error("Fail to write conn_id {}, status {}, handle {}", conn_id,
                  gatt_status_text(status), handle);
@@ -483,8 +612,8 @@ public:
     }
   }
 
-  static void GattWriteCallback(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
-                                uint16_t len, const uint8_t* value, void* data) {
+  static void GattWriteCallback(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
+                                uint16_t /*len*/, const uint8_t* value, void* data) {
     if (instance != nullptr) {
       if (data != nullptr) {
         GattWriteCallbackData* structPtr = static_cast<GattWriteCallbackData*>(data);
@@ -527,7 +656,7 @@ public:
     }
     BTA_GATTC_WriteCharDescr(
             tracker->conn_id_, ccc_handle, value, GATT_AUTH_REQ_NONE,
-            [](uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
+            [](tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
                const uint8_t* value, void* data) {
               if (instance) {
                 instance->OnDescriptorWrite(conn_id, status, handle, len, value, data);
@@ -536,8 +665,40 @@ public:
             nullptr);
   }
 
-  void OnDescriptorWrite(uint16_t conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-                         const uint8_t* value, void* data) {
+  void UnsubscribeCharacteristic(std::shared_ptr<RasTracker> tracker, const Uuid uuid) {
+    auto characteristic = tracker->FindCharacteristicByUuid(uuid);
+    if (characteristic == nullptr) {
+      log::warn("Can't find characteristic 0x{:04x}", uuid.As16Bit());
+      return;
+    }
+    uint16_t ccc_handle = FindCccHandle(characteristic);
+    if (ccc_handle == GAP_INVALID_HANDLE) {
+      log::warn("Can't find Client Characteristic Configuration descriptor");
+      return;
+    }
+
+    tGATT_STATUS register_status = BTA_GATTC_DeregisterForNotifications(
+            gatt_if_, tracker->address_, characteristic->value_handle);
+    if (register_status != GATT_SUCCESS) {
+      log::error("Fail to deregister, {}", gatt_status_text(register_status));
+      return;
+    }
+    log::info("UnsubscribeCharacteristic 0x{:04x}", uuid.As16Bit());
+
+    std::vector<uint8_t> ccc_none(2, 0);
+    BTA_GATTC_WriteCharDescr(
+            tracker->conn_id_, ccc_handle, ccc_none, GATT_AUTH_REQ_NONE,
+            [](tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
+               const uint8_t* value, void* data) {
+              if (instance) {
+                instance->OnDescriptorWrite(conn_id, status, handle, len, value, data);
+              }
+            },
+            nullptr);
+  }
+
+  void OnDescriptorWrite(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t /*len*/,
+                         const uint8_t* /*value*/, void* /*data*/) {
     log::info("conn_id:{}, handle:{}, status:{}", conn_id, handle, gatt_status_text(status));
   }
 
@@ -570,7 +731,7 @@ public:
     maybe_resolve_address(&ble_bd_addr.bda, &ble_bd_addr.type);
   }
 
-  void OnReadCharacteristicCallback(uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
+  void OnReadCharacteristicCallback(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
                                     uint16_t len, uint8_t* value, void* data) {
     log::info("conn_id: {}, handle: {}, len: {}", conn_id, handle, len);
     if (status != GATT_SUCCESS) {
@@ -610,7 +771,7 @@ public:
         }
         STREAM_TO_UINT32(tracker->remote_supported_features_, value);
         log::info("Remote supported features : {}",
-                  getFeaturesString(tracker->remote_supported_features_));
+                  GetFeaturesString(tracker->remote_supported_features_));
       } break;
       default:
         log::warn("Unexpected UUID");
@@ -627,17 +788,22 @@ public:
   void AllCharacteristicsReadComplete(std::shared_ptr<RasTracker> tracker) {
     if (tracker->remote_supported_features_ & feature::kRealTimeRangingData) {
       log::info("Subscribe Real-time Ranging Data");
+      tracker->ranging_type_ = REAL_TIME;
       SubscribeCharacteristic(tracker, kRasRealTimeRangingDataCharacteristic);
+      SetTimeOutAlarm(tracker, kFirstSegmentRangingDataTimeoutMs, TimeoutType::FIRST_SEGMENT);
     } else {
       log::info("Subscribe On-demand Ranging Data");
+      tracker->ranging_type_ = ON_DEMAND;
       SubscribeCharacteristic(tracker, kRasOnDemandDataCharacteristic);
       SubscribeCharacteristic(tracker, kRasRangingDataReadyCharacteristic);
       SubscribeCharacteristic(tracker, kRasRangingDataOverWrittenCharacteristic);
+      SetTimeOutAlarm(tracker, kRangingDataReadyTimeoutMs, TimeoutType::RANGING_DATA_READY);
     }
-    uint16_t att_handle =
-            tracker->FindCharacteristicByUuid(kRasRealTimeRangingDataCharacteristic)->value_handle;
-    callbacks_->OnConnected(tracker->address_for_cs_, att_handle,
-                            tracker->vendor_specific_characteristics_);
+    auto characteristic = tracker->FindCharacteristicByUuid(kRasRealTimeRangingDataCharacteristic);
+    uint16_t real_time_att_handle =
+            characteristic == nullptr ? kInvalidGattHandle : characteristic->value_handle;
+    callbacks_->OnConnected(tracker->address_for_cs_, real_time_att_handle,
+                            tracker->vendor_specific_characteristics_, tracker->conn_interval_);
   }
 
   void StoreCachedData(std::shared_ptr<RasTracker> tracker) {
@@ -671,7 +837,7 @@ public:
     }
   }
 
-  std::string getFeaturesString(uint32_t value) {
+  std::string GetFeaturesString(uint32_t value) {
     std::stringstream ss;
     ss << value;
     if (value == 0) {
@@ -702,7 +868,7 @@ public:
     return GAP_INVALID_HANDLE;
   }
 
-  std::shared_ptr<RasTracker> FindTrackerByHandle(uint16_t conn_id) const {
+  std::shared_ptr<RasTracker> FindTrackerByHandle(tCONN_ID conn_id) const {
     for (auto tracker : trackers_) {
       if (tracker->conn_id_ == conn_id) {
         return tracker;
@@ -718,6 +884,52 @@ public:
       }
     }
     return nullptr;
+  }
+
+  void SetTimeOutAlarm(std::shared_ptr<RasTracker> tracker, uint16_t interval_ms,
+                       TimeoutType timeout_type) {
+    log::debug("ranging_type_: {}, {}", (uint8_t)tracker->ranging_type_, (uint8_t)timeout_type);
+    tracker->timeout_type_ = timeout_type;
+    tracker->ranging_data_timeout_timer_ = alarm_new("Ranging Data Timeout");
+    alarm_set_on_mloop(
+            tracker->ranging_data_timeout_timer_, interval_ms,
+            [](void* data) {
+              if (instance) {
+                instance->OnRangingDataTimeout(reinterpret_cast<RawAddress*>(data));
+              }
+            },
+            &tracker->address_);
+  }
+
+  void OnRangingDataTimeout(RawAddress* address) {
+    auto tracker = FindTrackerByAddress(*address);
+    if (tracker == nullptr) {
+      log::warn("Skipping unknown device, address: {}", *address);
+      return;
+    }
+
+    switch (tracker->timeout_type_) {
+      case FIRST_SEGMENT:
+      case FOLLOWING_SEGMENT: {
+        auto timeout_type_text =
+                tracker->timeout_type_ == FIRST_SEGMENT ? "first segment" : "following segment";
+        if (tracker->ranging_type_ == REAL_TIME) {
+          log::error("Timeout to receive {} of Real-time ranging data", timeout_type_text);
+          UnsubscribeCharacteristic(tracker, kRasRealTimeRangingDataCharacteristic);
+          tracker->ranging_type_ = RANGING_TYPE_NONE;
+        } else {
+          log::error("Timeout to receive {} of On-Demand ranging data", timeout_type_text);
+          AbortOperation(tracker);
+        }
+      } break;
+      case RANGING_DATA_READY: {
+        log::error("Timeout to receive ranging data ready");
+      } break;
+      default:
+        log::error("Unexpected timeout type {}", (uint16_t)tracker->timeout_type_);
+        return;
+    }
+    callbacks_->OnRemoteDataTimeout(tracker->address_for_cs_);
   }
 
 private:

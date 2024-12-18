@@ -42,7 +42,6 @@ import com.android.bluetooth.BluetoothMethodProxy;
 import com.android.bluetooth.btservice.AdapterService;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -107,6 +106,10 @@ public class BluetoothOppServiceTest {
         BluetoothOppService service = mService;
         if (service != null) {
             service.mUpdateThread = null;
+            Thread updateNotificationThread = service.mNotifier.mUpdateNotificationThread;
+            if (updateNotificationThread != null) {
+                updateNotificationThread.join();
+            }
         }
 
         BluetoothMethodProxy.setInstanceForTesting(null);
@@ -117,7 +120,7 @@ public class BluetoothOppServiceTest {
 
     @Test
     public void testInitialize() {
-        Assert.assertNotNull(BluetoothOppService.getBluetoothOppService());
+        assertThat(BluetoothOppService.getBluetoothOppService()).isNotNull();
     }
 
     @Test

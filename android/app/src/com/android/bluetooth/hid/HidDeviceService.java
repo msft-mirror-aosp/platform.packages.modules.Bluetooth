@@ -124,8 +124,9 @@ public class HidDeviceService extends ProfileService {
                                 break;
                             }
                         } catch (RemoteException e) {
-                            Log.e(TAG, "e=" + e.toString());
-                            e.printStackTrace();
+                            Log.e(
+                                    TAG,
+                                    e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
                         }
 
                         if (success) {
@@ -137,7 +138,11 @@ public class HidDeviceService extends ProfileService {
                                     binder.linkToDeath(mDeathRcpt, 0);
                                     Log.i(TAG, "IBinder.linkToDeath() ok");
                                 } catch (RemoteException e) {
-                                    e.printStackTrace();
+                                    Log.e(
+                                            TAG,
+                                            e.toString()
+                                                    + "\n"
+                                                    + Log.getStackTraceString(new Throwable()));
                                 }
                             }
                         } else if (mDeathRcpt != null) {
@@ -147,7 +152,11 @@ public class HidDeviceService extends ProfileService {
                                     binder.unlinkToDeath(mDeathRcpt, 0);
                                     Log.i(TAG, "IBinder.unlinkToDeath() ok");
                                 } catch (NoSuchElementException e) {
-                                    e.printStackTrace();
+                                    Log.e(
+                                            TAG,
+                                            e.toString()
+                                                    + "\n"
+                                                    + Log.getStackTraceString(new Throwable()));
                                 }
                                 mDeathRcpt.cleanup();
                                 mDeathRcpt = null;
@@ -178,7 +187,9 @@ public class HidDeviceService extends ProfileService {
                                 mCallback.onConnectionStateChanged(device, state);
                             }
                         } catch (RemoteException e) {
-                            e.printStackTrace();
+                            Log.e(
+                                    TAG,
+                                    e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
                         }
                         break;
                     }
@@ -193,7 +204,7 @@ public class HidDeviceService extends ProfileService {
                             mCallback.onGetReport(mHidDevice, type, id, bufferSize);
                         }
                     } catch (RemoteException e) {
-                        e.printStackTrace();
+                        Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
                     }
                     break;
 
@@ -208,7 +219,9 @@ public class HidDeviceService extends ProfileService {
                                 mCallback.onSetReport(mHidDevice, reportType, reportId, data);
                             }
                         } catch (RemoteException e) {
-                            e.printStackTrace();
+                            Log.e(
+                                    TAG,
+                                    e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
                         }
                         break;
                     }
@@ -221,7 +234,7 @@ public class HidDeviceService extends ProfileService {
                             mCallback.onSetProtocol(mHidDevice, protocol);
                         }
                     } catch (RemoteException e) {
-                        e.printStackTrace();
+                        Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
                     }
                     break;
 
@@ -234,7 +247,7 @@ public class HidDeviceService extends ProfileService {
                             mCallback.onInterruptData(mHidDevice, reportId, data);
                         }
                     } catch (RemoteException e) {
-                        e.printStackTrace();
+                        Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
                     }
                     break;
 
@@ -244,7 +257,7 @@ public class HidDeviceService extends ProfileService {
                             mCallback.onVirtualCableUnplug(mHidDevice);
                         }
                     } catch (RemoteException e) {
-                        e.printStackTrace();
+                        Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
                     }
                     mHidDevice = null;
                     break;

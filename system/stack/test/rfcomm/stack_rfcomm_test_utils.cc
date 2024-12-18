@@ -54,7 +54,7 @@ uint8_t GetControlField(bool pf, uint8_t frame_type) {
   return static_cast<uint8_t>(control.to_ulong());
 }
 
-uint8_t GetFrameTypeFromControlField(uint8_t control_field) {
+static uint8_t GetFrameTypeFromControlField(uint8_t control_field) {
   return static_cast<uint8_t>(control_field & ~(0b10000));
 }
 

@@ -19,7 +19,6 @@
 #include <filesystem>
 
 #include "os/handler.h"
-#include "os/log.h"
 #include "os/parameter_provider.h"
 #include "os/system_properties.h"
 #include "storage/legacy_config_file.h"
@@ -92,6 +91,7 @@ void SyspropsModule::parse_config(std::string file_path) {
           "bluetooth.core.classic.sniff_min_intervals",
           "bluetooth.core.classic.sniff_attempts",
           "bluetooth.core.classic.sniff_timeouts",
+          "bluetooth.core.classic.auto_flush_timeout",
           // LE
           "bluetooth.core.le.min_connection_interval",
           "bluetooth.core.le.max_connection_interval",

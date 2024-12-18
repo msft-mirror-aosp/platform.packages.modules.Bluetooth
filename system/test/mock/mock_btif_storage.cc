@@ -27,6 +27,9 @@
 
 #include "test/common/mock_functions.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 // Original usings
 using bluetooth::Uuid;
 
@@ -57,6 +60,7 @@ struct btif_storage_get_remote_device_property btif_storage_get_remote_device_pr
 struct btif_storage_get_remote_prop btif_storage_get_remote_prop;
 struct btif_storage_get_sr_supp_feat btif_storage_get_sr_supp_feat;
 struct btif_storage_get_stored_remote_name btif_storage_get_stored_remote_name;
+struct btif_storage_get_cod btif_storage_get_cod;
 struct btif_storage_invoke_addr_type_update btif_storage_invoke_addr_type_update;
 struct btif_storage_is_restricted_device btif_storage_is_restricted_device;
 struct btif_storage_load_bonded_devices btif_storage_load_bonded_devices;
@@ -100,6 +104,7 @@ bt_status_t btif_storage_get_remote_device_property::return_value = BT_STATUS_SU
 bt_status_t btif_storage_get_remote_prop::return_value = BT_STATUS_SUCCESS;
 uint8_t btif_storage_get_sr_supp_feat::return_value = 0;
 bool btif_storage_get_stored_remote_name::return_value = false;
+bool btif_storage_get_cod::return_value = false;
 bool btif_storage_is_restricted_device::return_value = false;
 bt_status_t btif_storage_load_bonded_devices::return_value = BT_STATUS_SUCCESS;
 bt_status_t btif_storage_remove_ble_bonding_keys::return_value = BT_STATUS_SUCCESS;
@@ -207,6 +212,10 @@ uint8_t btif_storage_get_sr_supp_feat(const RawAddress& bd_addr) {
 bool btif_storage_get_stored_remote_name(const RawAddress& bd_addr, char* name) {
   inc_func_call_count(__func__);
   return test::mock::btif_storage::btif_storage_get_stored_remote_name(bd_addr, name);
+}
+bool btif_storage_get_cod(const RawAddress& bd_addr, uint32_t* cod) {
+  inc_func_call_count(__func__);
+  return test::mock::btif_storage::btif_storage_get_cod(bd_addr, cod);
 }
 void btif_storage_invoke_addr_type_update(const RawAddress& remote_bd_addr,
                                           const tBLE_ADDR_TYPE& addr_type) {

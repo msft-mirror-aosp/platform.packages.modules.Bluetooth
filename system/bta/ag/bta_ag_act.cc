@@ -28,21 +28,28 @@
 #include <cstdint>
 #include <cstring>
 
+#include "ag/bta_ag_at.h"
 #include "bta/ag/bta_ag_int.h"
 #include "bta/include/bta_dm_api.h"
 #include "bta/include/bta_hfp_api.h"
+#include "bta_ag_api.h"
 #include "bta_ag_swb_aptx.h"
-#include "internal_include/bt_trace.h"
+#include "bta_api.h"
+#include "bta_sys.h"
+#include "btm_api_types.h"
+#include "device/include/device_iot_conf_defs.h"
+#include "osi/include/alarm.h"
+#include "sdp_status.h"
+#include "types/bt_transport.h"
 
 #ifdef __ANDROID__
-#include "bta/le_audio/devices.h"
 #endif
 
 #include "btif/include/btif_config.h"
 #include "device/include/device_iot_config.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_sec_api_types.h"
-#include "stack/include/l2c_api.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/port_api.h"
 #include "stack/include/sdp_api.h"
 #include "storage/config_keys.h"
@@ -145,7 +152,7 @@ void bta_ag_register(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data) {
  * Returns          void
  *
  ******************************************************************************/
-void bta_ag_deregister(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data) {
+void bta_ag_deregister(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& /*data*/) {
   /* set dealloc */
   p_scb->dealloc = true;
 
@@ -169,7 +176,7 @@ void bta_ag_deregister(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data) {
  * Returns          void
  *
  ******************************************************************************/
-void bta_ag_start_dereg(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data) {
+void bta_ag_start_dereg(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& /*data*/) {
   /* set dealloc */
   p_scb->dealloc = true;
 
@@ -396,6 +403,7 @@ void bta_ag_rfc_close(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& /* data */) {
   int i, num_active_conn = 0;
 
   /* reinitialize stuff */
+  p_scb->clip[0] = 0;
   p_scb->conn_service = 0;
   p_scb->peer_features = 0;
   p_scb->masked_features = p_scb->features;
@@ -475,7 +483,7 @@ void bta_ag_rfc_close(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& /* data */) {
     if (RFCOMM_RemoveServer(p_scb->conn_handle) != PORT_SUCCESS) {
       log::warn("Unable to remove RFCOMM server peer:{} handle:{}", p_scb->peer_addr,
                 p_scb->conn_handle);
-    };
+    }
     bta_ag_scb_dealloc(p_scb);
   }
 }
@@ -594,7 +602,7 @@ void bta_ag_rfc_acp_open(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data) {
           log::warn("RFCOMM_RemoveConnection failed for {}, handle {}, error {}", dev_addr,
                     ag_scb.conn_handle, status);
         }
-      } else if (com::android::bluetooth::flags::reset_after_collision()) {
+      } else {
         // As no existing outgoing rfcomm connection, then manual reset current
         // state, and use the incoming one
         bta_ag_rfc_fail(&ag_scb, tBTA_AG_DATA::kEmpty);
@@ -699,7 +707,8 @@ void bta_ag_rfc_data(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& /* data */) {
 void bta_ag_start_close(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data) {
   /* Take the link out of sniff and set L2C idle time to 0 */
   bta_dm_pm_active(p_scb->peer_addr);
-  if (!L2CA_SetIdleTimeoutByBdAddr(p_scb->peer_addr, 0, BT_TRANSPORT_BR_EDR)) {
+  if (!stack::l2cap::get_interface().L2CA_SetIdleTimeoutByBdAddr(p_scb->peer_addr, 0,
+                                                                 BT_TRANSPORT_BR_EDR)) {
     log::warn("Unable to set idle timeout peer:{}", p_scb->peer_addr);
   }
 

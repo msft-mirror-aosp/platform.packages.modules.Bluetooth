@@ -15,6 +15,7 @@
  */
 package com.android.bluetooth;
 
+import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
 import static org.mockito.ArgumentMatchers.eq;
@@ -49,6 +50,8 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
@@ -91,11 +94,12 @@ public class TestUtils {
      *     mocked or spied
      */
     public static void setAdapterService(AdapterService adapterService) {
-        Assert.assertNull(
-                "AdapterService.getAdapterService() must be null before setting another"
-                        + " AdapterService",
-                AdapterService.getAdapterService());
-        Assert.assertNotNull("Adapter service should not be null", adapterService);
+        assertWithMessage(
+                        "AdapterService.getAdapterService() must be null before setting another"
+                                + " AdapterService")
+                .that(AdapterService.getAdapterService())
+                .isNull();
+        assertThat(adapterService).isNotNull();
         // We cannot mock AdapterService.getAdapterService() with Mockito.
         // Hence we need to set AdapterService.sAdapterService field.
         AdapterService.setAdapterService(adapterService);
@@ -113,7 +117,7 @@ public class TestUtils {
                         + " supplied adapterService in this method",
                 adapterService,
                 AdapterService.getAdapterService());
-        Assert.assertNotNull("Adapter service should not be null", adapterService);
+        assertThat(adapterService).isNotNull();
         AdapterService.clearAdapterService(adapterService);
     }
 
@@ -140,11 +144,11 @@ public class TestUtils {
      * @return {@link BluetoothDevice} test device for the device ID
      */
     public static BluetoothDevice getTestDevice(BluetoothAdapter bluetoothAdapter, int id) {
-        Assert.assertTrue(id <= 0xFF);
-        Assert.assertNotNull(bluetoothAdapter);
+        assertThat(id).isAtMost(0xFF);
+        assertThat(bluetoothAdapter).isNotNull();
         BluetoothDevice testDevice =
                 bluetoothAdapter.getRemoteDevice(String.format("00:01:02:03:04:%02X", id));
-        Assert.assertNotNull(testDevice);
+        assertThat(testDevice).isNotNull();
         return testDevice;
     }
 
@@ -171,7 +175,7 @@ public class TestUtils {
     public static Intent waitForIntent(int timeoutMs, BlockingQueue<Intent> queue) {
         try {
             Intent intent = queue.poll(timeoutMs, TimeUnit.MILLISECONDS);
-            Assert.assertNotNull(intent);
+            assertThat(intent).isNotNull();
             return intent;
         } catch (InterruptedException e) {
             Assert.fail("Cannot obtain an Intent from the queue: " + e.getMessage());
@@ -184,17 +188,14 @@ public class TestUtils {
      *
      * @param timeoutMs the time (in milliseconds) to wait and verify no intent has been received
      * @param queue the queue for the intent
-     * @return the received intent. Should be null under normal circumstances
      */
-    public static Intent waitForNoIntent(int timeoutMs, BlockingQueue<Intent> queue) {
+    public static void waitForNoIntent(int timeoutMs, BlockingQueue<Intent> queue) {
         try {
             Intent intent = queue.poll(timeoutMs, TimeUnit.MILLISECONDS);
-            Assert.assertNull(intent);
-            return intent;
+            assertThat(intent).isNull();
         } catch (InterruptedException e) {
             Assert.fail("Cannot obtain an Intent from the queue: " + e.getMessage());
         }
-        return null;
     }
 
     /**
@@ -277,7 +278,7 @@ public class TestUtils {
      * <pre>{@code
      * TestUtils.runOnMainSync(new Runnable() {
      *       public void run() {
-     *           Assert.assertTrue(mA2dpService.stop());
+     *           assertThat(mA2dpService.stop()).isTrue();
      *       }
      *   });
      * }</pre>
@@ -454,6 +455,19 @@ public class TestUtils {
                     }
                 }
             }
+        }
+    }
+
+    public static final class FakeTimeProvider implements Utils.TimeProvider {
+        private Instant currentTime = Instant.EPOCH;
+
+        @Override
+        public long elapsedRealtime() {
+            return currentTime.toEpochMilli();
+        }
+
+        public void advanceTime(Duration amountToAdvance) {
+            currentTime = currentTime.plus(amountToAdvance);
         }
     }
 }

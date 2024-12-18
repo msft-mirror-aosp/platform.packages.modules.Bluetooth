@@ -20,7 +20,6 @@
  */
 
 #include "gap_api.h"
-#include "l2c_api.h"
 #include "stack/include/bt_hdr.h"
 #include "test/common/mock_functions.h"
 #include "types/raw_address.h"
@@ -62,7 +61,16 @@ uint16_t GAP_ConnWriteData(uint16_t /* gap_handle */, BT_HDR* /* msg */) {
   inc_func_call_count(__func__);
   return 0;
 }
-void GAP_Init(void) { inc_func_call_count(__func__); }
-void gap_tx_complete_ind(uint16_t /* l2cap_cid */, uint16_t /* sdu_sent */) {
+bool GAP_GetLeChannelInfo(uint16_t /* gap_handle */, uint16_t* /*remote_mtu */,
+                          uint16_t* /* local_mps */, uint16_t* /* remote_mps */,
+                          uint16_t* /* local_credit */, uint16_t* /* remote_credit */,
+                          uint16_t* /* local_cid */, uint16_t* /* remote_cid */,
+                          uint16_t* /* acl_handle */) {
   inc_func_call_count(__func__);
+  return false;
 }
+bool GAP_IsTransportLe(uint16_t /* gap_handle */) {
+  inc_func_call_count(__func__);
+  return false;
+}
+void GAP_Init(void) { inc_func_call_count(__func__); }

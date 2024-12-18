@@ -57,7 +57,6 @@ import com.android.bluetooth.BluetoothMethodProxy;
 import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
-import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.map.BluetoothMapUtils.TYPE;
 import com.android.bluetooth.map.BluetoothMapbMessageMime.MimePart;
 import com.android.bluetooth.mapapi.BluetoothMapContract;
@@ -1558,19 +1557,12 @@ public class BluetoothMapContentObserver {
                                             > BluetoothMapUtils.MAP_EVENT_REPORT_V10) {
                                 long timestamp = c.getLong(c.getColumnIndex(Sms.DATE));
                                 String date = BluetoothMapUtils.getDateTimeString(timestamp);
-                                if (Flags.mapLimitNotification()) {
-                                    if (BluetoothMapUtils.isDateTimeOlderThanDuration(
-                                            timestamp, NEW_MESSAGE_DURATION_FOR_NOTIFICATION)) {
-                                        msgListSms.remove(id);
-                                        continue;
-                                    }
-                                } else {
-                                    if (BluetoothMapUtils.isDateTimeOlderThanOneYear(timestamp)) {
-                                        // Skip sending message events older than one year
-                                        msgListSms.remove(id);
-                                        continue;
-                                    }
+                                if (BluetoothMapUtils.isDateTimeOlderThanDuration(
+                                        timestamp, NEW_MESSAGE_DURATION_FOR_NOTIFICATION)) {
+                                    msgListSms.remove(id);
+                                    continue;
                                 }
+
                                 String subject = c.getString(c.getColumnIndex(Sms.BODY));
                                 if (subject == null) {
                                     subject = "";
@@ -1813,18 +1805,10 @@ public class BluetoothMapContentObserver {
                                         TimeUnit.SECONDS.toMillis(
                                                 c.getLong(c.getColumnIndex(Mms.DATE)));
                                 String date = BluetoothMapUtils.getDateTimeString(timestamp);
-                                if (Flags.mapLimitNotification()) {
-                                    if (BluetoothMapUtils.isDateTimeOlderThanDuration(
-                                            timestamp, NEW_MESSAGE_DURATION_FOR_NOTIFICATION)) {
-                                        msgListMms.remove(id);
-                                        continue;
-                                    }
-                                } else {
-                                    if (BluetoothMapUtils.isDateTimeOlderThanOneYear(timestamp)) {
-                                        // Skip sending new message events older than one year
-                                        msgListMms.remove(id);
-                                        continue;
-                                    }
+                                if (BluetoothMapUtils.isDateTimeOlderThanDuration(
+                                        timestamp, NEW_MESSAGE_DURATION_FOR_NOTIFICATION)) {
+                                    msgListMms.remove(id);
+                                    continue;
                                 }
 
                                 String subject = c.getString(c.getColumnIndex(Mms.SUBJECT));
@@ -3352,6 +3336,7 @@ public class BluetoothMapContentObserver {
         return handle;
     }
 
+    @SuppressWarnings("EnumOrdinal") // remove entire usage of internal intent
     public long sendMmsMessage(
             String folder,
             String[] toAddress,
@@ -4090,6 +4075,7 @@ public class BluetoothMapContentObserver {
         }
     }
 
+    @SuppressWarnings("EnumOrdinal") // remove entire usage of internal intent
     public static void actionMessageSentDisconnected(Context context, Intent intent, int result) {
         TYPE type =
                 TYPE.fromOrdinal(
@@ -4277,6 +4263,7 @@ public class BluetoothMapContentObserver {
         }
     }
 
+    @SuppressWarnings("EnumOrdinal") // remove entire usage of internal intent
     public boolean handleSmsSendIntent(Context context, Intent intent) {
         TYPE type =
                 TYPE.fromOrdinal(

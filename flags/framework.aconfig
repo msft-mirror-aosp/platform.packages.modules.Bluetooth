@@ -2,16 +2,6 @@ package: "com.android.bluetooth.flags"
 container: "com.android.btservices"
 
 flag {
-    name: "override_context_to_specify_device_id"
-    namespace: "bluetooth"
-    description: "In Bluetooth Manager, override the context with createDeviceContext to pin a specific DeviceId"
-    bug: "349657939"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "support_metadata_device_types_apis"
     is_exported: true
     namespace: "bluetooth"
@@ -28,21 +18,6 @@ flag {
 }
 
 flag {
-    name: "key_missing_broadcast"
-    is_exported: true
-    namespace: "bluetooth"
-    description: "Broadcast when remote device it lost bond"
-    bug: "311447399"
-}
-
-flag {
-    name: "keep_stopped_media_browser_service"
-    namespace: "bluetooth"
-    description: "Do not start stopped media browser services"
-    bug: "314855224"
-}
-
-flag {
     name: "identity_address_null_if_not_known"
     namespace: "bluetooth"
     description: "Return null for identity address if identity address is not known"
@@ -53,14 +28,6 @@ flag {
 }
 
 flag {
-    name: "get_address_type_api"
-    is_exported: true
-    namespace: "bluetooth"
-    description: "Change visibility of BluetoothDevice#getAddressType API to public"
-    bug: "321120941"
-}
-
-flag {
     name: "remove_address_map_on_unbond"
     namespace: "bluetooth"
     description: "Removes the address map when the bond is removed"
@@ -68,4 +35,64 @@ flag {
     metadata {
         purpose: PURPOSE_BUGFIX
     }
+}
+
+flag {
+    name: "support_bluetooth_quality_report_v6"
+    is_exported: true
+    namespace: "bluetooth"
+    description: "Enhanced Bluetooth Framework Support for Accessing Bluetooth Quality Report v6 Information"
+    bug: "364517559"
+}
+
+flag {
+    name: "get_profile_use_lock"
+    namespace: "bluetooth"
+    description: "Instead of bloating the main thread, use the binder thread with a synchronization lock"
+    bug: "370815283"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "support_remote_device_metadata"
+    is_exported: true
+    namespace: "bluetooth"
+    description: "Support setting/retrieving the remote device metadata for a BluetoothDevice"
+    bug: "374171574"
+}
+
+flag {
+    name: "fix_add_device_properties"
+    namespace: "bluetooth"
+    description: "Make sure single entry for mDevices. Race fix."
+    bug: "375158716"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "identity_address_type_api"
+    is_exported: true
+    namespace: "bluetooth"
+    description: "Add a new API to BluetoothDevice to retrieve Identity Address Type"
+    bug: "377171798"
+}
+
+flag {
+    name: "encryption_change_broadcast"
+    is_exported: true
+    namespace: "bluetooth"
+    description: "Broadcast when remote device encryption changes"
+    bug: "369753860"
+}
+
+flag {
+    name: "key_missing_public"
+    is_exported: true
+    namespace: "bluetooth"
+    description: "Make BluetoothDevice.ACTION_KEY_MISSING into public API"
+    bug: "379729762"
 }

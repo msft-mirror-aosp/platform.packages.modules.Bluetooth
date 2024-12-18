@@ -172,20 +172,22 @@ public class NotificationHelperService extends Service {
             // The notification is always displayed the first time and if it has been at least…:
             //  * … 1 week since the first display (aka recurring only once)
             //  * … 6 months since the last display (aka recurring forever)
+            //
+            // Comparison is +/- 1 hour, allowing for both battery optimisation and consistency
 
             if (date != null) {
                 savedDate = LocalDateTime.parse(date);
-                if ((countShown == 1 && now.isBefore(savedDate.plusWeeks(1)))
-                        || now.isBefore(savedDate.plusMonths(6))) {
+                if ((countShown != 1 && now.isBefore(savedDate.plusMonths(6).minusHours(1)))
+                        || now.isBefore(savedDate.plusWeeks(1).minusHours(1))) {
                     Log.i(
                             TAG,
                             ("shouldDisplayNotification(" + countKey + "): Notification discarded.")
                                     + (" countShown=" + countShown)
+                                    + (" now=" + now)
                                     + (" savedDate=" + savedDate));
                     return false;
                 }
             }
-
         }
 
         Settings.Secure.putInt(getContentResolver(), countKey, Math.min(3, countShown + 1));
@@ -194,6 +196,7 @@ public class NotificationHelperService extends Service {
                 TAG,
                 ("shouldDisplayNotification(" + countKey + "): Notification is being shown.")
                         + (" countShown=" + countShown)
+                        + (" now=" + now)
                         + (" savedDate=" + savedDate));
         return true;
     }

@@ -50,9 +50,8 @@ cc_library_shared {
         "libbluetooth_audio_session",
         "libhidlbase",
     ],
-    cflags: ["-Wno-unused-parameter"],
     visibility: [
-        "//device/generic/goldfish/audio",
+        "//device/generic/goldfish/hals/audio",
     ],
 }
 

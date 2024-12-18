@@ -30,6 +30,7 @@
 #include "stack/btm/btm_sec_cb.h"
 #include "stack/btm/security_device_record.h"
 #include "stack/include/btm_status.h"
+#include "stack/include/sec_hci_link_interface.h"
 #include "stack/test/btm/btm_test_fixtures.h"
 #include "test/mock/mock_main_shim_entry.h"
 #include "types/raw_address.h"
@@ -118,18 +119,18 @@ TEST_F(StackBtmSecWithInitFreeTest, btm_sec_encrypt_change) {
 
   // Check the collision conditionals
   ::btm_sec_cb.collision_start_time = 0UL;
-  btm_sec_encrypt_change(classic_handle, HCI_ERR_LMP_ERR_TRANS_COLLISION, 0x01);
+  btm_sec_encrypt_change(classic_handle, HCI_ERR_LMP_ERR_TRANS_COLLISION, 0x01, 0x10);
   uint64_t collision_start_time = ::btm_sec_cb.collision_start_time;
   ASSERT_NE(0UL, collision_start_time);
 
   ::btm_sec_cb.collision_start_time = 0UL;
-  btm_sec_encrypt_change(classic_handle, HCI_ERR_DIFF_TRANSACTION_COLLISION, 0x01);
+  btm_sec_encrypt_change(classic_handle, HCI_ERR_DIFF_TRANSACTION_COLLISION, 0x01, 0x10);
   collision_start_time = ::btm_sec_cb.collision_start_time;
   ASSERT_NE(0UL, collision_start_time);
 
   // No device
   ::btm_sec_cb.collision_start_time = 0;
-  btm_sec_encrypt_change(classic_handle, HCI_SUCCESS, 0x01);
+  btm_sec_encrypt_change(classic_handle, HCI_SUCCESS, 0x01, 0x10);
   ASSERT_EQ(0UL, ::btm_sec_cb.collision_start_time);
 
   // Setup device
@@ -141,21 +142,21 @@ TEST_F(StackBtmSecWithInitFreeTest, btm_sec_encrypt_change) {
   device_record->ble_hci_handle = ble_handle;
 
   // With classic device encryption enable
-  btm_sec_encrypt_change(classic_handle, HCI_SUCCESS, 0x01);
+  btm_sec_encrypt_change(classic_handle, HCI_SUCCESS, 0x01, 0x10);
   ASSERT_EQ(BTM_SEC_IN_USE | BTM_SEC_AUTHENTICATED | BTM_SEC_ENCRYPTED,
             device_record->sec_rec.sec_flags);
 
   // With classic device encryption disable
-  btm_sec_encrypt_change(classic_handle, HCI_SUCCESS, 0x00);
+  btm_sec_encrypt_change(classic_handle, HCI_SUCCESS, 0x00, 0x10);
   ASSERT_EQ(BTM_SEC_IN_USE | BTM_SEC_AUTHENTICATED, device_record->sec_rec.sec_flags);
   device_record->sec_rec.sec_flags = BTM_SEC_IN_USE;
 
   // With le device encryption enable
-  btm_sec_encrypt_change(ble_handle, HCI_SUCCESS, 0x01);
+  btm_sec_encrypt_change(ble_handle, HCI_SUCCESS, 0x01, 0x10);
   ASSERT_EQ(BTM_SEC_IN_USE | BTM_SEC_LE_ENCRYPTED, device_record->sec_rec.sec_flags);
 
   // With le device encryption disable
-  btm_sec_encrypt_change(ble_handle, HCI_SUCCESS, 0x00);
+  btm_sec_encrypt_change(ble_handle, HCI_SUCCESS, 0x00, 0x10);
   ASSERT_EQ(BTM_SEC_IN_USE, device_record->sec_rec.sec_flags);
   device_record->sec_rec.sec_flags = BTM_SEC_IN_USE;
 
@@ -225,7 +226,7 @@ TEST_F(StackBtmSecTest, btm_oob_data_text) {
   for (const auto& data : datas) {
     ASSERT_STREQ(data.second.c_str(), btm_oob_data_text(data.first).c_str());
   }
-  auto unknown = base::StringPrintf("UNKNOWN[%hhu]", std::numeric_limits<std::uint8_t>::max());
+  auto unknown = std::format("UNKNOWN[{}]", std::numeric_limits<std::uint8_t>::max());
   ASSERT_STREQ(
           unknown.c_str(),
           btm_oob_data_text(static_cast<tBTM_OOB_DATA>(std::numeric_limits<std::uint8_t>::max()))
@@ -241,7 +242,7 @@ TEST_F(StackBtmSecTest, bond_type_text) {
   for (const auto& data : datas) {
     ASSERT_STREQ(data.second.c_str(), bond_type_text(data.first).c_str());
   }
-  auto unknown = base::StringPrintf("UNKNOWN[%hhu]", std::numeric_limits<std::uint8_t>::max());
+  auto unknown = std::format("UNKNOWN[{}]", std::numeric_limits<std::uint8_t>::max());
   ASSERT_STREQ(unknown.c_str(),
                bond_type_text(static_cast<tBTM_BOND_TYPE>(std::numeric_limits<std::uint8_t>::max()))
                        .c_str());

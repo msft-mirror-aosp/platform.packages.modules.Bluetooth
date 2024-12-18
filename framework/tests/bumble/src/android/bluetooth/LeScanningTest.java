@@ -33,6 +33,7 @@ import android.bluetooth.le.ScanCallback;
 import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanResult;
 import android.bluetooth.le.ScanSettings;
+import android.bluetooth.test_utils.EnableBluetoothRule;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -75,11 +76,17 @@ public class LeScanningTest {
     private static final byte[] TEST_SERVICE_DATA = {(byte) 0xAA, (byte) 0xBB, (byte) 0xCC};
     private static final String TEST_UUID_SUFFIX = "-0000-1000-8000-00805f9b34fb";
 
-    @Rule public final AdoptShellPermissionsRule mPermissionRule = new AdoptShellPermissionsRule();
+    @Rule(order = 0)
+    public final AdoptShellPermissionsRule mPermissionRule = new AdoptShellPermissionsRule();
 
-    @Rule public final PandoraDevice mBumble = new PandoraDevice();
+    @Rule(order = 1)
+    public final PandoraDevice mBumble = new PandoraDevice();
 
-    private final Context mContext = ApplicationProvider.getApplicationContext();
+    @Rule(order = 2)
+    public final EnableBluetoothRule mEnableBluetoothRule = new EnableBluetoothRule(false, true);
+
+    private final Context mContext =
+            ApplicationProvider.getApplicationContext().createAttributionContext(TAG);
     private final BluetoothManager mBluetoothManager =
             mContext.getSystemService(BluetoothManager.class);
     private final BluetoothAdapter mBluetoothAdapter = mBluetoothManager.getAdapter();
@@ -348,6 +355,7 @@ public class LeScanningTest {
     }
 
     @Test
+    @VirtualOnly
     public void startBleScan_withServiceData() {
         advertiseWithBumbleWithServiceData();
 

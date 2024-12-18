@@ -21,23 +21,22 @@
 #include <gtest/gtest.h>
 
 #include "internal_include/bt_target.h"
-#include "mock_btm_layer.h"
-#include "mock_l2cap_layer.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/btm_status.h"
-#include "stack/include/l2c_api.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/include/port_api.h"
 #include "stack/include/rfcdefs.h"
-#include "stack_rfcomm_test_utils.h"
-#include "stack_test_packet_utils.h"
+#include "stack/test/common/mock_btm_layer.h"
+#include "stack/test/common/mock_l2cap_layer.h"
+#include "stack/test/common/stack_test_packet_utils.h"
+#include "stack/test/rfcomm/stack_rfcomm_test_utils.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth;
 
-std::string DumpByteBufferToString(uint8_t* p_data, size_t len) {
+static std::string DumpByteBufferToString(uint8_t* p_data, size_t len) {
   std::stringstream str;
   str.setf(std::ios_base::hex, std::ios::basefield);
   str.setf(std::ios_base::uppercase);
@@ -49,14 +48,14 @@ std::string DumpByteBufferToString(uint8_t* p_data, size_t len) {
   return str.str();
 }
 
-std::string DumpBtHdrToString(BT_HDR* p_hdr) {
+static std::string DumpBtHdrToString(BT_HDR* p_hdr) {
   uint8_t* p_hdr_data = p_hdr->data + p_hdr->offset;
   return DumpByteBufferToString(p_hdr_data, p_hdr->len);
 }
 
-void PrintTo(BT_HDR* value, ::std::ostream* os) { *os << DumpBtHdrToString(value); }
+static void PrintTo(BT_HDR* value, ::std::ostream* os) { *os << DumpBtHdrToString(value); }
 
-void PrintTo(tL2CAP_CFG_INFO* value, ::std::ostream* os) {
+static void PrintTo(tL2CAP_CFG_INFO* value, ::std::ostream* os) {
   *os << DumpByteBufferToString((uint8_t*)value, sizeof(tL2CAP_CFG_INFO));
 }
 
@@ -134,7 +133,8 @@ public:
                        uint16_t* server_handle) {
     log::verbose("Step 1");
     ASSERT_EQ(RFCOMM_CreateConnectionWithSecurity(uuid, scn, true, mtu, RawAddress::kAny,
-                                                  server_handle, management_callback, 0),
+                                                  server_handle, management_callback, 0,
+                                                  RfcommCfgInfo{}),
               PORT_SUCCESS);
     ASSERT_EQ(PORT_SetEventMaskAndCallback(*server_handle, PORT_EV_RXCHAR, event_callback),
               PORT_SUCCESS);
@@ -144,7 +144,8 @@ public:
     log::verbose("Step 1");
     // Remote device connect to this channel, we shall accept
     static const uint8_t cmd_id = 0x07;
-    EXPECT_CALL(l2cap_interface_, ConnectResponse(peer_addr, cmd_id, lcid, L2CAP_CONN_OK, 0));
+    EXPECT_CALL(l2cap_interface_,
+                ConnectResponse(peer_addr, cmd_id, lcid, tL2CAP_CONN::L2CAP_CONN_OK, 0));
     tL2CAP_CFG_INFO cfg_req = {.mtu_present = true, .mtu = L2CAP_MTU_SIZE};
     EXPECT_CALL(l2cap_interface_, ConfigRequest(lcid, PointerMemoryEqual(&cfg_req)))
             .WillOnce(Return(true));
@@ -153,7 +154,8 @@ public:
     log::verbose("Step 2");
     // MTU configuration is done
     cfg_req.mtu_present = false;
-    l2cap_appl_info_.pL2CA_ConfigCfm_Cb(lcid, L2CAP_CFG_OK, {});
+    l2cap_appl_info_.pL2CA_ConfigCfm_Cb(lcid,
+                                        static_cast<uint16_t>(tL2CAP_CFG_RESULT::L2CAP_CFG_OK), {});
 
     log::verbose("Step 3");
     // Remote device also ask to configure MTU size
@@ -257,9 +259,10 @@ public:
       EXPECT_CALL(l2cap_interface_, DataWrite(lcid, BtHdrEqual(uih_pn_channel_3)))
               .WillOnce(Return(tL2CAP_DW_RESULT::SUCCESS));
     }
-    ASSERT_EQ(RFCOMM_CreateConnectionWithSecurity(uuid, scn, false, mtu, peer_bd_addr,
-                                                  client_handle, management_callback, 0),
-              PORT_SUCCESS);
+    ASSERT_EQ(
+            RFCOMM_CreateConnectionWithSecurity(uuid, scn, false, mtu, peer_bd_addr, client_handle,
+                                                management_callback, 0, RfcommCfgInfo{}),
+            PORT_SUCCESS);
     ASSERT_EQ(PORT_SetEventMaskAndCallback(*client_handle, PORT_EV_RXCHAR, event_callback),
               PORT_SUCCESS);
     osi_free(uih_pn_channel_3);
@@ -271,12 +274,13 @@ public:
     tL2CAP_CFG_INFO cfg_req = {.mtu_present = true, .mtu = L2CAP_MTU_SIZE};
     EXPECT_CALL(l2cap_interface_, ConfigRequest(lcid, PointerMemoryEqual(&cfg_req)))
             .WillOnce(Return(true));
-    l2cap_appl_info_.pL2CA_ConnectCfm_Cb(lcid, L2CAP_CONN_OK);
+    l2cap_appl_info_.pL2CA_ConnectCfm_Cb(lcid, tL2CAP_CONN::L2CAP_CONN_OK);
 
     log::verbose("Step 2");
     // Remote device confirms our configuration request
     cfg_req.mtu_present = false;
-    l2cap_appl_info_.pL2CA_ConfigCfm_Cb(lcid, L2CAP_CFG_OK, {});
+    l2cap_appl_info_.pL2CA_ConfigCfm_Cb(lcid,
+                                        static_cast<uint16_t>(tL2CAP_CFG_RESULT::L2CAP_CFG_OK), {});
 
     log::verbose("Step 3");
     // Remote device also asks to configure MTU
@@ -639,7 +643,7 @@ TEST_F(StackRfcommTest, DISABLED_TestConnectionCollision) {
   // Prepare a server port
   int status = RFCOMM_CreateConnectionWithSecurity(test_uuid, test_server_scn, true, test_mtu,
                                                    RawAddress::kAny, &server_handle,
-                                                   port_mgmt_cback_0, 0);
+                                                   port_mgmt_cback_0, 0, RfcommCfgInfo{});
   ASSERT_EQ(status, PORT_SUCCESS);
   status = PORT_SetEventMaskAndCallback(server_handle, PORT_EV_RXCHAR, port_event_cback_0);
   ASSERT_EQ(status, PORT_SUCCESS);
@@ -650,9 +654,9 @@ TEST_F(StackRfcommTest, DISABLED_TestConnectionCollision) {
   EXPECT_CALL(l2cap_interface_, ConnectRequest(BT_PSM_RFCOMM, test_address))
           .Times(1)
           .WillOnce(Return(old_lcid));
-  status =
-          RFCOMM_CreateConnectionWithSecurity(test_uuid, test_peer_scn, false, test_mtu,
-                                              test_address, &client_handle_1, port_mgmt_cback_1, 0);
+  status = RFCOMM_CreateConnectionWithSecurity(test_uuid, test_peer_scn, false, test_mtu,
+                                               test_address, &client_handle_1, port_mgmt_cback_1, 0,
+                                               RfcommCfgInfo{});
   ASSERT_EQ(status, PORT_SUCCESS);
   status = PORT_SetEventMaskAndCallback(client_handle_1, PORT_EV_RXCHAR, port_event_cback_1);
   ASSERT_EQ(status, PORT_SUCCESS);
@@ -667,27 +671,29 @@ TEST_F(StackRfcommTest, DISABLED_TestConnectionCollision) {
   log::verbose("Step 4");
   // Remote reject our connection request saying PSM not allowed
   // This should trigger RFCOMM to accept remote L2CAP connection at new_lcid
-  EXPECT_CALL(l2cap_interface_,
-              ConnectResponse(test_address, pending_cmd_id, new_lcid, L2CAP_CONN_OK, 0))
+  EXPECT_CALL(l2cap_interface_, ConnectResponse(test_address, pending_cmd_id, new_lcid,
+                                                tL2CAP_CONN::L2CAP_CONN_OK, 0))
           .WillOnce(Return(true));
   // Followed by configure request for MTU size
   tL2CAP_CFG_INFO our_cfg_req = {.mtu_present = true, .mtu = L2CAP_MTU_SIZE};
   EXPECT_CALL(l2cap_interface_, ConfigRequest(new_lcid, PointerMemoryEqual(&our_cfg_req)))
           .WillOnce(Return(true));
-  l2cap_appl_info_.pL2CA_ConnectCfm_Cb(old_lcid, L2CAP_CONN_NO_PSM);
+  l2cap_appl_info_.pL2CA_ConnectCfm_Cb(old_lcid, tL2CAP_CONN::L2CAP_CONN_NO_PSM);
 
   log::verbose("Step 5");
   // Remote device also ask to configure MTU size as well
   tL2CAP_CFG_INFO peer_cfg_req = {.mtu_present = true, .mtu = test_mtu};
   // We responded by saying OK
-  tL2CAP_CFG_INFO our_cfg_rsp = {.result = L2CAP_CFG_OK, .mtu = peer_cfg_req.mtu};
+  tL2CAP_CFG_INFO our_cfg_rsp = {.result = tL2CAP_CFG_RESULT::L2CAP_CFG_OK,
+                                 .mtu = peer_cfg_req.mtu};
   EXPECT_CALL(l2cap_interface_, ConfigResponse(new_lcid, PointerMemoryEqual(&our_cfg_rsp)))
           .WillOnce(Return(true));
   l2cap_appl_info_.pL2CA_ConfigInd_Cb(new_lcid, &peer_cfg_req);
 
   log::verbose("Step 6");
   // Remote device accepted our MTU size
-  l2cap_appl_info_.pL2CA_ConfigCfm_Cb(new_lcid, L2CAP_CFG_OK, {});
+  l2cap_appl_info_.pL2CA_ConfigCfm_Cb(new_lcid,
+                                      static_cast<uint16_t>(tL2CAP_CFG_RESULT::L2CAP_CFG_OK), {});
 
   // L2CAP collision and connection setup done
 

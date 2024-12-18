@@ -29,15 +29,20 @@
 #include <com_android_bluetooth_flags.h>
 #include <string.h>
 
+#include <cstdint>
+
 #include "a2dp_codec_api.h"
+#include "a2dp_constants.h"
 #include "avdt_api.h"
+#include "avdt_defs.h"
 #include "avdt_int.h"
 #include "internal_include/bt_target.h"
-#include "os/log.h"
+#include "l2cap_types.h"
+#include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
-#include "osi/include/osi.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
+#include "stack/include/l2cap_interface.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth;
@@ -48,16 +53,16 @@ using namespace bluetooth;
  * allowing for this table.
  */
 const uint8_t avdt_scb_cback_evt[] = {
-        0,                     /* API_REMOVE_EVT (no event) */
-        AVDT_WRITE_CFM_EVT,    /* API_WRITE_REQ_EVT */
-        0,                     /* API_GETCONFIG_REQ_EVT (no event) */
-        0,                     /* API_DELAY_RPT_REQ_EVT (no event) */
-        AVDT_OPEN_CFM_EVT,     /* API_SETCONFIG_REQ_EVT */
-        AVDT_OPEN_CFM_EVT,     /* API_OPEN_REQ_EVT */
-        AVDT_CLOSE_CFM_EVT,    /* API_CLOSE_REQ_EVT */
-        AVDT_RECONFIG_CFM_EVT, /* API_RECONFIG_REQ_EVT */
-        AVDT_SECURITY_CFM_EVT, /* API_SECURITY_REQ_EVT */
-        0                      /* API_ABORT_REQ_EVT (no event) */
+        0,                     /* AVDT_SCB_API_REMOVE_EVT (no event) */
+        AVDT_WRITE_CFM_EVT,    /* AVDT_SCB_API_WRITE_REQ_EVT */
+        0,                     /* AVDT_SCB_API_GETCONFIG_REQ_EVT (no event) */
+        0,                     /* AVDT_SCB_API_DELAY_RPT_REQ_EVT (no event) */
+        AVDT_OPEN_CFM_EVT,     /* AVDT_SCB_API_SETCONFIG_REQ_EVT */
+        AVDT_OPEN_CFM_EVT,     /* AVDT_SCB_API_OPEN_REQ_EVT */
+        AVDT_CLOSE_CFM_EVT,    /* AVDT_SCB_API_CLOSE_REQ_EVT */
+        AVDT_RECONFIG_CFM_EVT, /* AVDT_SCB_API_RECONFIG_REQ_EVT */
+        AVDT_SECURITY_CFM_EVT, /* AVDT_SCB_API_SECURITY_REQ_EVT */
+        0                      /* AVDT_SCB_API_ABORT_REQ_EVT (no event) */
 };
 
 /*******************************************************************************
@@ -204,7 +209,7 @@ void avdt_scb_hdl_open_rej(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
 void avdt_scb_hdl_open_rsp(AvdtpScb* p_scb, tAVDT_SCB_EVT* /* p_data */) {
   /* initiate opening of trans channels for this SEID */
   p_scb->role = AVDT_OPEN_INT;
-  avdt_ad_open_req(AVDT_CHAN_MEDIA, p_scb->p_ccb, p_scb, AVDT_INT);
+  avdt_ad_open_req(AVDT_CHAN_MEDIA, p_scb->p_ccb, p_scb, tAVDT_ROLE::AVDT_INT);
 
   /* start tc connect timer */
   alarm_set_on_mloop(p_scb->transport_channel_timer, AVDT_SCB_TC_CONN_TIMEOUT_MS,
@@ -277,9 +282,8 @@ void avdt_scb_hdl_pkt_no_frag(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
   if (pad_len >= (len - offset)) {
     log::warn("Got bad media packet");
     osi_free_and_reset((void**)&p_data->p_pkt);
-  }
-  /* adjust offset and length and send it up */
-  else {
+  } else {
+    /* adjust offset and length and send it up */
     p_data->p_pkt->len -= (offset + pad_len);
     p_data->p_pkt->offset += offset;
 
@@ -307,7 +311,7 @@ length_error:
  * Returns          Nothing.
  *
  ******************************************************************************/
-uint8_t* avdt_scb_hdl_report(AvdtpScb* p_scb, uint8_t* p, uint16_t len) {
+static uint8_t* avdt_scb_hdl_report(AvdtpScb* p_scb, uint8_t* p, uint16_t len) {
   uint16_t result = AVDT_SUCCESS;
   uint8_t* p_start = p;
   uint32_t ssrc;
@@ -549,7 +553,7 @@ void avdt_scb_hdl_security_rsp(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
  *
  ******************************************************************************/
 void avdt_scb_hdl_setconfig_cmd(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
-  log::verbose("p_scb->in_use={} p_avdt_scb={} scb_index={}", p_scb->in_use, fmt::ptr(p_scb),
+  log::verbose("p_scb->in_use={} p_avdt_scb={} scb_index={}", p_scb->in_use, std::format_ptr(p_scb),
                p_scb->stream_config.scb_index);
 
   if (p_scb->in_use) {
@@ -566,10 +570,9 @@ void avdt_scb_hdl_setconfig_cmd(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
   // the codec type differs from the type of the SEP, or INVALID_CODEC_TYPE
   // if the codec type does not match the values defined by Assigned Numbers.
   if (local_codec_type != remote_codec_type) {
-    p_data->msg.hdr.err_code =
-            !com::android::bluetooth::flags::avdtp_error_codes() ? AVDTP_UNSUPPORTED_CONFIGURATION
-            : !A2DP_IsCodecTypeValid(remote_codec_type)          ? A2DP_INVALID_CODEC_TYPE
-                                                                 : A2DP_NOT_SUPPORTED_CODEC_TYPE;
+    p_data->msg.hdr.err_code = !A2DP_IsCodecTypeValid(remote_codec_type)
+                                       ? A2DP_INVALID_CODEC_TYPE
+                                       : A2DP_NOT_SUPPORTED_CODEC_TYPE;
     p_data->msg.hdr.err_param = 0;
     avdt_msg_send_rej(avdt_ccb_by_idx(p_data->msg.hdr.ccb_idx), p_data->msg.hdr.sig_id,
                       &p_data->msg);
@@ -582,8 +585,8 @@ void avdt_scb_hdl_setconfig_cmd(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
     log::error(
             "mismatch in AVDTP SCB/CCB state: (p_scb->p_ccb={} != p_ccb={}): "
             "p_scb={} scb_handle={} ccb_idx={}",
-            fmt::ptr(p_scb->p_ccb), fmt::ptr(p_ccb), fmt::ptr(p_scb), p_scb->ScbHandle(),
-            p_data->msg.config_cmd.hdr.ccb_idx);
+            std::format_ptr(p_scb->p_ccb), std::format_ptr(p_ccb), std::format_ptr(p_scb),
+            p_scb->ScbHandle(), p_data->msg.config_cmd.hdr.ccb_idx);
     avdt_scb_rej_not_in_use(p_scb, p_data);
     return;
   }
@@ -900,7 +903,7 @@ void avdt_scb_hdl_tc_close_sto(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
  ******************************************************************************/
 void avdt_scb_hdl_tc_open(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
   uint8_t event;
-  uint8_t role;
+  tAVDT_ROLE role;
 
   alarm_cancel(p_scb->transport_channel_timer);
 
@@ -911,7 +914,7 @@ void avdt_scb_hdl_tc_open(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
                p_scb->req_cfg.psc_mask, p_scb->curr_cfg.psc_mask);
   if (p_scb->curr_cfg.psc_mask & AVDT_PSC_REPORT) {
     /* open the reporting channel, if both devices support it */
-    role = (p_scb->role == AVDT_OPEN_INT) ? AVDT_INT : AVDT_ACP;
+    role = (p_scb->role == AVDT_OPEN_INT) ? tAVDT_ROLE::AVDT_INT : tAVDT_ROLE::AVDT_ACP;
     avdt_ad_open_req(AVDT_CHAN_REPORT, p_scb->p_ccb, p_scb, role);
   }
 
@@ -1012,7 +1015,7 @@ void avdt_scb_hdl_write_req(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
 void avdt_scb_snd_abort_req(AvdtpScb* p_scb, tAVDT_SCB_EVT* /* p_data */) {
   tAVDT_EVT_HDR hdr;
 
-  log::verbose("p_scb->p_ccb={}", fmt::ptr(p_scb->p_ccb));
+  log::verbose("p_scb->p_ccb={}", std::format_ptr(p_scb->p_ccb));
 
   if (p_scb->p_ccb != NULL) {
     p_scb->role = AVDT_CLOSE_INT;
@@ -1149,9 +1152,9 @@ void avdt_scb_snd_open_req(AvdtpScb* p_scb, tAVDT_SCB_EVT* /* p_data */) {
  *
  ******************************************************************************/
 void avdt_scb_snd_open_rsp(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
-  /* notify adaption that we're waiting for transport channel open */
+  /* notify adaptation that we're waiting for transport channel open */
   p_scb->role = AVDT_OPEN_ACP;
-  avdt_ad_open_req(AVDT_CHAN_MEDIA, p_scb->p_ccb, p_scb, AVDT_ACP);
+  avdt_ad_open_req(AVDT_CHAN_MEDIA, p_scb->p_ccb, p_scb, tAVDT_ROLE::AVDT_ACP);
 
   /* send response */
   avdt_msg_send_rsp(p_scb->p_ccb, AVDT_SIG_OPEN, &p_data->msg);
@@ -1282,8 +1285,8 @@ void avdt_scb_snd_setconfig_req(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
     log::error(
             "mismatch in AVDTP SCB/CCB state: (p_scb->p_ccb={} != p_ccb={}): "
             "p_scb={} scb_handle={} ccb_idx={}",
-            fmt::ptr(p_scb->p_ccb), fmt::ptr(p_ccb), fmt::ptr(p_scb), p_scb->ScbHandle(),
-            p_data->msg.config_cmd.hdr.ccb_idx);
+            std::format_ptr(p_scb->p_ccb), std::format_ptr(p_ccb), std::format_ptr(p_scb),
+            p_scb->ScbHandle(), p_data->msg.config_cmd.hdr.ccb_idx);
     avdt_scb_rej_not_in_use(p_scb, p_data);
     return;
   }
@@ -1478,7 +1481,8 @@ void avdt_scb_clr_pkt(AvdtpScb* p_scb, tAVDT_SCB_EVT* /* p_data */) {
     tcid = avdt_ad_type_to_tcid(AVDT_CHAN_MEDIA, p_scb);
 
     lcid = avdtp_cb.ad.rt_tbl[avdt_ccb_to_idx(p_ccb)][tcid].lcid;
-    const uint16_t buffers_left = L2CA_FlushChannel(lcid, L2CAP_FLUSH_CHANS_ALL);
+    const uint16_t buffers_left =
+            stack::l2cap::get_interface().L2CA_FlushChannel(lcid, L2CAP_FLUSH_CHANS_ALL);
     if (buffers_left) {
       log::warn("Unable to flush L2CAP ALL channel peer:{} cid:{} buffers_left:{}",
                 p_ccb->peer_addr, lcid, buffers_left);

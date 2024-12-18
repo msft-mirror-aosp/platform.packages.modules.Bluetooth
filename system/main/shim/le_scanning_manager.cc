@@ -26,9 +26,7 @@
 #include "btif/include/btif_common.h"
 #include "hci/address.h"
 #include "hci/le_scanning_manager.h"
-#if TARGET_FLOSS
 #include "hci/msft.h"
-#endif
 #include "include/hardware/ble_scanner.h"
 #include "main/shim/ble_scanner_interface_impl.h"
 #include "main/shim/entry.h"
@@ -120,8 +118,8 @@ void btm_ble_process_adv_pkt_cont_for_inquiry(uint16_t event_type, tBLE_ADDR_TYP
                                               uint16_t periodic_adv_int,
                                               std::vector<uint8_t> advertising_data);
 
-extern void btif_dm_update_ble_remote_properties(const RawAddress& bd_addr, BD_NAME bd_name,
-                                                 DEV_CLASS dev_class, tBT_DEVICE_TYPE dev_type);
+extern void btif_update_remote_properties(const RawAddress& bd_addr, BD_NAME bd_name,
+                                          DEV_CLASS dev_class, tBT_DEVICE_TYPE dev_type);
 
 void btm_ble_process_adv_addr(RawAddress& raw_address, tBLE_ADDR_TYPE* address_type);
 
@@ -133,11 +131,9 @@ void BleScannerInterfaceImpl::Init() {
   log::info("init BleScannerInterfaceImpl");
   bluetooth::shim::GetScanning()->RegisterScanningCallback(this);
 
-#if TARGET_FLOSS
   if (bluetooth::shim::GetMsftExtensionManager()) {
     bluetooth::shim::GetMsftExtensionManager()->SetScanningCallback(this);
   }
-#endif
 }
 
 /** Registers a scanner with the stack */
@@ -166,12 +162,12 @@ void BleScannerInterfaceImpl::Scan(bool start) {
     btm_cb.ble_ctr_cb.set_ble_observe_active();
   } else if (!start && btm_cb.ble_ctr_cb.is_ble_observe_active()) {
     // stopped
-    const unsigned long long duration_timestamp =
+    const uint64_t duration_timestamp =
             timestamper_in_milliseconds.GetTimestamp() - btm_cb.neighbor.le_scan.start_time_ms;
-    BTM_LogHistory(kBtmLogTag, RawAddress::kEmpty, "Le scan stopped",
-                   base::StringPrintf("duration_s:%6.3f results:%-3lu",
-                                      (double)duration_timestamp / 1000.0,
-                                      btm_cb.neighbor.le_scan.results));
+    BTM_LogHistory(
+            kBtmLogTag, RawAddress::kEmpty, "Le scan stopped",
+            std::format("duration_s:{:6.3f} results:{:<3}", (double)duration_timestamp / 1000.0,
+                        btm_cb.neighbor.le_scan.results));
     btm_cb.ble_ctr_cb.reset_ble_observe();
     btm_cb.neighbor.le_scan = {};
   } else {
@@ -251,7 +247,6 @@ void BleScannerInterfaceImpl::ScanFilterEnable(bool enable, EnableCallback cb) {
   do_in_jni_thread(base::BindOnce(cb, action, btm_status_value(tBTM_STATUS::BTM_SUCCESS)));
 }
 
-#if TARGET_FLOSS
 /** Is MSFT Extension supported? */
 bool BleScannerInterfaceImpl::IsMsftSupported() {
   log::info("in shim layer");
@@ -292,13 +287,13 @@ void BleScannerInterfaceImpl::MsftAdvMonitorEnable(bool enable, MsftAdvMonitorEn
 void BleScannerInterfaceImpl::OnMsftAdvMonitorAdd(uint8_t monitor_handle,
                                                   bluetooth::hci::ErrorCode status) {
   log::info("in shim layer");
-  msft_callbacks_.Add.Run(monitor_handle, (uint8_t)status);
+  do_in_jni_thread(base::BindOnce(msft_callbacks_.Add, monitor_handle, (uint8_t)status));
 }
 
 /** Callback of removing MSFT filter */
 void BleScannerInterfaceImpl::OnMsftAdvMonitorRemove(bluetooth::hci::ErrorCode status) {
   log::info("in shim layer");
-  msft_callbacks_.Remove.Run((uint8_t)status);
+  do_in_jni_thread(base::BindOnce(msft_callbacks_.Remove, (uint8_t)status));
 }
 
 /** Callback of enabling / disabling MSFT scan filter */
@@ -312,9 +307,8 @@ void BleScannerInterfaceImpl::OnMsftAdvMonitorEnable(bool enable,
                    : bluetooth::hci::LeScanningFilterPolicy::ACCEPT_ALL);
   }
 
-  msft_callbacks_.Enable.Run((uint8_t)status);
+  do_in_jni_thread(base::BindOnce(msft_callbacks_.Enable, (uint8_t)status));
 }
-#endif
 
 /** Sets the LE scan interval and window in units of N*0.625 msec */
 void BleScannerInterfaceImpl::SetScanParameters(int scanner_id, uint8_t scan_type,
@@ -708,13 +702,13 @@ void BleScannerInterfaceImpl::handle_remote_properties(RawAddress bd_addr, tBLE_
       if (remote_name_len < BD_NAME_LEN + 1) {
         bdname.name[remote_name_len] = '\0';
       }
-      btif_dm_update_ble_remote_properties(bd_addr, bdname.name, kDevClassEmpty, device_type);
+      btif_update_remote_properties(bd_addr, bdname.name, kDevClassEmpty, device_type);
     }
   }
 
   DEV_CLASS dev_class = btm_ble_get_appearance_as_cod(advertising_data);
   if (dev_class != kDevClassUnclassified) {
-    btif_dm_update_ble_remote_properties(bd_addr, bdname.name, dev_class, device_type);
+    btif_update_remote_properties(bd_addr, bdname.name, dev_class, device_type);
   }
 
   auto* storage_module = bluetooth::shim::GetStorage();

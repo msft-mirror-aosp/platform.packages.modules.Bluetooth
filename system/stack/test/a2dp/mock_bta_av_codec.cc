@@ -15,5 +15,6 @@
  */
 
 #include "a2dp_codec_api.h"
+#include "btif/include/btif_av_co.h"
 
 A2dpCodecConfig* bta_av_get_a2dp_current_codec(void) { return nullptr; }

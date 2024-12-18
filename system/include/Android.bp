@@ -32,20 +32,20 @@ cc_library_headers {
     visibility: [
         "//packages/apps/Test/connectivity/sl4n",
         "//packages/modules/Bluetooth:__subpackages__",
-        "//vendor:__subpackages__",
     ],
     header_libs: [
+        "aics_headers",
         "avrcp_headers",
         "libbluetooth-types-header",
         "libbtcore_headers",
     ],
     export_header_lib_headers: [
+        "aics_headers",
         "avrcp_headers",
         "libbluetooth-types-header",
         "libbtcore_headers",
     ],
     export_include_dirs: ["./"],
-    vendor_available: true,
     host_supported: true,
     apex_available: [
         "//apex_available:platform",

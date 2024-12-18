@@ -29,12 +29,10 @@
 #include <bluetooth/log.h>
 #include <string.h>
 
-#include "l2c_api.h"
-#include "l2cdefs.h"
-#include "os/log.h"
 #include "smp_int.h"
 #include "stack/include/bt_octets.h"
 #include "stack/include/btm_sec_api_types.h"
+#include "stack/include/l2cap_interface.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth;
@@ -100,7 +98,7 @@ tSMP_STATUS SMP_Pair(const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type) {
             .type = addr_type,
             .bda = bd_addr,
     };
-    if (!L2CA_ConnectFixedChnl(L2CAP_SMP_CID, bd_addr)) {
+    if (!stack::l2cap::get_interface().L2CA_ConnectFixedChnl(L2CAP_SMP_CID, bd_addr)) {
       tSMP_INT_DATA smp_int_data;
       smp_int_data.status = SMP_PAIR_INTERNAL_ERR;
       p_cb->status = SMP_PAIR_INTERNAL_ERR;
@@ -145,7 +143,7 @@ tSMP_STATUS SMP_BR_PairWith(const RawAddress& bd_addr) {
   p_cb->smp_over_br = true;
   p_cb->pairing_bda = bd_addr;
 
-  if (!L2CA_ConnectFixedChnl(L2CAP_SMP_BR_CID, bd_addr)) {
+  if (!stack::l2cap::get_interface().L2CA_ConnectFixedChnl(L2CAP_SMP_BR_CID, bd_addr)) {
     log::error("L2C connect fixed channel failed.");
     tSMP_INT_DATA smp_int_data;
     smp_int_data.status = SMP_PAIR_INTERNAL_ERR;

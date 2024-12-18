@@ -32,6 +32,9 @@
 #include "test/common/mock_functions.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 namespace test {
 namespace mock {
 namespace stack_btm_dev {
@@ -59,6 +62,10 @@ bool btm_set_bond_type_dev(const RawAddress& /* bd_addr */, tBTM_BOND_TYPE /* bo
 const char* BTM_SecReadDevName(const RawAddress& /* bd_addr */) {
   inc_func_call_count(__func__);
   return nullptr;
+}
+DEV_CLASS BTM_SecReadDevClass(const RawAddress& /* bd_addr */) {
+  inc_func_call_count(__func__);
+  return kDevClassEmpty;
 }
 tBTM_SEC_DEV_REC* btm_find_dev(const RawAddress& bd_addr) {
   inc_func_call_count(__func__);

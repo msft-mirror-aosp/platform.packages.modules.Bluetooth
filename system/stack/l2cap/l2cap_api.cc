@@ -14,10 +14,12 @@
  * limitations under the License.
  */
 
-#include "stack/include/l2c_api.h"
 #include "stack/include/l2cap_interface.h"
+#include "stack/l2cap/internal/l2c_api.h"
+#include "stack/l2cap/l2c_api.h"
 
-static bluetooth::stack::l2cap::Interface* interface_;
+static bluetooth::stack::l2cap::Impl l2cap_impl;
+static bluetooth::stack::l2cap::Interface* interface_ = &l2cap_impl;
 
 bluetooth::stack::l2cap::Interface& bluetooth::stack::l2cap::get_interface() { return *interface_; }
 
@@ -92,7 +94,7 @@ void bluetooth::stack::l2cap::Impl::L2CA_DeregisterLECoc(uint16_t psm) {
 
 [[nodiscard]] bool bluetooth::stack::l2cap::Impl::L2CA_ConnectCreditBasedRsp(
         const RawAddress& p_bd_addr, uint8_t id, std::vector<uint16_t>& accepted_lcids,
-        uint16_t result, tL2CAP_LE_CFG_INFO* p_cfg) {
+        tL2CAP_LE_RESULT_CODE result, tL2CAP_LE_CFG_INFO* p_cfg) {
   return ::L2CA_ConnectCreditBasedRsp(p_bd_addr, id, accepted_lcids, result, p_cfg);
 }
 
@@ -212,6 +214,11 @@ void bluetooth::stack::l2cap::Impl::L2CA_Consolidate(const RawAddress& identity_
   return ::L2CA_GetBleConnRole(bd_addr);
 }
 
+[[nodiscard]] uint16_t bluetooth::stack::l2cap::Impl::L2CA_GetBleConnInterval(
+        const RawAddress& bd_addr) {
+  return ::L2CA_GetBleConnInterval(bd_addr);
+}
+
 void bluetooth::stack::l2cap::Impl::L2CA_AdjustConnectionIntervals(uint16_t* min_interval,
                                                                    uint16_t* max_interval,
                                                                    uint16_t floor_interval) {
@@ -254,4 +261,14 @@ void bluetooth::stack::l2cap::Impl::L2CA_SetMediaStreamChannel(uint16_t local_me
 [[nodiscard]] bool bluetooth::stack::l2cap::Impl::L2CA_GetRemoteChannelId(uint16_t lcid,
                                                                           uint16_t* rcid) {
   return ::L2CA_GetRemoteChannelId(lcid, rcid);
+}
+
+[[nodiscard]] bool bluetooth::stack::l2cap::Impl::L2CA_GetAclHandle(uint16_t lcid,
+                                                                    uint16_t* acl_handle) {
+  return ::L2CA_GetAclHandle(lcid, acl_handle);
+}
+
+[[nodiscard]] bool bluetooth::stack::l2cap::Impl::L2CA_GetLocalMtu(uint16_t lcid,
+                                                                   uint16_t* local_mtu) {
+  return ::L2CA_GetLocalMtu(lcid, local_mtu);
 }

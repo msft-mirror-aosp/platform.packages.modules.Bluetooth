@@ -116,7 +116,7 @@ typedef struct {
  * use to signify its presence or absence.
  */
 typedef struct {
-  uint16_t result; /* Only used in confirm messages */
+  tL2CAP_CFG_RESULT result; /* Only used in confirm messages */
   bool mtu_present;
   uint16_t mtu;
   bool qos_present;
@@ -129,6 +129,8 @@ typedef struct {
   uint8_t fcs;      /* '0' if desire is to bypass FCS, otherwise '1' */
   bool ext_flow_spec_present;
   tHCI_EXT_FLOW_SPEC ext_flow_spec;
+  bool init_credit_present;
+  uint16_t init_credit;
   uint16_t flags; /* bit 0: 0-no continuation, 1-continuation */
 } tL2CAP_CFG_INFO;
 
@@ -150,7 +152,7 @@ uint16_t L2CA_LeCreditThreshold();
 constexpr uint8_t L2CAP_CREDIT_BASED_MAX_CIDS = 5;
 
 struct tL2CAP_LE_CFG_INFO {
-  uint16_t result{L2CAP_LE_RESULT_CONN_OK}; /* Only used in confirm messages */
+  tL2CAP_CFG_RESULT result{tL2CAP_CFG_RESULT::L2CAP_CFG_OK}; /* Only used in confirm messages */
   uint16_t mtu{kDefaultL2capMtu};
   uint16_t mps{kDefaultL2capMps};
   uint16_t credits{L2CA_LeCreditDefault()};
@@ -163,9 +165,9 @@ constexpr uint16_t L2CAP_LE_MIN_MPS = 23;
 constexpr uint16_t L2CAP_LE_MAX_MPS = 65533;
 constexpr uint16_t L2CAP_LE_CREDIT_MAX = 65535;
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tL2CAP_LATENCY> : enum_formatter<tL2CAP_LATENCY> {};
 template <>
 struct formatter<tL2CAP_PRIORITY> : enum_formatter<tL2CAP_PRIORITY> {};
-}  // namespace fmt
+}  // namespace std

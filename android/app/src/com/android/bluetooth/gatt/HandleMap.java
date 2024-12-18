@@ -86,13 +86,23 @@ class HandleMap {
         }
     }
 
+    static class RequestData {
+        int mConnId;
+        int mHandle;
+
+        RequestData(int connId, int handle) {
+            mConnId = connId;
+            mHandle = handle;
+        }
+    }
+
     List<Entry> mEntries = null;
-    Map<Integer, Integer> mRequestMap = null;
+    Map<Integer, RequestData> mRequestMap = null;
     int mLastCharacteristic = 0;
 
     HandleMap() {
         mEntries = new CopyOnWriteArrayList<Entry>();
-        mRequestMap = new ConcurrentHashMap<Integer, Integer>();
+        mRequestMap = new ConcurrentHashMap<Integer, RequestData>();
     }
 
     void clear() {
@@ -170,8 +180,8 @@ class HandleMap {
         return mEntries;
     }
 
-    void addRequest(int requestId, int handle) {
-        mRequestMap.put(requestId, handle);
+    void addRequest(int connId, int requestId, int handle) {
+        mRequestMap.put(requestId, new RequestData(connId, handle));
     }
 
     void deleteRequest(int requestId) {
@@ -179,12 +189,31 @@ class HandleMap {
     }
 
     Entry getByRequestId(int requestId) {
-        Integer handle = mRequestMap.get(requestId);
+        Integer handle = null;
+        RequestData data = mRequestMap.get(requestId);
+        if (data != null) {
+            handle = data.mHandle;
+        }
+
         if (handle == null) {
             Log.e(TAG, "getByRequestId() - Request ID " + requestId + " not found!");
             return null;
         }
         return getByHandle(handle);
+    }
+
+    RequestData getRequestDataByRequestId(int requestId) {
+        RequestData data = mRequestMap.get(requestId);
+        if (data == null) {
+            Log.e(TAG, "getRequestDataByRequestId() - Request ID " + requestId + " not found!");
+        } else {
+            Log.d(
+                    TAG,
+                    ("getRequestDataByRequestId(), requestId=" + requestId)
+                            + (", connId=" + data.mConnId + ",handle=" + data.mHandle));
+        }
+
+        return data;
     }
 
     /** Logs debug information. */

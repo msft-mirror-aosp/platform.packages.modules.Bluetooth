@@ -71,6 +71,7 @@ struct MockSecurityClientInterface : public SecurityClientInterface {
               (const RawAddress& /* bd_addr */, uint8_t /* res */, uint32_t /* passkey */));
   MOCK_METHOD((uint8_t), BTM_GetSecurityMode, ());
   MOCK_METHOD((const char*), BTM_SecReadDevName, (const RawAddress& /* bd_addr */));
+  MOCK_METHOD((DEV_CLASS), BTM_SecReadDevClass, (const RawAddress& /* bd_addr */));
 };
 
 // Initialize the working btm client interface to the default

@@ -17,6 +17,7 @@
 package com.android.bluetooth.channelsoundingtestapp;
 
 import android.app.Application;
+import android.bluetooth.BluetoothDevice;
 
 import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
@@ -32,9 +33,8 @@ public class InitiatorViewModel extends AndroidViewModel {
 
     private final MutableLiveData<String> mLogText = new MutableLiveData<>();
     private final MutableLiveData<Boolean> mCsStarted = new MutableLiveData<>(false);
-    private final MutableLiveData<List<String>> mBondedBtDeviceAddresses = new MutableLiveData<>();
+
     private final MutableLiveData<Double> mDistanceResult = new MutableLiveData<>();
-    private final MutableLiveData<Boolean> mGattConnected = new MutableLiveData<>(false);
 
     private final DistanceMeasurementInitiator
             mDistanceMeasurementInitiator; // mDistanceMeasurementInitiator;
@@ -51,49 +51,34 @@ public class InitiatorViewModel extends AndroidViewModel {
                         });
     }
 
-    LiveData<String> getLogText() {
-        return mLogText;
+    void setTargetDevice(BluetoothDevice targetDevice) {
+        mDistanceMeasurementInitiator.setTargetDevice(targetDevice);
     }
 
-    LiveData<Boolean> getGattConnected() {
-        return mGattConnected;
+    LiveData<String> getLogText() {
+        return mLogText;
     }
 
     LiveData<Boolean> getCsStarted() {
         return mCsStarted;
     }
 
-    LiveData<List<String>> getBondedBtDeviceAddresses() {
-        return mBondedBtDeviceAddresses;
-    }
-
     LiveData<Double> getDistanceResult() {
         return mDistanceResult;
-    }
-
-    void setCsTargetAddress(String btAddress) {
-        mDistanceMeasurementInitiator.setTargetBtAddress(btAddress);
-    }
-
-    void updateBondedDevices() {
-        mBondedBtDeviceAddresses.setValue(mDistanceMeasurementInitiator.updatePairedDevice());
-    }
-
-    void toggleGattConnection() {
-        if (!mGattConnected.getValue()) {
-            mDistanceMeasurementInitiator.connectGatt();
-        } else {
-            mDistanceMeasurementInitiator.disconnectGatt();
-        }
     }
 
     List<String> getSupportedDmMethods() {
         return mDistanceMeasurementInitiator.getDistanceMeasurementMethods();
     }
 
-    void toggleCsStartStop(String distanceMeasurementMethodName) {
+    List<String> getMeasurementFreqs() {
+        return mDistanceMeasurementInitiator.getMeasurementFreqs();
+    }
+
+    void toggleCsStartStop(String distanceMeasurementMethodName, String freq) {
         if (!mCsStarted.getValue()) {
-            mDistanceMeasurementInitiator.startDistanceMeasurement(distanceMeasurementMethodName);
+            mDistanceMeasurementInitiator.startDistanceMeasurement(
+                    distanceMeasurementMethodName, freq);
         } else {
             mDistanceMeasurementInitiator.stopDistanceMeasurement();
         }
@@ -117,16 +102,6 @@ public class InitiatorViewModel extends AndroidViewModel {
                 @Override
                 public void onDistanceResult(double distanceMeters) {
                     mDistanceResult.postValue(distanceMeters);
-                }
-
-                @Override
-                public void onGattConnected() {
-                    mGattConnected.postValue(true);
-                }
-
-                @Override
-                public void onGattDisconnected() {
-                    mGattConnected.postValue(false);
                 }
             };
 }

@@ -19,7 +19,6 @@
 
 #include <bluetooth/log.h>
 
-#include "os/log.h"
 #include "stack/btm/btm_dev.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/btm/btm_sec_cb.h"
@@ -73,6 +72,7 @@ static SecurityClientInterface security = {
         .BTM_GetSecurityMode = BTM_GetSecurityMode,
 
         .BTM_SecReadDevName = BTM_SecReadDevName,
+        .BTM_SecReadDevClass = BTM_SecReadDevClass,
 };
 
 const SecurityClientInterface& get_security_client_interface() { return security; }

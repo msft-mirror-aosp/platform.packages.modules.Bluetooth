@@ -16,6 +16,9 @@
 
 package com.android.bluetooth.avrcpcontroller;
 
+import static com.google.common.truth.Truth.assertThat;
+
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.net.Uri;
@@ -473,7 +476,7 @@ public final class AvrcpItemTest {
                 null, metadata.getBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON));
         Assert.assertEquals(null, metadata.getBitmap(MediaMetadataCompat.METADATA_KEY_ART));
         Assert.assertEquals(null, metadata.getBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART));
-        Assert.assertFalse(metadata.containsKey(MediaMetadataCompat.METADATA_KEY_BT_FOLDER_TYPE));
+        assertThat(metadata.containsKey(MediaMetadataCompat.METADATA_KEY_BT_FOLDER_TYPE)).isFalse();
     }
 
     @Test
@@ -545,14 +548,14 @@ public final class AvrcpItemTest {
         MediaItem mediaItem = item.toMediaItem();
         MediaDescriptionCompat desc = mediaItem.getDescription();
 
-        Assert.assertTrue(mediaItem.isPlayable());
-        Assert.assertFalse(mediaItem.isBrowsable());
+        assertThat(mediaItem.isPlayable()).isTrue();
+        assertThat(mediaItem.isBrowsable()).isFalse();
         Assert.assertEquals(UUID, mediaItem.getMediaId());
 
         Assert.assertEquals(UUID, desc.getMediaId());
         Assert.assertEquals(null, desc.getMediaUri());
         Assert.assertEquals(title, desc.getTitle().toString());
-        Assert.assertNull(desc.getSubtitle());
+        assertThat(desc.getSubtitle()).isNull();
         Assert.assertEquals(uri, desc.getIconUri());
         Assert.assertEquals(null, desc.getIconBitmap());
     }
@@ -574,14 +577,14 @@ public final class AvrcpItemTest {
         MediaItem mediaItem = item.toMediaItem();
         MediaDescriptionCompat desc = mediaItem.getDescription();
 
-        Assert.assertTrue(mediaItem.isPlayable());
-        Assert.assertFalse(mediaItem.isBrowsable());
+        assertThat(mediaItem.isPlayable()).isTrue();
+        assertThat(mediaItem.isBrowsable()).isFalse();
         Assert.assertEquals(UUID, mediaItem.getMediaId());
 
         Assert.assertEquals(UUID, desc.getMediaId());
         Assert.assertEquals(null, desc.getMediaUri());
         Assert.assertEquals(displayName, desc.getTitle().toString());
-        Assert.assertNull(desc.getSubtitle());
+        assertThat(desc.getSubtitle()).isNull();
         Assert.assertEquals(uri, desc.getIconUri());
         Assert.assertEquals(null, desc.getIconBitmap());
     }
@@ -601,14 +604,14 @@ public final class AvrcpItemTest {
         MediaItem mediaItem = item.toMediaItem();
         MediaDescriptionCompat desc = mediaItem.getDescription();
 
-        Assert.assertFalse(mediaItem.isPlayable());
-        Assert.assertTrue(mediaItem.isBrowsable());
+        assertThat(mediaItem.isPlayable()).isFalse();
+        assertThat(mediaItem.isBrowsable()).isTrue();
         Assert.assertEquals(UUID, mediaItem.getMediaId());
 
         Assert.assertEquals(UUID, desc.getMediaId());
         Assert.assertEquals(null, desc.getMediaUri());
         Assert.assertEquals(title, desc.getTitle().toString());
-        Assert.assertNull(desc.getSubtitle());
+        assertThat(desc.getSubtitle()).isNull();
         Assert.assertEquals(uri, desc.getIconUri());
         Assert.assertEquals(null, desc.getIconBitmap());
     }
@@ -619,17 +622,18 @@ public final class AvrcpItemTest {
 
         AvrcpItem item = builder.build();
 
-        Assert.assertTrue(item.equals(item));
+        assertThat(item).isEqualTo(item);
     }
 
     @Test
+    @SuppressLint("TruthIncompatibleType") // That the point of this test
     public void equals_withDifferentInstance() {
         AvrcpItem.Builder builder = new AvrcpItem.Builder();
         String notAvrcpItem = "notAvrcpItem";
 
         AvrcpItem item = builder.build();
 
-        Assert.assertFalse(item.equals(notAvrcpItem));
+        assertThat(item).isNotEqualTo(notAvrcpItem);
     }
 
     @Test
@@ -640,6 +644,6 @@ public final class AvrcpItemTest {
         AvrcpItem item = builder.build();
         AvrcpItem itemEqual = builderEqual.build();
 
-        Assert.assertTrue(item.equals(itemEqual));
+        assertThat(item).isEqualTo(itemEqual);
     }
 }

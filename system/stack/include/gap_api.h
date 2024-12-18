@@ -21,10 +21,9 @@
 
 #include <cstdint>
 
-#include "l2c_api.h"
-#include "l2cdefs.h"
 #include "profiles_api.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/l2cap_types.h"
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
 
@@ -79,7 +78,7 @@ struct tGAP_L2CAP_CIDS {
 
 union tGAP_CB_DATA {
   tGAP_COC_CREDITS coc_credits;
-  uint16_t l2cap_result;
+  tL2CAP_CONN l2cap_result;
   tGAP_L2CAP_CIDS l2cap_cids;
 };
 
@@ -104,7 +103,6 @@ typedef union {
   uint16_t icon;
   uint8_t* p_dev_name;
   uint8_t addr_resolution;
-
 } tGAP_BLE_ATTR_VALUE;
 
 typedef void(tGAP_BLE_CMPL_CBACK)(bool status, const RawAddress& addr, uint16_t length,
@@ -228,6 +226,43 @@ uint16_t GAP_ConnGetL2CAPCid(uint16_t gap_handle);
 
 /*******************************************************************************
  *
+ * Function         GAP_GetLeChannelInfo
+ *
+ * Description      This function is called to get LE L2CAP channel information
+ *                  by the gap handle. All OUT parameters must NOT be nullptr.
+ *
+ * Parameters:      handle        - Handle of the port returned in the Open
+ *                  remote_mtu    - OUT remote L2CAP MTU
+ *                  local_mps     - OUT local L2CAP COC MPS
+ *                  remote_mps    - OUT remote L2CAP COC MPS
+ *                  local_credit  - OUT local L2CAP COC credit
+ *                  remote_credit - OUT remote L2CAP COC credit
+ *                  local_cid     - OUT local L2CAP CID
+ *                  remote_cid    - OUT remote L2CAP CID
+ *                  acl_handle    - OUT ACL handle
+ *
+ * Returns          true if request accepted
+ *
+ ******************************************************************************/
+bool GAP_GetLeChannelInfo(uint16_t gap_handle, uint16_t* remote_mtu, uint16_t* local_mps,
+                          uint16_t* remote_mps, uint16_t* local_credit, uint16_t* remote_credit,
+                          uint16_t* local_cid, uint16_t* remote_cid, uint16_t* acl_handle);
+
+/*******************************************************************************
+ *
+ * Function         GAP_IsTransportLe
+ *
+ * Description      This function returns if the transport is LE by the gap handle.
+ *
+ * Parameters:      handle        - Handle of the port returned in the Open
+ *
+ * Returns          true if transport is LE, else false
+ *
+ ******************************************************************************/
+bool GAP_IsTransportLe(uint16_t gap_handle);
+
+/*******************************************************************************
+ *
  * Function         GAP_Init
  *
  * Description      Initializes the control blocks used by GAP.
@@ -273,6 +308,17 @@ bool GAP_BleReadPeerPrefConnParams(const RawAddress& peer_bda);
  *
  ******************************************************************************/
 bool GAP_BleReadPeerDevName(const RawAddress& peer_bda, tGAP_BLE_CMPL_CBACK* p_cback);
+
+/*******************************************************************************
+ *
+ * Function         GAP_BleReadPeerAppearance
+ *
+ * Description      Start a process to read a connected peripheral's appearance.
+ *
+ * Returns          true if request accepted
+ *
+ ******************************************************************************/
+bool GAP_BleReadPeerAppearance(const RawAddress& peer_bda, tGAP_BLE_CMPL_CBACK* p_cback);
 
 /*******************************************************************************
  *

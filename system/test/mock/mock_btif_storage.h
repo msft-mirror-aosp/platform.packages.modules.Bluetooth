@@ -310,6 +310,17 @@ struct btif_storage_get_stored_remote_name {
 };
 extern struct btif_storage_get_stored_remote_name btif_storage_get_stored_remote_name;
 
+// Name: btif_storage_get_cod
+// Params: const RawAddress& bd_addr, uint32_t* cod
+// Return: bool
+struct btif_storage_get_cod {
+  static bool return_value;
+  std::function<bool(const RawAddress& bd_addr, uint32_t* cod)> body{
+          [](const RawAddress& /* bd_addr */, uint32_t* /* cod */) { return return_value; }};
+  bool operator()(const RawAddress& bd_addr, uint32_t* cod) { return body(bd_addr, cod); }
+};
+extern struct btif_storage_get_cod btif_storage_get_cod;
+
 // Name: btif_storage_invoke_addr_type_update
 // Params: const RawAddress& remote_bd_addr, const tBLE_ADDR_TYPE& addr_type
 // Return: void

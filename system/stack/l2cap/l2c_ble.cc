@@ -24,7 +24,6 @@
 
 #define LOG_TAG "l2c_ble"
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
@@ -44,15 +43,18 @@
 #include "stack/btm/btm_int_types.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/btm/btm_sec_int_types.h"
+#include "stack/connection_manager/connection_manager.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/bt_types.h"
-#include "stack/include/btm_ble_api.h"
+#include "stack/include/btm_ble_api_types.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_log_history.h"
 #include "stack/include/btm_status.h"
-#include "stack/include/l2c_api.h"
 #include "stack/include/l2cap_acl_interface.h"
+#include "stack/include/l2cap_controller_interface.h"
+#include "stack/include/l2cap_hci_link_interface.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/include/main_thread.h"
 #include "stack/l2cap/l2c_int.h"
@@ -61,9 +63,7 @@
 using namespace bluetooth;
 
 namespace {
-
 constexpr char kBtmLogTag[] = "L2CAP";
-
 }
 
 extern tBTM_CB btm_cb;
@@ -88,6 +88,15 @@ hci_role_t L2CA_GetBleConnRole(const RawAddress& bd_addr) {
   return p_lcb->LinkRole();
 }
 
+uint16_t L2CA_GetBleConnInterval(const RawAddress& bd_addr) {
+  tL2C_LCB* p_lcb = l2cu_find_lcb_by_bd_addr(bd_addr, BT_TRANSPORT_LE);
+  if (p_lcb == nullptr) {
+    log::error("lcb for {} is not available", bd_addr);
+    return 0;
+  }
+  return p_lcb->ConnInterval();
+}
+
 /*******************************************************************************
  *
  * Function l2cble_notify_le_connection
@@ -107,10 +116,10 @@ void l2cble_notify_le_connection(const RawAddress& bda) {
   if (get_btm_client_interface().peer.BTM_IsAclConnectionUp(bda, BT_TRANSPORT_LE) &&
       p_lcb->link_state != LST_CONNECTED) {
     /* update link status */
+    p_lcb->link_state = LST_CONNECTED;
     // TODO Move this back into acl layer
     btm_establish_continue_from_address(bda, BT_TRANSPORT_LE);
-    /* update l2cap link status and send callback */
-    p_lcb->link_state = LST_CONNECTED;
+    /* send callback */
     l2cu_process_fixed_chnl_resp(p_lcb);
   }
 
@@ -173,6 +182,7 @@ bool l2cble_conn_comp(uint16_t handle, tHCI_ROLE role, const RawAddress& bda,
   /* update link parameter, set peripheral link as non-spec default upon link up
    */
   p_lcb->min_interval = p_lcb->max_interval = conn_interval;
+  p_lcb->SetConnInterval(conn_interval);
   p_lcb->timeout = conn_timeout;
   p_lcb->latency = conn_latency;
   p_lcb->conn_update_mask = L2C_BLE_NOT_DEFAULT_PARAM;
@@ -276,7 +286,8 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
                 .bd_addr{},
                 .hci_status{},
                 .psm{},
-                .l2cap_result = L2CAP_LE_RESULT_NO_PSM,
+                .l2cap_result =
+                        static_cast<tL2CAP_CONN>(tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_NO_PSM),
                 .l2cap_status{},
                 .remote_cid{},
                 .lcids{},
@@ -305,7 +316,7 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
       STREAM_TO_UINT16(timeout, p);      /* 0x000A - 0x0C80 */
       /* If we are a central, the peripheral wants to update the parameters */
       if (p_lcb->IsLinkRoleCentral()) {
-        L2CA_AdjustConnectionIntervals(
+        stack::l2cap::get_interface().L2CA_AdjustConnectionIntervals(
                 &min_interval, &max_interval,
                 osi_property_get_int32("bluetooth.core.le.min_connection_interval",
                                        BTM_BLE_CONN_INT_MIN_LIMIT));
@@ -317,9 +328,9 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
              * 1.25) - 1)) ||*/
             timeout < BTM_BLE_CONN_SUP_TOUT_MIN || timeout > BTM_BLE_CONN_SUP_TOUT_MAX ||
             max_interval < min_interval) {
-          l2cu_send_peer_ble_par_rsp(p_lcb, L2CAP_CFG_UNACCEPTABLE_PARAMS, id);
+          l2cu_send_peer_ble_par_rsp(p_lcb, tL2CAP_CFG_RESULT::L2CAP_CFG_UNACCEPTABLE_PARAMS, id);
         } else {
-          l2cu_send_peer_ble_par_rsp(p_lcb, L2CAP_CFG_OK, id);
+          l2cu_send_peer_ble_par_rsp(p_lcb, tL2CAP_CFG_RESULT::L2CAP_CFG_OK, id);
 
           p_lcb->min_interval = min_interval;
           p_lcb->max_interval = max_interval;
@@ -354,8 +365,9 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
       num_of_channels = (p_pkt_end - p) / sizeof(uint16_t);
       if (num_of_channels > L2CAP_CREDIT_BASED_MAX_CIDS) {
         log::warn("L2CAP - invalid number of channels requested: {}", num_of_channels);
-        l2cu_reject_credit_based_conn_req(p_lcb, id, L2CAP_CREDIT_BASED_MAX_CIDS,
-                                          L2CAP_LE_RESULT_INVALID_PARAMETERS);
+        l2cu_reject_credit_based_conn_req(
+                p_lcb, id, L2CAP_CREDIT_BASED_MAX_CIDS,
+                tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_INVALID_PARAMETERS);
         return;
       }
 
@@ -368,7 +380,8 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
       p_rcb = l2cu_find_ble_rcb_by_psm(con_info.psm);
       if (p_rcb == NULL) {
         log::warn("L2CAP - rcvd conn req for unknown PSM: 0x{:04x}", con_info.psm);
-        l2cu_reject_credit_based_conn_req(p_lcb, id, num_of_channels, L2CAP_LE_RESULT_NO_PSM);
+        l2cu_reject_credit_based_conn_req(p_lcb, id, num_of_channels,
+                                          tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_NO_PSM);
         return;
       }
 
@@ -377,7 +390,8 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
         if (p_rcb->api.pL2CA_CreditBasedCollisionInd_Cb && con_info.psm == BT_PSM_EATT) {
           (*p_rcb->api.pL2CA_CreditBasedCollisionInd_Cb)(p_lcb->remote_bd_addr);
         }
-        l2cu_reject_credit_based_conn_req(p_lcb, id, num_of_channels, L2CAP_LE_RESULT_NO_RESOURCES);
+        l2cu_reject_credit_based_conn_req(p_lcb, id, num_of_channels,
+                                          tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_NO_RESOURCES);
         return;
       }
 
@@ -385,7 +399,8 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
 
       if (!p_rcb->api.pL2CA_CreditBasedConnectInd_Cb) {
         log::warn("L2CAP - rcvd conn req for outgoing-only connection PSM: {}", con_info.psm);
-        l2cu_reject_credit_based_conn_req(p_lcb, id, num_of_channels, L2CAP_CONN_NO_PSM);
+        l2cu_reject_credit_based_conn_req(p_lcb, id, num_of_channels,
+                                          tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_NO_PSM);
         return;
       }
 
@@ -393,8 +408,9 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
       if (mtu < L2CAP_CREDIT_BASED_MIN_MTU || mps < L2CAP_CREDIT_BASED_MIN_MPS ||
           mps > L2CAP_LE_MAX_MPS) {
         log::error("L2CAP don't like the params");
-        l2cu_reject_credit_based_conn_req(p_lcb, id, num_of_channels,
-                                          L2CAP_LE_RESULT_INVALID_PARAMETERS);
+        l2cu_reject_credit_based_conn_req(
+                p_lcb, id, num_of_channels,
+                tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_INVALID_PARAMETERS);
         return;
       }
 
@@ -406,14 +422,16 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
         if (temp_p_ccb) {
           log::warn("L2CAP - rcvd conn req for duplicated cid: 0x{:04x}", rcid);
           p_lcb->pending_ecoc_connection_cids[i] = 0;
-          p_lcb->pending_l2cap_result = L2CAP_LE_RESULT_SOURCE_CID_ALREADY_ALLOCATED;
+          p_lcb->pending_l2cap_result = static_cast<tL2CAP_CONN>(
+                  tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_SOURCE_CID_ALREADY_ALLOCATED);
         } else {
           /* Allocate a ccb for this.*/
           temp_p_ccb = l2cu_allocate_ccb(p_lcb, 0, con_info.psm == BT_PSM_EATT /* is_eatt */);
           if (temp_p_ccb == NULL) {
             log::error("L2CAP - unable to allocate CCB");
             p_lcb->pending_ecoc_connection_cids[i] = 0;
-            p_lcb->pending_l2cap_result = L2CAP_LE_RESULT_NO_RESOURCES;
+            p_lcb->pending_l2cap_result =
+                    static_cast<tL2CAP_CONN>(tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_NO_RESOURCES);
             continue;
           }
 
@@ -449,7 +467,9 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
 
       if (!lead_cid_set) {
         log::error("L2CAP - unable to allocate CCB");
-        l2cu_reject_credit_based_conn_req(p_lcb, id, num_of_channels, p_lcb->pending_l2cap_result);
+        l2cu_reject_credit_based_conn_req(
+                p_lcb, id, num_of_channels,
+                static_cast<tL2CAP_LE_RESULT_CODE>(p_lcb->pending_l2cap_result));
         return;
       }
 
@@ -476,7 +496,8 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
       if (!p_ccb) {
         tL2C_CONN_INFO con_info{};
         log::verbose("Cannot find matching connection req");
-        con_info.l2cap_result = L2CAP_LE_RESULT_INVALID_SOURCE_CID;
+        con_info.l2cap_result =
+                static_cast<tL2CAP_CONN>(tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_INVALID_SOURCE_CID);
         l2c_csm_execute(p_ccb, L2CEVT_L2CAP_CONNECT_RSP_NEG, &con_info);
         return;
       }
@@ -485,17 +506,30 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
       STREAM_TO_UINT16(mtu, p);
       STREAM_TO_UINT16(mps, p);
       STREAM_TO_UINT16(initial_credit, p);
-      STREAM_TO_UINT16(con_info.l2cap_result, p);
+      uint16_t result_u16;
+      STREAM_TO_UINT16(result_u16, p);
+      con_info.l2cap_result = static_cast<tL2CAP_CONN>(result_u16);
 
       /* When one of these result is sent back that means,
        * all the channels has been rejected
        */
-      if (con_info.l2cap_result == L2CAP_LE_RESULT_NO_PSM ||
-          con_info.l2cap_result == L2CAP_LE_RESULT_INSUFFICIENT_AUTHENTICATION ||
-          con_info.l2cap_result == L2CAP_LE_RESULT_INSUFFICIENT_ENCRYP ||
-          con_info.l2cap_result == L2CAP_LE_RESULT_INSUFFICIENT_AUTHORIZATION ||
-          con_info.l2cap_result == L2CAP_LE_RESULT_UNACCEPTABLE_PARAMETERS ||
-          con_info.l2cap_result == L2CAP_LE_RESULT_INVALID_PARAMETERS) {
+      if (con_info.l2cap_result ==
+                  static_cast<tL2CAP_CONN>(tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_NO_PSM) ||
+          con_info.l2cap_result ==
+                  static_cast<tL2CAP_CONN>(
+                          tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_INSUFFICIENT_AUTHENTICATION) ||
+          con_info.l2cap_result ==
+                  static_cast<tL2CAP_CONN>(
+                          tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_INSUFFICIENT_ENCRYP) ||
+          con_info.l2cap_result ==
+                  static_cast<tL2CAP_CONN>(
+                          tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_INSUFFICIENT_AUTHORIZATION) ||
+          con_info.l2cap_result ==
+                  static_cast<tL2CAP_CONN>(
+                          tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_UNACCEPTABLE_PARAMETERS) ||
+          con_info.l2cap_result ==
+                  static_cast<tL2CAP_CONN>(
+                          tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_INVALID_PARAMETERS)) {
         log::error("L2CAP - not accepted. Status {}", con_info.l2cap_result);
         l2cble_handle_connect_rsp_neg(p_lcb, &con_info);
         return;
@@ -505,7 +539,8 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
       if (mtu < L2CAP_CREDIT_BASED_MIN_MTU || mps < L2CAP_CREDIT_BASED_MIN_MPS ||
           mps > L2CAP_LE_MAX_MPS) {
         log::error("L2CAP - invalid params");
-        con_info.l2cap_result = L2CAP_LE_RESULT_INVALID_PARAMETERS;
+        con_info.l2cap_result =
+                static_cast<tL2CAP_CONN>(tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_INVALID_PARAMETERS);
         l2cble_handle_connect_rsp_neg(p_lcb, &con_info);
         return;
       }
@@ -553,7 +588,8 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
             l2cu_send_peer_disc_req(temp_p_ccb);
 
             temp_p_ccb = l2cu_find_ccb_by_cid(p_lcb, cid);
-            con_info.l2cap_result = L2CAP_LE_RESULT_UNACCEPTABLE_PARAMETERS;
+            con_info.l2cap_result = static_cast<tL2CAP_CONN>(
+                    tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_UNACCEPTABLE_PARAMETERS);
             l2c_csm_execute(temp_p_ccb, L2CEVT_L2CAP_CREDIT_BASED_CONNECT_RSP_NEG, &con_info);
             continue;
           }
@@ -585,7 +621,8 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
     } break;
     case L2CAP_CMD_CREDIT_BASED_RECONFIG_REQ: {
       if (p + 6 > p_pkt_end) {
-        l2cu_send_ble_reconfig_rsp(p_lcb, id, L2CAP_RECONFIG_UNACCAPTED_PARAM);
+        l2cu_send_ble_reconfig_rsp(p_lcb, id,
+                                   tL2CAP_RECONFIG_RESULT::L2CAP_RECONFIG_UNACCAPTED_PARAM);
         return;
       }
 
@@ -596,7 +633,8 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
       if (mtu < L2CAP_CREDIT_BASED_MIN_MTU || mps < L2CAP_CREDIT_BASED_MIN_MPS ||
           mps > L2CAP_LE_MAX_MPS) {
         log::error("L2CAP - invalid params");
-        l2cu_send_ble_reconfig_rsp(p_lcb, id, L2CAP_RECONFIG_UNACCAPTED_PARAM);
+        l2cu_send_ble_reconfig_rsp(p_lcb, id,
+                                   tL2CAP_RECONFIG_RESULT::L2CAP_RECONFIG_UNACCAPTED_PARAM);
         return;
       }
 
@@ -614,21 +652,24 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
         p_ccb = l2cu_find_ccb_by_remote_cid(p_lcb, rcid);
         if (!p_ccb) {
           log::warn("L2CAP - rcvd config req for non existing cid: 0x{:04x}", rcid);
-          l2cu_send_ble_reconfig_rsp(p_lcb, id, L2CAP_RECONFIG_INVALID_DCID);
+          l2cu_send_ble_reconfig_rsp(p_lcb, id,
+                                     tL2CAP_RECONFIG_RESULT::L2CAP_RECONFIG_INVALID_DCID);
           return;
         }
 
         if (p_ccb->peer_conn_cfg.mtu > mtu) {
           log::warn("L2CAP - rcvd config req mtu reduction new mtu < mtu ({} < {})", mtu,
                     p_ccb->peer_conn_cfg.mtu);
-          l2cu_send_ble_reconfig_rsp(p_lcb, id, L2CAP_RECONFIG_REDUCTION_MTU_NO_ALLOWED);
+          l2cu_send_ble_reconfig_rsp(
+                  p_lcb, id, tL2CAP_RECONFIG_RESULT::L2CAP_RECONFIG_REDUCTION_MTU_NO_ALLOWED);
           return;
         }
 
         if (p_ccb->peer_conn_cfg.mps > mps && num_of_channels > 1) {
           log::warn("L2CAP - rcvd config req mps reduction new mps < mps ({} < {})", mtu,
                     p_ccb->peer_conn_cfg.mtu);
-          l2cu_send_ble_reconfig_rsp(p_lcb, id, L2CAP_RECONFIG_REDUCTION_MPS_NO_ALLOWED);
+          l2cu_send_ble_reconfig_rsp(
+                  p_lcb, id, tL2CAP_RECONFIG_RESULT::L2CAP_RECONFIG_REDUCTION_MPS_NO_ALLOWED);
           return;
         }
       }
@@ -649,20 +690,22 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
         l2c_csm_execute(p_ccb, L2CEVT_L2CAP_CREDIT_BASED_RECONFIG_REQ, &le_cfg);
       }
 
-      l2cu_send_ble_reconfig_rsp(p_lcb, id, L2CAP_RECONFIG_SUCCEED);
+      l2cu_send_ble_reconfig_rsp(p_lcb, id, tL2CAP_RECONFIG_RESULT::L2CAP_RECONFIG_SUCCEED);
 
       break;
     }
 
     case L2CAP_CMD_CREDIT_BASED_RECONFIG_RES: {
-      uint16_t result;
-      if (p + sizeof(uint16_t) > p_pkt_end) {
+      uint16_t result_u16;
+      if (p + sizeof(tL2CAP_CFG_RESULT) > p_pkt_end) {
         log::error("invalid read");
         return;
       }
-      STREAM_TO_UINT16(result, p);
+      STREAM_TO_UINT16(result_u16, p);
+      tL2CAP_CFG_RESULT result = static_cast<tL2CAP_CFG_RESULT>(result_u16);
 
-      log::verbose("Recv L2CAP_CMD_CREDIT_BASED_RECONFIG_RES for result = 0x{:04x}", result);
+      log::verbose("Recv L2CAP_CMD_CREDIT_BASED_RECONFIG_RES for result:{}",
+                   l2cap_cfg_result_text(result));
 
       p_lcb->pending_ecoc_reconfig_cfg.result = result;
 
@@ -676,7 +719,7 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
                           &p_lcb->pending_ecoc_reconfig_cfg);
 
           temp_p_ccb->reconfig_started = false;
-          if (result == L2CAP_CFG_OK) {
+          if (result == tL2CAP_CFG_RESULT::L2CAP_CFG_OK) {
             temp_p_ccb->local_conn_cfg = p_lcb->pending_ecoc_reconfig_cfg;
           }
         }
@@ -706,19 +749,20 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
       p_ccb = l2cu_find_ccb_by_remote_cid(p_lcb, rcid);
       if (p_ccb) {
         log::warn("L2CAP - rcvd conn req for duplicated cid: 0x{:04x}", rcid);
-        l2cu_reject_ble_coc_connection(p_lcb, id, L2CAP_LE_RESULT_SOURCE_CID_ALREADY_ALLOCATED);
+        l2cu_reject_ble_coc_connection(
+                p_lcb, id, tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_SOURCE_CID_ALREADY_ALLOCATED);
         break;
       }
 
       p_rcb = l2cu_find_ble_rcb_by_psm(con_info.psm);
       if (p_rcb == NULL) {
         log::warn("L2CAP - rcvd conn req for unknown PSM: 0x{:04x}", con_info.psm);
-        l2cu_reject_ble_coc_connection(p_lcb, id, L2CAP_LE_RESULT_NO_PSM);
+        l2cu_reject_ble_coc_connection(p_lcb, id, tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_NO_PSM);
         break;
       } else {
         if (!p_rcb->api.pL2CA_ConnectInd_Cb) {
           log::warn("L2CAP - rcvd conn req for outgoing-only connection PSM: {}", con_info.psm);
-          l2cu_reject_ble_coc_connection(p_lcb, id, L2CAP_CONN_NO_PSM);
+          l2cu_reject_ble_coc_connection(p_lcb, id, tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_NO_PSM);
           break;
         }
       }
@@ -727,14 +771,14 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
       p_ccb = l2cu_allocate_ccb(p_lcb, 0, con_info.psm == BT_PSM_EATT /* is_eatt */);
       if (p_ccb == NULL) {
         log::error("L2CAP - unable to allocate CCB");
-        l2cu_reject_ble_connection(p_ccb, id, L2CAP_CONN_NO_RESOURCES);
+        l2cu_reject_ble_connection(p_ccb, id, tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_NO_RESOURCES);
         break;
       }
 
       /* validate the parameters */
       if (mtu < L2CAP_LE_MIN_MTU || mps < L2CAP_LE_MIN_MPS || mps > L2CAP_LE_MAX_MPS) {
         log::error("L2CAP do not like the params");
-        l2cu_reject_ble_connection(p_ccb, id, L2CAP_CONN_NO_RESOURCES);
+        l2cu_reject_ble_connection(p_ccb, id, tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_NO_RESOURCES);
         break;
       }
 
@@ -742,11 +786,21 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
       p_ccb->p_rcb = p_rcb;
       p_ccb->remote_cid = rcid;
 
-      p_ccb->local_conn_cfg.mtu = L2CAP_SDU_LENGTH_LE_MAX;
-      p_ccb->local_conn_cfg.mps =
-              bluetooth::shim::GetController()->GetLeBufferSize().le_data_packet_length_;
-      p_ccb->local_conn_cfg.credits = L2CA_LeCreditDefault();
-      p_ccb->remote_credit_count = L2CA_LeCreditDefault();
+      if (com::android::bluetooth::flags::socket_settings_api()) {  // Added with aosp/3349377
+        p_ccb->local_conn_cfg.mtu = p_rcb->coc_cfg.mtu;
+        p_ccb->local_conn_cfg.mps = p_rcb->coc_cfg.mps;
+      } else {
+        p_ccb->local_conn_cfg.mtu = L2CAP_SDU_LENGTH_LE_MAX;
+        p_ccb->local_conn_cfg.mps =
+                bluetooth::shim::GetController()->GetLeBufferSize().le_data_packet_length_;
+      }
+      if (com::android::bluetooth::flags::socket_settings_api()) {  // Added with aosp/3349376
+        p_ccb->local_conn_cfg.credits = p_rcb->coc_cfg.credits;
+        p_ccb->remote_credit_count = p_rcb->coc_cfg.credits;
+      } else {
+        p_ccb->local_conn_cfg.credits = L2CA_LeCreditDefault();
+        p_ccb->remote_credit_count = L2CA_LeCreditDefault();
+      }
 
       p_ccb->peer_conn_cfg.mtu = mtu;
       p_ccb->peer_conn_cfg.mps = mps;
@@ -785,7 +839,9 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
         STREAM_TO_UINT16(p_ccb->peer_conn_cfg.mtu, p);
         STREAM_TO_UINT16(p_ccb->peer_conn_cfg.mps, p);
         STREAM_TO_UINT16(p_ccb->peer_conn_cfg.credits, p);
-        STREAM_TO_UINT16(con_info.l2cap_result, p);
+        uint16_t result_u16;
+        STREAM_TO_UINT16(result_u16, p);
+        con_info.l2cap_result = static_cast<tL2CAP_CONN>(result_u16);
         con_info.remote_cid = p_ccb->remote_cid;
 
         log::verbose(
@@ -799,7 +855,8 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
             p_ccb->peer_conn_cfg.mps < L2CAP_LE_MIN_MPS ||
             p_ccb->peer_conn_cfg.mps > L2CAP_LE_MAX_MPS) {
           log::error("L2CAP do not like the params");
-          con_info.l2cap_result = L2CAP_LE_RESULT_NO_RESOURCES;
+          con_info.l2cap_result =
+                  static_cast<tL2CAP_CONN>(tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_NO_RESOURCES);
           l2c_csm_execute(p_ccb, L2CEVT_L2CAP_CONNECT_RSP_NEG, &con_info);
           break;
         }
@@ -810,14 +867,16 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
         p_ccb->is_first_seg = true;
         p_ccb->peer_cfg.fcr.mode = L2CAP_FCR_LE_COC_MODE;
 
-        if (con_info.l2cap_result == L2CAP_LE_RESULT_CONN_OK) {
+        if (con_info.l2cap_result ==
+            static_cast<tL2CAP_CONN>(tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_CONN_OK)) {
           l2c_csm_execute(p_ccb, L2CEVT_L2CAP_CONNECT_RSP, &con_info);
         } else {
           l2c_csm_execute(p_ccb, L2CEVT_L2CAP_CONNECT_RSP_NEG, &con_info);
         }
       } else {
         log::verbose("I DO NOT remember the connection req");
-        con_info.l2cap_result = L2CAP_LE_RESULT_INVALID_SOURCE_CID;
+        con_info.l2cap_result =
+                static_cast<tL2CAP_CONN>(tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_INVALID_SOURCE_CID);
         l2c_csm_execute(p_ccb, L2CEVT_L2CAP_CONNECT_RSP_NEG, &con_info);
       }
     } break;
@@ -882,10 +941,10 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
   }
 }
 
-/** This function is to initate a direct connection. Returns true if connection
+/** This function is to initiate a direct connection. Returns true if connection
  * initiated, false otherwise. */
 bool l2cble_create_conn(tL2C_LCB* p_lcb) {
-  if (!acl_create_le_connection(p_lcb->remote_bd_addr)) {
+  if (!connection_manager::create_le_connection(CONN_MGR_ID_L2CAP, p_lcb->remote_bd_addr)) {
     return false;
   }
 
@@ -977,16 +1036,14 @@ void l2c_ble_link_adjust_allocation(void) {
   if (num_lowpri_links > low_quota) {
     l2cb.ble_round_robin_quota = low_quota;
     qq = qq_remainder = 0;
-  }
-  /* If each low priority link can have at least one buffer */
-  else if (num_lowpri_links > 0) {
+  } else if (num_lowpri_links > 0) {
+    /* If each low priority link can have at least one buffer */
     l2cb.ble_round_robin_quota = 0;
     l2cb.ble_round_robin_unacked = 0;
     qq = low_quota / num_lowpri_links;
     qq_remainder = low_quota % num_lowpri_links;
-  }
-  /* If no low priority link */
-  else {
+  } else {
+    /* If no low priority link */
     l2cb.ble_round_robin_quota = 0;
     l2cb.ble_round_robin_unacked = 0;
     qq = qq_remainder = 0;
@@ -1111,7 +1168,7 @@ void l2cble_process_data_length_change_event(uint16_t handle, uint16_t tx_data_l
               "{}",
               p_lcb->remote_bd_addr, p_lcb->tx_data_len, tx_data_len);
       BTM_LogHistory(kBtmLogTag, p_lcb->remote_bd_addr, "LE Data length change",
-                     base::StringPrintf("tx_octets:%hu => %hu", p_lcb->tx_data_len, tx_data_len));
+                     std::format("tx_octets:{} => {}", p_lcb->tx_data_len, tx_data_len));
       p_lcb->tx_data_len = tx_data_len;
     } else {
       log::debug(
@@ -1166,7 +1223,7 @@ void l2cble_credit_based_conn_req(tL2C_CCB* p_ccb) {
  * Returns          void
  *
  ******************************************************************************/
-void l2cble_credit_based_conn_res(tL2C_CCB* p_ccb, uint16_t result) {
+void l2cble_credit_based_conn_res(tL2C_CCB* p_ccb, tL2CAP_LE_RESULT_CODE result) {
   if (!p_ccb) {
     return;
   }
@@ -1239,8 +1296,8 @@ void l2cble_send_peer_disc_req(tL2C_CCB* p_ccb) {
  * Returns          void
  *
  ******************************************************************************/
-void l2cble_sec_comp(RawAddress bda, tBT_TRANSPORT transport, void* /* p_ref_data */,
-                     tBTM_STATUS btm_status) {
+static void l2cble_sec_comp(RawAddress bda, tBT_TRANSPORT transport, void* /* p_ref_data */,
+                            tBTM_STATUS btm_status) {
   tL2C_LCB* p_lcb = l2cu_find_lcb_by_bd_addr(bda, BT_TRANSPORT_LE);
   tL2CAP_SEC_DATA* p_buf = NULL;
   uint8_t sec_act;
@@ -1317,7 +1374,7 @@ tL2CAP_LE_RESULT_CODE l2ble_sec_access_req(const RawAddress& bd_addr, uint16_t p
 
   if (!p_callback) {
     log::error("No callback function");
-    return L2CAP_LE_RESULT_NO_RESOURCES;
+    return tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_NO_RESOURCES;
   }
 
   p_lcb = l2cu_find_lcb_by_bd_addr(bd_addr, BT_TRANSPORT_LE);
@@ -1325,14 +1382,14 @@ tL2CAP_LE_RESULT_CODE l2ble_sec_access_req(const RawAddress& bd_addr, uint16_t p
   if (!p_lcb) {
     log::error("Security check for unknown device");
     p_callback(bd_addr, BT_TRANSPORT_LE, p_ref_data, tBTM_STATUS::BTM_UNKNOWN_ADDR);
-    return L2CAP_LE_RESULT_NO_RESOURCES;
+    return tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_NO_RESOURCES;
   }
 
   tL2CAP_SEC_DATA* p_buf = (tL2CAP_SEC_DATA*)osi_malloc((uint16_t)sizeof(tL2CAP_SEC_DATA));
   if (!p_buf) {
     log::error("No resources for connection");
     p_callback(bd_addr, BT_TRANSPORT_LE, p_ref_data, tBTM_STATUS::BTM_NO_RESOURCES);
-    return L2CAP_LE_RESULT_NO_RESOURCES;
+    return tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_NO_RESOURCES;
   }
 
   p_buf->psm = psm;
@@ -1345,20 +1402,20 @@ tL2CAP_LE_RESULT_CODE l2ble_sec_access_req(const RawAddress& bd_addr, uint16_t p
 
   switch (result) {
     case tBTM_STATUS::BTM_SUCCESS:
-      return L2CAP_LE_RESULT_CONN_OK;
+      return tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_CONN_OK;
     case tBTM_STATUS::BTM_ILLEGAL_VALUE:
-      return L2CAP_LE_RESULT_NO_PSM;
+      return tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_NO_PSM;
     case tBTM_STATUS::BTM_NOT_AUTHENTICATED:
-      return L2CAP_LE_RESULT_INSUFFICIENT_AUTHENTICATION;
+      return tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_INSUFFICIENT_AUTHENTICATION;
     case tBTM_STATUS::BTM_NOT_ENCRYPTED:
-      return L2CAP_LE_RESULT_INSUFFICIENT_ENCRYP;
+      return tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_INSUFFICIENT_ENCRYP;
     case tBTM_STATUS::BTM_NOT_AUTHORIZED:
-      return L2CAP_LE_RESULT_INSUFFICIENT_AUTHORIZATION;
+      return tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_INSUFFICIENT_AUTHORIZATION;
     case tBTM_STATUS::BTM_INSUFFICIENT_ENCRYPT_KEY_SIZE:
-      return L2CAP_LE_RESULT_INSUFFICIENT_ENCRYP_KEY_SIZE;
+      return tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_INSUFFICIENT_ENCRYP_KEY_SIZE;
     default:
       log::error("unexpected return value: {}", btm_status_text(result));
-      return L2CAP_LE_RESULT_INVALID_PARAMETERS;
+      return tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_INVALID_PARAMETERS;
   }
 }
 

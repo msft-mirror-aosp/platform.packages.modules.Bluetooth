@@ -24,9 +24,12 @@
 #include "osi/include/allocator.h"
 #include "stack/avdt/avdt_int.h"
 #include "stack/include/avdt_api.h"
+#include "stack/include/main_thread.h"
 #include "stack/test/common/mock_stack_avdt_msg.h"
 #include "test/common/mock_functions.h"
 #include "types/raw_address.h"
+
+bluetooth::common::MessageLoopThread* get_main_thread() { return nullptr; }
 
 class StackAvdtpTest : public ::testing::Test {
 protected:
@@ -40,19 +43,20 @@ protected:
   static uint8_t scb_handle_;
 
 protected:
-  static void AvdtConnCallback(uint8_t handle, const RawAddress& bd_addr, uint8_t event,
-                               tAVDT_CTRL* p_data, uint8_t scb_index) {
+  static void AvdtConnCallback(uint8_t /*handle*/, const RawAddress& /*bd_addr*/, uint8_t event,
+                               tAVDT_CTRL* /*p_data*/, uint8_t /*scb_index*/) {
     inc_func_call_count(__func__);
     callback_event_ = event;
   }
 
-  static void StreamCtrlCallback(uint8_t handle, const RawAddress& bd_addr, uint8_t event,
-                                 tAVDT_CTRL* p_data, uint8_t scb_index) {
+  static void StreamCtrlCallback(uint8_t /*handle*/, const RawAddress& /*bd_addr*/, uint8_t event,
+                                 tAVDT_CTRL* /*p_data*/, uint8_t /*scb_index*/) {
     inc_func_call_count(__func__);
     callback_event_ = event;
   }
 
-  static void AvdtReportCallback(uint8_t handle, AVDT_REPORT_TYPE type, tAVDT_REPORT_DATA* p_data) {
+  static void AvdtReportCallback(uint8_t /*handle*/, AVDT_REPORT_TYPE /*type*/,
+                                 tAVDT_REPORT_DATA* /*p_data*/) {
     inc_func_call_count(__func__);
   }
 
@@ -310,7 +314,6 @@ TEST_F(StackAvdtpTest, test_SDES_reporting_handler) {
   ASSERT_EQ(get_func_call_count("AvdtReportCallback"), 1);
 }
 
-void avdt_scb_hdl_pkt_no_frag(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data);
 // regression tests for b/258057241 (CVE-2022-40503)
 // The regression tests are divided into 2 tests:
 // avdt_scb_hdl_pkt_no_frag_regression_test1 verifies that

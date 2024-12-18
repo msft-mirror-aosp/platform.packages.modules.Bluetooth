@@ -52,7 +52,7 @@ typedef void(tL2CA_CONNECT_IND_CB)(const RawAddress&, uint16_t, uint16_t, uint8_
  *              Result - 0 = connected
  *              If there is an error, tL2CA_ERROR_CB is invoked
  */
-typedef void(tL2CA_CONNECT_CFM_CB)(uint16_t, uint16_t);
+typedef void(tL2CA_CONNECT_CFM_CB)(uint16_t, tL2CAP_CONN);
 
 /* Configuration indication callback prototype. Parameters are
  *              Local CID assigned to the connection
@@ -107,8 +107,7 @@ typedef void(tL2CA_TX_COMPLETE_CB)(uint16_t, uint16_t);
  * Notify the user when the remote send error result on ConnectRsp or ConfigRsp
  * The parameters are:
  *              Local CID
- *              Error type (L2CAP_CONN_OTHER_ERROR for ConnectRsp,
- *                          L2CAP_CFG_FAILED_NO_REASON for ConfigRsp)
+ *              Error code
  */
 typedef void(tL2CA_ERROR_CB)(uint16_t, uint16_t);
 
@@ -138,7 +137,7 @@ typedef void(tL2CA_CREDIT_BASED_COLLISION_IND_CB)(const RawAddress& bdaddr);
  *              Result - 0 = connected, non-zero means CID is not connected
  */
 typedef void(tL2CA_CREDIT_BASED_CONNECT_CFM_CB)(const RawAddress& bdaddr, uint16_t lcid,
-                                                uint16_t peer_mtu, uint16_t result);
+                                                uint16_t peer_mtu, tL2CAP_LE_RESULT_CODE result);
 
 /* Credit based reconfiguration confirm callback prototype. Parameters are
  *              BD Address of remote
@@ -470,7 +469,8 @@ public:
    **
    ******************************************************************************/
   virtual bool L2CA_ConnectCreditBasedRsp(const RawAddress& p_bd_addr, uint8_t id,
-                                          std::vector<uint16_t>& accepted_lcids, uint16_t result,
+                                          std::vector<uint16_t>& accepted_lcids,
+                                          tL2CAP_LE_RESULT_CODE result,
                                           tL2CAP_LE_CFG_INFO* p_cfg) = 0;
 
   /*******************************************************************************
@@ -638,6 +638,7 @@ public:
    ******************************************************************************/
   virtual void L2CA_Consolidate(const RawAddress& identity_addr, const RawAddress& rpa) = 0;
   virtual tHCI_ROLE L2CA_GetBleConnRole(const RawAddress& bd_addr) = 0;
+  virtual uint16_t L2CA_GetBleConnInterval(const RawAddress& bd_addr) = 0;
 
   /*******************************************************************************
    **
@@ -916,6 +917,40 @@ public:
    **
    *******************************************************************************/
   virtual bool L2CA_isMediaChannel(uint16_t handle, uint16_t channel_id, bool is_local_cid) = 0;
+
+  /*******************************************************************************
+   **
+   ** Function         L2CA_GetAclHandle
+   **
+   ** Description      Given a local channel identifier, |lcid|, this function
+   **                  returns the handle of the corresponding ACL connection, |acl_handle|. If
+   **                  |lcid| is not known or is invalid, this function returns false and does not
+   **                  modify the value pointed at by |acl_handle|.
+   **
+   ** Parameters:      lcid: Local CID
+   **                  acl_handle: Pointer to ACL handle must NOT be nullptr
+   **
+   ** Returns          true if acl_handle lookup was successful
+   **
+   ******************************************************************************/
+  virtual bool L2CA_GetAclHandle(uint16_t lcid, uint16_t* acl_handle) = 0;
+
+  /*******************************************************************************
+   **
+   ** Function         L2CA_GetLocalMtu
+   **
+   ** Description      Given a local channel identifier, |lcid|, this function
+   **                  returns the L2CAP local mtu, |local_mtu|. If
+   **                  |lcid| is not known or is invalid, this function returns false and does not
+   **                  modify the value pointed at by |local_mtu|.
+   **
+   ** Parameters:      lcid: Local CID
+   **                  local_mtu: Pointer to L2CAP local mtu must NOT be nullptr
+   **
+   ** Returns          true if local_mtu lookup was successful
+   **
+   ******************************************************************************/
+  virtual bool L2CA_GetLocalMtu(uint16_t lcid, uint16_t* local_mtu) = 0;
 };
 
 Interface& get_interface();

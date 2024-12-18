@@ -18,20 +18,27 @@
 
 #include <android_bluetooth_sysprop.h>
 #include <bluetooth/log.h>
-#include <com_android_bluetooth_flags.h>
 #include <string.h>
-#include <unistd.h>
+
+#include <cctype>
+#include <cstdint>
+#include <cstdlib>
+#include <string>
 
 #include "bta/ag/bta_ag_int.h"
+#include "bta_ag_api.h"
 #include "common/strings.h"
+#include "hardware/bluetooth.h"
+#include "hardware/bt_hf.h"
+#include "osi/include/alarm.h"
 #include "stack/btm/btm_sco_hfp_hal.h"
 #include "stack/include/btm_api_types.h"
+#include "types/raw_address.h"
 
 using namespace bluetooth;
 
 bool is_hfp_aptx_voice_enabled() {
-  return com::android::bluetooth::flags::hfp_codec_aptx_voice() &&
-         android::sysprop::bluetooth::Hfp::codec_aptx_voice().value_or(false);
+  return android::sysprop::bluetooth::Hfp::codec_aptx_voice().value_or(false);
 }
 
 static bool aptx_swb_codec_status;
@@ -86,7 +93,7 @@ void bta_ag_swb_handle_vs_at_events(tBTA_AG_SCB* p_scb, uint16_t cmd, int16_t in
     case BTA_AG_AT_QAC_EVT:
       if (!get_swb_codec_status(bluetooth::headset::BTHF_SWB_CODEC_VENDOR_APTX,
                                 &p_scb->peer_addr)) {
-        bta_ag_send_qac(p_scb, NULL);
+        bta_ag_send_qac(p_scb);
         break;
       }
       log::verbose("BTA_AG_AT_QAC_EVT");
@@ -96,7 +103,7 @@ void bta_ag_swb_handle_vs_at_events(tBTA_AG_SCB* p_scb, uint16_t cmd, int16_t in
       } else if (p_scb->peer_codecs & BTM_SCO_CODEC_MSBC) {
         p_scb->sco_codec = BTM_SCO_CODEC_MSBC;
       }
-      bta_ag_send_qac(p_scb, NULL);
+      bta_ag_send_qac(p_scb);
       log::verbose("Received AT+QAC, updating sco codec to SWB: {}", p_scb->sco_codec);
       val->num = p_scb->peer_codecs;
       break;

@@ -31,17 +31,12 @@
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 struct uid_set_t;
 
 bool btif_dm_pairing_is_busy() {
-  inc_func_call_count(__func__);
-  return false;
-}
-bool check_cod(const RawAddress* /* remote_bdaddr */, uint32_t /* cod */) {
-  inc_func_call_count(__func__);
-  return false;
-}
-bool check_cod_hid(const RawAddress* /* remote_bdaddr */) {
   inc_func_call_count(__func__);
   return false;
 }
@@ -138,9 +133,8 @@ void btif_dm_ssp_reply(const RawAddress /* bd_addr */, bt_ssp_variant_t /* varia
   inc_func_call_count(__func__);
 }
 void btif_dm_start_discovery(void) { inc_func_call_count(__func__); }
-void btif_dm_update_ble_remote_properties(const RawAddress& /* bd_addr */, BD_NAME /* bd_name */,
-                                          DEV_CLASS /* dev_class */,
-                                          tBT_DEVICE_TYPE /* dev_type */) {
+void btif_update_remote_properties(const RawAddress& /* bd_addr */, BD_NAME /* bd_name */,
+                                   DEV_CLASS /* dev_class */, tBT_DEVICE_TYPE /* dev_type */) {
   inc_func_call_count(__func__);
 }
 

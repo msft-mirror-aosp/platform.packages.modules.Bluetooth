@@ -17,6 +17,8 @@ package com.android.bluetooth.btservice;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.mockito.Mockito.*;
 
 import android.bluetooth.BluetoothAdapter;
@@ -99,8 +101,9 @@ public class BondStateMachineTest {
         mRemoteDevices = new RemoteDevices(mAdapterService, mHandlerThread.getLooper());
         mRemoteDevices.reset();
         when(mAdapterService.getResources()).thenReturn(mTargetContext.getResources());
-        mAdapterProperties = new AdapterProperties(mAdapterService);
-        mAdapterProperties.init(mRemoteDevices);
+        mAdapterProperties =
+                new AdapterProperties(mAdapterService, mRemoteDevices, mHandlerThread.getLooper());
+        mAdapterProperties.init();
         mBondStateMachine =
                 BondStateMachine.make(mAdapterService, mAdapterProperties, mRemoteDevices);
     }
@@ -139,8 +142,8 @@ public class BondStateMachineTest {
         mBondStateMachine.sendMessage(removeBondMsg2);
         TestUtils.waitForLooperToFinishScheduledTask(mBondStateMachine.getHandler().getLooper());
 
-        verify(mNativeInterface, times(1)).removeBond(eq(TEST_BT_ADDR_BYTES));
-        verify(mNativeInterface, times(1)).removeBond(eq(TEST_BT_ADDR_BYTES_2));
+        verify(mNativeInterface).removeBond(eq(TEST_BT_ADDR_BYTES));
+        verify(mNativeInterface).removeBond(eq(TEST_BT_ADDR_BYTES_2));
 
         mBondStateMachine.bondStateChangeCallback(
                 AbstractionLayer.BT_STATUS_SUCCESS, TEST_BT_ADDR_BYTES, BOND_NONE, 0);
@@ -158,10 +161,10 @@ public class BondStateMachineTest {
         mBondStateMachine.sendMessage(createBondMsg2);
         TestUtils.waitForLooperToFinishScheduledTask(mBondStateMachine.getHandler().getLooper());
 
-        verify(mNativeInterface, times(1))
+        verify(mNativeInterface)
                 .createBond(
                         eq(TEST_BT_ADDR_BYTES), eq(BluetoothDevice.ADDRESS_TYPE_PUBLIC), anyInt());
-        verify(mNativeInterface, times(1))
+        verify(mNativeInterface)
                 .createBond(
                         eq(TEST_BT_ADDR_BYTES_2),
                         eq(BluetoothDevice.ADDRESS_TYPE_PUBLIC),
@@ -193,10 +196,10 @@ public class BondStateMachineTest {
         mBondStateMachine.sendMessage(createBondMsg2);
         TestUtils.waitForLooperToFinishScheduledTask(mBondStateMachine.getHandler().getLooper());
 
-        verify(mNativeInterface, times(1))
+        verify(mNativeInterface)
                 .createBond(
                         eq(TEST_BT_ADDR_BYTES), eq(BluetoothDevice.ADDRESS_TYPE_PUBLIC), anyInt());
-        verify(mNativeInterface, times(1))
+        verify(mNativeInterface)
                 .createBond(
                         eq(TEST_BT_ADDR_BYTES_2),
                         eq(BluetoothDevice.ADDRESS_TYPE_RANDOM),
@@ -211,14 +214,14 @@ public class BondStateMachineTest {
         RemoteDevices.DeviceProperties pendingDeviceProperties =
                 mRemoteDevices.addDeviceProperties(TEST_BT_ADDR_BYTES_2);
         BluetoothDevice pendingDevice = pendingDeviceProperties.getDevice();
-        Assert.assertNotNull(pendingDevice);
+        assertThat(pendingDevice).isNotNull();
         mBondStateMachine.sendIntent(pendingDevice, BOND_BONDED, TEST_BOND_REASON, false);
 
         RemoteDevices.DeviceProperties testDeviceProperties =
                 mRemoteDevices.addDeviceProperties(TEST_BT_ADDR_BYTES);
         testDeviceProperties.mUuids = TEST_UUIDS;
         BluetoothDevice testDevice = testDeviceProperties.getDevice();
-        Assert.assertNotNull(testDevice);
+        assertThat(testDevice).isNotNull();
 
         Message bondingMsg = mBondStateMachine.obtainMessage(BondStateMachine.BONDING_STATE_CHANGE);
         bondingMsg.obj = testDevice;
@@ -239,7 +242,7 @@ public class BondStateMachineTest {
         mBondStateMachine.sendMessage(bondedMsg);
 
         TestUtils.waitForLooperToFinishScheduledTask(mBondStateMachine.getHandler().getLooper());
-        Assert.assertTrue(mBondStateMachine.mPendingBondedDevices.isEmpty());
+        assertThat(mBondStateMachine.mPendingBondedDevices).isEmpty();
     }
 
     private void resetRemoteDevice(int deviceType) {
@@ -247,7 +250,7 @@ public class BondStateMachineTest {
         mRemoteDevices.reset();
         mDeviceProperties = mRemoteDevices.addDeviceProperties(TEST_BT_ADDR_BYTES);
         mDevice = mDeviceProperties.getDevice();
-        Assert.assertNotNull(mDevice);
+        assertThat(mDevice).isNotNull();
         mDeviceProperties.mDeviceType = deviceType;
         mBondStateMachine.mPendingBondedDevices.clear();
     }
@@ -605,10 +608,12 @@ public class BondStateMachineTest {
         }
 
         if (shouldDelayMessageExist) {
-            Assert.assertTrue(mBondStateMachine.hasMessage(mBondStateMachine.BONDED_INTENT_DELAY));
+            assertThat(mBondStateMachine.hasMessage(mBondStateMachine.BONDED_INTENT_DELAY))
+                    .isTrue();
             mBondStateMachine.removeMessage(mBondStateMachine.BONDED_INTENT_DELAY);
         } else {
-            Assert.assertFalse(mBondStateMachine.hasMessage(mBondStateMachine.BONDED_INTENT_DELAY));
+            assertThat(mBondStateMachine.hasMessage(mBondStateMachine.BONDED_INTENT_DELAY))
+                    .isFalse();
         }
     }
 
@@ -733,7 +738,7 @@ public class BondStateMachineTest {
     }
 
     private void verifyBondStateChangeIntent(int oldState, int newState, Intent intent) {
-        Assert.assertNotNull(intent);
+        assertThat(intent).isNotNull();
         Assert.assertEquals(BluetoothDevice.ACTION_BOND_STATE_CHANGED, intent.getAction());
         Assert.assertEquals(mDevice, intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE));
         Assert.assertEquals(newState, intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, -1));

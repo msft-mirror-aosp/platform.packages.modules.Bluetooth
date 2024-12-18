@@ -31,6 +31,9 @@
 // Mocked compile conditionals, if any
 // Mocked internal structures, if any
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 namespace test {
 namespace mock {
 namespace stack_l2cap_ble {
@@ -41,6 +44,7 @@ struct L2CA_LockBleConnParamsForServiceDiscovery L2CA_LockBleConnParamsForServic
 struct L2CA_LockBleConnParamsForProfileConnection L2CA_LockBleConnParamsForProfileConnection;
 struct L2CA_ConsolidateParams L2CA_ConsolidateParams;
 struct L2CA_GetBleConnRole L2CA_GetBleConnRole;
+struct L2CA_GetBleConnInterval L2CA_GetBleConnInterval;
 struct l2cble_notify_le_connection l2cble_notify_le_connection;
 struct l2cble_conn_comp l2cble_conn_comp;
 struct l2cble_process_conn_update_evt l2cble_process_conn_update_evt;
@@ -55,7 +59,6 @@ struct l2cble_credit_based_conn_req l2cble_credit_based_conn_req;
 struct l2cble_credit_based_conn_res l2cble_credit_based_conn_res;
 struct l2cble_send_flow_control_credit l2cble_send_flow_control_credit;
 struct l2cble_send_peer_disc_req l2cble_send_peer_disc_req;
-struct l2cble_sec_comp l2cble_sec_comp;
 struct l2ble_sec_access_req l2ble_sec_access_req;
 struct L2CA_AdjustConnectionIntervals L2CA_AdjustConnectionIntervals;
 struct L2CA_SetEcosystemBaseInterval L2CA_SetEcosystemBaseInterval;
@@ -90,6 +93,10 @@ void L2CA_Consolidate(const RawAddress& identity_addr, const RawAddress& rpa) {
 hci_role_t L2CA_GetBleConnRole(const RawAddress& bd_addr) {
   inc_func_call_count(__func__);
   return test::mock::stack_l2cap_ble::L2CA_GetBleConnRole(bd_addr);
+}
+uint16_t L2CA_GetBleConnInterval(const RawAddress& bd_addr) {
+  inc_func_call_count(__func__);
+  return test::mock::stack_l2cap_ble::L2CA_GetBleConnInterval(bd_addr);
 }
 void l2cble_notify_le_connection(const RawAddress& bda) {
   inc_func_call_count(__func__);
@@ -143,7 +150,7 @@ void l2cble_credit_based_conn_req(tL2C_CCB* p_ccb) {
   inc_func_call_count(__func__);
   test::mock::stack_l2cap_ble::l2cble_credit_based_conn_req(p_ccb);
 }
-void l2cble_credit_based_conn_res(tL2C_CCB* p_ccb, uint16_t result) {
+void l2cble_credit_based_conn_res(tL2C_CCB* p_ccb, tL2CAP_LE_RESULT_CODE result) {
   inc_func_call_count(__func__);
   test::mock::stack_l2cap_ble::l2cble_credit_based_conn_res(p_ccb, result);
 }
@@ -154,11 +161,6 @@ void l2cble_send_flow_control_credit(tL2C_CCB* p_ccb, uint16_t credit_value) {
 void l2cble_send_peer_disc_req(tL2C_CCB* p_ccb) {
   inc_func_call_count(__func__);
   test::mock::stack_l2cap_ble::l2cble_send_peer_disc_req(p_ccb);
-}
-void l2cble_sec_comp(const RawAddress* bda, tBT_TRANSPORT transport, void* p_ref_data,
-                     tBTM_STATUS status) {
-  inc_func_call_count(__func__);
-  test::mock::stack_l2cap_ble::l2cble_sec_comp(bda, transport, p_ref_data, status);
 }
 tL2CAP_LE_RESULT_CODE l2ble_sec_access_req(const RawAddress& bd_addr, uint16_t psm,
                                            bool is_originator, tBTM_SEC_CALLBACK* p_callback,

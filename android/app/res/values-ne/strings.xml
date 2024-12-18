@@ -32,7 +32,6 @@
     <string name="bt_enable_line2" msgid="1466367120348920892">"अहिले ब्लुटुथ सक्रिय पार्ने हो?"</string>
     <string name="bt_enable_cancel" msgid="6770180540581977614">"रद्द गर्नुहोस्"</string>
     <string name="bt_enable_ok" msgid="4224374055813566166">"सक्रिय पार्नुहोस्"</string>
-    <string name="incoming_file_confirm_title" msgid="938251186275547290">"फाइल स्थानान्तरण"</string>
     <string name="incoming_file_confirm_content" msgid="6573502088511901157">"आगमन फाइल स्वीकार गर्नुहुन्छ?"</string>
     <string name="incoming_file_confirm_cancel" msgid="9205906062663982692">"अस्वीकार गर्नुहोस्"</string>
     <string name="incoming_file_confirm_ok" msgid="5046926299036238623">"स्वीकार्नुहोस्"</string>
@@ -42,10 +41,8 @@
     <string name="incoming_file_confirm_Notification_content" msgid="2669135531488877921">"<xliff:g id="SENDER">%1$s</xliff:g> निम्न फाइल पठाउन तयार हुनुहुन्छ: <xliff:g id="FILE">%2$s</xliff:g>"</string>
     <string name="notification_receiving" msgid="8445265771083510696">"ब्लुटुथ सेयर:<xliff:g id="FILE">%1$s</xliff:g> प्राप्त गर्दै"</string>
     <string name="notification_received" msgid="2330252358543000567">"ब्लुटुथ सेयर: <xliff:g id="FILE">%1$s</xliff:g> प्राप्त भयो"</string>
-    <string name="notification_received_fail" msgid="9059153354809379374">"ब्लुटुथ सेयर: फाइल: <xliff:g id="FILE">%1$s</xliff:g> प्राप्त भएन"</string>
     <string name="notification_sending" msgid="8269912843286868700">"ब्लुटुथ सेयर: <xliff:g id="FILE">%1$s</xliff:g> पठाउँदै"</string>
     <string name="notification_sent" msgid="2685202778935769332">"ब्लुटुथ सेयर: <xliff:g id="FILE">%1$s</xliff:g> पठाइयो"</string>
-    <string name="notification_sent_complete" msgid="6293391081175517098">"१००% पुरा"</string>
     <string name="notification_sent_fail" msgid="7449832660578001579">"ब्लुटुथ सेयर: फाइल<xliff:g id="FILE">%1$s</xliff:g> पठाइएन"</string>
     <string name="download_title" msgid="6449408649671518102">"फाइल स्थानान्तरण"</string>
     <string name="download_line1" msgid="6449220145685308846">"बाट: \"<xliff:g id="SENDER">%1$s</xliff:g>\""</string>
@@ -80,7 +77,6 @@
     <string name="enabling_progress_title" msgid="5262637688863903594">"कृपया प्रतीक्षा गर्नुहोस्..."</string>
     <string name="enabling_progress_content" msgid="685427201206684584">"ब्लुटुथलाई सक्रिय पार्दै..."</string>
     <string name="bt_toast_1" msgid="8791691594887576215">"फाइल प्राप्त गरिने छ। सूचना प्यानलमा प्रगति जाँच गर्नुहोस्।"</string>
-    <string name="bt_toast_2" msgid="2041575937953174042">"फाइल प्राप्त गर्न सकिँदैन।"</string>
     <string name="bt_toast_3" msgid="3053157171297761920">"\"<xliff:g id="SENDER">%1$s</xliff:g> \"बाट फाइल प्राप्त गर्न बन्द भयो"</string>
     <string name="bt_toast_4" msgid="480365991944956695">"\"<xliff:g id="RECIPIENT">%1$s</xliff:g>\"लाई फाइल पठाउँदै"</string>
     <string name="bt_toast_5" msgid="4818264207982268297">"<xliff:g id="NUMBER">%1$s</xliff:g> फाइल \"<xliff:g id="RECIPIENT">%2$s</xliff:g>\"लाई पठाउँदै"</string>
@@ -117,26 +113,18 @@
     <string name="transfer_menu_clear" msgid="7213491281898188730">"सूचीबाट हटाउनुहोस्"</string>
     <string name="transfer_clear_dlg_title" msgid="128904516163257225">"हटाउनुहोस्"</string>
     <string name="bluetooth_a2dp_sink_queue_name" msgid="7521243473328258997">"Now Playing"</string>
-    <string name="bluetooth_map_settings_save" msgid="8309113239113961550">"सेभ गर्नुहोस्"</string>
-    <string name="bluetooth_map_settings_cancel" msgid="3374494364625947793">"रद्द गर्नुहोस्"</string>
-    <string name="bluetooth_map_settings_intro" msgid="4748160773998753325">"तपाईंले ब्लुटुथ मार्फत साझेदारी गर्न चाहेका खाताहरू चयन गर्नुहोस्। तपाईंले अझै पनि खाताहरूमा जडान गर्दा कुनै पनि पहुँच स्वीकार गर्नुपर्छ।"</string>
-    <string name="bluetooth_map_settings_count" msgid="183013143617807702">"स्लटहरू बाँकी:"</string>
     <string name="bluetooth_map_settings_app_icon" msgid="3501432663809664982">"एप आइकन"</string>
-    <string name="bluetooth_map_settings_title" msgid="4226030082708590023">"ब्लुटुथ सन्देश साझेदारी सेटिङहरू"</string>
-    <string name="bluetooth_map_settings_no_account_slots_left" msgid="755024228476065757">"खाता चयन गर्न सक्दैन। ० स्लटहरू बाँकी"</string>
-    <string name="bluetooth_connected" msgid="5687474377090799447">"ब्लुटुथ सम्बन्धी अडियो यन्त्रलाई जडान गरियो"</string>
-    <string name="bluetooth_disconnected" msgid="6841396291728343534">"ब्लुटुथ सम्बन्धी अडियो यन्त्रलाई विच्छेद गरियो"</string>
+    <string name="bluetooth_disconnected" msgid="6841396291728343534">"ब्लुटुथ सम्बन्धी अडियो यन्त्रलाई डिस्कनेक्ट गरियो"</string>
     <string name="a2dp_sink_mbs_label" msgid="6035366346569127155">"ब्लुटुथको अडियो"</string>
     <string name="bluetooth_opp_file_limit_exceeded" msgid="6612109860149473930">"४ जि.बि. भन्दा ठूला फाइलहरूलाई स्थानान्तरण गर्न सकिँदैन"</string>
     <string name="bluetooth_connect_action" msgid="2319449093046720209">"ब्लुटुथमा कनेक्ट गर्नुहोस्"</string>
-    <string name="bluetooth_enabled_apm_title" msgid="6914461147844949044">"हवाइजहाज मोडमा ब्लुटुथ अन राखियोस्"</string>
+    <string name="bluetooth_enabled_apm_title" msgid="6914461147844949044">"हवाइजहाज मोडमा ब्लुटुथ अन राख्नुहोस्"</string>
     <string name="bluetooth_enabled_apm_message" msgid="6168686193308136881">"तपाईंले ब्लुटुथ अन राखिराख्नुभयो भने तपाईंले आफ्नो डिभाइस अर्को पटक हवाइजहाज मोडमा लैजाँदा तपाईंको डिभाइसले ब्लुटुथ अन राख्नु पर्ने कुरा याद गर्छ"</string>
     <string name="bluetooth_stays_on_title" msgid="39720820955212918">"ब्लुटुथ अन रहन्छ"</string>
     <string name="bluetooth_stays_on_message" msgid="3669663452593157737">"तपाईंको डिभाइस अर्को पटक हवाइजहाज मोडमा लैजाँदा तपाईंको फोनले ब्लुटुथ अन राख्नु पर्ने कुरा याद गर्छ। तपाईं ब्लुटुथ अन भइनरहोस् भन्ने चाहनुहुन्छ भने ब्लुटुथ अफ गर्नुहोस्।"</string>
     <string name="bluetooth_and_wifi_stays_on_title" msgid="5821932798860821244">"Wi-Fi र ब्लुटुथ अन रहिरहने छन्"</string>
     <string name="bluetooth_and_wifi_stays_on_message" msgid="7848565203843882558">"हवाइजहाज मोडमा पनि तपाईंको डिभाइसको Wi-Fi र ब्लुटुथ अन नै रहिरहने छन्। तपाईं Wi-Fi र ब्लुटुथ अन भइनरहोस् भन्ने चाहनुहुन्छ भने तिनलाई अफ गर्नुहोस्।"</string>
-    <string name="bluetooth_enabled_auto_on_title" msgid="1799541656310353393">"ब्लुटुथ स्वतः अन गरिएको छ"</string>
-    <string name="bluetooth_enabled_auto_on_message" msgid="1070556457440100730">"स्वतः रिस्टार्ट गर्ने सुविधा ब्लुटुथसम्बन्धी सेटिङमा गई अन/अफ गर्न सकिन्छ।"</string>
-    <string name="bluetooth_disable_auto_on" msgid="1085026923461565937">"अफ गर्नुहोस्"</string>
+    <string name="bluetooth_enabled_auto_on_title" msgid="8983664142805050578">"ब्लुटुथ फेरि अन गरिएको छ"</string>
+    <string name="bluetooth_enabled_auto_on_message" msgid="2790514825041114851">"तपाईं जुनसुकै बेला सेटिङमा गई यो कुरा परिवर्तन गर्न सक्नुहुन्छ"</string>
     <string name="bluetooth_notification_group" msgid="7251886707585872194">"ब्लुटुथको स्थिति स्वतः परिवर्तन गरियो"</string>
 </resources>

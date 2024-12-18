@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.audio_util;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.mockito.Mockito.*;
 
 import android.content.ContentResolver;
@@ -197,10 +199,10 @@ public class BrowserPlayerWrapperTest {
         verify(mMockBrowser).testInit(any(), any(), mBrowserConnCb.capture(), any());
         MediaBrowser.ConnectionCallback browserConnCb = mBrowserConnCb.getValue();
 
-        verify(mMockBrowser, times(1)).connect();
+        verify(mMockBrowser).connect();
         browserConnCb.onConnected();
         verify(mConnCb).run(eq(BrowsedPlayerWrapper.STATUS_SUCCESS), eq(wrapper));
-        verify(mMockBrowser, times(1)).disconnect();
+        verify(mMockBrowser).disconnect();
     }
 
     @Test
@@ -211,7 +213,7 @@ public class BrowserPlayerWrapperTest {
         verify(mMockBrowser).testInit(any(), any(), mBrowserConnCb.capture(), any());
         MediaBrowser.ConnectionCallback browserConnCb = mBrowserConnCb.getValue();
 
-        verify(mMockBrowser, times(1)).connect();
+        verify(mMockBrowser).connect();
         browserConnCb.onConnectionSuspended();
         verify(mConnCb).run(eq(BrowsedPlayerWrapper.STATUS_CONN_ERROR), eq(wrapper));
         // Twice because our mConnCb is wrapped when using the plain connect() call and disconnect
@@ -228,10 +230,10 @@ public class BrowserPlayerWrapperTest {
         verify(mMockBrowser).testInit(any(), any(), mBrowserConnCb.capture(), any());
         MediaBrowser.ConnectionCallback browserConnCb = mBrowserConnCb.getValue();
 
-        verify(mMockBrowser, times(1)).connect();
+        verify(mMockBrowser).connect();
         browserConnCb.onConnectionFailed();
         verify(mConnCb).run(eq(BrowsedPlayerWrapper.STATUS_CONN_ERROR), eq(wrapper));
-        verify(mMockBrowser, times(1)).disconnect();
+        verify(mMockBrowser).disconnect();
     }
 
     @Test
@@ -245,11 +247,11 @@ public class BrowserPlayerWrapperTest {
         verify(mMockBrowser).testInit(any(), any(), mBrowserConnCb.capture(), any());
         MediaBrowser.ConnectionCallback browserConnCb = mBrowserConnCb.getValue();
 
-        verify(mMockBrowser, times(1)).connect();
+        verify(mMockBrowser).connect();
 
         browserConnCb.onConnected();
         verify(mConnCb).run(eq(BrowsedPlayerWrapper.STATUS_CONN_ERROR), eq(wrapper));
-        verify(mMockBrowser, times(1)).disconnect();
+        verify(mMockBrowser).disconnect();
     }
 
     @Test
@@ -284,7 +286,7 @@ public class BrowserPlayerWrapperTest {
         MediaBrowser.ConnectionCallback browserConnCb = mBrowserConnCb.getValue();
 
         wrapper.playItem("test_item");
-        verify(mMockBrowser, times(1)).connect();
+        verify(mMockBrowser).connect();
 
         MediaController mockController = mock(MediaController.class);
         MediaController.TransportControls mockTransport =
@@ -310,7 +312,7 @@ public class BrowserPlayerWrapperTest {
         // Once we're told we're playing, make sure we disconnect
         builder.setState(PlaybackState.STATE_PLAYING, 0, 1);
         controllerCb.onPlaybackStateChanged(builder.build());
-        verify(mMockBrowser, times(1)).disconnect();
+        verify(mMockBrowser).disconnect();
     }
 
     @Test
@@ -321,7 +323,7 @@ public class BrowserPlayerWrapperTest {
         MediaBrowser.ConnectionCallback browserConnCb = mBrowserConnCb.getValue();
 
         wrapper.playItem("test_item");
-        verify(mMockBrowser, times(1)).connect();
+        verify(mMockBrowser).connect();
 
         MediaController mockController = mock(MediaController.class);
         MediaController.TransportControls mockTransport =
@@ -393,13 +395,13 @@ public class BrowserPlayerWrapperTest {
             Assert.assertEquals(expected.isBrowsable(), item.isFolder);
             if (item.isFolder) {
                 Folder folder = item.folder;
-                Assert.assertNotNull(folder);
-                Assert.assertFalse(folder.isPlayable);
+                assertThat(folder).isNotNull();
+                assertThat(folder.isPlayable).isFalse();
                 Assert.assertEquals(expected.getDescription().getMediaId(), folder.mediaId);
                 Assert.assertEquals(expected.getDescription().getTitle().toString(), folder.title);
             } else {
                 Metadata song = item.song;
-                Assert.assertNotNull(song);
+                assertThat(song).isNotNull();
                 Assert.assertEquals(expected.getDescription().getMediaId(), song.mediaId);
                 Assert.assertEquals(expected.getDescription().getTitle().toString(), song.title);
                 Assert.assertEquals(
@@ -407,11 +409,11 @@ public class BrowserPlayerWrapperTest {
                 Assert.assertEquals(
                         expected.getDescription().getDescription().toString(), song.album);
                 if (expected.getDescription().getIconBitmap() != null) {
-                    Assert.assertNotNull(song.image);
+                    assertThat(song.image).isNotNull();
                     Bitmap expectedBitmap = expected.getDescription().getIconBitmap();
-                    Assert.assertTrue(expectedBitmap.sameAs(song.image.getImage()));
+                    assertThat(expectedBitmap.sameAs(song.image.getImage())).isTrue();
                 } else if (expected.getDescription().getIconUri() != null) {
-                    Assert.assertTrue(mTestBitmap.sameAs(song.image.getImage()));
+                    assertThat(mTestBitmap.sameAs(song.image.getImage())).isTrue();
                 } else {
                     Assert.assertEquals(null, song.image);
                 }

@@ -30,9 +30,7 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.content.Context;
 import android.content.Intent;
-import android.content.res.Resources;
 import android.media.AudioManager;
-import android.platform.test.flag.junit.SetFlagsRule;
 import android.support.v4.media.session.PlaybackStateCompat;
 
 import androidx.test.InstrumentationRegistry;
@@ -40,12 +38,10 @@ import androidx.test.filters.MediumTest;
 import androidx.test.rule.ServiceTestRule;
 import androidx.test.runner.AndroidJUnit4;
 
-import com.android.bluetooth.R;
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.a2dpsink.A2dpSinkService;
 import com.android.bluetooth.avrcpcontroller.BluetoothMediaBrowserService.BrowseResult;
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.flags.Flags;
 
 import org.junit.After;
 import org.junit.Before;
@@ -66,8 +62,6 @@ import java.util.List;
 public class AvrcpControllerServiceTest {
     private static final String REMOTE_DEVICE_ADDRESS = "00:00:00:00:00:00";
     private static final String REMOTE_DEVICE_ADDRESS_2 = "11:11:11:11:11:11";
-
-    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     private AvrcpControllerService mService = null;
     private BluetoothAdapter mAdapter = null;
@@ -263,7 +257,7 @@ public class AvrcpControllerServiceTest {
 
         BrowseResult result = mService.getContents(parentMediaId);
 
-        verify(mStateMachine, times(1)).requestContents(eq(node));
+        verify(mStateMachine).requestContents(eq(node));
         assertThat(result.getStatus()).isEqualTo(BrowseResult.DOWNLOAD_PENDING);
     }
 
@@ -518,8 +512,6 @@ public class AvrcpControllerServiceTest {
      */
     @Test
     public void testActiveDeviceMaintainsAudioFocusWhenOtherDeviceConnects_audioFocusMaintained() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_RANDOMIZE_DEVICE_LEVEL_MEDIA_IDS);
-
         mService.onConnectionStateChanged(true, true, mRemoteDevice);
         // check set active device is called
         verify(mA2dpSinkService).setActiveDevice(mRemoteDevice);

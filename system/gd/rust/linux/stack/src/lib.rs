@@ -3,7 +3,6 @@
 //! This crate provides the API implementation of the Fluoride/GD Bluetooth
 //! stack, independent of any RPC projection.
 
-pub mod async_helper;
 pub mod battery_manager;
 pub mod battery_provider_manager;
 pub mod battery_service;
@@ -21,7 +20,7 @@ pub mod suspend;
 pub mod uuid;
 
 use bluetooth_qa::{BluetoothQA, IBluetoothQA};
-use log::debug;
+use log::{debug, info};
 use num_derive::{FromPrimitive, ToPrimitive};
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc::channel;
@@ -30,23 +29,25 @@ use tokio::time::{sleep, Duration};
 
 use crate::battery_manager::{BatteryManager, BatterySet};
 use crate::battery_provider_manager::BatteryProviderManager;
-use crate::battery_service::{BatteryService, BatteryServiceActions};
-use crate::bluetooth::{
-    dispatch_base_callbacks, dispatch_hid_host_callbacks, dispatch_sdp_callbacks, Bluetooth,
-    BluetoothDevice, DelayedActions, IBluetooth,
+use crate::battery_service::{
+    BatteryService, BatteryServiceActions, BATTERY_SERVICE_GATT_CLIENT_APP_ID,
 };
-use crate::bluetooth_admin::{BluetoothAdmin, IBluetoothAdmin};
+use crate::bluetooth::{
+    dispatch_base_callbacks, dispatch_hid_host_callbacks, dispatch_sdp_callbacks, AdapterActions,
+    Bluetooth, BluetoothDevice, IBluetooth,
+};
+use crate::bluetooth_admin::{AdminActions, BluetoothAdmin, IBluetoothAdmin};
 use crate::bluetooth_adv::{dispatch_le_adv_callbacks, AdvertiserActions};
 use crate::bluetooth_gatt::{
     dispatch_gatt_client_callbacks, dispatch_gatt_server_callbacks, dispatch_le_scanner_callbacks,
     dispatch_le_scanner_inband_callbacks, BluetoothGatt, GattActions,
 };
-use crate::bluetooth_media::{BluetoothMedia, MediaActions};
+use crate::bluetooth_media::{BluetoothMedia, IBluetoothMedia, MediaActions};
 use crate::dis::{DeviceInformation, ServiceCallbacks};
 use crate::socket_manager::{BluetoothSocketManager, SocketActions};
 use crate::suspend::Suspend;
 use bt_topshim::{
-    btif::{BaseCallbacks, BtAclState, BtBondState, BtTransport, RawAddress},
+    btif::{BaseCallbacks, BtAclState, BtBondState, BtTransport, DisplayAddress, RawAddress, Uuid},
     profiles::{
         a2dp::A2dpCallbacks,
         avrcp::AvrcpCallbacks,
@@ -106,14 +107,18 @@ pub enum Message {
     AdapterCallbackDisconnected(u32),
     ConnectionCallbackDisconnected(u32),
 
-    // Some delayed actions for the adapter.
-    TriggerUpdateConnectableMode,
-    DelayedAdapterActions(DelayedActions),
+    AdapterActions(AdapterActions),
 
     // Follows IBluetooth's on_device_(dis)connected and bond_state callbacks
     // but doesn't require depending on Bluetooth.
-    OnDeviceConnectionStateChanged(BluetoothDevice, BtAclState, BtBondState, BtTransport),
-    OnDeviceDisconnected(BluetoothDevice),
+    // Params: Address, BR/EDR ACL state, BLE ACL state, bond state, transport
+    OnDeviceConnectionOrBondStateChanged(
+        RawAddress,
+        BtAclState,
+        BtAclState,
+        BtBondState,
+        BtTransport,
+    ),
 
     // Suspend related
     SuspendCallbackRegistered(u32),
@@ -146,8 +151,8 @@ pub enum Message {
 
     // Admin policy related
     AdminCallbackDisconnected(u32),
+    AdminActions(AdminActions),
     HidHostEnable,
-    AdminPolicyChanged,
 
     // Dis callbacks
     Dis(ServiceCallbacks),
@@ -166,17 +171,64 @@ pub enum Message {
     QaGetHidReport(RawAddress, BthhReportType, u8),
     QaSetHidReport(RawAddress, BthhReportType, String),
     QaSendHidData(RawAddress, String),
+    QaSendHidVirtualUnplug(RawAddress),
 
     // UHid callbacks
     UHidHfpOutputCallback(RawAddress, u8, u8),
     UHidTelephonyUseCallback(RawAddress, bool),
 
-    // GATT Callbacks
-    GattClientDisconnected(RawAddress),
+    // This message is sent when either HID, media, or GATT client, is disconnected.
+    // Note that meida sends this when the profiles are disconnected as a whole, that is, it will
+    // not be called when AVRCP is disconnected but not A2DP, as an example.
+    ProfileDisconnected(RawAddress),
+}
+
+/// Returns a callable object that dispatches a BTIF callback to Message
+///
+/// The returned object would make sure the order of how the callbacks arrive the same as how they
+/// goes to Message.
+///
+/// Example
+/// ```ignore
+/// // Create a dispatcher in btstack
+/// let gatt_client_callbacks_dispatcher = topshim::gatt::GattClientCallbacksDispatcher {
+///     dispatch: make_message_dispatcher(tx.clone(), Message::GattClient),
+/// };
+///
+/// // Register the dispatcher to topshim
+/// bt_topshim::topstack::get_dispatchers()
+///     .lock()
+///     .unwrap()
+///     .set::<topshim::gatt::GattClientCb>(Arc::new(Mutex::new(gatt_client_callbacks_dispatcher)))
+/// ```
+pub(crate) fn make_message_dispatcher<F, Cb>(tx: Sender<Message>, f: F) -> Box<dyn Fn(Cb) + Send>
+where
+    Cb: Send + 'static,
+    F: Fn(Cb) -> Message + Send + Copy + 'static,
+{
+    let async_mutex = Arc::new(tokio::sync::Mutex::new(()));
+    let dispatch_queue = Arc::new(Mutex::new(std::collections::VecDeque::new()));
+
+    Box::new(move |cb| {
+        let tx = tx.clone();
+        let async_mutex = async_mutex.clone();
+        let dispatch_queue = dispatch_queue.clone();
+        // Enqueue the callbacks at the synchronized block to ensure the order.
+        dispatch_queue.lock().unwrap().push_back(cb);
+        bt_topshim::topstack::get_runtime().spawn(async move {
+            // Acquire the lock first to ensure |pop_front| and |tx.send| not
+            // interrupted by the other async threads.
+            let _guard = async_mutex.lock().await;
+            // Consume exactly one callback.
+            let cb = dispatch_queue.lock().unwrap().pop_front().unwrap();
+            let _ = tx.send(f(cb)).await;
+        });
+    })
 }
 
 pub enum BluetoothAPI {
     Adapter,
+    Admin,
     Battery,
     Media,
     Gatt,
@@ -245,6 +297,7 @@ impl Stack {
                 }
 
                 Message::AdapterShutdown => {
+                    bluetooth_gatt.lock().unwrap().enable(false);
                     bluetooth.lock().unwrap().disable();
                 }
 
@@ -260,8 +313,22 @@ impl Stack {
                     // Initialize objects that need the adapter to be fully
                     // enabled before running.
 
-                    // Register device information service.
+                    // Init Media and pass it to Bluetooth.
+                    bluetooth_media.lock().unwrap().initialize();
+                    bluetooth.lock().unwrap().set_media(bluetooth_media.clone());
+                    // Init Gatt and pass it to Bluetooth.
+                    bluetooth_gatt.lock().unwrap().init_profiles(api_tx.clone());
+                    bluetooth_gatt.lock().unwrap().enable(true);
+                    bluetooth.lock().unwrap().set_gatt_and_init_scanner(bluetooth_gatt.clone());
+                    // Init AdvertiseManager. It selects the stack per is_le_ext_adv_supported
+                    // so it can only be done after Adapter is ready.
+                    bluetooth_gatt.lock().unwrap().init_adv_manager(bluetooth.clone());
+                    // Battery service and device information service are on top of Gatt.
+                    // Only initialize them after GATT is ready.
                     bluetooth_dis.lock().unwrap().initialize();
+                    battery_service.lock().unwrap().init();
+                    // Initialize Admin. This toggles the enabled profiles.
+                    bluetooth_admin.lock().unwrap().initialize(api_tx.clone());
                 }
 
                 Message::A2dp(a) => {
@@ -375,38 +442,23 @@ impl Stack {
                     bluetooth.lock().unwrap().connection_callback_disconnected(id);
                 }
 
-                Message::TriggerUpdateConnectableMode => {
-                    let is_listening = bluetooth_socketmgr.lock().unwrap().is_listening();
-                    bluetooth.lock().unwrap().handle_delayed_actions(
-                        DelayedActions::UpdateConnectableMode(is_listening),
-                    );
+                Message::AdapterActions(action) => {
+                    bluetooth.lock().unwrap().handle_actions(action);
                 }
 
-                Message::DelayedAdapterActions(action) => {
-                    bluetooth.lock().unwrap().handle_delayed_actions(action);
-                }
-
-                // Any service needing an updated list of devices can have an
-                // update method triggered from here rather than needing a
-                // reference to Bluetooth.
-                Message::OnDeviceConnectionStateChanged(
-                    device,
-                    acl_state,
+                // Any service needing an updated list of devices can have an update method
+                // triggered from here rather than needing a reference to Bluetooth.
+                Message::OnDeviceConnectionOrBondStateChanged(
+                    addr,
+                    _bredr_acl_state,
+                    ble_acl_state,
                     bond_state,
-                    transport,
+                    _transport,
                 ) => {
-                    battery_service.lock().unwrap().handle_action(BatteryServiceActions::Connect(
-                        device, acl_state, bond_state, transport,
-                    ));
-                }
-
-                // For battery service, use this to clean up internal handles. GATT connection is
-                // already dropped if ACL disconnect has occurred.
-                Message::OnDeviceDisconnected(device) => {
-                    battery_service
-                        .lock()
-                        .unwrap()
-                        .handle_action(BatteryServiceActions::Disconnect(device));
+                    if ble_acl_state == BtAclState::Connected && bond_state == BtBondState::Bonded {
+                        info!("BAS: Connecting to {}", DisplayAddress(&addr));
+                        battery_service.lock().unwrap().init_device(addr);
+                    }
                 }
 
                 Message::SuspendCallbackRegistered(id) => {
@@ -480,11 +532,11 @@ impl Stack {
                 Message::AdminCallbackDisconnected(id) => {
                     bluetooth_admin.lock().unwrap().unregister_admin_policy_callback(id);
                 }
+                Message::AdminActions(action) => {
+                    bluetooth_admin.lock().unwrap().handle_action(action);
+                }
                 Message::HidHostEnable => {
                     bluetooth.lock().unwrap().enable_hidhost();
-                }
-                Message::AdminPolicyChanged => {
-                    bluetooth_socketmgr.lock().unwrap().handle_admin_policy_changed();
                 }
                 Message::Dis(callback) => {
                     bluetooth_dis.lock().unwrap().handle_callbacks(&callback);
@@ -538,6 +590,10 @@ impl Stack {
                     let status = bluetooth.lock().unwrap().send_hid_data_internal(addr, data);
                     bluetooth_qa.lock().unwrap().on_send_hid_data_completed(status);
                 }
+                Message::QaSendHidVirtualUnplug(addr) => {
+                    let status = bluetooth.lock().unwrap().send_hid_virtual_unplug_internal(addr);
+                    bluetooth_qa.lock().unwrap().on_send_hid_virtual_unplug_completed(status);
+                }
 
                 // UHid callbacks
                 Message::UHidHfpOutputCallback(addr, id, data) => {
@@ -554,11 +610,24 @@ impl Stack {
                         .dispatch_uhid_telephony_use_callback(addr, state);
                 }
 
-                Message::GattClientDisconnected(address) => {
-                    bluetooth
-                        .lock()
-                        .unwrap()
-                        .disconnect_if_no_media_or_hid_profiles_connected(address);
+                Message::ProfileDisconnected(addr) => {
+                    let bas_app_uuid =
+                        Uuid::from_string(String::from(BATTERY_SERVICE_GATT_CLIENT_APP_ID))
+                            .expect("BAS Uuid failed to be parsed");
+                    // Ideally we would also check that there are no open sockets for this device
+                    // but Floss does not manage socket state so there is no reasonable way for us
+                    // to know whether a socket is open or not.
+                    if bluetooth_gatt.lock().unwrap().get_connected_applications(&addr)
+                        == vec![bas_app_uuid]
+                        && !bluetooth.lock().unwrap().is_hh_connected(&addr)
+                        && bluetooth_media.lock().unwrap().get_connected_profiles(&addr).is_empty()
+                    {
+                        info!(
+                            "BAS: Disconnecting from {} since it's the last active profile",
+                            DisplayAddress(&addr)
+                        );
+                        battery_service.lock().unwrap().drop_device(addr);
+                    }
                 }
             }
         }

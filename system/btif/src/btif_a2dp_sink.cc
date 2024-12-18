@@ -26,15 +26,23 @@
 #include <com_android_bluetooth_flags.h>
 
 #include <atomic>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <future>
 #include <mutex>
 #include <string>
+#include <utility>
 
+#include "a2dp_api.h"
+#include "a2dp_codec_api.h"
+#include "avdt_api.h"
+#include "bta_av_api.h"
 #include "btif/include/btif_av.h"
 #include "btif/include/btif_av_co.h"
 #include "btif/include/btif_avrcp_audio_track.h"
 #include "btif/include/btif_util.h"  // CASE_RETURN_STR
 #include "common/message_loop_thread.h"
-#include "hardware/bt_av.h"
 #include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
 #include "osi/include/fixed_queue.h"
@@ -222,7 +230,8 @@ static void btif_a2dp_sink_startup_delayed() {
   // Nothing to do
 }
 
-static void btif_a2dp_sink_on_decode_complete(uint8_t* data, uint32_t len) {
+static void btif_a2dp_sink_on_decode_complete([[maybe_unused]] uint8_t* data,
+                                              [[maybe_unused]] uint32_t len) {
 #ifdef __ANDROID__
   BtifAvrcpAudioTrackWriteData(btif_a2dp_sink_cb.audio_track, reinterpret_cast<void*>(data), len);
 #endif
@@ -328,18 +337,10 @@ bool btif_a2dp_sink_restart_session(const RawAddress& old_peer_address,
   if (!old_peer_address.IsEmpty()) {
     btif_a2dp_sink_end_session(old_peer_address);
   }
-  if (com::android::bluetooth::flags::a2dp_concurrent_source_sink()) {
-    if (!bta_av_co_set_active_sink_peer(new_peer_address)) {
-      log::error("Cannot stream audio: cannot set active peer to {}", new_peer_address);
-      peer_ready_promise.set_value();
-      return false;
-    }
-  } else {
-    if (!bta_av_co_set_active_peer(new_peer_address)) {
-      log::error("Cannot stream audio: cannot set active peer to {}", new_peer_address);
-      peer_ready_promise.set_value();
-      return false;
-    }
+  if (!bta_av_co_set_active_sink_peer(new_peer_address)) {
+    log::error("Cannot stream audio: cannot set active peer to {}", new_peer_address);
+    peer_ready_promise.set_value();
+    return false;
   }
 
   if (old_peer_address.IsEmpty()) {
@@ -539,7 +540,6 @@ static void btif_a2dp_sink_audio_handle_stop_decoding() {
 }
 
 static void btif_decode_alarm_cb(void* /* context */) {
-  LockGuard lock(g_mutex);
   btif_a2dp_sink_cb.worker_thread.DoInThread(FROM_HERE,
                                              base::BindOnce(btif_a2dp_sink_avk_handle_timer));
 }

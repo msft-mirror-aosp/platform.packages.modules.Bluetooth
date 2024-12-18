@@ -35,6 +35,7 @@
 #include "internal_include/stack_config.h"
 #include "main/shim/entry.h"
 #include "main/shim/helpers.h"
+#include "metrics/bluetooth_event.h"
 #include "osi/include/allocator.h"
 #include "p_256_ecc_pp.h"
 #include "smp_int.h"
@@ -47,7 +48,7 @@
 #include "stack/include/btm_ble_api.h"
 #include "stack/include/btm_ble_sec_api.h"
 #include "stack/include/btm_log_history.h"
-#include "stack/include/l2c_api.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/include/smp_status.h"
 #include "stack/include/stack_metrics_logging.h"
@@ -319,6 +320,7 @@ void smp_log_metrics(const RawAddress& bd_addr, bool is_outgoing, const uint8_t*
   uint8_t failure_reason = 0;
   if (raw_cmd == SMP_OPCODE_PAIRING_FAILED && buf_len >= 1) {
     STREAM_TO_UINT8(failure_reason, p_buf);
+    log_le_pairing_fail(bd_addr, failure_reason, is_outgoing);
   }
   if (smp_cb.is_pair_cancel) {
     failure_reason = SMP_USER_CANCELLED;  // Tracking pairing cancellations
@@ -338,7 +340,7 @@ void smp_log_metrics(const RawAddress& bd_addr, bool is_outgoing, const uint8_t*
  * Description      Send message to L2CAP.
  *
  ******************************************************************************/
-bool smp_send_msg_to_L2CAP(const RawAddress& rem_bda, BT_HDR* p_toL2CAP) {
+static bool smp_send_msg_to_L2CAP(const RawAddress& rem_bda, BT_HDR* p_toL2CAP) {
   tL2CAP_DW_RESULT l2cap_ret;
   uint16_t fixed_cid = L2CAP_SMP_CID;
 
@@ -354,7 +356,7 @@ bool smp_send_msg_to_L2CAP(const RawAddress& rem_bda, BT_HDR* p_toL2CAP) {
   if (com::android::bluetooth::flags::l2cap_tx_complete_cb_info()) {
     /* Unacked needs to be incremented before calling SendFixedChnlData */
     smp_cb.total_tx_unacked++;
-    l2cap_ret = L2CA_SendFixedChnlData(fixed_cid, rem_bda, p_toL2CAP);
+    l2cap_ret = stack::l2cap::get_interface().L2CA_SendFixedChnlData(fixed_cid, rem_bda, p_toL2CAP);
     if (l2cap_ret == tL2CAP_DW_RESULT::FAILED) {
       smp_cb.total_tx_unacked--;
       log::error("SMP failed to pass msg to L2CAP");
@@ -364,7 +366,7 @@ bool smp_send_msg_to_L2CAP(const RawAddress& rem_bda, BT_HDR* p_toL2CAP) {
     return true;
   }
 
-  l2cap_ret = L2CA_SendFixedChnlData(fixed_cid, rem_bda, p_toL2CAP);
+  l2cap_ret = stack::l2cap::get_interface().L2CA_SendFixedChnlData(fixed_cid, rem_bda, p_toL2CAP);
   if (l2cap_ret == tL2CAP_DW_RESULT::FAILED) {
     log::error("SMP failed to pass msg to L2CAP");
     return false;
@@ -915,12 +917,12 @@ void smp_remove_fixed_channel(tSMP_CB* p_cb) {
   log::verbose("addr:{}", p_cb->pairing_bda);
 
   if (p_cb->smp_over_br) {
-    if (!L2CA_RemoveFixedChnl(L2CAP_SMP_BR_CID, p_cb->pairing_bda)) {
+    if (!stack::l2cap::get_interface().L2CA_RemoveFixedChnl(L2CAP_SMP_BR_CID, p_cb->pairing_bda)) {
       log::error("Unable to remove L2CAP fixed channel peer:{} cid:{}", p_cb->pairing_bda,
                  L2CAP_SMP_BR_CID);
     }
   } else {
-    if (!L2CA_RemoveFixedChnl(L2CAP_SMP_CID, p_cb->pairing_bda)) {
+    if (!stack::l2cap::get_interface().L2CA_RemoveFixedChnl(L2CAP_SMP_CID, p_cb->pairing_bda)) {
       log::error("Unable to remove L2CAP fixed channel peer:{} cid:{}", p_cb->pairing_bda,
                  L2CAP_SMP_CID);
     }
@@ -947,7 +949,8 @@ void smp_reset_control_value(tSMP_CB* p_cb) {
      usually service discovery will follow authentication complete, to avoid
      racing condition for a link down/up, set link idle timer to be
      SMP_LINK_TOUT_MIN to guarantee SMP key exchange */
-  if (!L2CA_SetIdleTimeoutByBdAddr(p_cb->pairing_bda, SMP_LINK_TOUT_MIN, BT_TRANSPORT_LE)) {
+  if (!stack::l2cap::get_interface().L2CA_SetIdleTimeoutByBdAddr(
+              p_cb->pairing_bda, SMP_LINK_TOUT_MIN, BT_TRANSPORT_LE)) {
     log::warn("Unable to set L2CAP idle timeout peer:{} transport:{} timeout:{}", p_cb->pairing_bda,
               BT_TRANSPORT_LE, SMP_LINK_TOUT_MIN);
   }
@@ -971,7 +974,7 @@ void smp_proc_pairing_cmpl(tSMP_CB* p_cb) {
   tSMP_CALLBACK* p_callback = p_cb->p_callback;
   const RawAddress pairing_bda = p_cb->pairing_bda;
 
-  const tSMP_EVT_DATA evt_data = {
+  tSMP_EVT_DATA evt_data = {
           .cmplt =
                   {
                           .reason = p_cb->status,
@@ -994,7 +997,7 @@ void smp_proc_pairing_cmpl(tSMP_CB* p_cb) {
             "sec_level:0x{:0x}",
             p_cb->pairing_bda, smp_status_text(evt_data.cmplt.reason), evt_data.cmplt.sec_level);
     BTM_LogHistory(kBtmLogTag, pairing_bda, "Pairing failed",
-                   base::StringPrintf("reason:%s", smp_status_text(evt_data.cmplt.reason).c_str()));
+                   std::format("reason:{}", smp_status_text(evt_data.cmplt.reason)));
   }
 
   // Log pairing complete event

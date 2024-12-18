@@ -32,7 +32,6 @@
     <string name="bt_enable_line2" msgid="1466367120348920892">"Вклучи Bluetooth сега?"</string>
     <string name="bt_enable_cancel" msgid="6770180540581977614">"Откажи"</string>
     <string name="bt_enable_ok" msgid="4224374055813566166">"Вклучи"</string>
-    <string name="incoming_file_confirm_title" msgid="938251186275547290">"Пренос на датотека"</string>
     <string name="incoming_file_confirm_content" msgid="6573502088511901157">"Да се прифати дојдовната датотека?"</string>
     <string name="incoming_file_confirm_cancel" msgid="9205906062663982692">"Одбиј"</string>
     <string name="incoming_file_confirm_ok" msgid="5046926299036238623">"Прифати"</string>
@@ -42,10 +41,8 @@
     <string name="incoming_file_confirm_Notification_content" msgid="2669135531488877921">"<xliff:g id="SENDER">%1$s</xliff:g> е подготвен да испрати датотека: <xliff:g id="FILE">%2$s</xliff:g>"</string>
     <string name="notification_receiving" msgid="8445265771083510696">"Bluetooth: се прима <xliff:g id="FILE">%1$s</xliff:g>"</string>
     <string name="notification_received" msgid="2330252358543000567">"Bluetooth: <xliff:g id="FILE">%1$s</xliff:g> е примена"</string>
-    <string name="notification_received_fail" msgid="9059153354809379374">"Bluetooth: датотеката <xliff:g id="FILE">%1$s</xliff:g> не е примена"</string>
     <string name="notification_sending" msgid="8269912843286868700">"Bluetooth: се испраќа <xliff:g id="FILE">%1$s</xliff:g>"</string>
     <string name="notification_sent" msgid="2685202778935769332">"Bluetooth: <xliff:g id="FILE">%1$s</xliff:g> е испратена"</string>
-    <string name="notification_sent_complete" msgid="6293391081175517098">"100% завршено"</string>
     <string name="notification_sent_fail" msgid="7449832660578001579">"Bluetooth: датотеката <xliff:g id="FILE">%1$s</xliff:g> не е испратена"</string>
     <string name="download_title" msgid="6449408649671518102">"Пренос на датотеки"</string>
     <string name="download_line1" msgid="6449220145685308846">"Од: „<xliff:g id="SENDER">%1$s</xliff:g>“"</string>
@@ -80,7 +77,6 @@
     <string name="enabling_progress_title" msgid="5262637688863903594">"Почекајте..."</string>
     <string name="enabling_progress_content" msgid="685427201206684584">"Вклучување Bluetooth..."</string>
     <string name="bt_toast_1" msgid="8791691594887576215">"Датотеката ќе биде примена. Напредокот проверете го во таблата за известувања."</string>
-    <string name="bt_toast_2" msgid="2041575937953174042">"Датотеката не може да се прими."</string>
     <string name="bt_toast_3" msgid="3053157171297761920">"Примањето на датотеката од „<xliff:g id="SENDER">%1$s</xliff:g>“ запре"</string>
     <string name="bt_toast_4" msgid="480365991944956695">"Се испраќа датотека до „<xliff:g id="RECIPIENT">%1$s</xliff:g>“"</string>
     <string name="bt_toast_5" msgid="4818264207982268297">"Се испраќаат <xliff:g id="NUMBER">%1$s</xliff:g> датотеки до „<xliff:g id="RECIPIENT">%2$s</xliff:g>“"</string>
@@ -117,14 +113,7 @@
     <string name="transfer_menu_clear" msgid="7213491281898188730">"Исчисти од списокот"</string>
     <string name="transfer_clear_dlg_title" msgid="128904516163257225">"Исчисти"</string>
     <string name="bluetooth_a2dp_sink_queue_name" msgid="7521243473328258997">"Now Playing"</string>
-    <string name="bluetooth_map_settings_save" msgid="8309113239113961550">"Зачувај"</string>
-    <string name="bluetooth_map_settings_cancel" msgid="3374494364625947793">"Откажи"</string>
-    <string name="bluetooth_map_settings_intro" msgid="4748160773998753325">"Изберете ги сметките што сакате да ги споделите преку Bluetooth. Сепак, ќе мора да го прифаќате секој пристап до сметките при поврзување."</string>
-    <string name="bluetooth_map_settings_count" msgid="183013143617807702">"Слободни отвори:"</string>
     <string name="bluetooth_map_settings_app_icon" msgid="3501432663809664982">"Икона на апликацијата"</string>
-    <string name="bluetooth_map_settings_title" msgid="4226030082708590023">"Поставки за споделување пораки преку Bluetooth"</string>
-    <string name="bluetooth_map_settings_no_account_slots_left" msgid="755024228476065757">"Не може да се избере сметка. 0 слободни отвори"</string>
-    <string name="bluetooth_connected" msgid="5687474377090799447">"Аудиото преку Bluetooth е поврзано"</string>
     <string name="bluetooth_disconnected" msgid="6841396291728343534">"Аудиото преку Bluetooth е исклучено"</string>
     <string name="a2dp_sink_mbs_label" msgid="6035366346569127155">"Аудио преку Bluetooth"</string>
     <string name="bluetooth_opp_file_limit_exceeded" msgid="6612109860149473930">"Не може да се пренесуваат датотеки поголеми од 4 GB"</string>
@@ -135,8 +124,7 @@
     <string name="bluetooth_stays_on_message" msgid="3669663452593157737">"Уредот помни да го задржи Bluetooth вклучен во авионски режим. Исклучете го Bluetooth ако не сакате да остане вклучен."</string>
     <string name="bluetooth_and_wifi_stays_on_title" msgid="5821932798860821244">"Wi-Fi и Bluetooth остануваат вклучени"</string>
     <string name="bluetooth_and_wifi_stays_on_message" msgid="7848565203843882558">"Уредот помни да ги задржи Wi‑Fi и Bluetooth вклучени во авионски режим. Исклучете ги Wi-Fi и Bluetooth ако не сакате да бидат вклучени."</string>
-    <string name="bluetooth_enabled_auto_on_title" msgid="1799541656310353393">"Bluetooth е овозможен автоматски"</string>
-    <string name="bluetooth_enabled_auto_on_message" msgid="1070556457440100730">"Автоматското рестартирање може да се вклучи/исклучи во поставките за Bluetooth."</string>
-    <string name="bluetooth_disable_auto_on" msgid="1085026923461565937">"Исклучи"</string>
+    <string name="bluetooth_enabled_auto_on_title" msgid="8983664142805050578">"Bluetooth се вклучи повторно"</string>
+    <string name="bluetooth_enabled_auto_on_message" msgid="2790514825041114851">"Ова може да го промените во „Поставки“ кога сакате"</string>
     <string name="bluetooth_notification_group" msgid="7251886707585872194">"Автоматска промена на состојбата на Bluetooth"</string>
 </resources>

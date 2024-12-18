@@ -27,18 +27,18 @@
 #include <string.h>
 
 #include <algorithm>
+#include <memory>
 
-#include "gatt_int.h"
 #include "hardware/bt_gatt_types.h"
 #include "internal_include/bt_target.h"
-#include "l2c_api.h"
 #include "osi/include/allocator.h"
 #include "stack/arbiter/acl_arbiter.h"
 #include "stack/eatt/eatt.h"
+#include "stack/gatt/gatt_int.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_client_interface.h"
-#include "stack/include/l2cdefs.h"
+#include "stack/include/l2cap_types.h"
 #include "types/bluetooth/uuid.h"
 
 #define GATT_MTU_REQ_MIN_LEN 2
@@ -78,8 +78,7 @@ uint32_t gatt_sr_enqueue_cmd(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint
 
   p_cmd->cid = cid;
 
-  if ((p_cmd->op_code == 0) || (op_code == GATT_HANDLE_VALUE_CONF)) /* no pending request */
-  {
+  if ((p_cmd->op_code == 0) || (op_code == GATT_HANDLE_VALUE_CONF)) { /* no pending request */
     if (op_code == GATT_CMD_WRITE || op_code == GATT_SIGN_CMD_WRITE || op_code == GATT_REQ_MTU ||
         op_code == GATT_HANDLE_VALUE_CONF) {
       trans_id = ++tcb.trans_id;
@@ -105,7 +104,7 @@ uint32_t gatt_sr_enqueue_cmd(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint
  * Returns          true if empty, false if there is pending command.
  *
  ******************************************************************************/
-bool gatt_sr_cmd_empty(tGATT_TCB& tcb, uint16_t cid) {
+static bool gatt_sr_cmd_empty(tGATT_TCB& tcb, uint16_t cid) {
   if (cid == tcb.att_lcid) {
     return tcb.sr_cmd.op_code == 0;
   }
@@ -146,7 +145,7 @@ void gatt_dequeue_sr_cmd(tGATT_TCB& tcb, uint16_t cid) {
   /* Double check in case any buffers are queued */
   log::verbose("gatt_dequeue_sr_cmd cid: 0x{:x}", cid);
   if (p_cmd->p_rsp_msg) {
-    log::error("free tcb.sr_cmd.p_rsp_msg = {}", fmt::ptr(p_cmd->p_rsp_msg));
+    log::error("free tcb.sr_cmd.p_rsp_msg = {}", std::format_ptr(p_cmd->p_rsp_msg));
   }
   osi_free_and_reset((void**)&p_cmd->p_rsp_msg);
 
@@ -154,7 +153,7 @@ void gatt_dequeue_sr_cmd(tGATT_TCB& tcb, uint16_t cid) {
     osi_free(fixed_queue_try_dequeue(p_cmd->multi_rsp_q));
   }
   fixed_queue_free(p_cmd->multi_rsp_q, NULL);
-  memset(p_cmd, 0, sizeof(tGATT_SR_CMD));
+  *p_cmd = tGATT_SR_CMD{};
 }
 
 static void build_read_multi_rsp(tGATT_SR_CMD* p_cmd, uint16_t mtu) {
@@ -162,6 +161,13 @@ static void build_read_multi_rsp(tGATT_SR_CMD* p_cmd, uint16_t mtu) {
   size_t total_len, len;
   uint8_t* p;
   bool is_overflow = false;
+
+  // We need at least one extra byte for the opcode
+  if (mtu == 0) {
+    log::error("Invalid MTU");
+    p_cmd->status = GATT_ILLEGAL_PARAMETER;
+    return;
+  }
 
   len = sizeof(BT_HDR) + L2CAP_MIN_OFFSET + mtu;
   BT_HDR* p_buf = (BT_HDR*)osi_calloc(len);
@@ -241,7 +247,6 @@ static void build_read_multi_rsp(tGATT_SR_CMD* p_cmd, uint16_t mtu) {
       p_cmd->status = GATT_NOT_FOUND;
       break;
     }
-
   } /* loop through all handles*/
 
   /* Sanity check on the buffer length */
@@ -289,8 +294,7 @@ static bool process_read_multi_rsp(tGATT_SR_CMD* p_cmd, tGATT_STATUS status, tGA
       build_read_multi_rsp(p_cmd, mtu);
       return true;
     }
-  } else /* any handle read exception occurs, return error */
-  {
+  } else { /* any handle read exception occurs, return error */
     return true;
   }
 
@@ -369,12 +373,12 @@ tGATT_STATUS gatt_sr_process_app_rsp(tGATT_TCB& tcb, tGATT_IF gatt_if, uint32_t 
  * Returns          void
  *
  ******************************************************************************/
-void gatt_process_exec_write_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint16_t len,
-                                 uint8_t* p_data) {
-  uint8_t *p = p_data, flag, i = 0;
+static void gatt_process_exec_write_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint16_t len,
+                                        uint8_t* p_data) {
+  uint8_t *p = p_data, flag;
   uint32_t trans_id = 0;
   tGATT_IF gatt_if;
-  uint16_t conn_id;
+  tCONN_ID conn_id;
 
 #if (GATT_CONFORMANCE_TESTING == TRUE)
   if (gatt_cb.enable_err_rsp && gatt_cb.req_op_code == op_code) {
@@ -406,18 +410,18 @@ void gatt_process_exec_write_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, 
     if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
       auto prep_cnt_it = tcb.prep_cnt_map.begin();
       while (prep_cnt_it != tcb.prep_cnt_map.end()) {
-        gatt_if = i;
-        conn_id = GATT_CREATE_CONN_ID(tcb.tcb_idx, gatt_if);
+        gatt_if = prep_cnt_it->first;
+        conn_id = gatt_create_conn_id(tcb.tcb_idx, gatt_if);
         tGATTS_DATA gatts_data;
         gatts_data.exec_write = flag;
         gatt_sr_send_req_callback(conn_id, trans_id, GATTS_REQ_TYPE_WRITE_EXEC, &gatts_data);
         prep_cnt_it = tcb.prep_cnt_map.erase(prep_cnt_it);
       }
     } else {
-      for (i = 0; i < GATT_MAX_APPS; i++) {
+      for (uint8_t i = 0; i < GATT_MAX_APPS; i++) {
         if (tcb.prep_cnt[i]) {
           gatt_if = (tGATT_IF)(i + 1);
-          conn_id = GATT_CREATE_CONN_ID(tcb.tcb_idx, gatt_if);
+          conn_id = gatt_create_conn_id(tcb.tcb_idx, gatt_if);
           tGATTS_DATA gatts_data;
           gatts_data.exec_write = flag;
           gatt_sr_send_req_callback(conn_id, trans_id, GATTS_REQ_TYPE_WRITE_EXEC, &gatts_data);
@@ -425,8 +429,7 @@ void gatt_process_exec_write_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, 
         }
       }
     }
-  } else /* nothing needs to be executed , send response now */
-  {
+  } else { /* nothing needs to be executed , send response now */
     log::error("gatt_process_exec_write_req: no prepare write pending");
     gatt_send_error_rsp(tcb, cid, GATT_ERROR, GATT_REQ_EXEC_WRITE, 0, false);
   }
@@ -442,8 +445,8 @@ void gatt_process_exec_write_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, 
  * Returns          void
  *
  ******************************************************************************/
-void gatt_process_read_multi_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint16_t len,
-                                 uint8_t* p_data) {
+static void gatt_process_read_multi_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint16_t len,
+                                        uint8_t* p_data) {
   uint32_t trans_id;
   uint16_t handle = 0, ll = len;
   uint8_t* p = p_data;
@@ -638,6 +641,7 @@ static tGATT_STATUS gatt_build_find_info_rsp(tGATT_SRV_LIST_ELEM& el, BT_HDR* p_
 
   uint8_t* p = (uint8_t*)(p_msg + 1) + L2CAP_MIN_OFFSET + p_msg->len;
 
+  tGATT_STATUS status = GATT_NOT_FOUND;
   for (auto& attr : el.p_db->attr_list) {
     if (attr.handle > e_hdl) {
       break;
@@ -673,10 +677,10 @@ static tGATT_STATUS gatt_build_find_info_rsp(tGATT_SRV_LIST_ELEM& el, BT_HDR* p_
     }
     p_msg->len += info_pair_len[p_msg->offset - 1];
     len -= info_pair_len[p_msg->offset - 1];
-    return GATT_SUCCESS;
+    status = GATT_SUCCESS;
   }
 
-  return GATT_NOT_FOUND;
+  return status;
 }
 
 static tGATT_STATUS read_handles(uint16_t& len, uint8_t*& p, uint16_t& s_hdl, uint16_t& e_hdl) {
@@ -730,8 +734,8 @@ static tGATT_STATUS gatts_validate_packet_format(uint8_t op_code, uint16_t& len,
  * Returns          void
  *
  ******************************************************************************/
-void gatts_process_primary_service_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint16_t len,
-                                       uint8_t* p_data) {
+static void gatts_process_primary_service_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code,
+                                              uint16_t len, uint8_t* p_data) {
   uint16_t s_hdl = 0, e_hdl = 0;
   Uuid uuid = Uuid::kEmpty;
 
@@ -763,6 +767,11 @@ void gatts_process_primary_service_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_
   }
 
   uint16_t payload_size = gatt_tcb_get_payload_size(tcb, cid);
+
+  // This can happen if the channel is already closed.
+  if (payload_size == 0) {
+    return;
+  }
 
   uint16_t msg_len = (uint16_t)(sizeof(BT_HDR) + payload_size + L2CAP_MIN_OFFSET);
   BT_HDR* p_msg = (BT_HDR*)osi_calloc(msg_len);
@@ -796,6 +805,12 @@ static void gatts_process_find_info(tGATT_TCB& tcb, uint16_t cid, uint8_t op_cod
   }
 
   uint16_t payload_size = gatt_tcb_get_payload_size(tcb, cid);
+
+  // This can happen if the channel is already closed.
+  if (payload_size == 0) {
+    return;
+  }
+
   uint16_t buf_len = (uint16_t)(sizeof(BT_HDR) + payload_size + L2CAP_MIN_OFFSET);
 
   BT_HDR* p_msg = (BT_HDR*)osi_calloc(buf_len);
@@ -888,14 +903,14 @@ static void gatts_process_mtu_req(tGATT_TCB& tcb, uint16_t cid, uint16_t len, ui
   if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
     for (auto& [i, p_reg] : gatt_cb.cl_rcb_map) {
       if (p_reg->in_use) {
-        uint16_t conn_id = GATT_CREATE_CONN_ID(tcb.tcb_idx, p_reg->gatt_if);
+        tCONN_ID conn_id = gatt_create_conn_id(tcb.tcb_idx, p_reg->gatt_if);
         gatt_sr_send_req_callback(conn_id, 0, GATTS_REQ_TYPE_MTU, &gatts_data);
       }
     }
   } else {
     for (int i = 0; i < GATT_MAX_APPS; i++) {
       if (gatt_cb.cl_rcb[i].in_use) {
-        uint16_t conn_id = GATT_CREATE_CONN_ID(tcb.tcb_idx, gatt_cb.cl_rcb[i].gatt_if);
+        tCONN_ID conn_id = gatt_create_conn_id(tcb.tcb_idx, gatt_cb.cl_rcb[i].gatt_if);
         gatt_sr_send_req_callback(conn_id, 0, GATTS_REQ_TYPE_MTU, &gatts_data);
       }
     }
@@ -940,6 +955,11 @@ static void gatts_process_read_by_type_req(tGATT_TCB& tcb, uint16_t cid, uint8_t
   }
 
   uint16_t payload_size = gatt_tcb_get_payload_size(tcb, cid);
+
+  // This can happen if the channel is already closed.
+  if (payload_size == 0) {
+    return;
+  }
 
   size_t msg_len = sizeof(BT_HDR) + payload_size + L2CAP_MIN_OFFSET;
   BT_HDR* p_msg = (BT_HDR*)osi_calloc(msg_len);
@@ -1002,7 +1022,7 @@ static void gatts_process_write_req(tGATT_TCB& tcb, uint16_t cid, tGATT_SRV_LIST
   tGATT_STATUS status;
   tGATT_SEC_FLAG sec_flag;
   uint8_t key_size, *p = p_data;
-  uint16_t conn_id;
+  tCONN_ID conn_id;
 
   memset(&sr_data, 0, sizeof(tGATTS_DATA));
 
@@ -1047,7 +1067,7 @@ static void gatts_process_write_req(tGATT_TCB& tcb, uint16_t cid, tGATT_SRV_LIST
   if (status == GATT_SUCCESS) {
     trans_id = gatt_sr_enqueue_cmd(tcb, cid, op_code, handle);
     if (trans_id != 0) {
-      conn_id = GATT_CREATE_CONN_ID(tcb.tcb_idx, el.gatt_if);
+      conn_id = gatt_create_conn_id(tcb.tcb_idx, el.gatt_if);
 
       uint8_t opcode = 0;
       if (gatt_type == BTGATT_DB_DESCRIPTOR) {
@@ -1087,6 +1107,11 @@ static void gatts_process_read_req(tGATT_TCB& tcb, uint16_t cid, tGATT_SRV_LIST_
                                    uint8_t op_code, uint16_t handle, uint16_t len,
                                    uint8_t* p_data) {
   uint16_t payload_size = gatt_tcb_get_payload_size(tcb, cid);
+
+  // This can happen if the channel is already closed.
+  if (payload_size == 0) {
+    return;
+  }
 
   size_t buf_len = sizeof(BT_HDR) + payload_size + L2CAP_MIN_OFFSET;
   uint16_t offset = 0;
@@ -1144,8 +1169,8 @@ static void gatts_process_read_req(tGATT_TCB& tcb, uint16_t cid, tGATT_SRV_LIST_
  * Returns          void
  *
  ******************************************************************************/
-void gatts_process_attribute_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint16_t len,
-                                 uint8_t* p_data) {
+static void gatts_process_attribute_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint16_t len,
+                                        uint8_t* p_data) {
   uint16_t handle = 0;
   uint8_t* p = p_data;
   tGATT_STATUS status = GATT_INVALID_HANDLE;
@@ -1291,7 +1316,7 @@ static bool gatts_proc_ind_ack(tGATT_TCB& tcb, uint16_t ack_handle) {
  * Returns          void
  *
  ******************************************************************************/
-void gatts_process_value_conf(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code) {
+static void gatts_process_value_conf(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code) {
   uint16_t handle;
 
   if (!gatt_tcb_find_indicate_handle(tcb, cid, &handle)) {
@@ -1309,7 +1334,7 @@ void gatts_process_value_conf(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code) {
     for (auto& el : *gatt_cb.srv_list_info) {
       if (el.s_hdl <= handle && el.e_hdl >= handle) {
         uint32_t trans_id = gatt_sr_enqueue_cmd(tcb, cid, op_code, handle);
-        uint16_t conn_id = GATT_CREATE_CONN_ID(tcb.tcb_idx, el.gatt_if);
+        tCONN_ID conn_id = gatt_create_conn_id(tcb.tcb_idx, el.gatt_if);
         gatt_sr_send_req_callback(conn_id, trans_id, GATTS_REQ_TYPE_CONF, &gatts_data);
       }
     }
@@ -1337,7 +1362,6 @@ static bool gatts_process_db_out_of_sync(tGATT_TCB& tcb, uint16_t cid, uint8_t o
           (uuid == Uuid::From16Bit(GATT_UUID_DATABASE_HASH))) {
         should_ignore = false;
       }
-
     } break;
     case GATT_REQ_READ: {
       // Check if read database hash by handle
@@ -1355,7 +1379,6 @@ static bool gatts_process_db_out_of_sync(tGATT_TCB& tcb, uint16_t cid, uint8_t o
       if (status == GATT_SUCCESS && handle == gatt_cb.handle_of_database_hash) {
         should_ignore = false;
       }
-
     } break;
     case GATT_REQ_READ_BY_GRP_TYPE: /* discover primary services */
     case GATT_REQ_FIND_TYPE_VALUE:  /* discover service by UUID */

@@ -25,21 +25,28 @@
  ******************************************************************************/
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
 
 #include "bta/hf_client/bta_hf_client_int.h"
 #include "bta/include/bta_hf_client_api.h"
 #include "bta/include/bta_rfcomm_scn.h"
 #include "bta/sys/bta_sys.h"
+#include "bta_hfp_api.h"
+#include "common/bind.h"
 #include "internal_include/bt_target.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
+#include "sdp_status.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/sdp_api.h"
 #include "stack/include/sdpdefs.h"
+#include "stack/sdp/sdp_discovery_db.h"
 #include "types/bluetooth/uuid.h"
+#include "types/raw_address.h"
 
 using bluetooth::Uuid;
 using namespace bluetooth::legacy::stack::sdp;
@@ -336,14 +343,26 @@ void bta_hf_client_do_disc(tBTA_HF_CLIENT_CB* client_cb) {
     attr_list[3] = ATTR_ID_SUPPORTED_FEATURES;
     num_attr = 4;
     uuid_list[0] = Uuid::From16Bit(UUID_SERVCLASS_AG_HANDSFREE);
-  }
-  /* acceptor; get features */
-  else {
+  } else {
+    /* acceptor; get features */
     attr_list[0] = ATTR_ID_SERVICE_CLASS_ID_LIST;
     attr_list[1] = ATTR_ID_BT_PROFILE_DESC_LIST;
     attr_list[2] = ATTR_ID_SUPPORTED_FEATURES;
     num_attr = 3;
     uuid_list[0] = Uuid::From16Bit(UUID_SERVCLASS_AG_HANDSFREE);
+  }
+
+  /* If we already have a non-null discovery database at this point, we can get
+   * into a race condition leading to UAF once this connection is closed.
+   * This should only happen with malicious modifications to a client. */
+  if (com::android::bluetooth::flags::btsec_check_valid_discovery_database() &&
+      client_cb->p_disc_db != NULL) {
+    log::error("Tried to set up a HF client with a preexisting discovery database.");
+    client_cb->p_disc_db = NULL;
+    // We manually set the state here because it's possible to call this from an
+    // OPEN state, in which case the discovery fail event will be ignored.
+    client_cb->state = 0;  // BTA_HF_CLIENT_INIT_ST
+    return;
   }
 
   /* allocate buffer for sdp database */

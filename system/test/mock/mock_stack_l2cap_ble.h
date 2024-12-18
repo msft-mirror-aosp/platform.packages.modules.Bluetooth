@@ -21,6 +21,8 @@
  *  mockcify.pl ver 0.2
  */
 
+#pragma once
+
 #include <cstdint>
 #include <functional>
 
@@ -87,6 +89,15 @@ struct L2CA_GetBleConnRole {
   hci_role_t operator()(const RawAddress& bd_addr) { return body(bd_addr); }
 };
 extern struct L2CA_GetBleConnRole L2CA_GetBleConnRole;
+// Name: L2CA_GetBleConnInterval
+// Params: const RawAddress& bd_addr
+// Returns: uint16_t
+struct L2CA_GetBleConnInterval {
+  std::function<uint16_t(const RawAddress& bd_addr)> body{
+          [](const RawAddress& /* bd_addr */) { return 24; }};
+  uint16_t operator()(const RawAddress& bd_addr) { return body(bd_addr); }
+};
+extern struct L2CA_GetBleConnInterval L2CA_GetBleConnInterval;
 // Name: l2cble_notify_le_connection
 // Params: const RawAddress& bda
 // Returns: void
@@ -203,9 +214,9 @@ extern struct l2cble_credit_based_conn_req l2cble_credit_based_conn_req;
 // Params: tL2C_CCB* p_ccb, uint16_t result
 // Returns: void
 struct l2cble_credit_based_conn_res {
-  std::function<void(tL2C_CCB* p_ccb, uint16_t result)> body{
-          [](tL2C_CCB* /* p_ccb */, uint16_t /* result */) {}};
-  void operator()(tL2C_CCB* p_ccb, uint16_t result) { body(p_ccb, result); }
+  std::function<void(tL2C_CCB* p_ccb, tL2CAP_LE_RESULT_CODE result)> body{
+          [](tL2C_CCB* /* p_ccb */, tL2CAP_LE_RESULT_CODE /* result */) {}};
+  void operator()(tL2C_CCB* p_ccb, tL2CAP_LE_RESULT_CODE result) { body(p_ccb, result); }
 };
 extern struct l2cble_credit_based_conn_res l2cble_credit_based_conn_res;
 // Name: l2cble_send_flow_control_credit
@@ -225,20 +236,6 @@ struct l2cble_send_peer_disc_req {
   void operator()(tL2C_CCB* p_ccb) { body(p_ccb); }
 };
 extern struct l2cble_send_peer_disc_req l2cble_send_peer_disc_req;
-// Name: l2cble_sec_comp
-// Params: const RawAddress* bda, tBT_TRANSPORT transport, void* p_ref_data,
-// tBTM_STATUS status Returns: void
-struct l2cble_sec_comp {
-  std::function<void(const RawAddress* bda, tBT_TRANSPORT transport, void* p_ref_data,
-                     tBTM_STATUS status)>
-          body{[](const RawAddress* /* bda */, tBT_TRANSPORT /* transport */,
-                  void* /* p_ref_data */, tBTM_STATUS /* status */) {}};
-  void operator()(const RawAddress* bda, tBT_TRANSPORT transport, void* p_ref_data,
-                  tBTM_STATUS status) {
-    body(bda, transport, p_ref_data, status);
-  }
-};
-extern struct l2cble_sec_comp l2cble_sec_comp;
 // Name: l2ble_sec_access_req
 // Params: const RawAddress& bd_addr, uint16_t psm, bool is_originator,
 // tL2CAP_SEC_CBACK* p_callback, void* p_ref_data Returns: tL2CAP_LE_RESULT_CODE
@@ -246,8 +243,9 @@ struct l2ble_sec_access_req {
   std::function<tL2CAP_LE_RESULT_CODE(const RawAddress& bd_addr, uint16_t psm, bool is_originator,
                                       tBTM_SEC_CALLBACK* p_callback, void* p_ref_data)>
           body{[](const RawAddress& /* bd_addr */, uint16_t /* psm */, bool /* is_originator */,
-                  tBTM_SEC_CALLBACK* /* p_callback */,
-                  void* /* p_ref_data */) { return L2CAP_LE_RESULT_CONN_OK; }};
+                  tBTM_SEC_CALLBACK* /* p_callback */, void* /* p_ref_data */) {
+            return tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_CONN_OK;
+          }};
   tL2CAP_LE_RESULT_CODE operator()(const RawAddress& bd_addr, uint16_t psm, bool is_originator,
                                    tBTM_SEC_CALLBACK* p_callback, void* p_ref_data) {
     return body(bd_addr, psm, is_originator, p_callback, p_ref_data);
