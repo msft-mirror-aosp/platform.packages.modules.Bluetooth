@@ -2215,7 +2215,7 @@ tBTM_SEC_DEV_REC* btm_rnr_add_name_to_security_record(const RawAddress* p_bd_add
 void btm_sec_rmt_name_request_complete(const RawAddress* p_bd_addr, const uint8_t* p_bd_name,
                                        tHCI_STATUS hci_status) {
   log::info("btm_sec_rmt_name_request_complete for {}",
-            p_bd_addr ? ADDRESS_TO_LOGGABLE_CSTR(*p_bd_addr) : "null");
+            p_bd_addr ? p_bd_addr->ToRedactedStringForLogging() : "null");
 
   if ((!p_bd_addr && !get_btm_client_interface().peer.BTM_IsAclConnectionUp(
                              btm_sec_cb.connecting_bda, BT_TRANSPORT_BR_EDR)) ||
@@ -2229,9 +2229,8 @@ void btm_sec_rmt_name_request_complete(const RawAddress* p_bd_addr, const uint8_
   if (p_dev_rec == nullptr) {
     log::warn(
             "Remote read request complete for unknown device peer:{} "
-            "pairing_state:{} "
-            "hci_status:{} name:{}",
-            (p_bd_addr) ? ADDRESS_TO_LOGGABLE_CSTR(*p_bd_addr) : "null",
+            "pairing_state:{} hci_status:{} name:{}",
+            p_bd_addr ? p_bd_addr->ToRedactedStringForLogging() : "null",
             tBTM_SEC_CB::btm_pair_state_descr(btm_sec_cb.pairing_state),
             hci_status_code_text(hci_status), reinterpret_cast<char const*>(p_bd_name));
     return;

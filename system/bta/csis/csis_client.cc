@@ -752,14 +752,15 @@ public:
       for (auto& device : devices_) {
         if (!g->IsDeviceInTheGroup(device)) {
           if (device->GetExpectedGroupIdMember() == g->GetGroupId()) {
-            stream << "        == candidate addr: " << ADDRESS_TO_LOGGABLE_STR(device->addr)
+            stream << "        == candidate addr: " << device->addr.ToRedactedStringForLogging()
                    << "\n";
           }
           continue;
         }
 
-        stream << "        == addr: " << ADDRESS_TO_LOGGABLE_STR(device->addr) << " ==\n"
-               << "        csis instance: data:" << "\n";
+        stream << "        == addr: " << device->addr.ToRedactedStringForLogging() << " ==\n"
+               << "        csis instance: data:"
+               << "\n";
 
         auto instance = device->GetCsisInstanceByGroupId(g->GetGroupId());
         if (!instance) {
