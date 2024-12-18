@@ -105,7 +105,6 @@ public class AvrcpControllerStateMachineTest {
         if (Looper.myLooper() == null) {
             Looper.prepare();
         }
-        assertThat(Looper.myLooper()).isNotNull();
 
         // Set a mock Adapter Service for profile state change notifications
         TestUtils.setAdapterService(mAdapterService);

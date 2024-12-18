@@ -132,7 +132,6 @@ public class ProfileServiceTest {
         if (Looper.myLooper() == null) {
             Looper.prepare();
         }
-        assertThat(Looper.myLooper()).isNotNull();
 
         doReturn(mDatabaseManager).when(mAdapterService).getDatabase();
         doNothing().when(mAdapterService).addProfile(any());

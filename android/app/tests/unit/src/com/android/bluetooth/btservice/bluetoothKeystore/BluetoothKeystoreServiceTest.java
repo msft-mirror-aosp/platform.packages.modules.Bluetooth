@@ -99,7 +99,6 @@ public final class BluetoothKeystoreServiceTest {
     public void setUp() {
         Assume.assumeTrue("Ignore test when the user is not primary.", isPrimaryUser());
         mBluetoothKeystoreService = new BluetoothKeystoreService(mMockNativeInterface, true);
-        assertThat(mBluetoothKeystoreService).isNotNull();
         // backup origin config data.
         try {
             mConfigData = Files.readAllLines(Paths.get(CONFIG_FILE_PATH));
@@ -270,7 +269,6 @@ public final class BluetoothKeystoreServiceTest {
 
         // new mBluetoothKeystoreService and the Common Criteria mode is false.
         mBluetoothKeystoreService = new BluetoothKeystoreService(mMockNativeInterface, false);
-        assertThat(mBluetoothKeystoreService).isNotNull();
 
         mBluetoothKeystoreService.loadConfigData();
 

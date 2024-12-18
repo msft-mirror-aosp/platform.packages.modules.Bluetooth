@@ -104,7 +104,6 @@ public class HidDeviceTest {
         if (Looper.myLooper() == null) {
             Looper.prepare();
         }
-        assertThat(Looper.myLooper()).isNotNull();
 
         TestUtils.setAdapterService(mAdapterService);
         doReturn(mDatabaseManager).when(mAdapterService).getDatabase();
