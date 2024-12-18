@@ -71,7 +71,6 @@ public class MediaPlayerListTest {
         if (Looper.myLooper() == null) {
             Looper.prepare();
         }
-        Assert.assertNotNull(Looper.myLooper());
 
         AudioManager mockAudioManager = mock(AudioManager.class);
         when(mMockContext.getSystemService(Context.AUDIO_SERVICE)).thenReturn(mockAudioManager);

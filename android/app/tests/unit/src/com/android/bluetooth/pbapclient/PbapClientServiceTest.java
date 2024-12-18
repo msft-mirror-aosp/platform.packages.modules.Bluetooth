@@ -59,7 +59,6 @@ import com.android.bluetooth.btservice.storage.DatabaseManager;
 import com.android.bluetooth.flags.Flags;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -170,7 +169,7 @@ public class PbapClientServiceTest {
                 .getStorageAccountForDevice(any(BluetoothDevice.class));
 
         mAdapter = BluetoothAdapter.getDefaultAdapter();
-        Assert.assertNotNull(mAdapter);
+        assertThat(mAdapter).isNotNull();
         mRemoteDevice = mAdapter.getRemoteDevice(REMOTE_DEVICE_ADDRESS);
 
         if (Looper.myLooper() == null) {
