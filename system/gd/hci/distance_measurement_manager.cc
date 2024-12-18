@@ -1234,6 +1234,8 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     CsTracker* live_tracker = nullptr;
     CsProcedureData* procedure_data = nullptr;
     uint8_t valid_requester_states = static_cast<uint8_t>(CsTrackerState::STARTED);
+    // TODO(b/384928509): Prevent sending CS enable if procedures are not yet complete.
+    valid_requester_states |= static_cast<uint8_t>(CsTrackerState::WAIT_FOR_PROCEDURE_ENABLED);
     uint8_t valid_responder_states = static_cast<uint8_t>(CsTrackerState::STARTED);
     if (event.GetSubeventCode() == SubeventCode::LE_CS_SUBEVENT_RESULT) {
       auto cs_event_result = LeCsSubeventResultView::Create(event);
