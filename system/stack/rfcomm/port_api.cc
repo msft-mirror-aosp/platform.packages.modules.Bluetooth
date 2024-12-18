@@ -189,12 +189,6 @@ int RFCOMM_CreateConnectionWithSecurity(uint16_t uuid, uint8_t scn, bool is_serv
   p_port->scn = scn;
   p_port->ev_mask = 0;
 
-  // Set the optional configuration for future use when the server or client negotiates the
-  // parameters with the peer device.
-  if (com::android::bluetooth::flags::socket_settings_api()) {
-    p_port->rfc_cfg_info = cfg;
-  }
-
   // Find MTU
   // If the MTU is not specified (0), keep MTU decision until the PN frame has
   // to be send at that time connection should be established and we will know
@@ -204,6 +198,16 @@ int RFCOMM_CreateConnectionWithSecurity(uint16_t uuid, uint8_t scn, bool is_serv
     p_port->mtu = (mtu < rfcomm_mtu) ? mtu : rfcomm_mtu;
   } else {
     p_port->mtu = rfcomm_mtu;
+  }
+
+  // Set the optional configuration for future use when the server or client negotiates the
+  // parameters with the peer device.
+  if (com::android::bluetooth::flags::socket_settings_api()) {
+    p_port->rfc_cfg_info = cfg;
+    // Update the local mtu with the optional configuration if set by the app
+    if (p_port->rfc_cfg_info.rx_mtu_present) {
+      p_port->mtu = p_port->rfc_cfg_info.rx_mtu;
+    }
   }
 
   // Other states
