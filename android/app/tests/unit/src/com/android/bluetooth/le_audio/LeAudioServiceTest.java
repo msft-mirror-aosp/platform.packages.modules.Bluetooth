@@ -607,8 +607,7 @@ public class LeAudioServiceTest {
         if (expectedIntent) {
             verifyActiveDeviceStateIntent(AUDIO_MANAGER_DEVICE_ADD_TIMEOUT_MS, device);
         } else {
-            Intent intent = TestUtils.waitForNoIntent(TIMEOUT_MS, mDeviceQueueMap.get(device));
-            assertThat(intent).isNull();
+            TestUtils.waitForNoIntent(TIMEOUT_MS, mDeviceQueueMap.get(device));
         }
     }
 
@@ -622,8 +621,7 @@ public class LeAudioServiceTest {
         if (expectedIntent) {
             verifyActiveDeviceStateIntent(AUDIO_MANAGER_DEVICE_ADD_TIMEOUT_MS, null);
         } else {
-            Intent intent = TestUtils.waitForNoIntent(TIMEOUT_MS, mDeviceQueueMap.get(device));
-            assertThat(intent).isNull();
+            TestUtils.waitForNoIntent(TIMEOUT_MS, mDeviceQueueMap.get(device));
         }
     }
 
@@ -1073,8 +1071,7 @@ public class LeAudioServiceTest {
     }
 
     private void verifyNoConnectionStateIntent(int timeoutMs, BluetoothDevice device) {
-        Intent intent = TestUtils.waitForNoIntent(timeoutMs, mDeviceQueueMap.get(device));
-        assertThat(intent).isNull();
+        TestUtils.waitForNoIntent(timeoutMs, mDeviceQueueMap.get(device));
     }
 
     /** Test setting connection policy */
@@ -1936,12 +1933,12 @@ public class LeAudioServiceTest {
                 3);
         injectGroupStatusChange(testGroupId, BluetoothLeAudio.GROUP_STATUS_ACTIVE);
 
-        /* Expect 2 calles to Audio Manager - one for output and second for input as this is
+        /* Expect 2 calls to Audio Manager - one for output and second for input as this is
          * Conversational use case */
         verify(mAudioManager, times(2))
                 .handleBluetoothActiveDeviceChanged(
                         any(), any(), any(BluetoothProfileConnectionInfo.class));
-        /* Since LeAudioService called AudioManager - assume Audio manager calles properly callback
+        /* Since LeAudioService called AudioManager - assume Audio manager calls properly callback
          * mAudioManager.onAudioDeviceAdded
          */
         injectAudioDeviceAdded(mSingleDevice, AudioDeviceInfo.TYPE_BLE_HEADSET, true, false, true);
@@ -1957,8 +1954,7 @@ public class LeAudioServiceTest {
                 BluetoothLeAudio.CONTEXT_TYPE_MEDIA | BluetoothLeAudio.CONTEXT_TYPE_CONVERSATIONAL;
         injectAudioConfChanged(testGroupId, contexts, 3);
 
-        Intent intent = TestUtils.waitForNoIntent(TIMEOUT_MS, mDeviceQueueMap.get(mSingleDevice));
-        assertThat(intent).isNull();
+        TestUtils.waitForNoIntent(TIMEOUT_MS, mDeviceQueueMap.get(mSingleDevice));
     }
 
     /** Test native interface audio configuration changed message handling */
@@ -1968,8 +1964,7 @@ public class LeAudioServiceTest {
         connectTestDevice(mSingleDevice, testGroupId);
 
         injectAudioConfChanged(testGroupId, 0, 3);
-        Intent intent = TestUtils.waitForNoIntent(TIMEOUT_MS, mDeviceQueueMap.get(mSingleDevice));
-        assertThat(intent).isNull();
+        TestUtils.waitForNoIntent(TIMEOUT_MS, mDeviceQueueMap.get(mSingleDevice));
     }
 
     /**
