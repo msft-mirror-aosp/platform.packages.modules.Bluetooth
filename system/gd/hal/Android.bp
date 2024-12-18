@@ -87,13 +87,6 @@ filegroup {
 }
 
 filegroup {
-    name: "BluetoothFacade_hci_hal",
-    srcs: [
-        "facade.cc",
-    ],
-}
-
-filegroup {
     name: "BluetoothHalFuzzSources",
     srcs: [
         "fuzz/fuzz_hci_hal.cc",
