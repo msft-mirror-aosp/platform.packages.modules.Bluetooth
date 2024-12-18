@@ -10,3 +10,11 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "le_subrate_api"
+    namespace: "bluetooth"
+    description: "New API to control LE subrate parameters"
+    bug: "384794418"
+    is_exported: true
+}
