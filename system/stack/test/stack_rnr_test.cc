@@ -27,10 +27,6 @@
 #include "test/mock/mock_osi_thread.h"
 #include "types/raw_address.h"
 
-extern tBTM_CB btm_cb;
-
-bool ble_evt_type_is_connectable(uint16_t /* evt_type */) { return true; }
-
 tBTM_CB btm_cb;
 
 namespace {

@@ -22,6 +22,7 @@
 #include "btif/include/btif_storage.h"
 #include "btif/include/stack_manager_t.h"
 #include "device/include/interop.h"
+#include "device/include/interop_config.h"
 #include "mock_btif_config.h"
 #include "osi/include/allocator.h"
 #include "profile/avrcp/avrcp_config.h"
@@ -34,7 +35,7 @@
 #include "test/mock/mock_btif_config.h"
 #include "test/mock/mock_osi_allocator.h"
 #include "test/mock/mock_osi_properties.h"
-#include "test/mock/mock_stack_l2cap_api.h"
+#include "test/mock/mock_stack_l2cap_interface.h"
 
 #ifndef BT_DEFAULT_BUFFER_SIZE
 #define BT_DEFAULT_BUFFER_SIZE (4096 + 16)
@@ -53,16 +54,13 @@ static int L2CA_ConnectReqWithSecurity_cid = 0x42;
 static RawAddress addr = RawAddress({0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6});
 static tSDP_DISCOVERY_DB* sdp_db = nullptr;
 
-using testing::_;
-using testing::DoAll;
-using testing::Return;
-using testing::SetArrayArgument;
-
-bool sdp_dynamic_change_hfp_version(const tSDP_ATTRIBUTE* p_attr, const RawAddress& remote_address);
-void hfp_fallback(bool& is_hfp_fallback, const tSDP_ATTRIBUTE* p_attr);
-
-void sdp_callback(const RawAddress& bd_addr, tSDP_RESULT result);
-tCONN_CB* find_ccb(uint16_t cid, uint8_t state);
+using ::testing::_;
+using ::testing::DoAll;
+using ::testing::Invoke;
+using ::testing::Return;
+using ::testing::ReturnArg;
+using ::testing::SaveArg;
+using ::testing::SetArrayArgument;
 
 namespace {
 // convenience mock
@@ -175,32 +173,32 @@ tSDP_ATTRIBUTE hfp_attr = {
         .type = 0,
 };
 
-void set_hfp_attr(uint32_t len, uint16_t id, uint16_t uuid) {
+static void set_hfp_attr(uint32_t len, uint16_t id, uint16_t uuid) {
   hfp_attr.value_ptr[4] = uuid;
   hfp_attr.len = len;
   hfp_attr.id = id;
 }
 
-void set_avrcp_feat_attr(uint32_t len, uint16_t id, uint16_t feature) {
+static void set_avrcp_feat_attr(uint32_t len, uint16_t id, uint16_t feature) {
   UINT16_TO_BE_FIELD(avrc_feat_value, feature);
   avrcp_feat_attr.len = len;
   avrcp_feat_attr.id = id;
 }
 
-void set_avrcp_attr(uint32_t len, uint16_t id, uint16_t uuid, uint16_t version) {
+static void set_avrcp_attr(uint32_t len, uint16_t id, uint16_t uuid, uint16_t version) {
   UINT16_TO_BE_FIELD(avrc_value + 3, uuid);
   UINT16_TO_BE_FIELD(avrc_value + 6, version);
   avrcp_attr.len = len;
   avrcp_attr.id = id;
 }
 
-uint16_t get_avrc_target_version(tSDP_ATTRIBUTE* p_attr) {
+static uint16_t get_avrc_target_version(tSDP_ATTRIBUTE* p_attr) {
   uint8_t* p_version = p_attr->value_ptr + 6;
   uint16_t version = (((uint16_t)(*(p_version))) << 8) + ((uint16_t)(*((p_version) + 1)));
   return version;
 }
 
-uint16_t get_avrc_target_feature(tSDP_ATTRIBUTE* p_attr) {
+static uint16_t get_avrc_target_feature(tSDP_ATTRIBUTE* p_attr) {
   uint8_t* p_feature = p_attr->value_ptr;
   uint16_t feature = (((uint16_t)(*(p_feature))) << 8) + ((uint16_t)(*((p_feature) + 1)));
   return feature;
@@ -210,30 +208,19 @@ class StackSdpMockAndFakeTest : public ::testing::Test {
 protected:
   void SetUp() override {
     fake_osi_ = std::make_unique<test::fake::FakeOsi>();
-    test::mock::stack_l2cap_api::L2CA_ConnectReqWithSecurity.body =
-            [](uint16_t /* psm */, const RawAddress& /* p_bd_addr */, uint16_t /* sec_level */) {
-              return ++L2CA_ConnectReqWithSecurity_cid;
-            };
-    test::mock::stack_l2cap_api::L2CA_DataWrite.body = [](uint16_t /* cid */,
-                                                          BT_HDR* p_data) -> tL2CAP_DW_RESULT {
-      osi_free_and_reset((void**)&p_data);
-      return tL2CAP_DW_RESULT::FAILED;
-    };
-    test::mock::stack_l2cap_api::L2CA_DisconnectReq.body = [](uint16_t /* cid */) { return true; };
-    test::mock::stack_l2cap_api::L2CA_RegisterWithSecurity.body =
-            [](uint16_t /* psm */, const tL2CAP_APPL_INFO& /* p_cb_info */, bool /* enable_snoop */,
-               tL2CAP_ERTM_INFO* /* p_ertm_info */, uint16_t /* my_mtu */,
-               uint16_t /* required_remote_mtu */, uint16_t /* sec_level */) {
-              return 42;  // return non zero
-            };
+    bluetooth::testing::stack::l2cap::set_interface(&mock_stack_l2cap_interface_);
+    EXPECT_CALL(mock_stack_l2cap_interface_, L2CA_RegisterWithSecurity(_, _, _, _, _, _, _))
+            .WillOnce(DoAll(SaveArg<1>(&l2cap_callbacks_), ::testing::ReturnArg<0>()));
+    EXPECT_CALL(mock_stack_l2cap_interface_, L2CA_Deregister(_));
   }
 
   void TearDown() override {
-    test::mock::stack_l2cap_api::L2CA_ConnectReqWithSecurity = {};
-    test::mock::stack_l2cap_api::L2CA_RegisterWithSecurity = {};
-    test::mock::stack_l2cap_api::L2CA_DataWrite = {};
-    test::mock::stack_l2cap_api::L2CA_DisconnectReq = {};
+    bluetooth::testing::stack::l2cap::reset_interface();
+    fake_osi_.reset();
   }
+
+  tL2CAP_APPL_INFO l2cap_callbacks_{};
+  bluetooth::testing::stack::l2cap::Mock mock_stack_l2cap_interface_;
   std::unique_ptr<test::fake::FakeOsi> fake_osi_;
 };
 
@@ -247,6 +234,7 @@ protected:
 
   void TearDown() override {
     osi_free(sdp_db);
+    sdp_free();
     StackSdpMockAndFakeTest::TearDown();
   }
 };
@@ -581,10 +569,7 @@ TEST_F(StackSdpUtilsTest, check_HFP_version_fallback_success) {
   EXPECT_CALL(*localIopMock, InteropMatchAddrOrName(INTEROP_HFP_1_9_ALLOWLIST, &bdaddr,
                                                     &btif_storage_get_remote_device_property))
           .WillOnce(Return(true));
-  bool is_hfp_fallback = sdp_dynamic_change_hfp_version(&hfp_attr, bdaddr);
-  ASSERT_EQ(hfp_attr.value_ptr[PROFILE_VERSION_POSITION], HFP_PROFILE_MINOR_VERSION_7);
-  hfp_fallback(is_hfp_fallback, &hfp_attr);
-  ASSERT_EQ(hfp_attr.value_ptr[PROFILE_VERSION_POSITION], HFP_PROFILE_MINOR_VERSION_6);
+  ASSERT_TRUE(sdp_dynamic_change_hfp_version(&hfp_attr, bdaddr));
 }
 
 TEST_F(StackSdpUtilsTest, sdpu_compare_uuid_with_attr_u16) {

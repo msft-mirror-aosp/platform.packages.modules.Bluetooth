@@ -20,12 +20,19 @@
 
 #include <bluetooth/log.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <utility>
+#include <vector>
+
 #include "audio_hal_client.h"
 #include "audio_hal_interface/le_audio_software.h"
 #include "bta/le_audio/codec_manager.h"
-#include "common/time_util.h"
-#include "os/log.h"
-#include "osi/include/wakelock.h"
+#include "bta_le_audio_api.h"
+#include "hardware/bluetooth.h"
+#include "le_audio/le_audio_types.h"
 #include "stack/include/main_thread.h"
 
 namespace bluetooth::le_audio {
@@ -122,7 +129,7 @@ void SinkImpl::Release() {
   }
 }
 
-bool SinkImpl::OnResumeReq(bool start_media_task) {
+bool SinkImpl::OnResumeReq(bool /*start_media_task*/) {
   if (audioSinkCallbacks_ == nullptr) {
     log::error("audioSinkCallbacks_ not set");
     return false;
@@ -252,13 +259,8 @@ void SinkImpl::ConfirmStreamingRequest() {
     log::error("Audio HAL Audio source was not started!");
     return;
   }
-
   log::info("");
-  if (com::android::bluetooth::flags::leaudio_start_stream_race_fix()) {
-    halSourceInterface_->ConfirmStreamingRequestV2();
-  } else {
-    halSourceInterface_->ConfirmStreamingRequest();
-  }
+  halSourceInterface_->ConfirmStreamingRequest();
 }
 
 void SinkImpl::SuspendedForReconfiguration() {
@@ -288,11 +290,7 @@ void SinkImpl::CancelStreamingRequest() {
   }
 
   log::info("");
-  if (com::android::bluetooth::flags::leaudio_start_stream_race_fix()) {
-    halSourceInterface_->CancelStreamingRequestV2();
-  } else {
-    halSourceInterface_->CancelStreamingRequest();
-  }
+  halSourceInterface_->CancelStreamingRequest();
 }
 
 void SinkImpl::UpdateRemoteDelay(uint16_t remote_delay_ms) {
@@ -328,7 +326,7 @@ std::unique_ptr<LeAudioSinkAudioHalClient> LeAudioSinkAudioHalClient::AcquireUni
   return std::move(impl);
 }
 
-void LeAudioSinkAudioHalClient::DebugDump(int fd) {
+void LeAudioSinkAudioHalClient::DebugDump(int /*fd*/) {
   /* TODO: Add some statistic for LeAudioSink Audio HAL interface */
 }
 }  // namespace bluetooth::le_audio

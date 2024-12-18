@@ -25,7 +25,6 @@
 #ifndef HIDDEFS_H
 #define HIDDEFS_H
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 
 #include "internal_include/bt_target.h"
@@ -80,7 +79,7 @@ inline std::string hid_status_text(const tHID_STATUS& status) {
     CASE_RETURN_TEXT(HID_ERR_GATT);
     CASE_RETURN_TEXT(HID_ERR_INVALID);
     default:
-      return base::StringPrintf("UNKNOWN[%hhu]", status);
+      return std::format("UNKNOWN[{}]", static_cast<uint8_t>(status));
   }
 }
 
@@ -181,9 +180,9 @@ typedef struct sdp_info {
   tSDP_DISC_REC* p_sdp_layer_rec;
 } tHID_DEV_SDP_INFO;
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tHID_STATUS> : enum_formatter<tHID_STATUS> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif

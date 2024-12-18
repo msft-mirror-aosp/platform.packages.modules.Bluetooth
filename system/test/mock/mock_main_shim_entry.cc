@@ -20,6 +20,7 @@
 #include "hci/hci_interface.h"
 #include "hci/le_advertising_manager_mock.h"
 #include "hci/le_scanning_manager_mock.h"
+#include "lpp/lpp_offload_interface_mock.h"
 #include "main/shim/entry.h"
 #include "os/handler.h"
 #include "storage/storage_module.h"
@@ -30,7 +31,6 @@ namespace testing {
 
 MockAclManager* mock_acl_manager_{nullptr};
 MockControllerInterface* mock_controller_{nullptr};
-shim::Dumpsys* shim_dumpsys_ = {};
 HciInterface* mock_hci_layer_{nullptr};
 os::Handler* mock_gd_shim_handler_{nullptr};
 MockLeAdvertisingManager* mock_le_advertising_manager_{nullptr};
@@ -40,11 +40,14 @@ MockDistanceMeasurementManager* mock_distance_measurement_manager_{nullptr};
 }  // namespace testing
 }  // namespace hci
 
+namespace lpp::testing {
+MockLppOffloadInterface* mock_lpp_offload_interface_{nullptr};
+}  // namespace lpp::testing
+
 class Dumpsys;
 
 namespace shim {
 
-Dumpsys* GetDumpsys() { return hci::testing::shim_dumpsys_; }
 hci::AclManager* GetAclManager() { return hci::testing::mock_acl_manager_; }
 hci::ControllerInterface* GetController() { return hci::testing::mock_controller_; }
 hci::HciInterface* GetHciLayer() { return hci::testing::mock_hci_layer_; }
@@ -57,10 +60,11 @@ os::Handler* GetGdShimHandler() { return hci::testing::mock_gd_shim_handler_; }
 hal::SnoopLogger* GetSnoopLogger() { return nullptr; }
 storage::StorageModule* GetStorage() { return nullptr; }
 metrics::CounterMetrics* GetCounterMetrics() { return nullptr; }
-#if TARGET_FLOSS
 hci::MsftExtensionManager* GetMsftExtensionManager() { return nullptr; }
-#endif
 hci::RemoteNameRequestModule* GetRemoteNameRequest() { return nullptr; }
+lpp::LppOffloadInterface* GetLppOffloadManager() {
+  return lpp::testing::mock_lpp_offload_interface_;
+}
 
 }  // namespace shim
 }  // namespace bluetooth

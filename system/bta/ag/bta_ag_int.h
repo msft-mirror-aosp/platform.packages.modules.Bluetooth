@@ -34,6 +34,7 @@
 #include "bta/include/bta_api.h"
 #include "bta/sys/bta_sys.h"
 #include "internal_include/bt_target.h"
+#include "os/logging/log_adapter.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/btm_api_types.h"
 #include "stack/include/sdp_status.h"
@@ -160,9 +161,7 @@ typedef struct {
 typedef struct {
   tBTA_AG_RES result;
   tBTA_AG_RES_DATA data;
-  std::string ToString() const {
-    return base::StringPrintf("result:%s", bta_ag_result_text(result).c_str());
-  }
+  std::string ToString() const { return std::format("result:{}", bta_ag_result_text(result)); }
 } tBTA_AG_API_RESULT;
 
 /* data type for BTA_AG_API_SETCODEC_EVT */
@@ -239,6 +238,17 @@ typedef enum {
   BTA_AG_SCO_APTX_SWB_SETTINGS_UNKNOWN = 0xFFFF,
 } tBTA_AG_SCO_APTX_SWB_SETTINGS;
 
+namespace std {
+template <>
+struct formatter<tBTA_AG_SCO_MSBC_SETTINGS> : enum_formatter<tBTA_AG_SCO_MSBC_SETTINGS> {};
+template <>
+struct formatter<tBTA_AG_SCO_LC3_SETTINGS> : enum_formatter<tBTA_AG_SCO_LC3_SETTINGS> {};
+template <>
+struct formatter<tBTA_AG_SCO_APTX_SWB_SETTINGS> : enum_formatter<tBTA_AG_SCO_APTX_SWB_SETTINGS> {};
+template <>
+struct formatter<tBTA_AG_SCO> : enum_formatter<tBTA_AG_SCO> {};
+}  // namespace std
+
 /* state machine states */
 typedef enum { BTA_AG_INIT_ST, BTA_AG_OPENING_ST, BTA_AG_OPEN_ST, BTA_AG_CLOSING_ST } tBTA_AG_STATE;
 
@@ -313,12 +323,11 @@ struct tBTA_AG_SCB {
                                                                HF indicators */
 
   std::string ToString() const {
-    return base::StringPrintf(
-            "codec_updated=%d, codec_fallback=%d, nrec=%d"
-            "sco_codec=%d, peer_codec=%d, msbc_settings=%d, lc3_settings=%d, "
-            "device=%s",
+    return std::format(
+            "codec_updated={}, codec_fallback={}, nrec={}sco_codec={}, peer_codec={}, "
+            "msbc_settings={}, lc3_settings={}, device={}",
             codec_updated, codec_fallback, nrec_enabled, sco_codec, peer_codecs,
-            codec_msbc_settings, codec_lc3_settings, ADDRESS_TO_LOGGABLE_CSTR(peer_addr));
+            codec_msbc_settings, codec_lc3_settings, peer_addr);
   }
 };
 
@@ -445,6 +454,8 @@ void bta_ag_result(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data);
 void bta_ag_setcodec(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data);
 void bta_ag_send_ring(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data);
 void bta_ag_handle_collision(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data);
+size_t bta_ag_sco_write(const uint8_t* p_buf, uint32_t len);
+size_t bta_ag_sco_read(uint8_t* p_buf, uint32_t len);
 
 /* Internal utility functions */
 void bta_ag_sco_codec_nego(tBTA_AG_SCB* p_scb, bool result);
@@ -456,8 +467,8 @@ void bta_ag_set_sco_offload_enabled(bool value);
 void bta_ag_set_sco_allowed(bool value);
 const RawAddress& bta_ag_get_active_device();
 void bta_clear_active_device();
-void bta_ag_send_qac(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data);
-void bta_ag_send_qcs(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data);
+void bta_ag_send_qac(tBTA_AG_SCB* p_scb);
+void bta_ag_send_qcs(tBTA_AG_SCB* p_scb);
 /**
  * Check if SCO is managed by Audio is enabled. This is set via the system property
  * bluetooth.sco.managed_by_audio.
@@ -472,12 +483,5 @@ bool bta_ag_is_sco_managed_by_audio();
  * Respond to Audio HAL's SuspendStream request when SCO is disconnected
  */
 void bta_ag_stream_suspended();
-
-namespace fmt {
-template <>
-struct formatter<tBTA_AG_SCO_APTX_SWB_SETTINGS> : enum_formatter<tBTA_AG_SCO_APTX_SWB_SETTINGS> {};
-template <>
-struct formatter<tBTA_AG_SCO> : enum_formatter<tBTA_AG_SCO> {};
-}  // namespace fmt
 
 #endif /* BTA_AG_INT_H */

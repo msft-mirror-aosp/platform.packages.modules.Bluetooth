@@ -17,12 +17,12 @@
 #ifndef ANDROID_INCLUDE_BT_GATT_CLIENT_H
 #define ANDROID_INCLUDE_BT_GATT_CLIENT_H
 
-#include <bluetooth/uuid.h>
-#include <raw_address.h>
 #include <stdint.h>
 
 #include "bt_common_types.h"
 #include "bt_gatt_types.h"
+#include "types/bluetooth/uuid.h"
+#include "types/raw_address.h"
 
 __BEGIN_DECLS
 
@@ -210,7 +210,8 @@ typedef struct {
 
   /** Create a connection to a remote LE or dual-mode device */
   bt_status_t (*connect)(int client_if, const RawAddress& bd_addr, uint8_t addr_type,
-                         bool is_direct, int transport, bool opportunistic, int initiating_phys);
+                         bool is_direct, int transport, bool opportunistic, int initiating_phys,
+                         int preferred_mtu);
 
   /** Disconnect a remote device or cancel a pending connection */
   bt_status_t (*disconnect)(int client_if, const RawAddress& bd_addr, int conn_id);
@@ -290,7 +291,6 @@ typedef struct {
   /** Request a BLE subrate request procedure */
   bt_status_t (*subrate_request)(const RawAddress& bd_addr, int subrate_min, int subrate_max,
                                  int max_latency, int cont_num, int timeout);
-
 } btgatt_client_interface_t;
 
 __END_DECLS

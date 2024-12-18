@@ -21,7 +21,7 @@
 #include "btif/include/btif_common.h"  // do_in_jni_thread
 #include "btif/include/btif_hh.h"      // DumpsysHid
 #include "main/shim/dumpsys.h"
-#include "stack/gatt/connection_manager.h"
+#include "stack/connection_manager/connection_manager.h"
 #include "stack/include/main_thread.h"
 #include "stack/include/pan_api.h"  // PAN_Dumpsys
 #include "test/headless/log.h"
@@ -49,11 +49,10 @@ void BtStackInfo::DumpsysLite() {
   LOG_CONSOLE("jni_pid:%u", jni_pid_);
 
   int fd = STDIN_FILENO;
-  const char** arguments = nullptr;
 
   connection_manager::dump(fd);
   PAN_Dumpsys(fd);
   DumpsysHid(fd);
   DumpsysBtaDm(fd);
-  bluetooth::shim::Dump(fd, arguments);
+  bluetooth::shim::Dump(fd);
 }

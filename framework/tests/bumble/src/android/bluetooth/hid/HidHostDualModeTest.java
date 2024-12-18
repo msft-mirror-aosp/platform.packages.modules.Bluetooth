@@ -49,6 +49,7 @@ import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothUuid;
 import android.bluetooth.PandoraDevice;
+import android.bluetooth.VirtualOnly;
 import android.bluetooth.test_utils.EnableBluetoothRule;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -83,6 +84,9 @@ import org.mockito.MockitoAnnotations;
 import org.mockito.hamcrest.MockitoHamcrest;
 import org.mockito.stubbing.Answer;
 
+import pandora.HIDGrpc;
+import pandora.HidProto.HidServiceType;
+import pandora.HidProto.ServiceRequest;
 import pandora.HostProto.AdvertiseRequest;
 import pandora.HostProto.OwnAddressType;
 
@@ -92,6 +96,7 @@ import java.util.Arrays;
 /** Test cases for {@link BluetoothHidHost}. */
 @SuppressLint("MissingPermission")
 @RunWith(AndroidJUnit4.class)
+@VirtualOnly
 public class HidHostDualModeTest {
     private static final String TAG = HidHostDualModeTest.class.getSimpleName();
     private static final String BUMBLE_DEVICE_NAME = "Bumble";
@@ -106,6 +111,7 @@ public class HidHostDualModeTest {
             InstrumentationRegistry.getInstrumentation().getTargetContext();
     private final BluetoothAdapter mAdapter =
             mContext.getSystemService(BluetoothManager.class).getAdapter();
+    private HIDGrpc.HIDBlockingStub mHidBlockingStub;
 
     @Rule(order = 0)
     public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
@@ -273,6 +279,11 @@ public class HidHostDualModeTest {
         BluetoothHeadset hfpService =
                 (BluetoothHeadset) verifyProfileServiceConnected(BluetoothProfile.HEADSET);
 
+        mHidBlockingStub = mBumble.hidBlocking();
+        mHidBlockingStub.registerService(
+                ServiceRequest.newBuilder()
+                        .setServiceType(HidServiceType.SERVICE_TYPE_BOTH)
+                        .build());
         AdvertiseRequest request =
                 AdvertiseRequest.newBuilder()
                         .setLegacy(true)

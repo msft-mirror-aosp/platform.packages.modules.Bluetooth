@@ -24,7 +24,6 @@
 #ifndef BTA_DM_INT_H
 #define BTA_DM_INT_H
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
@@ -79,7 +78,7 @@ inline std::string device_info_text(tBTA_DM_DEV_INFO info) {
           ":set_sniff", ":int_sniff", ":acp_sniff", ":unused", ":use_ssr", ":av_active",
   };
 
-  std::string s = base::StringPrintf("0x%02x", info);
+  std::string s = std::format("0x{:02x}", info);
   if (info == BTA_DM_DI_NONE) {
     return s + std::string(":none");
   }
@@ -181,12 +180,9 @@ typedef struct {
   bool new_request;
 
   std::string ToString() const {
-    return base::StringPrintf("peer:%s sys_name:%s app_id:%hhu state:%s new_request:%s",
-                              ADDRESS_TO_LOGGABLE_CSTR(peer_bdaddr), BtaIdSysText(id).c_str(),
-                              app_id, bta_sys_conn_status_text(state).c_str(),
-                              new_request ? "true" : "false");
+    return std::format("peer:{} sys_name:{} app_id:{} state:{} new_request:{}", peer_bdaddr,
+                       BtaIdSysText(id), app_id, bta_sys_conn_status_text(state), new_request);
   }
-
 } tBTA_DM_SRVCS;
 
 #ifndef BTA_DM_NUM_CONN_SRVS
@@ -196,7 +192,6 @@ typedef struct {
 typedef struct {
   uint8_t count;
   tBTA_DM_SRVCS conn_srvc[BTA_DM_NUM_CONN_SRVS];
-
 } tBTA_DM_CONNECTED_SRVCS;
 
 typedef struct {
@@ -257,7 +252,6 @@ typedef struct {
   uint16_t page_timeout; /* timeout for page in slots */
   bool avoid_scatter;    /* true to avoid scatternet when av is streaming (be the
                             central) */
-
 } tBTA_DM_CFG;
 
 extern const uint32_t bta_service_id_to_btm_srv_id_lkup_tbl[];
@@ -266,7 +260,6 @@ typedef struct {
   uint8_t id;
   uint8_t app_id;
   uint8_t cfg;
-
 } tBTA_DM_RM;
 
 extern const tBTA_DM_CFG* p_bta_dm_cfg;
@@ -276,20 +269,17 @@ typedef struct {
   uint8_t id;
   uint8_t app_id;
   uint8_t spec_idx; /* index of spec table to use */
-
 } tBTA_DM_PM_CFG;
 
 typedef struct {
   tBTA_DM_PM_ACTION power_mode;
   uint16_t timeout;
-
 } tBTA_DM_PM_ACTN;
 
 typedef struct {
   uint8_t allow_mask; /* mask of sniff/hold/park modes to allow */
   uint8_t ssr;        /* set SSR on conn open/unpark */
   tBTA_DM_PM_ACTN actn_tbl[BTA_DM_PM_NUM_EVTS][2];
-
 } tBTA_DM_PM_SPEC;
 
 typedef struct {
@@ -372,9 +362,9 @@ void bta_dm_ble_subrate_request(const RawAddress& bd_addr, uint16_t subrate_min,
                                 uint16_t subrate_max, uint16_t max_latency, uint16_t cont_num,
                                 uint16_t timeout);
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tBTA_DM_CONN_STATE> : enum_formatter<tBTA_DM_CONN_STATE> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif /* BTA_DM_INT_H */

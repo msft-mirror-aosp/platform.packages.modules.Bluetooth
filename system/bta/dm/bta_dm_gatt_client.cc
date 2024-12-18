@@ -16,7 +16,8 @@
 
 #include "bta/dm/bta_dm_gatt_client.h"
 
-#include <base/strings/stringprintf.h>
+#include <base/functional/bind.h>
+#include <base/functional/callback.h>
 
 #include <cstdint>
 #include <string>
@@ -29,61 +30,60 @@
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 namespace {
 TimestampedStringCircularBuffer gatt_history_{50};
 constexpr char kTimeFormatString[] = "%Y-%m-%d %H:%M:%S";
 
 constexpr unsigned MillisPerSecond = 1000;
-std::string EpochMillisToString(long long time_ms) {
+std::string EpochMillisToString(uint64_t time_ms) {
   time_t time_sec = time_ms / MillisPerSecond;
   struct tm tm;
   localtime_r(&time_sec, &tm);
   std::string s = bluetooth::common::StringFormatTime(kTimeFormatString, tm);
-  return base::StringPrintf("%s.%03u", s.c_str(),
-                            static_cast<unsigned int>(time_ms % MillisPerSecond));
+  return std::format("{}.{:03}", s, time_ms % MillisPerSecond);
 }
 }  // namespace
 
 gatt_interface_t default_gatt_interface = {
         .BTA_GATTC_CancelOpen =
                 [](tGATT_IF client_if, const RawAddress& remote_bda, bool is_direct) {
-                  gatt_history_.Push(base::StringPrintf(
-                          "%-32s bd_addr:%s client_if:%hu is_direct:%c", "GATTC_CancelOpen",
-                          ADDRESS_TO_LOGGABLE_CSTR(remote_bda), client_if,
-                          (is_direct) ? 'T' : 'F'));
+                  gatt_history_.Push(std::format("{:<32s} bd_addr:{} client_if:{} is_direct:{:c}",
+                                                 "GATTC_CancelOpen", remote_bda, client_if,
+                                                 is_direct ? 'T' : 'F'));
                   BTA_GATTC_CancelOpen(client_if, remote_bda, is_direct);
                 },
         .BTA_GATTC_Refresh =
                 [](const RawAddress& remote_bda) {
-                  gatt_history_.Push(base::StringPrintf("%-32s bd_addr:%s", "GATTC_Refresh",
-                                                        ADDRESS_TO_LOGGABLE_CSTR(remote_bda)));
+                  gatt_history_.Push(
+                          std::format("{:<32s} bd_addr:{}", "GATTC_Refresh", remote_bda));
                   BTA_GATTC_Refresh(remote_bda);
                 },
         .BTA_GATTC_GetGattDb =
-                [](uint16_t conn_id, uint16_t start_handle, uint16_t end_handle,
+                [](tCONN_ID conn_id, uint16_t start_handle, uint16_t end_handle,
                    btgatt_db_element_t** db, int* count) {
-                  gatt_history_.Push(
-                          base::StringPrintf("%-32s conn_id:%hu start_handle:%hu end:handle:%hu",
-                                             "GATTC_GetGattDb", conn_id, start_handle, end_handle));
+                  gatt_history_.Push(std::format("{:<32s} conn_id:{} start_handle:{} end:handle:{}",
+                                                 "GATTC_GetGattDb", conn_id, start_handle,
+                                                 end_handle));
                   BTA_GATTC_GetGattDb(conn_id, start_handle, end_handle, db, count);
                 },
         .BTA_GATTC_AppRegister =
                 [](tBTA_GATTC_CBACK* p_client_cb, BtaAppRegisterCallback cb, bool eatt_support) {
-                  gatt_history_.Push(base::StringPrintf("%-32s eatt_support:%c",
-                                                        "GATTC_AppRegister",
-                                                        (eatt_support) ? 'T' : 'F'));
+                  gatt_history_.Push(std::format("{:<32s} eatt_support:{:c}", "GATTC_AppRegister",
+                                                 eatt_support ? 'T' : 'F'));
                   BTA_GATTC_AppRegister(p_client_cb, cb, eatt_support);
                 },
         .BTA_GATTC_Close =
-                [](uint16_t conn_id) {
-                  gatt_history_.Push(
-                          base::StringPrintf("%-32s conn_id:%hu", "GATTC_Close", conn_id));
+                [](tCONN_ID conn_id) {
+                  gatt_history_.Push(std::format("{:<32s} conn_id:{}", "GATTC_Close", conn_id));
                   BTA_GATTC_Close(conn_id);
                 },
         .BTA_GATTC_ServiceSearchRequest =
-                [](uint16_t conn_id, const bluetooth::Uuid* p_srvc_uuid) {
-                  gatt_history_.Push(base::StringPrintf("%-32s conn_id:%hu",
-                                                        "GATTC_ServiceSearchRequest", conn_id));
+                [](tCONN_ID conn_id, const bluetooth::Uuid* p_srvc_uuid) {
+                  gatt_history_.Push(
+                          std::format("{:<32s} conn_id:{}", "GATTC_ServiceSearchRequest", conn_id));
                   if (p_srvc_uuid) {
                     BTA_GATTC_ServiceSearchRequest(conn_id, *p_srvc_uuid);
                   } else {
@@ -92,12 +92,13 @@ gatt_interface_t default_gatt_interface = {
                 },
         .BTA_GATTC_Open =
                 [](tGATT_IF client_if, const RawAddress& remote_bda,
-                   tBTM_BLE_CONN_TYPE connection_type, bool opportunistic) {
-                  gatt_history_.Push(base::StringPrintf(
-                          "%-32s bd_addr:%s client_if:%hu type:0x%x opportunistic:%c", "GATTC_Open",
-                          ADDRESS_TO_LOGGABLE_CSTR(remote_bda), client_if, connection_type,
-                          (opportunistic) ? 'T' : 'F'));
-                  BTA_GATTC_Open(client_if, remote_bda, connection_type, opportunistic);
+                   tBTM_BLE_CONN_TYPE connection_type, bool opportunistic, uint16_t preferred_mtu) {
+                  gatt_history_.Push(std::format(
+                          "{:<32s} bd_addr:{} client_if:{} type:0x{:x} opportunistic:{:c}",
+                          "GATTC_Open", remote_bda, client_if, connection_type,
+                          opportunistic ? 'T' : 'F'));
+                  BTA_GATTC_Open(client_if, remote_bda, BLE_ADDR_PUBLIC, connection_type,
+                                 BT_TRANSPORT_LE, opportunistic, LE_PHY_1M, preferred_mtu);
                 },
 };
 

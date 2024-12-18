@@ -25,7 +25,6 @@
 #pragma once
 
 #include <base/functional/callback.h>
-#include <base/strings/stringprintf.h>
 
 #include <cstdint>
 #include <string>
@@ -34,7 +33,7 @@
 #include "internal_include/bt_target.h"
 #include "osi/include/alarm.h"
 #include "stack/include/bt_hdr.h"
-#include "stack/include/l2c_api.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/sdp_callback.h"
 #include "stack/sdp/sdp_discovery_db.h"
 #include "types/bluetooth/uuid.h"
@@ -220,7 +219,7 @@ inline std::string sdp_disc_wait_text(const tSDP_DISC_WAIT& state) {
     CASE_RETURN_TEXT(SDP_DISC_WAIT_SEARCH_ATTR);
     CASE_RETURN_TEXT(SDP_DISC_WAIT_CANCEL);
     default:
-      return base::StringPrintf("UNKNOWN[%d]", state);
+      return std::format("UNKNOWN[{}]", state);
   }
 }
 
@@ -292,19 +291,17 @@ bool sdpu_process_pend_ccb_new_cid(const tCONN_CB& ccb);
 void sdpu_clear_pend_ccb(const tCONN_CB& ccb);
 void sdpu_callback(const tCONN_CB& ccb, tSDP_REASON reason);
 
-/* Functions provided by sdp_db.cc
- */
+/* Functions provided by sdp_db.cc */
 const tSDP_RECORD* sdp_db_service_search(const tSDP_RECORD* p_rec, const tSDP_UUID_SEQ* p_seq);
 tSDP_RECORD* sdp_db_find_record(uint32_t handle);
 const tSDP_ATTRIBUTE* sdp_db_find_attr_in_rec(const tSDP_RECORD* p_rec, uint16_t start_attr,
                                               uint16_t end_attr);
 
-/* Functions provided by sdp_server.cc
- */
+/* Functions provided by sdp_server.cc */
 void sdp_server_handle_client_req(tCONN_CB* p_ccb, BT_HDR* p_msg);
+bool sdp_dynamic_change_hfp_version(const tSDP_ATTRIBUTE* p_attr, const RawAddress& remote_address);
 
-/* Functions provided by sdp_discovery.cc
- */
+/* Functions provided by sdp_discovery.cc */
 void sdp_disc_connected(tCONN_CB* p_ccb);
 void sdp_disc_server_rsp(tCONN_CB* p_ccb, BT_HDR* p_msg);
 

@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.avrcpcontroller;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import android.annotation.SuppressLint;
 
 import androidx.test.runner.AndroidJUnit4;
@@ -98,14 +100,14 @@ public class BipAttachmentFormatTest {
 
         if (created != null) {
             Assert.assertEquals(created, attachment.getCreatedDate().getTime());
-            Assert.assertTrue(attachment.getCreatedDate().isUtc());
+            assertThat(attachment.getCreatedDate().isUtc()).isTrue();
         } else {
             Assert.assertEquals(null, attachment.getCreatedDate());
         }
 
         if (modified != null) {
             Assert.assertEquals(modified, attachment.getModifiedDate().getTime());
-            Assert.assertTrue(attachment.getModifiedDate().isUtc());
+            assertThat(attachment.getModifiedDate().isUtc()).isTrue();
         } else {
             Assert.assertEquals(null, attachment.getModifiedDate());
         }
@@ -424,16 +426,17 @@ public class BipAttachmentFormatTest {
         BipAttachmentFormat attachment =
                 new BipAttachmentFormat("text/plain", null, "thisisatextfile.txt", -1, null, null);
 
-        Assert.assertTrue(attachment.equals(attachment));
+        assertThat(attachment).isEqualTo(attachment);
     }
 
     @Test
+    @SuppressLint("TruthIncompatibleType") // That the point of this test
     public void testEquals_withDifferentClass() {
         BipAttachmentFormat attachment =
                 new BipAttachmentFormat("text/plain", null, "thisisatextfile.txt", -1, null, null);
         String notAttachment = "notAttachment";
 
-        Assert.assertFalse(attachment.equals(notAttachment));
+        assertThat(attachment).isNotEqualTo(notAttachment);
     }
 
     @Test
@@ -443,6 +446,6 @@ public class BipAttachmentFormatTest {
         BipAttachmentFormat attachmentEqual =
                 new BipAttachmentFormat("text/plain", null, "thisisatextfile.txt", -1, null, null);
 
-        Assert.assertTrue(attachment.equals(attachmentEqual));
+        assertThat(attachment).isEqualTo(attachmentEqual);
     }
 }

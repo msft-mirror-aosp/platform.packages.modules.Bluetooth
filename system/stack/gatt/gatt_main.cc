@@ -28,18 +28,16 @@
 #include "btif/include/btif_dm.h"
 #include "btif/include/btif_storage.h"
 #include "btif/include/stack_manager_t.h"
-#include "connection_manager.h"
 #include "device/include/interop.h"
 #include "internal_include/bt_target.h"
 #include "internal_include/stack_config.h"
-#include "l2c_api.h"
 #include "main/shim/acl_api.h"
 #include "osi/include/allocator.h"
 #include "osi/include/properties.h"
-#include "rust/src/connection/ffi/connection_shim.h"
 #include "stack/arbiter/acl_arbiter.h"
 #include "stack/btm/btm_dev.h"
 #include "stack/btm/btm_sec.h"
+#include "stack/connection_manager/connection_manager.h"
 #include "stack/eatt/eatt.h"
 #include "stack/gatt/gatt_int.h"
 #include "stack/include/acl_api.h"
@@ -47,7 +45,9 @@
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_client_interface.h"
+#include "stack/include/gatt_api.h"
 #include "stack/include/l2cap_acl_interface.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/include/srvc_api.h"  // tDIS_VALUE
 #include "types/raw_address.h"
@@ -116,8 +116,8 @@ void gatt_init(void) {
   connection_manager::reset(true);
   memset(&fixed_reg, 0, sizeof(tL2CAP_FIXED_CHNL_REG));
 
-  // To catch a potential OOB.
-  gatt_cb.next_gatt_if = 40;
+  // To catch a potential OOB, 40>31 is used, any valid value (1 to GATT_IF_MAX) is okay.
+  gatt_cb.last_gatt_if = static_cast<tGATT_IF>(40);
 
   gatt_cb.sign_op_queue = fixed_queue_new(SIZE_MAX);
   gatt_cb.srv_chg_clt_q = fixed_queue_new(SIZE_MAX);
@@ -131,15 +131,15 @@ void gatt_init(void) {
   // clients exist
   fixed_reg.default_idle_tout = L2CAP_NO_IDLE_TIMEOUT;
 
-  if (!L2CA_RegisterFixedChannel(L2CAP_ATT_CID, &fixed_reg)) {
+  if (!stack::l2cap::get_interface().L2CA_RegisterFixedChannel(L2CAP_ATT_CID, &fixed_reg)) {
     log::error("Unable to register L2CAP ATT fixed channel");
   }
 
   gatt_cb.over_br_enabled = osi_property_get_bool("bluetooth.gatt.over_bredr.enabled", true);
   /* Now, register with L2CAP for ATT PSM over BR/EDR */
-  if (gatt_cb.over_br_enabled &&
-      !L2CA_RegisterWithSecurity(BT_PSM_ATT, dyn_info, false /* enable_snoop */, nullptr,
-                                 GATT_MAX_MTU_SIZE, 0, BTM_SEC_NONE)) {
+  if (gatt_cb.over_br_enabled && !stack::l2cap::get_interface().L2CA_RegisterWithSecurity(
+                                         BT_PSM_ATT, dyn_info, false /* enable_snoop */, nullptr,
+                                         GATT_MAX_MTU_SIZE, 0, BTM_SEC_NONE)) {
     log::error("ATT Dynamic Registration failed");
   }
 
@@ -216,14 +216,15 @@ void gatt_free(void) {
  * Returns          true if connection is started, otherwise return false.
  *
  ******************************************************************************/
-bool gatt_connect(const RawAddress& rem_bda, tBLE_ADDR_TYPE addr_type, tGATT_TCB* p_tcb,
-                  tBT_TRANSPORT transport, uint8_t /* initiating_phys */, tGATT_IF gatt_if) {
+static bool gatt_connect(const RawAddress& rem_bda, tBLE_ADDR_TYPE addr_type, tGATT_TCB* p_tcb,
+                         tBT_TRANSPORT transport, uint8_t /* initiating_phys */, tGATT_IF gatt_if) {
   if (gatt_get_ch_state(p_tcb) != GATT_CH_OPEN) {
     gatt_set_ch_state(p_tcb, GATT_CH_CONN);
   }
 
   if (transport != BT_TRANSPORT_LE) {
-    p_tcb->att_lcid = L2CA_ConnectReqWithSecurity(BT_PSM_ATT, rem_bda, BTM_SEC_NONE);
+    p_tcb->att_lcid = stack::l2cap::get_interface().L2CA_ConnectReqWithSecurity(BT_PSM_ATT, rem_bda,
+                                                                                BTM_SEC_NONE);
     return p_tcb->att_lcid != 0;
   }
 
@@ -234,12 +235,7 @@ bool gatt_connect(const RawAddress& rem_bda, tBLE_ADDR_TYPE addr_type, tGATT_TCB
   }
 
   p_tcb->att_lcid = L2CAP_ATT_CID;
-  return acl_create_le_connection_with_id(gatt_if, rem_bda, addr_type);
-}
-
-bool gatt_connect(const RawAddress& rem_bda, tGATT_TCB* p_tcb, tBT_TRANSPORT transport,
-                  uint8_t initiating_phys, tGATT_IF gatt_if) {
-  return gatt_connect(rem_bda, BLE_ADDR_PUBLIC, p_tcb, transport, initiating_phys, gatt_if);
+  return connection_manager::create_le_connection(gatt_if, rem_bda, addr_type);
 }
 
 /*******************************************************************************
@@ -257,20 +253,14 @@ void gatt_cancel_connect(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
   /* This shall be call only when device is not connected */
   log::debug("{}, transport {}", bd_addr, transport);
 
-  if (com::android::bluetooth::flags::unified_connection_manager()) {
-    // TODO(aryarahul): this might not be necessary now that the connection
-    // manager handles GATT client closure correctly in GATT_Deregister
-    bluetooth::connection::GetConnectionManager().stop_all_connections_to_device(
-            bluetooth::connection::ResolveRawAddress(bd_addr));
-  } else {
-    if (!connection_manager::direct_connect_remove(CONN_MGR_ID_L2CAP, bd_addr)) {
-      BTM_AcceptlistRemove(bd_addr);
-      log::info(
-              "GATT connection manager has no record but removed filter "
-              "acceptlist gatt_if:{} peer:{}",
-              static_cast<uint8_t>(CONN_MGR_ID_L2CAP), bd_addr);
-    }
+  if (!connection_manager::direct_connect_remove(CONN_MGR_ID_L2CAP, bd_addr)) {
+    bluetooth::shim::ACL_IgnoreLeConnectionFrom(BTM_Sec_GetAddressWithType(bd_addr));
+    log::info(
+            "GATT connection manager has no record but removed filter "
+            "acceptlist gatt_if:{} peer:{}",
+            static_cast<uint8_t>(CONN_MGR_ID_L2CAP), bd_addr);
   }
+
   gatt_cleanup_upon_disc(bd_addr, GATT_CONN_TERMINATE_LOCAL_HOST, transport);
 }
 
@@ -308,7 +298,7 @@ bool gatt_disconnect(tGATT_TCB* p_tcb) {
          */
         EattExtension::GetInstance()->Disconnect(p_tcb->peer_bda);
       }
-      if (!L2CA_RemoveFixedChnl(L2CAP_ATT_CID, p_tcb->peer_bda)) {
+      if (!stack::l2cap::get_interface().L2CA_RemoveFixedChnl(L2CAP_ATT_CID, p_tcb->peer_bda)) {
         log::warn("Unable to remove L2CAP ATT fixed channel peer:{}", p_tcb->peer_bda);
       }
       gatt_set_ch_state(p_tcb, GATT_CH_CLOSING);
@@ -492,11 +482,7 @@ bool gatt_act_connect(tGATT_REG* p_reg, const RawAddress& bd_addr, tBT_TRANSPORT
 
 namespace connection_manager {
 void on_connection_timed_out(uint8_t /* app_id */, const RawAddress& address) {
-  if (com::android::bluetooth::flags::enumerate_gatt_errors()) {
-    gatt_le_connect_cback(L2CAP_ATT_CID, address, false, 0x08, BT_TRANSPORT_LE);
-  } else {
-    gatt_le_connect_cback(L2CAP_ATT_CID, address, false, 0xff, BT_TRANSPORT_LE);
-  }
+  gatt_le_connect_cback(L2CAP_ATT_CID, address, false, 0x08, BT_TRANSPORT_LE);
 }
 }  // namespace connection_manager
 
@@ -547,19 +533,14 @@ static void gatt_le_connect_cback(uint16_t /* chan */, const RawAddress& bd_addr
     if (check_srv_chg) {
       gatt_chk_srv_chg(p_srv_chg_clt);
     }
-  }
-  /* this is incoming connection or background connection callback */
-
-  else {
+  } else {
+    /* this is incoming connection or background connection callback */
     p_tcb = gatt_allocate_tcb_by_bdaddr(bd_addr, BT_TRANSPORT_LE);
     if (!p_tcb) {
-      log::error("CCB max out, no resources");
-      if (com::android::bluetooth::flags::gatt_drop_acl_on_out_of_resources_fix()) {
-        log::error("Disconnecting address:{} due to out of resources.", bd_addr);
-        // When single FIXED channel cannot be created, there is no reason to
-        // keep the link
-        btm_remove_acl(bd_addr, transport);
-      }
+      log::error("Disconnecting address:{} due to out of resources.", bd_addr);
+      // When single FIXED channel cannot be created, there is no reason to
+      // keep the link
+      btm_remove_acl(bd_addr, transport);
       return;
     }
 
@@ -581,9 +562,7 @@ static void gatt_le_connect_cback(uint16_t /* chan */, const RawAddress& bd_addr
     bluetooth::shim::arbiter::GetArbiter().OnLeConnect(p_tcb->tcb_idx, advertising_set.value());
   }
 
-  bool device_le_audio_capable = com::android::bluetooth::flags::read_model_num_fix()
-                                         ? is_le_audio_capable_during_service_discovery(bd_addr)
-                                         : is_device_le_audio_capable(bd_addr);
+  bool device_le_audio_capable = is_le_audio_capable_during_service_discovery(bd_addr);
   if (device_le_audio_capable) {
     log::info("Read model name for le audio capable device");
     if (!check_cached_model_name(bd_addr)) {
@@ -598,6 +577,15 @@ static void gatt_le_connect_cback(uint16_t /* chan */, const RawAddress& bd_addr
   if (stack_config_get_interface()->get_pts_connect_eatt_before_encryption()) {
     log::info("Start EATT before encryption");
     EattExtension::GetInstance()->Connect(bd_addr);
+  }
+
+  /* TODO: This preference should be used to exchange MTU with the peer device before the apps are
+   * notified of the connection. */
+  uint16_t app_mtu_pref = gatt_get_apps_preferred_mtu(bd_addr);
+  gatt_remove_apps_mtu_prefs(bd_addr);
+  p_tcb->app_mtu_pref = app_mtu_pref;
+  if (app_mtu_pref > GATT_DEF_BLE_MTU_SIZE) {
+    log::verbose("Combined app MTU prefs for {}: {}", bd_addr, app_mtu_pref);
   }
 }
 
@@ -647,7 +635,7 @@ static void read_dis_cback(const RawAddress& bd_addr, tDIS_VALUE* p_dis_value) {
 static void gatt_channel_congestion(tGATT_TCB* p_tcb, bool congested) {
   uint8_t i = 0;
   tGATT_REG* p_reg = NULL;
-  uint16_t conn_id;
+  tCONN_ID conn_id;
 
   /* if uncongested, check to see if there is any more pending data */
   if (p_tcb != NULL && !congested) {
@@ -657,7 +645,7 @@ static void gatt_channel_congestion(tGATT_TCB* p_tcb, bool congested) {
   if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
     for (auto& [i, p_reg] : gatt_cb.cl_rcb_map) {
       if (p_reg->in_use && p_reg->app_cb.p_congestion_cb) {
-        conn_id = GATT_CREATE_CONN_ID(p_tcb->tcb_idx, p_reg->gatt_if);
+        conn_id = gatt_create_conn_id(p_tcb->tcb_idx, p_reg->gatt_if);
         (*p_reg->app_cb.p_congestion_cb)(conn_id, congested);
       }
     }
@@ -665,7 +653,7 @@ static void gatt_channel_congestion(tGATT_TCB* p_tcb, bool congested) {
     for (i = 0, p_reg = gatt_cb.cl_rcb; i < GATT_MAX_APPS; i++, p_reg++) {
       if (p_reg->in_use) {
         if (p_reg->app_cb.p_congestion_cb) {
-          conn_id = GATT_CREATE_CONN_ID(p_tcb->tcb_idx, p_reg->gatt_if);
+          conn_id = gatt_create_conn_id(p_tcb->tcb_idx, p_reg->gatt_if);
           (*p_reg->app_cb.p_congestion_cb)(conn_id, congested);
         }
       }
@@ -691,7 +679,7 @@ void gatt_notify_phy_updated(tHCI_STATUS status, uint16_t handle, uint8_t tx_phy
   if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
     for (auto& [i, p_reg] : gatt_cb.cl_rcb_map) {
       if (p_reg->in_use && p_reg->app_cb.p_phy_update_cb) {
-        uint16_t conn_id = GATT_CREATE_CONN_ID(p_tcb->tcb_idx, p_reg->gatt_if);
+        tCONN_ID conn_id = gatt_create_conn_id(p_tcb->tcb_idx, p_reg->gatt_if);
         (*p_reg->app_cb.p_phy_update_cb)(p_reg->gatt_if, conn_id, tx_phy, rx_phy, gatt_status);
       }
     }
@@ -699,7 +687,7 @@ void gatt_notify_phy_updated(tHCI_STATUS status, uint16_t handle, uint8_t tx_phy
     for (int i = 0; i < GATT_MAX_APPS; i++) {
       tGATT_REG* p_reg = &gatt_cb.cl_rcb[i];
       if (p_reg->in_use && p_reg->app_cb.p_phy_update_cb) {
-        uint16_t conn_id = GATT_CREATE_CONN_ID(p_tcb->tcb_idx, p_reg->gatt_if);
+        tCONN_ID conn_id = gatt_create_conn_id(p_tcb->tcb_idx, p_reg->gatt_if);
         (*p_reg->app_cb.p_phy_update_cb)(p_reg->gatt_if, conn_id, tx_phy, rx_phy, gatt_status);
       }
     }
@@ -717,7 +705,7 @@ void gatt_notify_conn_update(const RawAddress& remote, uint16_t interval, uint16
   if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
     for (auto& [i, p_reg] : gatt_cb.cl_rcb_map) {
       if (p_reg->in_use && p_reg->app_cb.p_conn_update_cb) {
-        uint16_t conn_id = GATT_CREATE_CONN_ID(p_tcb->tcb_idx, p_reg->gatt_if);
+        tCONN_ID conn_id = gatt_create_conn_id(p_tcb->tcb_idx, p_reg->gatt_if);
         (*p_reg->app_cb.p_conn_update_cb)(p_reg->gatt_if, conn_id, interval, latency, timeout,
                                           static_cast<tGATT_STATUS>(status));
       }
@@ -726,7 +714,7 @@ void gatt_notify_conn_update(const RawAddress& remote, uint16_t interval, uint16
     for (int i = 0; i < GATT_MAX_APPS; i++) {
       tGATT_REG* p_reg = &gatt_cb.cl_rcb[i];
       if (p_reg->in_use && p_reg->app_cb.p_conn_update_cb) {
-        uint16_t conn_id = GATT_CREATE_CONN_ID(p_tcb->tcb_idx, p_reg->gatt_if);
+        tCONN_ID conn_id = gatt_create_conn_id(p_tcb->tcb_idx, p_reg->gatt_if);
         (*p_reg->app_cb.p_conn_update_cb)(p_reg->gatt_if, conn_id, interval, latency, timeout,
                                           static_cast<tGATT_STATUS>(status));
       }
@@ -750,7 +738,7 @@ void gatt_notify_subrate_change(uint16_t handle, uint16_t subrate_factor, uint16
   if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
     for (auto& [i, p_reg] : gatt_cb.cl_rcb_map) {
       if (p_reg->in_use && p_reg->app_cb.p_subrate_chg_cb) {
-        uint16_t conn_id = GATT_CREATE_CONN_ID(p_tcb->tcb_idx, p_reg->gatt_if);
+        tCONN_ID conn_id = gatt_create_conn_id(p_tcb->tcb_idx, p_reg->gatt_if);
         (*p_reg->app_cb.p_subrate_chg_cb)(p_reg->gatt_if, conn_id, subrate_factor, latency,
                                           cont_num, timeout, static_cast<tGATT_STATUS>(status));
       }
@@ -759,7 +747,7 @@ void gatt_notify_subrate_change(uint16_t handle, uint16_t subrate_factor, uint16
     for (int i = 0; i < GATT_MAX_APPS; i++) {
       tGATT_REG* p_reg = &gatt_cb.cl_rcb[i];
       if (p_reg->in_use && p_reg->app_cb.p_subrate_chg_cb) {
-        uint16_t conn_id = GATT_CREATE_CONN_ID(p_tcb->tcb_idx, p_reg->gatt_if);
+        tCONN_ID conn_id = gatt_create_conn_id(p_tcb->tcb_idx, p_reg->gatt_if);
         (*p_reg->app_cb.p_subrate_chg_cb)(p_reg->gatt_if, conn_id, subrate_factor, latency,
                                           cont_num, timeout, static_cast<tGATT_STATUS>(status));
       }
@@ -849,7 +837,7 @@ static void gatt_l2cif_connect_ind_cback(const RawAddress& bd_addr, uint16_t lci
 
   /* If we reject the connection, send DisconnectReq */
   if (result != tL2CAP_CONN::L2CAP_CONN_OK) {
-    if (!L2CA_DisconnectReq(lcid)) {
+    if (!stack::l2cap::get_interface().L2CA_DisconnectReq(lcid)) {
       log::warn("Unable to disconnect L2CAP peer:{} cid:{}", bd_addr, lcid);
     }
     return;
@@ -955,7 +943,7 @@ void gatt_l2cif_disconnect_ind_cback(uint16_t lcid, bool /* ack_needed */) {
 }
 
 static void gatt_l2cif_disconnect(uint16_t lcid) {
-  if (!L2CA_DisconnectReq(lcid)) {
+  if (!stack::l2cap::get_interface().L2CA_DisconnectReq(lcid)) {
     log::warn("Unable to disconnect L2CAP cid:{}", lcid);
   }
 
@@ -1000,16 +988,9 @@ static void gatt_l2cif_congest_cback(uint16_t lcid, bool congested) {
 static void gatt_send_conn_cback(tGATT_TCB* p_tcb) {
   uint8_t i;
   tGATT_REG* p_reg;
-  uint16_t conn_id;
+  tCONN_ID conn_id;
 
-  std::set<tGATT_IF> apps = {};
-  if (com::android::bluetooth::flags::unified_connection_manager()) {
-    // TODO(aryarahul): this should be done via callbacks passed into the
-    // connection manager
-    apps = {};
-  } else {
-    apps = connection_manager::get_apps_connecting_to(p_tcb->peer_bda);
-  }
+  std::set<tGATT_IF> apps = connection_manager::get_apps_connecting_to(p_tcb->peer_bda);
 
   /* notifying all applications for the connection up event */
 
@@ -1023,17 +1004,15 @@ static void gatt_send_conn_cback(tGATT_TCB* p_tcb) {
         gatt_update_app_use_link_flag(p_reg->gatt_if, p_tcb, true, true);
       }
 
-      if (com::android::bluetooth::flags::gatt_reconnect_on_bt_on_fix()) {
-        if (p_reg->direct_connect_request.count(p_tcb->peer_bda) > 0) {
-          gatt_update_app_use_link_flag(p_reg->gatt_if, p_tcb, true, true);
-          log::info("Removing device {} from the direct connect list of gatt_if {}",
-                    p_tcb->peer_bda, p_reg->gatt_if);
-          p_reg->direct_connect_request.erase(p_tcb->peer_bda);
-        }
+      if (p_reg->direct_connect_request.count(p_tcb->peer_bda) > 0) {
+        gatt_update_app_use_link_flag(p_reg->gatt_if, p_tcb, true, true);
+        log::info("Removing device {} from the direct connect list of gatt_if {}", p_tcb->peer_bda,
+                  p_reg->gatt_if);
+        p_reg->direct_connect_request.erase(p_tcb->peer_bda);
       }
 
       if (p_reg->app_cb.p_conn_cb) {
-        conn_id = GATT_CREATE_CONN_ID(p_tcb->tcb_idx, p_reg->gatt_if);
+        conn_id = gatt_create_conn_id(p_tcb->tcb_idx, p_reg->gatt_if);
         (*p_reg->app_cb.p_conn_cb)(p_reg->gatt_if, p_tcb->peer_bda, conn_id, kGattConnected,
                                    GATT_CONN_OK, p_tcb->transport);
       }
@@ -1048,17 +1027,15 @@ static void gatt_send_conn_cback(tGATT_TCB* p_tcb) {
         gatt_update_app_use_link_flag(p_reg->gatt_if, p_tcb, true, true);
       }
 
-      if (com::android::bluetooth::flags::gatt_reconnect_on_bt_on_fix()) {
-        if (p_reg->direct_connect_request.count(p_tcb->peer_bda) > 0) {
-          gatt_update_app_use_link_flag(p_reg->gatt_if, p_tcb, true, true);
-          log::info("Removing device {} from the direct connect list of gatt_if {}",
-                    p_tcb->peer_bda, p_reg->gatt_if);
-          p_reg->direct_connect_request.erase(p_tcb->peer_bda);
-        }
+      if (p_reg->direct_connect_request.count(p_tcb->peer_bda) > 0) {
+        gatt_update_app_use_link_flag(p_reg->gatt_if, p_tcb, true, true);
+        log::info("Removing device {} from the direct connect list of gatt_if {}", p_tcb->peer_bda,
+                  p_reg->gatt_if);
+        p_reg->direct_connect_request.erase(p_tcb->peer_bda);
       }
 
       if (p_reg->app_cb.p_conn_cb) {
-        conn_id = GATT_CREATE_CONN_ID(p_tcb->tcb_idx, p_reg->gatt_if);
+        conn_id = gatt_create_conn_id(p_tcb->tcb_idx, p_reg->gatt_if);
         (*p_reg->app_cb.p_conn_cb)(p_reg->gatt_if, p_tcb->peer_bda, conn_id, kGattConnected,
                                    GATT_CONN_OK, p_tcb->transport);
       }
@@ -1066,9 +1043,7 @@ static void gatt_send_conn_cback(tGATT_TCB* p_tcb) {
   }
 
   /* Remove the direct connection */
-  if (!com::android::bluetooth::flags::unified_connection_manager()) {
-    connection_manager::on_connection_complete(p_tcb->peer_bda);
-  }
+  connection_manager::on_connection_complete(p_tcb->peer_bda);
 
   if (p_tcb->att_lcid == L2CAP_ATT_CID) {
     if (!p_tcb->app_hold_link.empty()) {
@@ -1179,7 +1154,7 @@ void gatt_send_srv_chg_ind(const RawAddress& peer_bda) {
     return;
   }
 
-  uint16_t conn_id = gatt_profile_find_conn_id_by_bd_addr(peer_bda);
+  tCONN_ID conn_id = gatt_profile_find_conn_id_by_bd_addr(peer_bda);
   if (conn_id == GATT_INVALID_CONN_ID) {
     log::error("Unable to find conn_id for {}", peer_bda);
     return;

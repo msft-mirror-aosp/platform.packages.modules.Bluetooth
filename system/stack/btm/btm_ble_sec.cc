@@ -20,7 +20,6 @@
 #include "stack/btm/btm_ble_sec.h"
 
 #include <android_bluetooth_sysprop.h>
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
@@ -59,6 +58,9 @@
 #include "stack/include/smp_api.h"
 #include "stack/include/smp_api_types.h"
 #include "types/raw_address.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 
@@ -99,7 +101,7 @@ void BTM_SecAddBleDevice(const RawAddress& bd_addr, tBT_DEVICE_TYPE dev_type,
     p_dev_rec->conn_params.peripheral_latency = BTM_BLE_CONN_PARAM_UNDEF;
 
     log::debug("Device added, handle=0x{:x}, p_dev_rec={}, bd_addr={}", p_dev_rec->ble_hci_handle,
-               fmt::ptr(p_dev_rec), bd_addr);
+               std::format_ptr(p_dev_rec), bd_addr);
 
     if (com::android::bluetooth::flags::name_discovery_for_le_pairing() &&
         btif_storage_get_stored_remote_name(bd_addr,
@@ -262,7 +264,7 @@ void BTM_SecurityGrant(const RawAddress& bd_addr, tBTM_STATUS res) {
           (res == tBTM_STATUS::BTM_SUCCESS) ? SMP_SUCCESS : SMP_REPEATED_ATTEMPTS;
   log::verbose("bd_addr:{}, res:{}", bd_addr, smp_status_text(res_smp));
   BTM_LogHistory(kBtmLogTag, bd_addr, "Granted",
-                 base::StringPrintf("passkey_status:%s", smp_status_text(res_smp).c_str()));
+                 std::format("passkey_status:{}", smp_status_text(res_smp)));
 
   SMP_SecurityGrant(bd_addr, res_smp);
 }
@@ -292,9 +294,8 @@ void BTM_BlePasskeyReply(const RawAddress& bd_addr, tBTM_STATUS res, uint32_t pa
   const tSMP_STATUS res_smp =
           (res == tBTM_STATUS::BTM_SUCCESS) ? SMP_SUCCESS : SMP_PASSKEY_ENTRY_FAIL;
   BTM_LogHistory(kBtmLogTag, bd_addr, "Passkey reply",
-                 base::StringPrintf("transport:%s authenticate_status:%s",
-                                    bt_transport_text(BT_TRANSPORT_LE).c_str(),
-                                    smp_status_text(res_smp).c_str()));
+                 std::format("transport:{} authenticate_status:{}",
+                             bt_transport_text(BT_TRANSPORT_LE), smp_status_text(res_smp)));
 
   p_dev_rec->sec_rec.sec_flags |= BTM_SEC_LE_AUTHENTICATED;
   SMP_PasskeyReply(bd_addr, res_smp, passkey);
@@ -323,9 +324,8 @@ void BTM_BleConfirmReply(const RawAddress& bd_addr, tBTM_STATUS res) {
           (res == tBTM_STATUS::BTM_SUCCESS) ? SMP_SUCCESS : SMP_PASSKEY_ENTRY_FAIL;
 
   BTM_LogHistory(kBtmLogTag, bd_addr, "Confirm reply",
-                 base::StringPrintf("transport:%s numeric_comparison_authenticate_status:%s",
-                                    bt_transport_text(BT_TRANSPORT_LE).c_str(),
-                                    smp_status_text(res_smp).c_str()));
+                 std::format("transport:{} numeric_comparison_authenticate_status:{}",
+                             bt_transport_text(BT_TRANSPORT_LE), smp_status_text(res_smp)));
 
   p_dev_rec->sec_rec.sec_flags |= BTM_SEC_LE_AUTHENTICATED;
   SMP_ConfirmReply(bd_addr, res_smp);
@@ -355,9 +355,8 @@ void BTM_BleOobDataReply(const RawAddress& bd_addr, tBTM_STATUS res, uint8_t len
 
   const tSMP_STATUS res_smp = (res == tBTM_STATUS::BTM_SUCCESS) ? SMP_SUCCESS : SMP_OOB_FAIL;
   BTM_LogHistory(kBtmLogTag, bd_addr, "Oob data reply",
-                 base::StringPrintf("transport:%s authenticate_status:%s",
-                                    bt_transport_text(BT_TRANSPORT_LE).c_str(),
-                                    smp_status_text(res_smp).c_str()));
+                 std::format("transport:{} authenticate_status:{}",
+                             bt_transport_text(BT_TRANSPORT_LE), smp_status_text(res_smp)));
 
   p_dev_rec->sec_rec.sec_flags |= BTM_SEC_LE_AUTHENTICATED;
   SMP_OobDataReply(bd_addr, res_smp, len, p_data);
@@ -384,7 +383,7 @@ void BTM_BleSecureConnectionOobDataReply(const RawAddress& bd_addr, uint8_t* p_c
   }
 
   BTM_LogHistory(kBtmLogTag, bd_addr, "Oob data reply",
-                 base::StringPrintf("transport:%s", bt_transport_text(BT_TRANSPORT_LE).c_str()));
+                 std::format("transport:{}", bt_transport_text(BT_TRANSPORT_LE)));
 
   p_dev_rec->sec_rec.sec_flags |= BTM_SEC_LE_AUTHENTICATED;
 
@@ -934,10 +933,12 @@ void btm_sec_save_le_key(const RawAddress& bd_addr, tBTM_LE_KEY_TYPE key_type,
         p_rec->sec_rec.ble_keys.counter = p_keys->pcsrk_key.counter;
         p_rec->sec_rec.ble_keys.key_type |= BTM_LE_KEY_PCSRK;
         p_rec->sec_rec.sec_flags |= BTM_SEC_LE_LINK_KEY_KNOWN;
-        if (p_keys->pcsrk_key.sec_level == SMP_SEC_AUTHENTICATED) {
-          p_rec->sec_rec.sec_flags |= BTM_SEC_LE_LINK_KEY_AUTHED;
-        } else {
-          p_rec->sec_rec.sec_flags &= ~BTM_SEC_LE_LINK_KEY_AUTHED;
+        if (!com::android::bluetooth::flags::donot_update_sec_flags_on_csrk_save()) {
+          if (p_keys->pcsrk_key.sec_level == SMP_SEC_AUTHENTICATED) {
+            p_rec->sec_rec.sec_flags |= BTM_SEC_LE_LINK_KEY_AUTHED;
+          } else {
+            p_rec->sec_rec.sec_flags &= ~BTM_SEC_LE_LINK_KEY_AUTHED;
+          }
         }
 
         log::verbose(
@@ -1142,6 +1143,10 @@ tBTM_STATUS btm_ble_set_encryption(const RawAddress& bd_addr, tBTM_BLE_SEC_ACT s
 
   switch (sec_act) {
     case BTM_BLE_SEC_ENCRYPT:
+      if (p_rec->sec_rec.is_le_device_encrypted()) {
+        return tBTM_STATUS::BTM_SUCCESS;
+      }
+
       if (link_role == HCI_ROLE_CENTRAL) {
         /* start link layer encryption using the security info stored */
         cmd = btm_ble_start_encrypt(bd_addr, false, NULL);
@@ -1322,9 +1327,8 @@ void btm_ble_link_encrypted(const RawAddress& bd_addr, uint8_t encr_enable) {
   if (p_dev_rec->sec_rec.p_callback && enc_cback) {
     if (encr_enable) {
       btm_sec_dev_rec_cback_event(p_dev_rec, tBTM_STATUS::BTM_SUCCESS, true);
-    }
-    /* LTK missing on peripheral */
-    else if (p_dev_rec->role_central && (p_dev_rec->sec_rec.sec_status == HCI_ERR_KEY_MISSING)) {
+    } else if (p_dev_rec->role_central && (p_dev_rec->sec_rec.sec_status == HCI_ERR_KEY_MISSING)) {
+      /* LTK missing on peripheral */
       btm_sec_dev_rec_cback_event(p_dev_rec, tBTM_STATUS::BTM_ERR_KEY_MISSING, true);
     } else if (!(p_dev_rec->sec_rec.sec_flags & BTM_SEC_LE_LINK_KEY_KNOWN)) {
       btm_sec_dev_rec_cback_event(p_dev_rec, tBTM_STATUS::BTM_FAILED_ON_SECURITY, true);
@@ -1517,7 +1521,7 @@ void btm_ble_connected(const RawAddress& bda, uint16_t handle, uint8_t /* enc_mo
   tBTM_SEC_DEV_REC* p_dev_rec = btm_find_or_alloc_dev(bda);
 
   log::info("Update timestamp for ble connection:{}", bda);
-  // TODO() Why is timestamp a counter ?
+  // TODO () Why is timestamp a counter ?
   p_dev_rec->timestamp = btm_sec_cb.dev_rec_count++;
 
   if (is_ble_addr_type_known(addr_type)) {
@@ -1798,7 +1802,7 @@ bool BTM_BleDataSignature(const RawAddress& bd_addr, uint8_t* p_text, uint16_t l
                            BTM_CMAC_TLEN_SIZE, p_mac);
   p_rec->sec_rec.increment_sign_counter(true);
 
-  log::verbose("p_mac = {}", fmt::ptr(p_mac));
+  log::verbose("p_mac = {}", std::format_ptr(p_mac));
   log::verbose("p_mac[0]=0x{:02x} p_mac[1]=0x{:02x} p_mac[2]=0x{:02x} p_mac[3]=0x{:02x}", *p_mac,
                *(p_mac + 1), *(p_mac + 2), *(p_mac + 3));
   log::verbose("p_mac[4]=0x{:02x} p_mac[5]=0x{:02x} p_mac[6]=0x{:02x} p_mac[7]=0x{:02x}",
@@ -1870,7 +1874,7 @@ void BTM_BleSirkConfirmDeviceReply(const RawAddress& bd_addr, tBTM_STATUS res) {
   }
 
   BTM_LogHistory(kBtmLogTag, bd_addr, "SIRK confirmation",
-                 base::StringPrintf("status:%s", smp_status_text(res_smp).c_str()));
+                 std::format("status:{}", smp_status_text(res_smp)));
   SMP_SirkConfirmDeviceReply(bd_addr, res_smp);
 }
 

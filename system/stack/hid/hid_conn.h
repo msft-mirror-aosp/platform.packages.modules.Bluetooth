@@ -25,7 +25,6 @@
 #ifndef HID_CONN_H
 #define HID_CONN_H
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 
 #include "macros.h"
@@ -56,7 +55,7 @@ typedef struct hid_conn {
       CASE_RETURN_TEXT(HID_CONN_STATE_DISCONNECTING);
       CASE_RETURN_TEXT(HID_CONN_STATE_SECURITY);
       default:
-        return base::StringPrintf("UNKNOWN[%hhu]", state);
+        return std::format("UNKNOWN[{}]", static_cast<uint8_t>(state));
     }
   }
 
@@ -78,9 +77,9 @@ typedef struct hid_conn {
 
 #define HIDD_SEC_CHN 3
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tHID_CONN_STATE> : enum_formatter<tHID_CONN_STATE> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif

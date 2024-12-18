@@ -148,6 +148,7 @@ void bta_jv_get_channel_id(tBTA_JV_CONN_TYPE type, int32_t channel, uint32_t l2c
 void bta_jv_free_scn(tBTA_JV_CONN_TYPE type, uint16_t scn);
 void bta_jv_start_discovery(const RawAddress& bd_addr, uint16_t num_uuid,
                             bluetooth::Uuid* uuid_list, uint32_t rfcomm_slot_id);
+void bta_jv_cancel_discovery(uint32_t rfcomm_slot_id);
 void bta_jv_create_record(uint32_t rfcomm_slot_id);
 void bta_jv_delete_record(uint32_t handle);
 void bta_jv_l2cap_connect(tBTA_JV_CONN_TYPE type, tBTA_SEC sec_mask, uint16_t remote_psm,
@@ -164,10 +165,12 @@ void bta_jv_l2cap_stop_server(uint16_t local_psm, uint32_t l2cap_socket_id);
 void bta_jv_l2cap_write(uint32_t handle, uint32_t req_id, BT_HDR* msg, uint32_t user_id,
                         tBTA_JV_L2C_CB* p_cb);
 void bta_jv_rfcomm_connect(tBTA_SEC sec_mask, uint8_t remote_scn, const RawAddress& peer_bd_addr,
-                           tBTA_JV_RFCOMM_CBACK* p_cback, uint32_t rfcomm_slot_id);
+                           tBTA_JV_RFCOMM_CBACK* p_cback, uint32_t rfcomm_slot_id,
+                           RfcommCfgInfo cfg);
 void bta_jv_rfcomm_close(uint32_t handle, uint32_t rfcomm_slot_id);
 void bta_jv_rfcomm_start_server(tBTA_SEC sec_mask, uint8_t local_scn, uint8_t max_session,
-                                tBTA_JV_RFCOMM_CBACK* p_cback, uint32_t rfcomm_slot_id);
+                                tBTA_JV_RFCOMM_CBACK* p_cback, uint32_t rfcomm_slot_id,
+                                RfcommCfgInfo cfg);
 void bta_jv_rfcomm_stop_server(uint32_t handle, uint32_t rfcomm_slot_id);
 void bta_jv_rfcomm_write(uint32_t handle, uint32_t req_id, tBTA_JV_RFC_CB* p_cb,
                          tBTA_JV_PCB* p_pcb);

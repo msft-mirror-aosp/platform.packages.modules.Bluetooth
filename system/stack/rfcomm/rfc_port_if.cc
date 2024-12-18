@@ -26,6 +26,7 @@
 #define LOG_TAG "rfcomm"
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
 #include <unordered_map>
@@ -149,7 +150,14 @@ void RFCOMM_ParameterNegotiationRequest(tRFC_MCB* p_mcb, uint8_t dlci, uint16_t 
   /* Set convergence layer and number of credits (k) */
   if (flow == PORT_FC_CREDIT) {
     cl = RFCOMM_PN_CONV_LAYER_CBFC_I;
-    k = (p_port->credit_rx_max < RFCOMM_K_MAX) ? p_port->credit_rx_max : RFCOMM_K_MAX;
+
+    if (com::android::bluetooth::flags::socket_settings_api()) {
+      k = (p_port->rfc_cfg_info.init_credit_present) ? p_port->rfc_cfg_info.init_credit
+          : (p_port->credit_rx_max < RFCOMM_K_MAX)   ? p_port->credit_rx_max
+                                                     : RFCOMM_K_MAX;
+    } else {
+      k = (p_port->credit_rx_max < RFCOMM_K_MAX) ? p_port->credit_rx_max : RFCOMM_K_MAX;
+    }
     p_port->credit_rx = k;
   } else {
     cl = RFCOMM_PN_CONV_LAYER_TYPE_1;
@@ -193,7 +201,8 @@ void RFCOMM_ParameterNegotiationResponse(tRFC_MCB* p_mcb, uint8_t dlci, uint16_t
  *                  control block.
  *
  ******************************************************************************/
-void RFCOMM_PortParameterNegotiationRequest(tRFC_MCB* p_mcb, uint8_t dlci, tPORT_STATE* p_pars) {
+void RFCOMM_PortParameterNegotiationRequest(tRFC_MCB* p_mcb, uint8_t dlci,
+                                            PortSettings* p_settings) {
   if (p_mcb->state != RFC_MX_STATE_CONNECTED) {
     PORT_PortNegCnf(p_mcb, dlci, nullptr, RFCOMM_ERROR);
     return;
@@ -206,13 +215,13 @@ void RFCOMM_PortParameterNegotiationRequest(tRFC_MCB* p_mcb, uint8_t dlci, tPORT
   }
 
   /* Send Parameter Negotiation Command UIH frame */
-  if (!p_pars) {
+  if (!p_settings) {
     p_port->rfc.expected_rsp |= RFC_RSP_RPN_REPLY;
   } else {
     p_port->rfc.expected_rsp |= RFC_RSP_RPN;
   }
 
-  rfc_send_rpn(p_mcb, dlci, true, p_pars, RFCOMM_RPN_PM_MASK);
+  rfc_send_rpn(p_mcb, dlci, true, p_settings, RFCOMM_RPN_PM_MASK);
   rfc_port_timer_start(p_port, RFC_T2_TIMEOUT);
 }
 
@@ -224,13 +233,13 @@ void RFCOMM_PortParameterNegotiationRequest(tRFC_MCB* p_mcb, uint8_t dlci, tPORT
  *                  Port parameters negotiation.
  *
  ******************************************************************************/
-void RFCOMM_PortParameterNegotiationResponse(tRFC_MCB* p_mcb, uint8_t dlci, tPORT_STATE* p_pars,
-                                             uint16_t param_mask) {
+void RFCOMM_PortParameterNegotiationResponse(tRFC_MCB* p_mcb, uint8_t dlci,
+                                             PortSettings* p_settings, uint16_t param_mask) {
   if (p_mcb->state != RFC_MX_STATE_CONNECTED) {
     return;
   }
 
-  rfc_send_rpn(p_mcb, dlci, false, p_pars, param_mask);
+  rfc_send_rpn(p_mcb, dlci, false, p_settings, param_mask);
 }
 
 /*******************************************************************************

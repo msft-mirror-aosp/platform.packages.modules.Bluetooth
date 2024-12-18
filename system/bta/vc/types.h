@@ -17,13 +17,18 @@
 
 #pragma once
 
+#include <aics/api.h>
+#include <hardware/bt_vc.h>
+
+#include <algorithm>
 #include <queue>
+#include <string>
 #include <vector>
 
 #include "bta/include/bta_groups.h"
 #include "osi/include/alarm.h"
-#include "raw_address.h"
 #include "types/bluetooth/uuid.h"
+#include "types/raw_address.h"
 
 namespace bluetooth {
 namespace vc {
@@ -49,16 +54,25 @@ static constexpr uint8_t kVolumeInputControlPointOpcodeMute                 = 0x
 static constexpr uint8_t kVolumeInputControlPointOpcodeSetManualGainMode    = 0x04;
 static constexpr uint8_t kVolumeInputControlPointOpcodeSetAutoGainMode      = 0x05;
 
-static const Uuid kVolumeControlUuid                  = Uuid::From16Bit(0x1844);
-static const Uuid kVolumeControlStateUuid             = Uuid::From16Bit(0x2B7D);
-static const Uuid kVolumeControlPointUuid             = Uuid::From16Bit(0x2B7E);
-static const Uuid kVolumeFlagsUuid                    = Uuid::From16Bit(0x2B7F);
+static const Uuid kVolumeControlUuid                         = Uuid::From16Bit(0x1844);
+static const Uuid kVolumeControlStateUuid                    = Uuid::From16Bit(0x2B7D);
+static const Uuid kVolumeControlPointUuid                    = Uuid::From16Bit(0x2B7E);
+static const Uuid kVolumeFlagsUuid                           = Uuid::From16Bit(0x2B7F);
 
-static const Uuid kVolumeOffsetUuid                   = Uuid::From16Bit(0x1845);
-static const Uuid kVolumeOffsetStateUuid              = Uuid::From16Bit(0x2B80);
-static const Uuid kVolumeOffsetLocationUuid           = Uuid::From16Bit(0x2B81);
-static const Uuid kVolumeOffsetControlPointUuid       = Uuid::From16Bit(0x2B82);
-static const Uuid kVolumeOffsetOutputDescriptionUuid  = Uuid::From16Bit(0x2B83);
+static const Uuid kVolumeOffsetUuid                          = Uuid::From16Bit(0x1845);
+static const Uuid kVolumeOffsetStateUuid                     = Uuid::From16Bit(0x2B80);
+static const Uuid kVolumeOffsetLocationUuid                  = Uuid::From16Bit(0x2B81);
+static const Uuid kVolumeOffsetControlPointUuid              = Uuid::From16Bit(0x2B82);
+static const Uuid kVolumeOffsetOutputDescriptionUuid         = Uuid::From16Bit(0x2B83);
+
+static const Uuid kVolumeAudioInputUuid                      = Uuid::From16Bit(0x1843);
+static const Uuid kVolumeAudioInputStateUuid                 = Uuid::From16Bit(0x2B77);
+static const Uuid kVolumeAudioInputGainSettingPropertiesUuid = Uuid::From16Bit(0x2B78);
+static const Uuid kVolumeAudioInputTypeUuid                  = Uuid::From16Bit(0x2B79);
+static const Uuid kVolumeAudioInputStatusUuid                = Uuid::From16Bit(0x2B7A);
+static const Uuid kVolumeAudioInputControlPointUuid          = Uuid::From16Bit(0x2B7B);
+static const Uuid kVolumeAudioInputDescriptionUuid           = Uuid::From16Bit(0x2B7C);
+
 /* clang-format on */
 
 struct VolumeOperation {
@@ -113,11 +127,113 @@ struct VolumeOperation {
   void Start(void) { started_ = true; }
 };
 
+struct GainSettings {
+  uint8_t unit = 0;
+  int8_t min = 0;
+  int8_t max = 0;
+
+  GainSettings() {}
+};
+
+struct VolumeAudioInput {
+  /* const */ uint8_t id;
+  int8_t gain_setting = 0;
+  bluetooth::aics::Mute mute = bluetooth::aics::Mute::DISABLED;
+  bluetooth::aics::GainMode gain_mode = bluetooth::aics::GainMode::MANUAL_ONLY;
+  VolumeInputStatus status = VolumeInputStatus::Inactive;
+  VolumeInputType type = VolumeInputType::Unspecified;
+  uint8_t change_counter = 0;
+  std::string description = "";
+  /* const */ uint16_t service_handle;
+  /* const */ uint16_t state_handle;
+  /* const */ uint16_t state_ccc_handle;
+  /* const */ uint16_t gain_setting_handle;
+  /* const */ uint16_t type_handle;
+  /* const */ uint16_t status_handle;
+  /* const */ uint16_t status_ccc_handle;
+  /* const */ uint16_t control_point_handle;
+  /* const */ uint16_t description_handle;
+  /* const */ uint16_t description_ccc_handle;
+  /* const */ bool description_writable;
+  struct GainSettings gain_settings = GainSettings();
+
+  explicit VolumeAudioInput(uint8_t id, uint16_t service_handle, uint16_t state_handle,
+                            uint16_t state_ccc_handle, uint16_t gain_setting_handle,
+                            uint16_t type_handle, uint16_t status_handle,
+                            uint16_t status_ccc_handle, uint16_t control_point_handle,
+                            uint16_t description_handle, uint16_t description_ccc_handle,
+                            bool description_writable)
+      : id(id),
+        service_handle(service_handle),
+        state_handle(state_handle),
+        state_ccc_handle(state_ccc_handle),
+        gain_setting_handle(gain_setting_handle),
+        type_handle(type_handle),
+        status_handle(status_handle),
+        status_ccc_handle(status_ccc_handle),
+        control_point_handle(control_point_handle),
+        description_handle(description_handle),
+        description_ccc_handle(description_ccc_handle),
+        description_writable(description_writable) {}
+};
+
+class VolumeAudioInputs {
+public:
+  void Add(VolumeAudioInput input) { volume_audio_inputs.push_back(input); }
+
+  VolumeAudioInput* FindByType(VolumeInputType type) {
+    auto iter = std::find_if(volume_audio_inputs.begin(), volume_audio_inputs.end(),
+                             [&type](const VolumeAudioInput& item) { return item.type == type; });
+
+    return (iter == volume_audio_inputs.end()) ? nullptr : &(*iter);
+  }
+
+  VolumeAudioInput* FindByServiceHandle(uint16_t service_handle) {
+    auto iter = std::find_if(volume_audio_inputs.begin(), volume_audio_inputs.end(),
+                             [&service_handle](const VolumeAudioInput& item) {
+                               return item.service_handle == service_handle;
+                             });
+
+    return (iter == volume_audio_inputs.end()) ? nullptr : &(*iter);
+  }
+
+  VolumeAudioInput* FindById(uint8_t id) {
+    auto iter = std::find_if(volume_audio_inputs.begin(), volume_audio_inputs.end(),
+                             [&id](const VolumeAudioInput& item) { return item.id == id; });
+
+    return (iter == volume_audio_inputs.end()) ? nullptr : &(*iter);
+  }
+
+  void Clear() { volume_audio_inputs.clear(); }
+
+  size_t Size() { return volume_audio_inputs.size(); }
+
+  void Dump(int fd) {
+    std::stringstream stream;
+    int n = Size();
+    stream << "     == number of inputs: " << n << " == \n";
+
+    for (auto const v : volume_audio_inputs) {
+      stream << "   id: " << +v.id << "\n"
+             << "    description: " << v.description << "\n"
+             << "    type: " << static_cast<int>(v.type) << "\n"
+             << "    status: " << static_cast<int>(v.status) << "\n"
+             << "    changeCnt: " << +v.change_counter << "\n"
+             << "    service_handle: " << +v.service_handle << "\n"
+             << "    description_writable" << v.description_writable << "\n";
+    }
+    dprintf(fd, "%s", stream.str().c_str());
+  }
+
+  std::vector<VolumeAudioInput> volume_audio_inputs;
+};
+
 struct VolumeOffset {
   uint8_t id;
   uint8_t change_counter;
   int16_t offset;
   uint32_t location;
+  std::string description;
   uint16_t service_handle;
   uint16_t state_handle;
   uint16_t state_ccc_handle;
@@ -129,11 +245,12 @@ struct VolumeOffset {
   bool audio_location_writable;
   bool audio_descr_writable;
 
-  VolumeOffset(uint16_t service_handle)
+  explicit VolumeOffset(uint16_t service_handle)
       : id(0),
         change_counter(0),
         offset(0),
         location(0),
+        description(""),
         service_handle(service_handle),
         state_handle(0),
         state_ccc_handle(0),
@@ -148,8 +265,8 @@ struct VolumeOffset {
 
 class VolumeOffsets {
 public:
-  void Add(VolumeOffset& offset) {
-    offset.id = (uint8_t)Size() + 1;
+  void Add(VolumeOffset offset) {
+    offset.id = static_cast<uint8_t>(Size()) + 1;
     volume_offsets.push_back(offset);
   }
 
@@ -186,12 +303,12 @@ public:
     int n = Size();
     stream << "     == number of offsets: " << n << " == \n";
 
-    for (int i = 0; i < n; i++) {
-      auto v = volume_offsets[i];
+    for (auto const v : volume_offsets) {
       stream << "   id: " << +v.id << "\n"
              << "    offset: " << +v.offset << "\n"
              << "    changeCnt: " << +v.change_counter << "\n"
              << "    location: " << +v.location << "\n"
+             << "    description: " << v.description << "\n"
              << "    service_handle: " << +v.service_handle << "\n"
              << "    audio_location_writable " << v.audio_location_writable << "\n"
              << "    audio_descr_writable: " << v.audio_descr_writable << "\n";

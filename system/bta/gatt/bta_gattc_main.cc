@@ -23,15 +23,12 @@
  ******************************************************************************/
 #define LOG_TAG "bta_gattc_main"
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 
 #include "bta/gatt/bta_gattc_int.h"
 #include "internal_include/bt_target.h"
-#include "os/log.h"
 #include "stack/include/bt_hdr.h"
 
-using base::StringPrintf;
 using namespace bluetooth;
 
 /*****************************************************************************
@@ -127,7 +124,6 @@ static const uint8_t bta_gattc_st_idle[][BTA_GATTC_NUM_COLS] = {
         /* BTA_GATTC_DISCOVER_CMPL_EVT      */ {BTA_GATTC_IGNORE, BTA_GATTC_IDLE_ST},
         /* BTA_GATTC_OP_CMPL_EVT            */ {BTA_GATTC_IGNORE, BTA_GATTC_IDLE_ST},
         /* BTA_GATTC_INT_DISCONN_EVT       */ {BTA_GATTC_IGNORE, BTA_GATTC_IDLE_ST},
-
 };
 
 /* state table for wait for open state */
@@ -154,7 +150,6 @@ static const uint8_t bta_gattc_st_w4_conn[][BTA_GATTC_NUM_COLS] = {
         /* BTA_GATTC_DISCOVER_CMPL_EVT       */ {BTA_GATTC_IGNORE, BTA_GATTC_W4_CONN_ST},
         /* BTA_GATTC_OP_CMPL_EVT            */ {BTA_GATTC_IGNORE, BTA_GATTC_W4_CONN_ST},
         /* BTA_GATTC_INT_DISCONN_EVT      */ {BTA_GATTC_OPEN_FAIL, BTA_GATTC_IDLE_ST},
-
 };
 
 /* state table for open state */
@@ -182,7 +177,6 @@ static const uint8_t bta_gattc_st_connected[][BTA_GATTC_NUM_COLS] = {
         /* BTA_GATTC_OP_CMPL_EVT            */ {BTA_GATTC_OP_CMPL, BTA_GATTC_CONN_ST},
 
         /* BTA_GATTC_INT_DISCONN_EVT        */ {BTA_GATTC_CLOSE, BTA_GATTC_IDLE_ST},
-
 };
 
 /* state table for discover state */
@@ -210,7 +204,6 @@ static const uint8_t bta_gattc_st_discover[][BTA_GATTC_NUM_COLS] = {
         /* BTA_GATTC_OP_CMPL_EVT            */
         {BTA_GATTC_OP_CMPL_DURING_DISCOVERY, BTA_GATTC_DISCOVER_ST},
         /* BTA_GATTC_INT_DISCONN_EVT        */ {BTA_GATTC_CLOSE, BTA_GATTC_IDLE_ST},
-
 };
 
 /* type for state table */
@@ -328,7 +321,7 @@ bool bta_gattc_hdl_event(const BT_HDR_RIGID* p_msg) {
       } else if (p_msg->event == BTA_GATTC_INT_DISCONN_EVT) {
         p_clcb = bta_gattc_find_int_disconn_clcb((tBTA_GATTC_DATA*)p_msg);
       } else {
-        p_clcb = bta_gattc_find_clcb_by_conn_id(p_msg->layer_specific);
+        p_clcb = bta_gattc_find_clcb_by_conn_id(static_cast<tCONN_ID>(p_msg->layer_specific));
       }
 
       if (p_clcb != nullptr) {

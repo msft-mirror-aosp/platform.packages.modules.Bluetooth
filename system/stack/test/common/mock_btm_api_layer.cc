@@ -17,6 +17,9 @@
 
 #include "mock_btm_api_layer.h"
 
+#include "stack/btm/btm_ble_sec.h"
+#include "stack/btm/btm_sec.h"
+
 static bluetooth::manager::MockBtmApiInterface* btm_api_interface = nullptr;
 
 void bluetooth::manager::SetMockBtmApiInterface(MockBtmApiInterface* mock_btm_api_interface) {

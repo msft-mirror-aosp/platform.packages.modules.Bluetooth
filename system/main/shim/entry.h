@@ -45,10 +45,12 @@ class RemoteNameRequestModule;
 class DistanceMeasurementManager;
 class LeAdvertisingManager;
 class LeScanningManager;
-#if TARGET_FLOSS
 class MsftExtensionManager;
-#endif
 }  // namespace hci
+
+namespace lpp {
+class LppOffloadInterface;
+}
 
 namespace metrics {
 class CounterMetrics;
@@ -59,25 +61,22 @@ class StorageModule;
 }
 
 namespace shim {
-class Dumpsys;
 
 /* This returns a handler that might be used in shim to receive callbacks from
  * within the stack. */
 os::Handler* GetGdShimHandler();
 hci::LeAdvertisingManager* GetAdvertising();
 bluetooth::hci::ControllerInterface* GetController();
-Dumpsys* GetDumpsys();
 hci::HciInterface* GetHciLayer();
 hci::RemoteNameRequestModule* GetRemoteNameRequest();
 hci::DistanceMeasurementManager* GetDistanceMeasurementManager();
 hci::LeScanningManager* GetScanning();
+lpp::LppOffloadInterface* GetLppOffloadManager();
 hal::SnoopLogger* GetSnoopLogger();
 storage::StorageModule* GetStorage();
 hci::AclManager* GetAclManager();
 metrics::CounterMetrics* GetCounterMetrics();
-#if TARGET_FLOSS
 hci::MsftExtensionManager* GetMsftExtensionManager();
-#endif
 
 }  // namespace shim
 }  // namespace bluetooth

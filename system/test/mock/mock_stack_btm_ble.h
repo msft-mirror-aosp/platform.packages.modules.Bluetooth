@@ -22,6 +22,8 @@
  *  mockcify.pl ver 0.5.0
  */
 
+#include <base/functional/callback.h>
+
 #include <cstdint>
 #include <functional>
 #include <optional>
@@ -572,9 +574,5 @@ extern struct read_phy_cb read_phy_cb;
 }  // namespace stack_btm_ble
 }  // namespace mock
 }  // namespace test
-
-std::optional<tBLE_BD_ADDR> BTM_BleGetIdentityAddress(const RawAddress /* address */) {
-  return std::nullopt;
-}
 
 // END mockcify generation

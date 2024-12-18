@@ -25,17 +25,12 @@
 #include <cfloat>
 #include <memory>
 
+#include "bta/ag/bta_ag_int.h"
 #include "btif/include/core_callbacks.h"
 #include "btif/include/stack_manager_t.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "stack/btm/btm_sco.h"
 #include "udrv/include/uipc.h"
-
-#define SCO_DATA_READ_POLL_MS 10
-#define SCO_HOST_DATA_PATH "/var/run/bluetooth/audio/.sco_data"
-// TODO(b/198260375): Make SCO data owner group configurable.
-#define SCO_HOST_DATA_GROUP "bluetooth-audio"
 
 /* Per Bluetooth Core v5.0 and HFP 1.9 specification. */
 #define BTM_MSBC_H2_HEADER_0 0x01
@@ -65,6 +60,13 @@
 #define BTM_LC3_PKT_LEN 60
 #define BTM_LC3_FS 240 /* Frame Size */
 
+#if TARGET_FLOSS
+
+#define SCO_DATA_READ_POLL_MS 10
+#define SCO_HOST_DATA_PATH "/var/run/bluetooth/audio/.sco_data"
+// TODO(b/198260375): Make SCO data owner group configurable.
+#define SCO_HOST_DATA_GROUP "bluetooth-audio"
+
 namespace {
 
 std::unique_ptr<tUIPC_STATE> sco_uipc = nullptr;
@@ -86,14 +88,17 @@ void sco_data_cb(tUIPC_CH_ID, tUIPC_EVENT event) {
 }
 
 }  // namespace
+#endif
 
 namespace bluetooth {
 namespace audio {
 namespace sco {
 
+#if TARGET_FLOSS
 void open() {
   if (sco_uipc != nullptr) {
     log::warn("Re-opening UIPC that is already running");
+    cleanup();
   }
 
   sco_uipc = UIPC_Init();
@@ -136,6 +141,14 @@ size_t write(const uint8_t* p_buf, uint32_t len) {
   }
   return UIPC_Send(*sco_uipc, UIPC_CH_ID_AV_AUDIO, 0, p_buf, len) ? len : 0;
 }
+#else
+void open() {}
+void cleanup() {}
+
+size_t read(uint8_t* p_buf, uint32_t len) { return bta_ag_sco_read(p_buf, len); }
+
+size_t write(const uint8_t* p_buf, uint32_t len) { return bta_ag_sco_write(p_buf, len); }
+#endif
 
 enum decode_buf_state {
   DECODE_BUF_EMPTY,
@@ -444,7 +457,7 @@ struct tBTM_MSBC_INFO {
     /* In case of unsupported value, error log and fallback to
      * BTM_MSBC_PKT_LEN(60). */
     if (btm_wbs_supported_pkt_size[i] == 0) {
-      log::warn("Unsupported packet size {}", (unsigned long)pkt_size);
+      log::warn("Unsupported packet size {}", pkt_size);
       i = 0;
     }
 
@@ -612,7 +625,7 @@ public:
       }
 
       if (rp != 0) {
-        log::warn("Skipped {} bytes of mSBC data ahead of a valid mSBC frame", (unsigned long)rp);
+        log::warn("Skipped {} bytes of mSBC data ahead of a valid mSBC frame", rp);
         incr_buf_offset(decode_buf_ro, decode_buf_ro_mirror, buf_size, rp);
       }
 
@@ -724,7 +737,7 @@ bool enqueue_packet(const std::vector<uint8_t>& data, bool corrupted) {
     log::warn(
             "Ignoring the coming packet with size {} that is inconsistent with the "
             "HAL reported packet size {}",
-            (unsigned long)data.size(), (unsigned long)msbc_info->packet_size);
+            data.size(), msbc_info->packet_size);
     return false;
   }
 
@@ -803,7 +816,7 @@ size_t encode(int16_t* data, size_t len) {
 
   encoded_size = GetInterfaceToProfiles()->msbcCodec->encodePacket(data, pkt_body);
   if (encoded_size != BTM_MSBC_PKT_FRAME_LEN) {
-    log::warn("Encoding invalid packet size: {}", (unsigned long)encoded_size);
+    log::warn("Encoding invalid packet size: {}", encoded_size);
     std::copy(&btm_msbc_zero_packet[BTM_MSBC_H2_HEADER_LEN], std::end(btm_msbc_zero_packet),
               pkt_body);
   }
@@ -907,7 +920,7 @@ struct tBTM_LC3_INFO {
     /* In case of unsupported value, error log and fallback to
      * BTM_LC3_PKT_LEN(60). */
     if (btm_swb_supported_pkt_size[i] == 0) {
-      log::warn("Unsupported packet size {}", (unsigned long)pkt_size);
+      log::warn("Unsupported packet size {}", pkt_size);
       i = 0;
     }
 
@@ -1078,7 +1091,7 @@ public:
       }
 
       if (rp != 0) {
-        log::warn("Skipped {} bytes of LC3 data ahead of a valid LC3 frame", (unsigned long)rp);
+        log::warn("Skipped {} bytes of LC3 data ahead of a valid LC3 frame", rp);
         incr_buf_offset(decode_buf_ro, decode_buf_ro_mirror, buf_size, rp);
       }
 
@@ -1177,7 +1190,7 @@ bool enqueue_packet(const std::vector<uint8_t>& data, bool corrupted) {
     log::warn(
             "Ignoring the coming packet with size {} that is inconsistent with the "
             "HAL reported packet size {}",
-            (unsigned long)data.size(), (unsigned long)lc3_info->packet_size);
+            data.size(), lc3_info->packet_size);
     return false;
   }
 

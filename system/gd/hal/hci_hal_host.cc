@@ -26,6 +26,7 @@
 
 #include <chrono>  // NOLINT
 #include <csignal>
+#include <cstdint>
 #include <mutex>  // NOLINT
 #include <queue>
 #include <utility>
@@ -33,10 +34,9 @@
 
 #include "hal/hci_hal.h"
 #include "hal/link_clocker.h"
-#include "hal/mgmt.h"
 #include "hal/snoop_logger.h"
 #include "metrics/counter_metrics.h"
-#include "os/log.h"
+#include "os/mgmt.h"
 #include "os/reactor.h"
 #include "os/thread.h"
 
@@ -148,7 +148,7 @@ int waitHciDev(int hci_interface) {
       if (n < 0) {
         bluetooth::log::error("Error reading control channel: {}", strerror(errno));
         break;
-      } else if (n == 0) { // unlikely to happen, just a safeguard.
+      } else if (n == 0) {  // unlikely to happen, just a safeguard.
         bluetooth::log::error("Error reading control channel: EOF");
         break;
       }
@@ -312,7 +312,9 @@ public:
     write_to_fd(packet);
   }
 
-  uint16_t getMsftOpcode() override { return Mgmt().get_vs_opcode(MGMT_VS_OPCODE_MSFT); }
+  uint16_t getMsftOpcode() override {
+    return os::Management::getInstance().getVendorSpecificCode(MGMT_VS_OPCODE_MSFT);
+  }
 
   void markControllerBroken() override {
     std::lock_guard<std::mutex> lock(api_mutex_);
@@ -338,6 +340,7 @@ protected:
     // We don't want to crash when the chipset is broken.
     if (sock_fd_ == INVALID_FD) {
       log::error("Failed to connect to HCI socket. Aborting HAL initialization process.");
+      controller_broken_ = true;
       kill(getpid(), SIGTERM);
       return;
     }
@@ -369,7 +372,11 @@ protected:
       std::lock_guard<std::mutex> incoming_packet_callback_lock(incoming_packet_callback_mutex_);
       incoming_packet_callback_ = nullptr;
     }
+    auto start = std::chrono::high_resolution_clock::now();
     ::close(sock_fd_);
+    auto end = std::chrono::high_resolution_clock::now();
+    int64_t duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    log::info("Spent {} milliseconds on closing socket", duration);
     sock_fd_ = INVALID_FD;
     log::info("HAL is closed");
   }

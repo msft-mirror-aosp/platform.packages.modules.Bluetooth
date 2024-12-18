@@ -20,30 +20,24 @@
 #define GATT_INT_H
 
 #include <base/functional/bind.h>
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 
 #include <deque>
 #include <list>
+#include <map>
 #include <unordered_set>
 #include <vector>
 
 #include "common/circular_buffer.h"
-#include "common/init_flags.h"
 #include "common/strings.h"
 #include "gatt_api.h"
 #include "internal_include/bt_target.h"
 #include "macros.h"
-#include "main/shim/dumpsys.h"
+#include "os/logging/log_adapter.h"
 #include "osi/include/fixed_queue.h"
 #include "stack/include/bt_hdr.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
-
-#define GATT_CREATE_CONN_ID(tcb_idx, gatt_if) \
-  ((uint16_t)((((uint8_t)(tcb_idx)) << 8) | ((uint8_t)(gatt_if))))
-#define GATT_GET_TCB_IDX(conn_id) ((uint8_t)(((uint16_t)(conn_id)) >> 8))
-#define GATT_GET_GATT_IF(conn_id) ((tGATT_IF)((uint8_t)(conn_id)))
 
 #define GATT_TRANS_ID_MAX 0x0fffffff /* 4 MSB is reserved */
 #define GATT_CL_RCB_MAX 255          /* Maximum number of cl_rcb */
@@ -69,7 +63,7 @@ inline std::string gatt_security_action_text(const tGATT_SEC_ACTION& action) {
     CASE_RETURN_TEXT(GATT_SEC_ENCRYPT_MITM);
     CASE_RETURN_TEXT(GATT_SEC_ENC_PENDING);
     default:
-      return base::StringPrintf("UNKNOWN[%hhu]", action);
+      return std::format("UNKNOWN[{}]", static_cast<uint8_t>(action));
   }
 }
 
@@ -201,6 +195,7 @@ typedef struct {
   bool eatt_support{false};
   std::string name;
   std::set<RawAddress> direct_connect_request;
+  std::map<RawAddress, uint16_t> mtu_prefs;
 } tGATT_REG;
 
 struct tGATT_CLCB;
@@ -252,7 +247,7 @@ inline std::string gatt_channel_state_text(const tGATT_CH_STATE& state) {
     CASE_RETURN_TEXT(GATT_CH_CFG);
     CASE_RETURN_TEXT(GATT_CH_OPEN);
     default:
-      return base::StringPrintf("UNKNOWN[%hhu]", state);
+      return std::format("UNKNOWN[{}]", static_cast<uint8_t>(state));
   }
 }
 
@@ -344,10 +339,10 @@ typedef struct {
 
   /* ATT Exchange MTU data */
   uint16_t pending_user_mtu_exchange_value;
-  std::list<uint16_t> conn_ids_waiting_for_mtu_exchange;
+  std::list<tCONN_ID> conn_ids_waiting_for_mtu_exchange;
   /* Used to set proper TX DATA LEN on the controller*/
   uint16_t max_user_mtu;
-
+  uint16_t app_mtu_pref;  // Holds consolidated MTU preference from apps at the time of connection
 } tGATT_TCB;
 
 /* logic channel */
@@ -362,7 +357,7 @@ struct tGATT_CLCB {
   uint8_t sccb_idx;
   uint8_t* p_attr_buf; /* attribute buffer for read multiple, prepare write */
   bluetooth::Uuid uuid;
-  uint16_t conn_id;  /* connection handle */
+  tCONN_ID conn_id;  /* connection handle */
   uint16_t s_handle; /* starting handle of the active request */
   uint16_t e_handle; /* ending handle of the active request */
   uint16_t counter;  /* used as offset, attribute length, num of prepare write */
@@ -393,7 +388,7 @@ typedef struct {
 #define GATT_SVC_CHANGED_CONFIGURE_CCCD 5 /* config CCC */
 
 typedef struct {
-  uint16_t conn_id;
+  tCONN_ID conn_id;
   bool in_use;
   bool connected;
   RawAddress bda;
@@ -420,7 +415,7 @@ typedef struct {
   fixed_queue_t* srv_chg_clt_q; /* service change clients queue */
   tGATT_REG cl_rcb[GATT_MAX_APPS];
 
-  tGATT_IF next_gatt_if; /* potential next gatt if, should be greater than 0 */
+  tGATT_IF last_gatt_if; /* last used gatt_if, used to find the next gatt_if easily */
   std::unordered_map<tGATT_IF, std::unique_ptr<tGATT_REG>> cl_rcb_map;
 
   /* list of connection link control blocks.
@@ -472,13 +467,12 @@ namespace {
 constexpr char kTimeFormatString[] = "%Y-%m-%d %H:%M:%S";
 
 constexpr unsigned MillisPerSecond = 1000;
-inline std::string EpochMillisToString(long long time_ms) {
+inline std::string EpochMillisToString(uint64_t time_ms) {
   time_t time_sec = time_ms / MillisPerSecond;
   struct tm tm;
   localtime_r(&time_sec, &tm);
   std::string s = bluetooth::common::StringFormatTime(kTimeFormatString, tm);
-  return base::StringPrintf("%s.%03u", s.c_str(),
-                            static_cast<unsigned int>(time_ms % MillisPerSecond));
+  return std::format("{}.{:03}", s, time_ms % MillisPerSecond);
 }
 }  // namespace
 
@@ -488,9 +482,8 @@ struct tTCB_STATE_HISTORY {
   tGATT_CH_STATE state;
   std::string holders_info;
   std::string ToString() const {
-    return base::StringPrintf("%s, %s, state: %s, %s", ADDRESS_TO_LOGGABLE_CSTR(address),
-                              bt_transport_text(transport).c_str(),
-                              gatt_channel_state_text(state).c_str(), holders_info.c_str());
+    return std::format("{}, {}, state: {}, {}", address, bt_transport_text(transport),
+                       gatt_channel_state_text(state), holders_info);
   }
 };
 
@@ -503,10 +496,6 @@ bool gatt_act_connect(tGATT_REG* p_reg, const RawAddress& bd_addr, tBT_TRANSPORT
                       int8_t initiating_phys);
 bool gatt_act_connect(tGATT_REG* p_reg, const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type,
                       tBT_TRANSPORT transport, int8_t initiating_phys);
-bool gatt_connect(const RawAddress& rem_bda, tGATT_TCB* p_tcb, tBT_TRANSPORT transport,
-                  uint8_t initiating_phys, tGATT_IF gatt_if);
-bool gatt_connect(const RawAddress& rem_bda, tGATT_TCB* p_tcb, tBLE_ADDR_TYPE addr_type,
-                  tBT_TRANSPORT transport, uint8_t initiating_phys, tGATT_IF gatt_if);
 void gatt_data_process(tGATT_TCB& p_tcb, uint16_t cid, BT_HDR* p_buf);
 void gatt_update_app_use_link_flag(tGATT_IF gatt_if, tGATT_TCB* p_tcb, bool is_add,
                                    bool check_acl_link);
@@ -521,10 +510,10 @@ void gatt_chk_srv_chg(tGATTS_SRV_CHG* p_srv_chg_clt);
 void gatt_add_a_bonded_dev_for_srv_chg(const RawAddress& bda);
 
 /* from gatt_attr.cc */
-uint16_t gatt_profile_find_conn_id_by_bd_addr(const RawAddress& bda);
+tCONN_ID gatt_profile_find_conn_id_by_bd_addr(const RawAddress& bda);
 
 bool gatt_profile_get_eatt_support(const RawAddress& remote_bda);
-bool gatt_profile_get_eatt_support_by_conn_id(uint16_t conn_id);
+bool gatt_profile_get_eatt_support_by_conn_id(tCONN_ID conn_id);
 void gatt_cl_init_sr_status(tGATT_TCB& tcb);
 bool gatt_cl_read_sr_supp_feat_req(const RawAddress& peer_bda,
                                    base::OnceCallback<void(const RawAddress&, uint8_t)> cb);
@@ -578,6 +567,9 @@ void gatt_delete_dev_from_srv_chg_clt_list(const RawAddress& bd_addr);
 void gatt_add_pending_ind(tGATT_TCB* p_tcb, tGATT_VALUE* p_ind);
 void gatt_free_srvc_db_buffer_app_id(const bluetooth::Uuid& app_id);
 bool gatt_cl_send_next_cmd_inq(tGATT_TCB& tcb);
+tCONN_ID gatt_create_conn_id(tTCB_IDX tcb_idx, tGATT_IF gatt_if);
+tTCB_IDX gatt_get_tcb_idx(tCONN_ID conn_id);
+tGATT_IF gatt_get_gatt_if(tCONN_ID conn_id);
 
 /* reserved handle list */
 std::list<tGATT_HDL_LIST_ELEM>::iterator gatt_find_hdl_buffer_by_app_id(
@@ -595,7 +587,7 @@ tGATT_STATUS gatt_sr_process_app_rsp(tGATT_TCB& tcb, tGATT_IF gatt_if, uint32_t 
                                      tGATT_SR_CMD* sr_res_p);
 void gatt_server_handle_client_req(tGATT_TCB& p_tcb, uint16_t cid, uint8_t op_code, uint16_t len,
                                    uint8_t* p_data);
-void gatt_sr_send_req_callback(uint16_t conn_id, uint32_t trans_id, uint8_t op_code,
+void gatt_sr_send_req_callback(tCONN_ID conn_id, uint32_t trans_id, uint8_t op_code,
                                tGATTS_DATA* p_req_data);
 uint32_t gatt_sr_enqueue_cmd(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint16_t handle);
 bool gatt_cancel_open(tGATT_IF gatt_if, const RawAddress& bda);
@@ -607,8 +599,8 @@ void gatt_notify_subrate_change(uint16_t handle, uint16_t subrate_factor, uint16
 bool gatt_tcb_is_cid_busy(tGATT_TCB& tcb, uint16_t cid);
 
 tGATT_REG* gatt_get_regcb(tGATT_IF gatt_if);
-bool gatt_is_clcb_allocated(uint16_t conn_id);
-tGATT_CLCB* gatt_clcb_alloc(uint16_t conn_id);
+bool gatt_is_clcb_allocated(tCONN_ID conn_id);
+tGATT_CLCB* gatt_clcb_alloc(tCONN_ID conn_id);
 
 bool gatt_tcb_get_cid_available_for_indication(tGATT_TCB* p_tcb, bool eatt_support,
                                                uint16_t** indicate_handle_p, uint16_t* cid_p);
@@ -619,7 +611,7 @@ std::string gatt_tcb_get_holders_info_string(const tGATT_TCB* p_tcb);
 void gatt_clcb_invalidate(tGATT_TCB* p_tcb, const tGATT_CLCB* p_clcb);
 uint16_t gatt_get_mtu(const RawAddress& bda, tBT_TRANSPORT transport);
 bool gatt_is_pending_mtu_exchange(tGATT_TCB* p_tcb);
-void gatt_set_conn_id_waiting_for_mtu_exchange(tGATT_TCB* p_tcb, uint16_t conn_id);
+void gatt_set_conn_id_waiting_for_mtu_exchange(tGATT_TCB* p_tcb, tCONN_ID conn_id);
 
 void gatt_sr_copy_prep_cnt_to_cback_cnt(tGATT_TCB& p_tcb);
 bool gatt_sr_is_cback_cnt_zero(tGATT_TCB& p_tcb);
@@ -638,6 +630,9 @@ tGATT_TCB* gatt_allocate_tcb_by_bdaddr(const RawAddress& bda, tBT_TRANSPORT tran
 tGATT_TCB* gatt_get_tcb_by_idx(uint8_t tcb_idx);
 tGATT_TCB* gatt_find_tcb_by_addr(const RawAddress& bda, tBT_TRANSPORT transport);
 bool gatt_send_ble_burst_data(const RawAddress& remote_bda, BT_HDR* p_buf);
+uint16_t gatt_get_mtu_pref(const tGATT_REG* p_reg, const RawAddress& bda);
+uint16_t gatt_get_apps_preferred_mtu(const RawAddress& bda);
+void gatt_remove_apps_mtu_prefs(const RawAddress& bda);
 
 /* GATT client functions */
 void gatt_dequeue_sr_cmd(tGATT_TCB& tcb, uint16_t cid);
@@ -690,13 +685,23 @@ tGATT_STATUS gatts_write_attr_perm_check(tGATT_SVC_DB* p_db, uint8_t op_code, ui
 tGATT_STATUS gatts_read_attr_perm_check(tGATT_SVC_DB* p_db, bool is_long, uint16_t handle,
                                         tGATT_SEC_FLAG sec_flag, uint8_t key_size);
 bluetooth::Uuid* gatts_get_service_uuid(tGATT_SVC_DB* p_db);
+void gatts_proc_srv_chg_ind_ack(tGATT_TCB tcb);
 
 /* gatt_sr_hash.cc */
 Octet16 gatts_calculate_database_hash(std::list<tGATT_SRV_LIST_ELEM>* lst_ptr);
 
-namespace fmt {
+namespace bluetooth {
+namespace legacy {
+namespace testing {
+BT_HDR* attp_build_value_cmd(uint16_t payload_size, uint8_t op_code, uint16_t handle,
+                             uint16_t offset, uint16_t len, uint8_t* p_data);
+}  // namespace testing
+}  // namespace legacy
+}  // namespace bluetooth
+
+namespace std {
 template <>
 struct formatter<tGATT_CH_STATE> : enum_formatter<tGATT_CH_STATE> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif

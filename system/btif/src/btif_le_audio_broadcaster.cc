@@ -16,13 +16,22 @@
  */
 
 #include <base/functional/bind.h>
-#include <hardware/bluetooth.h>
 #include <hardware/bt_le_audio.h>
+
+#include <cstdint>
+#include <memory>
+#include <optional>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "bta_le_audio_api.h"
 #include "bta_le_audio_broadcaster_api.h"
 #include "btif_common.h"
 #include "stack/include/main_thread.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using base::Bind;
 using base::Unretained;
@@ -109,6 +118,11 @@ class LeAudioBroadcasterInterfaceImpl : public LeAudioBroadcasterInterface,
           const bluetooth::le_audio::BroadcastMetadata& broadcast_metadata) override {
     do_in_jni_thread(Bind(&LeAudioBroadcasterCallbacks::OnBroadcastMetadataChanged,
                           Unretained(callbacks_), broadcast_id, broadcast_metadata));
+  }
+
+  void OnBroadcastAudioSessionCreated(bool success) override {
+    do_in_jni_thread(Bind(&LeAudioBroadcasterCallbacks::OnBroadcastAudioSessionCreated,
+                          Unretained(callbacks_), success));
   }
 
   void Stop(void) override { do_in_main_thread(Bind(&LeAudioBroadcaster::Stop)); }

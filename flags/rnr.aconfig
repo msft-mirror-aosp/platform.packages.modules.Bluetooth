@@ -2,13 +2,6 @@ package: "com.android.bluetooth.flags"
 container: "com.android.btservices"
 
 flag {
-    name: "rnr_reset_state_at_cancel"
-    namespace: "bluetooth"
-    description: "Clear rnr in-progress-state when rnr_cancel called"
-    bug: "333094503"
-}
-
-flag {
     name: "rnr_store_device_type"
     namespace: "bluetooth"
     description: "Store BREDR/LE when issuing RNR so we can cancel the correct type"

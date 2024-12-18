@@ -59,7 +59,6 @@ typedef struct {
   uint16_t product_id;
   uint16_t product_version;
   uint8_t vendor_id_src;
-
 } tDIS_PNP_ID;
 
 typedef union {
@@ -106,7 +105,6 @@ typedef struct {
   tBA_LEVEL_DESCR ba_level_descr;
   tBT_TRANSPORT transport;
   tBA_CBACK* p_cback;
-
 } tBA_REG_INFO;
 
 typedef union {
@@ -132,26 +130,6 @@ typedef union {
  ******************************************************************************/
 tGATT_STATUS srvc_eng_init(void);
 
-/*****************************************************************************
- *  DIS Server Function
- ****************************************************************************/
-
-/*******************************************************************************
- *
- * Function         DIS_SrInit
- *
- * Description      Initializa the Device Information Service Server.
- *
- ******************************************************************************/
-tDIS_STATUS DIS_SrInit(tDIS_ATTR_MASK dis_attr_mask);
-/*******************************************************************************
- *
- * Function         DIS_SrUpdate
- *
- * Description      Update the DIS server attribute values
- *
- ******************************************************************************/
-tDIS_STATUS DIS_SrUpdate(tDIS_ATTR_BIT dis_attr_bit, tDIS_ATTR* p_info);
 /*****************************************************************************
  *  DIS Client Function
  ****************************************************************************/

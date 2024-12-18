@@ -31,7 +31,6 @@
 #include "hci/le_scanning_reassembler.h"
 #include "module.h"
 #include "os/handler.h"
-#include "os/log.h"
 #include "os/system_properties.h"
 #include "storage/storage_module.h"
 
@@ -467,7 +466,12 @@ struct LeScanningManager::impl : public LeAddressManagerCallback {
     stop_scan();
 
     if (le_address_manager_->GetAddressPolicy() != LeAddressManager::USE_PUBLIC_ADDRESS) {
-      own_address_type_ = OwnAddressType::RANDOM_DEVICE_ADDRESS;
+      if (controller_->IsRpaGenerationSupported()) {
+        log::info("Support RPA offload, set own address type RESOLVABLE_OR_RANDOM_ADDRESS");
+        own_address_type_ = OwnAddressType::RESOLVABLE_OR_RANDOM_ADDRESS;
+      } else {
+        own_address_type_ = OwnAddressType::RANDOM_DEVICE_ADDRESS;
+      }
     } else {
       own_address_type_ = OwnAddressType::PUBLIC_DEVICE_ADDRESS;
     }
@@ -1573,8 +1577,14 @@ struct LeScanningManager::impl : public LeAddressManagerCallback {
       return;
     }
     paused_ = false;
-    if (scan_on_resume_ == true) {
+    if (scan_on_resume_) {
       scan_on_resume_ = false;
+      if (com::android::bluetooth::flags::configure_scan_on_resume()) {
+        // This is a workaround for b/381010390.
+        // We'll eventually recover scan parameters which could be overridden by
+        // btm_send_hci_set_scan_params.
+        configure_scan();
+      }
       start_scan();
     }
     le_address_manager_->AckResume(this);

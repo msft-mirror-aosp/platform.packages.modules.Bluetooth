@@ -22,7 +22,7 @@
 #include <vector>
 
 #include "stack/include/bt_hdr.h"
-#include "stack/include/l2c_api.h"
+#include "stack/include/l2cap_interface.h"
 #include "types/raw_address.h"
 
 namespace bluetooth {
@@ -71,6 +71,7 @@ public:
                uint16_t(uint16_t psm, const tL2CAP_APPL_INFO& cb_info, uint16_t sec_level));
   MOCK_METHOD1(DeregisterLECoc, void(uint16_t psm));
   MOCK_METHOD1(GetBleConnRole, uint8_t(const RawAddress& bd_addr));
+  MOCK_METHOD1(GetBleConnInterval, uint16_t(const RawAddress& bd_addr));
   MOCK_METHOD5(ConnectCreditBasedRsp,
                bool(const RawAddress& p_bd_addr, uint8_t id, std::vector<uint16_t>& lcids,
                     tL2CAP_LE_RESULT_CODE result, tL2CAP_LE_CFG_INFO* p_cfg));

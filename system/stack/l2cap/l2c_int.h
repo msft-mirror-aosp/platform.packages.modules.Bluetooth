@@ -23,7 +23,6 @@
  ******************************************************************************/
 #pragma once
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 #include <stdbool.h>
 
@@ -38,8 +37,8 @@
 #include "stack/include/bt_hdr.h"
 #include "stack/include/btm_sec_api_types.h"
 #include "stack/include/hci_error_code.h"
-#include "stack/include/l2c_api.h"
-#include "stack/include/l2cdefs.h"
+#include "stack/include/l2cap_interface.h"
+#include "stack/l2cap/internal/l2c_api.h"
 #include "types/hci_role.h"
 #include "types/raw_address.h"
 
@@ -95,7 +94,7 @@ inline std::string channel_state_text(const tL2C_CHNL_STATE& state) {
     CASE_RETURN_TEXT(CST_W4_L2CAP_DISCONNECT_RSP);
     CASE_RETURN_TEXT(CST_W4_L2CA_DISCONNECT_RSP);
     default:
-      return base::StringPrintf("UNKNOWN[%d]", state);
+      return std::format("UNKNOWN[{}]", static_cast<int>(state));
   }
 }
 
@@ -282,6 +281,11 @@ struct tL2C_CCB {
 
   alarm_t* l2c_ccb_timer; /* CCB Timer Entry */
 
+#if (L2CAP_CONFORMANCE_TESTING == TRUE)
+  alarm_t* pts_config_delay_timer; /* Used to delay sending CONFIGURATION_REQ to overcome PTS issue
+                                    */
+#endif
+
   tL2C_RCB* p_rcb; /* Registration CB for this Channel */
 
 #define IB_CFG_DONE 0x01
@@ -424,6 +428,7 @@ public:
 
 private:
   tHCI_ROLE link_role_{HCI_ROLE_CENTRAL}; /* Central or peripheral */
+  uint16_t conn_interval_;
 
 public:
   tHCI_ROLE LinkRole() const { return link_role_; }
@@ -431,6 +436,8 @@ public:
   bool IsLinkRolePeripheral() const { return link_role_ == HCI_ROLE_PERIPHERAL; }
   void SetLinkRoleAsCentral() { link_role_ = HCI_ROLE_CENTRAL; }
   void SetLinkRoleAsPeripheral() { link_role_ = HCI_ROLE_PERIPHERAL; }
+  uint16_t ConnInterval() const { return conn_interval_; }
+  void SetConnInterval(uint16_t conn_interval) { conn_interval_ = conn_interval; }
 
   uint8_t signal_id;     /* Signalling channel id */
   uint8_t cur_echo_id;   /* Current id value for echo request */
@@ -762,6 +769,7 @@ void l2cu_release_ble_rcb(tL2C_RCB* p_rcb);
 tL2C_RCB* l2cu_allocate_ble_rcb(uint16_t psm);
 tL2C_RCB* l2cu_find_ble_rcb_by_psm(uint16_t psm);
 
+uint8_t l2cu_get_fcs_len(tL2C_CCB* p_ccb);
 uint8_t l2cu_process_peer_cfg_req(tL2C_CCB* p_ccb, tL2CAP_CFG_INFO* p_cfg);
 void l2cu_process_peer_cfg_rsp(tL2C_CCB* p_ccb, tL2CAP_CFG_INFO* p_cfg);
 void l2cu_process_our_cfg_req(tL2C_CCB* p_ccb, tL2CAP_CFG_INFO* p_cfg);
@@ -778,11 +786,12 @@ void l2cu_adjust_out_mps(tL2C_CCB* p_ccb);
 /* Functions provided by l2c_link.cc
  ***********************************
  */
+
 void l2c_link_timeout(tL2C_LCB* p_lcb);
 void l2c_info_resp_timer_timeout(void* data);
 void l2c_link_check_send_pkts(tL2C_LCB* p_lcb, uint16_t local_cid, BT_HDR* p_buf);
 void l2c_link_adjust_allocation(void);
-
+void l2c_link_hci_conn_comp(tHCI_STATUS status, uint16_t handle, const RawAddress& p_bda);
 void l2c_link_sec_comp(RawAddress p_bda, tBT_TRANSPORT transport, void* p_ref_data,
                        tBTM_STATUS status);
 void l2c_link_adjust_chnl_allocation(void);
@@ -826,10 +835,11 @@ void l2c_fcr_stop_timer(tL2C_CCB* p_ccb);
 /* Functions provided by l2c_ble.cc
  ***********************************
  */
+
 bool l2cble_create_conn(tL2C_LCB* p_lcb);
 void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len);
 void l2c_ble_link_adjust_allocation(void);
-
+void l2cble_start_conn_update(tL2C_LCB* p_lcb);
 void l2cble_credit_based_conn_req(tL2C_CCB* p_ccb);
 void l2cble_credit_based_conn_res(tL2C_CCB* p_ccb, tL2CAP_LE_RESULT_CODE result);
 void l2cble_send_peer_disc_req(tL2C_CCB* p_ccb);
@@ -846,11 +856,11 @@ void l2cble_process_subrate_change_evt(uint16_t handle, uint8_t status, uint16_t
                                        uint16_t peripheral_latency, uint16_t cont_num,
                                        uint16_t timeout);
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tL2C_LINK_STATE> : enum_formatter<tL2C_LINK_STATE> {};
 template <>
 struct formatter<tL2CEVT> : enum_formatter<tL2CEVT> {};
 template <>
 struct formatter<tL2C_CHNL_STATE> : enum_formatter<tL2C_CHNL_STATE> {};
-}  // namespace fmt
+}  // namespace std

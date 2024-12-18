@@ -2,17 +2,12 @@ use clap::{App, AppSettings, Arg};
 use dbus_projection::DisconnectWatcher;
 use dbus_tokio::connection;
 use futures::future;
-use lazy_static::lazy_static;
 use nix::sys::signal;
 use std::error::Error;
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
 use tokio::runtime::Builder;
 use tokio::sync::mpsc::Sender;
-
-// Necessary to link right entries.
-#[allow(clippy::single_component_path_imports, unused_imports)]
-use bt_shim;
 
 use bt_topshim::{btif::get_btinterface, topstack};
 use btstack::{
@@ -49,7 +44,7 @@ const ADMIN_SETTINGS_FILE_PATH: &str = "/var/lib/bluetooth/admin_policy.json";
 // and BTA_DM_DISABLE_TIMER_RETRIAL_MS
 const STACK_TURN_OFF_TIMEOUT_MS: Duration = Duration::from_millis(4000);
 // Time bt_stack_manager waits for cleanup
-const STACK_CLEANUP_TIMEOUT_MS: Duration = Duration::from_millis(1000);
+const STACK_CLEANUP_TIMEOUT_MS: Duration = Duration::from_millis(11000);
 // Time bt_stack_manager waits for cleanup profiles
 const STACK_CLEANUP_PROFILES_TIMEOUT_MS: Duration = Duration::from_millis(100);
 // Extra time to wait before terminating the process
@@ -60,7 +55,6 @@ const INIT_LOGGING_MAX_RETRY: u8 = 3;
 /// Runs the Bluetooth daemon serving D-Bus IPC.
 fn main() -> Result<(), Box<dyn Error>> {
     let matches = App::new("Bluetooth Adapter Daemon")
-        // Allows multiple INIT_ flags to be given at the end of the arguments.
         .setting(AppSettings::TrailingVarArg)
         .arg(
             Arg::with_name("hci")
@@ -83,7 +77,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .short("v")
                 .help("Enables VERBOSE and additional tags for debug logging. Use with --debug."),
         )
-        .arg(Arg::from_usage("[init-flags] 'Fluoride INIT_ flags'").multiple(true))
         .arg(
             Arg::with_name("log-output")
                 .long("log-output")
@@ -100,12 +93,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let virt_index = matches.value_of("index").map_or(0, |idx| idx.parse::<i32>().unwrap_or(0));
     let hci_index = matches.value_of("hci").map_or(0, |idx| idx.parse::<i32>().unwrap_or(0));
-
-    // The remaining flags are passed down to Fluoride as is.
-    let init_flags: Vec<String> = match matches.values_of("init-flags") {
-        Some(args) => args.map(String::from).collect(),
-        None => vec![],
-    };
 
     let logging = Arc::new(Mutex::new(Box::new(BluetoothLogging::new(
         is_debug,
@@ -179,7 +166,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         let battery_provider_manager =
             Arc::new(Mutex::new(Box::new(BatteryProviderManager::new(tx.clone()))));
 
-        bluetooth.lock().unwrap().init(init_flags, hci_index);
+        bluetooth.lock().unwrap().init(hci_index);
         bluetooth.lock().unwrap().enable();
 
         // These constructions require |intf| to be already init-ed.
@@ -187,6 +174,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             tx.clone(),
             bt_sock_mgr_runtime,
             intf.clone(),
+            bluetooth.clone(),
         ))));
         let bluetooth_media = Arc::new(Mutex::new(Box::new(BluetoothMedia::new(
             tx.clone(),
@@ -276,10 +264,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     })
 }
 
-lazy_static! {
-    /// Data needed for signal handling.
-    static ref SIG_DATA: Mutex<Option<(Sender<Message>, Arc<SigData>)>> = Mutex::new(None);
-}
+/// Data needed for signal handling.
+static SIG_DATA: Mutex<Option<(Sender<Message>, Arc<SigData>)>> = Mutex::new(None);
 
 extern "C" fn handle_sigterm(_signum: i32) {
     let guard = SIG_DATA.lock().unwrap();

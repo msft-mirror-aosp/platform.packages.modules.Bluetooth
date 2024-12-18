@@ -16,10 +16,10 @@
 
 package com.android.bluetooth.btservice.storage;
 
-import static org.junit.Assert.assertThat;
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -50,8 +50,6 @@ import androidx.test.runner.AndroidJUnit4;
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.flags.Flags;
-
-import com.google.common.truth.Truth;
 
 import org.hamcrest.CoreMatchers;
 import org.junit.After;
@@ -84,6 +82,8 @@ public final class DatabaseManagerTest {
     private BluetoothDevice mTestDevice;
     private BluetoothDevice mTestDevice2;
     private BluetoothDevice mTestDevice3;
+    private BluetoothDevice mTestDevice4;
+    private BluetoothDevice mTestDevice5;
 
     private static final String LOCAL_STORAGE = "LocalStorage";
     private static final String TEST_BT_ADDR = "11:22:33:44:55:66";
@@ -93,7 +93,7 @@ public final class DatabaseManagerTest {
     private static final String OTHER_BT_ADDR2 = "22:22:22:22:22:22";
     private static final String DB_NAME = "test_db";
     private static final int A2DP_SUPPORT_OP_CODEC_TEST = 0;
-    private static final int A2DP_ENALBED_OP_CODEC_TEST = 1;
+    private static final int A2DP_ENABLED_OP_CODEC_TEST = 1;
     private static final int MAX_META_ID = 16;
     private static final byte[] TEST_BYTE_ARRAY = "TEST_VALUE".getBytes();
 
@@ -113,6 +113,8 @@ public final class DatabaseManagerTest {
         mTestDevice = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(TEST_BT_ADDR);
         mTestDevice2 = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(TEST_BT_ADDR2);
         mTestDevice3 = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(TEST_BT_ADDR3);
+        mTestDevice4 = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(OTHER_BT_ADDR1);
+        mTestDevice5 = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(OTHER_BT_ADDR2);
 
         // Create a memory database for DatabaseManager instead of use a real database.
         mDatabase =
@@ -131,7 +133,7 @@ public final class DatabaseManagerTest {
 
         BluetoothDevice[] bondedDevices = {mTestDevice};
         doReturn(bondedDevices).when(mAdapterService).getBondedDevices();
-        doNothing().when(mAdapterService).metadataChanged(anyString(), anyInt(), any(byte[].class));
+        doNothing().when(mAdapterService).onMetadataChanged(any(), anyInt(), any());
 
         restartDatabaseManagerHelper();
     }
@@ -164,7 +166,7 @@ public final class DatabaseManagerTest {
                 mDatabaseManager.getA2dpOptionalCodecsEnabled(mTestDevice));
 
         for (int id = 0; id < MAX_META_ID; id++) {
-            Assert.assertNull(mDatabaseManager.getCustomMeta(mTestDevice, id));
+            assertThat(mDatabaseManager.getCustomMeta(mTestDevice, id)).isNull();
         }
 
         mDatabaseManager.factoryReset();
@@ -271,44 +273,44 @@ public final class DatabaseManagerTest {
 
         // Cases of device not in database
         testSetGetA2dpOptionalCodecsCase(
-                A2DP_ENALBED_OP_CODEC_TEST,
+                A2DP_ENABLED_OP_CODEC_TEST,
                 false,
                 BluetoothA2dp.OPTIONAL_CODECS_PREF_UNKNOWN,
                 BluetoothA2dp.OPTIONAL_CODECS_PREF_UNKNOWN);
         testSetGetA2dpOptionalCodecsCase(
-                A2DP_ENALBED_OP_CODEC_TEST,
+                A2DP_ENABLED_OP_CODEC_TEST,
                 false,
                 BluetoothA2dp.OPTIONAL_CODECS_PREF_DISABLED,
                 BluetoothA2dp.OPTIONAL_CODECS_PREF_UNKNOWN);
         testSetGetA2dpOptionalCodecsCase(
-                A2DP_ENALBED_OP_CODEC_TEST,
+                A2DP_ENABLED_OP_CODEC_TEST,
                 false,
                 BluetoothA2dp.OPTIONAL_CODECS_PREF_ENABLED,
                 BluetoothA2dp.OPTIONAL_CODECS_PREF_UNKNOWN);
         testSetGetA2dpOptionalCodecsCase(
-                A2DP_ENALBED_OP_CODEC_TEST,
+                A2DP_ENABLED_OP_CODEC_TEST,
                 false,
                 badValue,
                 BluetoothA2dp.OPTIONAL_CODECS_PREF_UNKNOWN);
 
         // Cases of device already in database
         testSetGetA2dpOptionalCodecsCase(
-                A2DP_ENALBED_OP_CODEC_TEST,
+                A2DP_ENABLED_OP_CODEC_TEST,
                 true,
                 BluetoothA2dp.OPTIONAL_CODECS_PREF_UNKNOWN,
                 BluetoothA2dp.OPTIONAL_CODECS_PREF_UNKNOWN);
         testSetGetA2dpOptionalCodecsCase(
-                A2DP_ENALBED_OP_CODEC_TEST,
+                A2DP_ENABLED_OP_CODEC_TEST,
                 true,
                 BluetoothA2dp.OPTIONAL_CODECS_PREF_DISABLED,
                 BluetoothA2dp.OPTIONAL_CODECS_PREF_DISABLED);
         testSetGetA2dpOptionalCodecsCase(
-                A2DP_ENALBED_OP_CODEC_TEST,
+                A2DP_ENABLED_OP_CODEC_TEST,
                 true,
                 BluetoothA2dp.OPTIONAL_CODECS_PREF_ENABLED,
                 BluetoothA2dp.OPTIONAL_CODECS_PREF_ENABLED);
         testSetGetA2dpOptionalCodecsCase(
-                A2DP_ENALBED_OP_CODEC_TEST,
+                A2DP_ENABLED_OP_CODEC_TEST,
                 true,
                 badValue,
                 BluetoothA2dp.OPTIONAL_CODECS_PREF_UNKNOWN);
@@ -333,7 +335,7 @@ public final class DatabaseManagerTest {
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
 
         // Check removed device report metadata changed to null
-        verify(mAdapterService).metadataChanged(OTHER_BT_ADDR1, 0, null);
+        verify(mAdapterService).onMetadataChanged(mTestDevice4, 0, null);
 
         List<Metadata> list = mDatabase.load();
 
@@ -374,18 +376,14 @@ public final class DatabaseManagerTest {
         mDatabase.insert(otherData2);
 
         // Add OTHER_BT_ADDR1 OTHER_BT_ADDR2 to bonded devices
-        BluetoothDevice otherDevice1 =
-                BluetoothAdapter.getDefaultAdapter().getRemoteDevice(OTHER_BT_ADDR1);
-        BluetoothDevice otherDevice2 =
-                BluetoothAdapter.getDefaultAdapter().getRemoteDevice(OTHER_BT_ADDR2);
-        BluetoothDevice[] bondedDevices = {otherDevice1, otherDevice2};
+        BluetoothDevice[] bondedDevices = {mTestDevice4, mTestDevice5};
         doReturn(bondedDevices).when(mAdapterService).getBondedDevices();
 
         mDatabaseManager.removeUnusedMetadata();
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
 
         // Check TEST_BT_ADDR report metadata changed to null
-        verify(mAdapterService).metadataChanged(TEST_BT_ADDR, 0, null);
+        verify(mAdapterService).onMetadataChanged(mTestDevice, 0, null);
 
         // Check number of metadata in the database
         List<Metadata> list = mDatabase.load();
@@ -525,16 +523,16 @@ public final class DatabaseManagerTest {
         mSetFlagsRule.disableFlags(Flags.FLAG_AUTO_CONNECT_ON_MULTIPLE_HFP_WHEN_NO_A2DP_DEVICE);
         // Verify pre-conditions to ensure a fresh test
         Assert.assertEquals(0, mDatabaseManager.mMetadataCache.size());
-        Assert.assertNotNull(mTestDevice);
-        Assert.assertNotNull(mTestDevice2);
-        Assert.assertNull(mDatabaseManager.getMostRecentlyActiveHfpDevice());
+        assertThat(mTestDevice).isNotNull();
+        assertThat(mTestDevice2).isNotNull();
+        assertThat(mDatabaseManager.getMostRecentlyActiveHfpDevice()).isNull();
 
         // Set the first device's connection
         mDatabaseManager.setConnection(mTestDevice, BluetoothProfile.HEADSET);
         // Wait for database update
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
-        Assert.assertTrue(
-                mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress()).isActiveHfpDevice);
+        assertThat(mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress()).isActiveHfpDevice)
+                .isTrue();
         List<BluetoothDevice> mostRecentlyConnectedDevicesOrdered =
                 mDatabaseManager.getMostRecentlyConnectedDevices();
         Assert.assertEquals(mTestDevice, mDatabaseManager.getMostRecentlyActiveHfpDevice());
@@ -545,10 +543,10 @@ public final class DatabaseManagerTest {
         mDatabaseManager.setConnection(mTestDevice2, BluetoothProfile.HEADSET);
         // Wait for database update
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
-        Assert.assertFalse(
-                mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress()).isActiveHfpDevice);
-        Assert.assertTrue(
-                mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress()).isActiveHfpDevice);
+        assertThat(mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress()).isActiveHfpDevice)
+                .isFalse();
+        assertThat(mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress()).isActiveHfpDevice)
+                .isTrue();
         Assert.assertEquals(mTestDevice2, mDatabaseManager.getMostRecentlyActiveHfpDevice());
         mostRecentlyConnectedDevicesOrdered = mDatabaseManager.getMostRecentlyConnectedDevices();
         Assert.assertEquals(2, mostRecentlyConnectedDevicesOrdered.size());
@@ -559,9 +557,9 @@ public final class DatabaseManagerTest {
         mDatabaseManager.setDisconnection(mTestDevice, BluetoothProfile.HEADSET);
         // Wait for database update
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
-        Assert.assertFalse(
-                mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress()).isActiveHfpDevice);
-        Assert.assertNotNull(mDatabaseManager.getMostRecentlyActiveHfpDevice());
+        assertThat(mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress()).isActiveHfpDevice)
+                .isFalse();
+        assertThat(mDatabaseManager.getMostRecentlyActiveHfpDevice()).isNotNull();
         mostRecentlyConnectedDevicesOrdered = mDatabaseManager.getMostRecentlyConnectedDevices();
         Assert.assertEquals(2, mostRecentlyConnectedDevicesOrdered.size());
         Assert.assertEquals(mTestDevice, mostRecentlyConnectedDevicesOrdered.get(1));
@@ -578,17 +576,18 @@ public final class DatabaseManagerTest {
         mSetFlagsRule.disableFlags(Flags.FLAG_AUTO_CONNECT_ON_MULTIPLE_HFP_WHEN_NO_A2DP_DEVICE);
         // Verify pre-conditions to ensure a fresh test
         Assert.assertEquals(0, mDatabaseManager.mMetadataCache.size());
-        Assert.assertNotNull(mTestDevice);
-        Assert.assertNotNull(mTestDevice2);
-        Assert.assertNull(mDatabaseManager.getMostRecentlyConnectedA2dpDevice());
+        assertThat(mTestDevice).isNotNull();
+        assertThat(mTestDevice2).isNotNull();
+        assertThat(mDatabaseManager.getMostRecentlyConnectedA2dpDevice()).isNull();
 
         // Set the first device's connection
         mDatabaseManager.setConnection(mTestDevice, BluetoothProfile.A2DP);
         // Wait for database update
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
-        Assert.assertTrue(
-                mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
-                        .is_active_a2dp_device);
+        assertThat(
+                        mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
+                                .is_active_a2dp_device)
+                .isTrue();
         List<BluetoothDevice> mostRecentlyConnectedDevicesOrdered =
                 mDatabaseManager.getMostRecentlyConnectedDevices();
         Assert.assertEquals(mTestDevice, mDatabaseManager.getMostRecentlyConnectedA2dpDevice());
@@ -599,12 +598,14 @@ public final class DatabaseManagerTest {
         mDatabaseManager.setConnection(mTestDevice2, BluetoothProfile.A2DP);
         // Wait for database update
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
-        Assert.assertFalse(
-                mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
-                        .is_active_a2dp_device);
-        Assert.assertTrue(
-                mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress())
-                        .is_active_a2dp_device);
+        assertThat(
+                        mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
+                                .is_active_a2dp_device)
+                .isFalse();
+        assertThat(
+                        mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress())
+                                .is_active_a2dp_device)
+                .isTrue();
         Assert.assertEquals(mTestDevice2, mDatabaseManager.getMostRecentlyConnectedA2dpDevice());
         mostRecentlyConnectedDevicesOrdered = mDatabaseManager.getMostRecentlyConnectedDevices();
         Assert.assertEquals(2, mostRecentlyConnectedDevicesOrdered.size());
@@ -615,12 +616,14 @@ public final class DatabaseManagerTest {
         mDatabaseManager.setConnection(mTestDevice, BluetoothProfile.A2DP);
         // Wait for database update
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
-        Assert.assertTrue(
-                mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
-                        .is_active_a2dp_device);
-        Assert.assertFalse(
-                mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress())
-                        .is_active_a2dp_device);
+        assertThat(
+                        mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
+                                .is_active_a2dp_device)
+                .isTrue();
+        assertThat(
+                        mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress())
+                                .is_active_a2dp_device)
+                .isFalse();
         Assert.assertEquals(mTestDevice, mDatabaseManager.getMostRecentlyConnectedA2dpDevice());
         mostRecentlyConnectedDevicesOrdered = mDatabaseManager.getMostRecentlyConnectedDevices();
         Assert.assertEquals(2, mostRecentlyConnectedDevicesOrdered.size());
@@ -631,13 +634,15 @@ public final class DatabaseManagerTest {
         mDatabaseManager.setDisconnection(mTestDevice, BluetoothProfile.A2DP);
         // Wait for database update
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
-        Assert.assertFalse(
-                mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
-                        .is_active_a2dp_device);
-        Assert.assertFalse(
-                mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress())
-                        .is_active_a2dp_device);
-        Assert.assertNull(mDatabaseManager.getMostRecentlyConnectedA2dpDevice());
+        assertThat(
+                        mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
+                                .is_active_a2dp_device)
+                .isFalse();
+        assertThat(
+                        mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress())
+                                .is_active_a2dp_device)
+                .isFalse();
+        assertThat(mDatabaseManager.getMostRecentlyConnectedA2dpDevice()).isNull();
         mostRecentlyConnectedDevicesOrdered = mDatabaseManager.getMostRecentlyConnectedDevices();
         Assert.assertEquals(2, mostRecentlyConnectedDevicesOrdered.size());
         Assert.assertEquals(mTestDevice, mostRecentlyConnectedDevicesOrdered.get(0));
@@ -647,16 +652,19 @@ public final class DatabaseManagerTest {
         mDatabaseManager.setConnection(mTestDevice3, BluetoothProfile.HEADSET);
         // Wait for database update
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
-        Assert.assertFalse(
-                mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
-                        .is_active_a2dp_device);
-        Assert.assertFalse(
-                mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress())
-                        .is_active_a2dp_device);
-        Assert.assertFalse(
-                mDatabaseManager.mMetadataCache.get(mTestDevice3.getAddress())
-                        .is_active_a2dp_device);
-        Assert.assertNull(mDatabaseManager.getMostRecentlyConnectedA2dpDevice());
+        assertThat(
+                        mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
+                                .is_active_a2dp_device)
+                .isFalse();
+        assertThat(
+                        mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress())
+                                .is_active_a2dp_device)
+                .isFalse();
+        assertThat(
+                        mDatabaseManager.mMetadataCache.get(mTestDevice3.getAddress())
+                                .is_active_a2dp_device)
+                .isFalse();
+        assertThat(mDatabaseManager.getMostRecentlyConnectedA2dpDevice()).isNull();
         mostRecentlyConnectedDevicesOrdered = mDatabaseManager.getMostRecentlyConnectedDevices();
         Assert.assertEquals(3, mostRecentlyConnectedDevicesOrdered.size());
         Assert.assertEquals(mTestDevice3, mostRecentlyConnectedDevicesOrdered.get(0));
@@ -667,15 +675,18 @@ public final class DatabaseManagerTest {
         mDatabaseManager.setConnection(mTestDevice, BluetoothProfile.A2DP);
         // Wait for database update
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
-        Assert.assertTrue(
-                mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
-                        .is_active_a2dp_device);
-        Assert.assertFalse(
-                mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress())
-                        .is_active_a2dp_device);
-        Assert.assertFalse(
-                mDatabaseManager.mMetadataCache.get(mTestDevice3.getAddress())
-                        .is_active_a2dp_device);
+        assertThat(
+                        mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
+                                .is_active_a2dp_device)
+                .isTrue();
+        assertThat(
+                        mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress())
+                                .is_active_a2dp_device)
+                .isFalse();
+        assertThat(
+                        mDatabaseManager.mMetadataCache.get(mTestDevice3.getAddress())
+                                .is_active_a2dp_device)
+                .isFalse();
         Assert.assertEquals(mTestDevice, mDatabaseManager.getMostRecentlyConnectedA2dpDevice());
         mostRecentlyConnectedDevicesOrdered = mDatabaseManager.getMostRecentlyConnectedDevices();
         Assert.assertEquals(3, mostRecentlyConnectedDevicesOrdered.size());
@@ -687,15 +698,18 @@ public final class DatabaseManagerTest {
         mDatabaseManager.setConnection(mTestDevice3, BluetoothProfile.HEADSET);
         // Wait for database update
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
-        Assert.assertTrue(
-                mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
-                        .is_active_a2dp_device);
-        Assert.assertFalse(
-                mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress())
-                        .is_active_a2dp_device);
-        Assert.assertFalse(
-                mDatabaseManager.mMetadataCache.get(mTestDevice3.getAddress())
-                        .is_active_a2dp_device);
+        assertThat(
+                        mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
+                                .is_active_a2dp_device)
+                .isTrue();
+        assertThat(
+                        mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress())
+                                .is_active_a2dp_device)
+                .isFalse();
+        assertThat(
+                        mDatabaseManager.mMetadataCache.get(mTestDevice3.getAddress())
+                                .is_active_a2dp_device)
+                .isFalse();
         Assert.assertEquals(mTestDevice, mDatabaseManager.getMostRecentlyConnectedA2dpDevice());
         mostRecentlyConnectedDevicesOrdered = mDatabaseManager.getMostRecentlyConnectedDevices();
         Assert.assertEquals(3, mostRecentlyConnectedDevicesOrdered.size());
@@ -707,15 +721,18 @@ public final class DatabaseManagerTest {
         mDatabaseManager.setDisconnection(mTestDevice2, BluetoothProfile.A2DP);
         // Wait for database update
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
-        Assert.assertTrue(
-                mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
-                        .is_active_a2dp_device);
-        Assert.assertFalse(
-                mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress())
-                        .is_active_a2dp_device);
-        Assert.assertFalse(
-                mDatabaseManager.mMetadataCache.get(mTestDevice3.getAddress())
-                        .is_active_a2dp_device);
+        assertThat(
+                        mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
+                                .is_active_a2dp_device)
+                .isTrue();
+        assertThat(
+                        mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress())
+                                .is_active_a2dp_device)
+                .isFalse();
+        assertThat(
+                        mDatabaseManager.mMetadataCache.get(mTestDevice3.getAddress())
+                                .is_active_a2dp_device)
+                .isFalse();
         Assert.assertEquals(mTestDevice, mDatabaseManager.getMostRecentlyConnectedA2dpDevice());
         mostRecentlyConnectedDevicesOrdered = mDatabaseManager.getMostRecentlyConnectedDevices();
         Assert.assertEquals(3, mostRecentlyConnectedDevicesOrdered.size());
@@ -727,16 +744,19 @@ public final class DatabaseManagerTest {
         mDatabaseManager.setDisconnection(mTestDevice, BluetoothProfile.A2DP);
         // Wait for database update
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
-        Assert.assertFalse(
-                mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
-                        .is_active_a2dp_device);
-        Assert.assertFalse(
-                mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress())
-                        .is_active_a2dp_device);
-        Assert.assertFalse(
-                mDatabaseManager.mMetadataCache.get(mTestDevice3.getAddress())
-                        .is_active_a2dp_device);
-        Assert.assertNull(mDatabaseManager.getMostRecentlyConnectedA2dpDevice());
+        assertThat(
+                        mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
+                                .is_active_a2dp_device)
+                .isFalse();
+        assertThat(
+                        mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress())
+                                .is_active_a2dp_device)
+                .isFalse();
+        assertThat(
+                        mDatabaseManager.mMetadataCache.get(mTestDevice3.getAddress())
+                                .is_active_a2dp_device)
+                .isFalse();
+        assertThat(mDatabaseManager.getMostRecentlyConnectedA2dpDevice()).isNull();
         mostRecentlyConnectedDevicesOrdered = mDatabaseManager.getMostRecentlyConnectedDevices();
         Assert.assertEquals(3, mostRecentlyConnectedDevicesOrdered.size());
         Assert.assertEquals(mTestDevice3, mostRecentlyConnectedDevicesOrdered.get(0));
@@ -747,16 +767,19 @@ public final class DatabaseManagerTest {
         mDatabaseManager.setDisconnection(mTestDevice3, BluetoothProfile.A2DP);
         // Wait for database update
         TestUtils.waitForLooperToFinishScheduledTask(mDatabaseManager.getHandlerLooper());
-        Assert.assertFalse(
-                mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
-                        .is_active_a2dp_device);
-        Assert.assertFalse(
-                mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress())
-                        .is_active_a2dp_device);
-        Assert.assertFalse(
-                mDatabaseManager.mMetadataCache.get(mTestDevice3.getAddress())
-                        .is_active_a2dp_device);
-        Assert.assertNull(mDatabaseManager.getMostRecentlyConnectedA2dpDevice());
+        assertThat(
+                        mDatabaseManager.mMetadataCache.get(mTestDevice.getAddress())
+                                .is_active_a2dp_device)
+                .isFalse();
+        assertThat(
+                        mDatabaseManager.mMetadataCache.get(mTestDevice2.getAddress())
+                                .is_active_a2dp_device)
+                .isFalse();
+        assertThat(
+                        mDatabaseManager.mMetadataCache.get(mTestDevice3.getAddress())
+                                .is_active_a2dp_device)
+                .isFalse();
+        assertThat(mDatabaseManager.getMostRecentlyConnectedA2dpDevice()).isNull();
         mostRecentlyConnectedDevicesOrdered = mDatabaseManager.getMostRecentlyConnectedDevices();
         Assert.assertEquals(3, mostRecentlyConnectedDevicesOrdered.size());
         Assert.assertEquals(mTestDevice3, mostRecentlyConnectedDevicesOrdered.get(0));
@@ -860,7 +883,7 @@ public final class DatabaseManagerTest {
         device.put("unthethered_left_charging", testString);
         device.put("unthethered_right_charging", testString);
         device.put("unthethered_case_charging", testString);
-        assertThat(
+        Assert.assertThat(
                 db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
                 CoreMatchers.not(-1));
 
@@ -987,7 +1010,7 @@ public final class DatabaseManagerTest {
         device.put("untethered_left_charging", testString);
         device.put("untethered_right_charging", testString);
         device.put("untethered_case_charging", testString);
-        assertThat(
+        Assert.assertThat(
                 db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
                 CoreMatchers.not(-1));
 
@@ -1133,7 +1156,7 @@ public final class DatabaseManagerTest {
         device.put("untethered_left_charging", testString);
         device.put("untethered_right_charging", testString);
         device.put("untethered_case_charging", testString);
-        assertThat(
+        Assert.assertThat(
                 db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
                 CoreMatchers.not(-1));
 
@@ -1202,7 +1225,7 @@ public final class DatabaseManagerTest {
         ContentValues device = new ContentValues();
         device.put("address", TEST_BT_ADDR);
         device.put("migrated", false);
-        assertThat(
+        Assert.assertThat(
                 db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
                 CoreMatchers.not(-1));
 
@@ -1230,7 +1253,7 @@ public final class DatabaseManagerTest {
         ContentValues device = new ContentValues();
         device.put("address", TEST_BT_ADDR);
         device.put("migrated", false);
-        assertThat(
+        Assert.assertThat(
                 db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
                 CoreMatchers.not(-1));
 
@@ -1257,7 +1280,7 @@ public final class DatabaseManagerTest {
         ContentValues device = new ContentValues();
         device.put("address", TEST_BT_ADDR);
         device.put("migrated", false);
-        assertThat(
+        Assert.assertThat(
                 db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
                 CoreMatchers.not(-1));
         // Migrate database from 107 to 108
@@ -1281,7 +1304,7 @@ public final class DatabaseManagerTest {
         ContentValues device = new ContentValues();
         device.put("address", TEST_BT_ADDR);
         device.put("migrated", false);
-        assertThat(
+        Assert.assertThat(
                 db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
                 CoreMatchers.not(-1));
         // Migrate database from 108 to 109
@@ -1305,7 +1328,7 @@ public final class DatabaseManagerTest {
         ContentValues device = new ContentValues();
         device.put("address", TEST_BT_ADDR);
         device.put("migrated", false);
-        assertThat(
+        Assert.assertThat(
                 db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
                 CoreMatchers.not(-1));
         // Migrate database from 109 to 110
@@ -1329,7 +1352,7 @@ public final class DatabaseManagerTest {
         ContentValues device = new ContentValues();
         device.put("address", TEST_BT_ADDR);
         device.put("migrated", false);
-        assertThat(
+        Assert.assertThat(
                 db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
                 CoreMatchers.not(-1));
         // Migrate database from 111 to 112
@@ -1353,7 +1376,7 @@ public final class DatabaseManagerTest {
         ContentValues device = new ContentValues();
         device.put("address", TEST_BT_ADDR);
         device.put("migrated", false);
-        assertThat(
+        Assert.assertThat(
                 db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
                 CoreMatchers.not(-1));
         // Migrate database from 112 to 113
@@ -1379,7 +1402,7 @@ public final class DatabaseManagerTest {
         ContentValues device = new ContentValues();
         device.put("address", TEST_BT_ADDR);
         device.put("migrated", false);
-        assertThat(
+        Assert.assertThat(
                 db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
                 CoreMatchers.not(-1));
         // Migrate database from 113 to 114
@@ -1403,7 +1426,7 @@ public final class DatabaseManagerTest {
         ContentValues device = new ContentValues();
         device.put("address", TEST_BT_ADDR);
         device.put("migrated", false);
-        assertThat(
+        Assert.assertThat(
                 db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
                 CoreMatchers.not(-1));
 
@@ -1433,7 +1456,7 @@ public final class DatabaseManagerTest {
         ContentValues device = new ContentValues();
         device.put("address", TEST_BT_ADDR);
         device.put("migrated", false);
-        assertThat(
+        Assert.assertThat(
                 db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
                 CoreMatchers.not(-1));
 
@@ -1460,7 +1483,7 @@ public final class DatabaseManagerTest {
         ContentValues device = new ContentValues();
         device.put("address", TEST_BT_ADDR);
         device.put("migrated", false);
-        assertThat(
+        Assert.assertThat(
                 db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
                 CoreMatchers.not(-1));
         // Migrate database from 116 to 117
@@ -1486,7 +1509,7 @@ public final class DatabaseManagerTest {
         ContentValues device = new ContentValues();
         device.put("address", TEST_BT_ADDR);
         device.put("migrated", false);
-        assertThat(
+        Assert.assertThat(
                 db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
                 CoreMatchers.not(-1));
         // Migrate database from 117 to 118
@@ -1510,7 +1533,7 @@ public final class DatabaseManagerTest {
         ContentValues device = new ContentValues();
         device.put("address", TEST_BT_ADDR);
         device.put("migrated", false);
-        assertThat(
+        Assert.assertThat(
                 db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
                 CoreMatchers.not(-1));
 
@@ -1535,7 +1558,7 @@ public final class DatabaseManagerTest {
         ContentValues device = new ContentValues();
         device.put("address", TEST_BT_ADDR);
         device.put("migrated", false);
-        assertThat(
+        Assert.assertThat(
                 db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
                 CoreMatchers.not(-1));
         // Migrate database from 119 to 120
@@ -1551,30 +1574,54 @@ public final class DatabaseManagerTest {
         }
     }
 
+    @Test
+    public void testDatabaseMigration_120_121() throws IOException {
+        // Create a database with version 120
+        SupportSQLiteDatabase db = testHelper.createDatabase(DB_NAME, 120);
+        // insert a device to the database
+        ContentValues device = new ContentValues();
+        device.put("address", TEST_BT_ADDR);
+        device.put("migrated", false);
+        Assert.assertThat(
+                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
+                CoreMatchers.not(-1));
+        // Migrate database from 120 to 121
+        db.close();
+        db =
+                testHelper.runMigrationsAndValidate(
+                        DB_NAME, 121, true, MetadataDatabase.MIGRATION_120_121);
+        Cursor cursor = db.query("SELECT * FROM metadata");
+        assertHasColumn(cursor, "is_preferred_microphone_for_calls", true);
+        while (cursor.moveToNext()) {
+            // Check the new columns was added with default value
+            assertColumnIntData(cursor, "is_preferred_microphone_for_calls", 1);
+        }
+    }
+
     /** Helper function to check whether the database has the expected column */
     void assertHasColumn(Cursor cursor, String columnName, boolean hasColumn) {
         if (hasColumn) {
-            assertThat(cursor.getColumnIndex(columnName), CoreMatchers.not(-1));
+            Assert.assertThat(cursor.getColumnIndex(columnName), CoreMatchers.not(-1));
         } else {
-            assertThat(cursor.getColumnIndex(columnName), CoreMatchers.is(-1));
+            Assert.assertThat(cursor.getColumnIndex(columnName), CoreMatchers.is(-1));
         }
     }
 
     /** Helper function to check whether the database has the expected value */
     void assertColumnIntData(Cursor cursor, String columnName, int value) {
-        assertThat(cursor.getInt(cursor.getColumnIndex(columnName)), CoreMatchers.is(value));
+        Assert.assertThat(cursor.getInt(cursor.getColumnIndex(columnName)), CoreMatchers.is(value));
     }
 
     /** Helper function to check whether the column data type is BLOB */
     void assertColumnBlob(Cursor cursor, String columnName) {
-        assertThat(
+        Assert.assertThat(
                 cursor.getType(cursor.getColumnIndex(columnName)),
                 CoreMatchers.is(Cursor.FIELD_TYPE_BLOB));
     }
 
     /** Helper function to check the BLOB data in a column is expected */
     void assertColumnBlobData(Cursor cursor, String columnName, byte[] data) {
-        assertThat(cursor.getBlob(cursor.getColumnIndex(columnName)), CoreMatchers.is(data));
+        Assert.assertThat(cursor.getBlob(cursor.getColumnIndex(columnName)), CoreMatchers.is(data));
     }
 
     void restartDatabaseManagerHelper() {
@@ -1692,17 +1739,17 @@ public final class DatabaseManagerTest {
             mDatabase.insert(data);
             Assert.assertEquals(
                     expectedResult, mDatabaseManager.setCustomMeta(mTestDevice, key, testValue));
-            verify(mAdapterService).metadataChanged(TEST_BT_ADDR, key, testValue);
+            verify(mAdapterService).onMetadataChanged(mTestDevice, key, testValue);
             verifyTime++;
         }
         Assert.assertEquals(
                 expectedResult, mDatabaseManager.setCustomMeta(mTestDevice, key, value));
         if (expectedResult) {
             // Check for callback and get value
-            verify(mAdapterService, times(verifyTime)).metadataChanged(TEST_BT_ADDR, key, value);
+            verify(mAdapterService, times(verifyTime)).onMetadataChanged(mTestDevice, key, value);
             Assert.assertEquals(value, mDatabaseManager.getCustomMeta(mTestDevice, key));
         } else {
-            Assert.assertNull(mDatabaseManager.getCustomMeta(mTestDevice, key));
+            assertThat(mDatabaseManager.getCustomMeta(mTestDevice, key)).isNull();
             return;
         }
         // Wait for database update
@@ -1735,7 +1782,7 @@ public final class DatabaseManagerTest {
             // Check for callback and get value
             Assert.assertEquals(policy, mDatabaseManager.getAudioPolicyMetadata(mTestDevice));
         } else {
-            Assert.assertNull(mDatabaseManager.getAudioPolicyMetadata(mTestDevice));
+            assertThat(mDatabaseManager.getAudioPolicyMetadata(mTestDevice)).isNull();
             return;
         }
         // Wait for database update
@@ -1773,8 +1820,8 @@ public final class DatabaseManagerTest {
                 mDatabaseManager.setPreferredAudioProfiles(groupDevices, preferencesToSet));
         Bundle testDevicePreferences = mDatabaseManager.getPreferredAudioProfiles(mTestDevice);
         Bundle testDevice2Preferences = mDatabaseManager.getPreferredAudioProfiles(mTestDevice2);
-        Assert.assertNotNull(testDevicePreferences);
-        Assert.assertNotNull(testDevice2Preferences);
+        assertThat(testDevicePreferences).isNotNull();
+        assertThat(testDevice2Preferences).isNotNull();
 
         Assert.assertEquals(
                 expectedPreferences.getInt(BluetoothAdapter.AUDIO_MODE_OUTPUT_ONLY),
@@ -1802,8 +1849,8 @@ public final class DatabaseManagerTest {
         restartDatabaseManagerHelper();
         testDevicePreferences = mDatabaseManager.getPreferredAudioProfiles(mTestDevice);
         testDevice2Preferences = mDatabaseManager.getPreferredAudioProfiles(mTestDevice2);
-        Assert.assertNotNull(testDevicePreferences);
-        Assert.assertNotNull(testDevice2Preferences);
+        assertThat(testDevicePreferences).isNotNull();
+        assertThat(testDevice2Preferences).isNotNull();
 
         Assert.assertEquals(
                 expectedPreferences.getInt(BluetoothAdapter.AUDIO_MODE_OUTPUT_ONLY),
@@ -1841,12 +1888,10 @@ public final class DatabaseManagerTest {
                     return null;
                 };
 
-        doAnswer(answer)
-                .when(mAdapterService)
-                .metadataChanged(any(String.class), anyInt(), any(byte[].class));
+        doAnswer(answer).when(mAdapterService).onMetadataChanged(any(), anyInt(), any());
 
         mDatabaseManager.setCustomMeta(mTestDevice, key, newValue);
 
-        Truth.assertThat(future.get()).isEqualTo(newValue);
+        assertThat(future.get()).isEqualTo(newValue);
     }
 }

@@ -28,16 +28,17 @@
 #include <bit>
 #include <bitset>
 #include <map>
+#include <memory>
 #include <optional>
 #include <string>
 #include <variant>
 #include <vector>
 
-#include "bluetooth/uuid.h"
 #include "bta/include/bta_le_audio_uuids.h"
 #include "osi/include/alarm.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_iso_api_types.h"
+#include "types/bluetooth/uuid.h"
 
 namespace bluetooth::le_audio {
 
@@ -103,6 +104,8 @@ static const bluetooth::Uuid kTelephonyMediaAudioProfileRoleCharacteristicUuid =
 
 /* Gaming Audio Service Characteristics */
 static const bluetooth::Uuid kRoleCharacteristicUuid = bluetooth::Uuid::From16Bit(0x2C00);
+static const bluetooth::Uuid kUnicastGameGatewayCharacteristicUuid =
+        bluetooth::Uuid::From16Bit(0x2C01);
 static const bluetooth::Uuid kUnicastGameTerminalCharacteristicUuid =
         bluetooth::Uuid::From16Bit(0x2C02);
 }  // namespace uuid
@@ -210,6 +213,7 @@ constexpr uint16_t kLeAudioCodecFrameLen120 = 120;
 }  // namespace codec_spec_conf
 
 constexpr uint8_t kInvalidCisId = 0xFF;
+constexpr uint16_t kInvalidCisConnHandle = 0xFFFF;
 
 namespace codec_spec_caps {
 uint16_t constexpr SamplingFreqConfig2Capability(uint8_t conf) {
@@ -1120,7 +1124,7 @@ struct ase {
   uint8_t cis_id;
   const uint8_t direction;
   uint8_t target_latency;
-  uint16_t cis_conn_hdl = 0;
+  uint16_t cis_conn_hdl = kInvalidCisConnHandle;
 
   bool active;
   bool reconfigure;
@@ -1273,9 +1277,9 @@ static constexpr uint32_t kChannelAllocationStereo =
         codec_spec_conf::kLeAudioLocationFrontLeft | codec_spec_conf::kLeAudioLocationFrontRight;
 
 /* Declarations */
-void get_cis_count(types::LeAudioContextType context_type, int expected_device_cnt,
-                   types::LeAudioConfigurationStrategy strategy, int group_ase_snk_cnt,
-                   int group_ase_src_count, uint8_t& cis_count_bidir,
+void get_cis_count(types::LeAudioContextType context_type, uint8_t expected_direction,
+                   int expected_device_cnt, types::LeAudioConfigurationStrategy strategy,
+                   int group_ase_snk_cnt, int group_ase_src_count, uint8_t& cis_count_bidir,
                    uint8_t& cis_count_unidir_sink, uint8_t& cis_count_unidir_source);
 }  // namespace set_configurations
 
@@ -1326,7 +1330,7 @@ void AppendMetadataLtvEntryForStreamingContext(std::vector<uint8_t>& metadata,
 uint8_t GetMaxCodecFramesPerSduFromPac(const types::acs_ac_record* pac_record);
 }  // namespace bluetooth::le_audio
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bluetooth::le_audio::DsaMode> : enum_formatter<bluetooth::le_audio::DsaMode> {};
 template <>
@@ -1335,4 +1339,4 @@ struct formatter<bluetooth::le_audio::types::CisType>
 template <>
 struct formatter<bluetooth::le_audio::types::LeAudioConfigurationStrategy>
     : enum_formatter<bluetooth::le_audio::types::LeAudioConfigurationStrategy> {};
-}  // namespace fmt
+}  // namespace std

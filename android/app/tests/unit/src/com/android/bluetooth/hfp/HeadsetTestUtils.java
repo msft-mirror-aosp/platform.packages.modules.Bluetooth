@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.hfp;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.mockito.Mockito.*;
 
 import android.bluetooth.BluetoothDevice;
@@ -38,7 +40,7 @@ public class HeadsetTestUtils {
      */
     public static void verifyAudioStateBroadcast(
             BluetoothDevice device, int toState, int fromState, Intent intent) {
-        Assert.assertNotNull(intent);
+        assertThat(intent).isNotNull();
         Assert.assertEquals(BluetoothHeadset.ACTION_AUDIO_STATE_CHANGED, intent.getAction());
         Assert.assertEquals(device, intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE));
         Assert.assertEquals(toState, intent.getIntExtra(BluetoothProfile.EXTRA_STATE, -1));
@@ -58,7 +60,7 @@ public class HeadsetTestUtils {
      */
     public static void verifyConnectionStateBroadcast(
             BluetoothDevice device, int toState, int fromState, Intent intent, boolean checkFlag) {
-        Assert.assertNotNull(intent);
+        assertThat(intent).isNotNull();
         Assert.assertEquals(BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED, intent.getAction());
         if (checkFlag) {
             Assert.assertEquals(Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND, intent.getFlags());
@@ -94,7 +96,7 @@ public class HeadsetTestUtils {
      */
     public static void verifyActiveDeviceChangedBroadcast(
             BluetoothDevice device, Intent intent, boolean checkFlag) {
-        Assert.assertNotNull(intent);
+        assertThat(intent).isNotNull();
         Assert.assertEquals(BluetoothHeadset.ACTION_ACTIVE_DEVICE_CHANGED, intent.getAction());
         Assert.assertEquals(device, intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE));
         if (checkFlag) {

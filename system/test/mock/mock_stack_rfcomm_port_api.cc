@@ -43,7 +43,7 @@ int PORT_FlowControl_MaxCredit(uint16_t /* handle */, bool /* enable */) {
   inc_func_call_count(__func__);
   return 0;
 }
-int PORT_GetState(uint16_t /* handle */, tPORT_STATE* /* p_settings */) {
+int PORT_GetSettings(uint16_t /* handle */, PortSettings* /* p_settings */) {
   inc_func_call_count(__func__);
   return 0;
 }
@@ -61,7 +61,7 @@ int PORT_SetEventMaskAndCallback(uint16_t /* port_handle */, uint32_t /* mask */
   inc_func_call_count(__func__);
   return 0;
 }
-int PORT_SetState(uint16_t /* handle */, tPORT_STATE* /* p_settings */) {
+int PORT_SetSettings(uint16_t /* handle */, PortSettings* /* p_settings */) {
   inc_func_call_count(__func__);
   return 0;
 }
@@ -78,7 +78,7 @@ int RFCOMM_CreateConnectionWithSecurity(uint16_t /* uuid */, uint8_t /* scn */,
                                         bool /* is_server */, uint16_t /* mtu */,
                                         const RawAddress& /* bd_addr */, uint16_t* /* p_handle */,
                                         tPORT_MGMT_CALLBACK* /* p_mgmt_callback */,
-                                        uint16_t /* sec_mask */) {
+                                        uint16_t /* sec_mask */, RfcommCfgInfo /* cfg */) {
   inc_func_call_count(__func__);
   return 0;
 }
@@ -98,6 +98,15 @@ int RFCOMM_RemoveServer(uint16_t /* handle */) {
   return 0;
 }
 int PORT_GetSecurityMask(uint16_t /* handle */, uint16_t* /* sec_mask */) {
+  inc_func_call_count(__func__);
+  return 0;
+}
+int PORT_GetChannelInfo(uint16_t /* handle */, uint16_t* /* local_mtu */,
+                        uint16_t* /* remote_mtu */, uint16_t* /* local_credit */,
+                        uint16_t* /* remote_credit */, uint16_t* /* local_cid */,
+                        uint16_t* /* remote_cid */, uint16_t* /* dlci */,
+                        uint16_t* /* max_frame_size */, uint16_t* /* acl_handle */,
+                        bool* /* mux_initiator */) {
   inc_func_call_count(__func__);
   return 0;
 }
