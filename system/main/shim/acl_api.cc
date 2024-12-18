@@ -111,7 +111,6 @@ void bluetooth::shim::ACL_ConfigureLePrivacy(bool is_le_privacy_enabled) {
           android::sysprop::bluetooth::Ble::random_address_rotation_interval_max().value_or(15));
 
   Stack::GetInstance()
-          ->GetStackManager()
           ->GetInstance<bluetooth::hci::AclManager>()
           ->SetPrivacyPolicyForInitiatorAddress(address_policy, empty_address_with_type,
                                                 minimum_rotation_time, maximum_rotation_time);

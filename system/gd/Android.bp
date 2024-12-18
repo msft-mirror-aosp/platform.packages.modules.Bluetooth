@@ -135,7 +135,6 @@ cc_defaults {
         ":BluetoothPacketSources",
         ":BluetoothStorageSources",
         "module.cc",
-        "stack_manager.cc",
     ],
     shared_libs: [
         "libcrypto",
@@ -338,7 +337,6 @@ cc_test {
         ":TestCommonMockFunctions",
         ":TestMockStackMetrics",
         "module_unittest.cc",
-        "stack_manager_unittest.cc",
     ],
     static_libs: [
         "bluetooth_flags_c_lib_for_test",
