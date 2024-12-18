@@ -5257,9 +5257,37 @@ public:
           // Do not take the obsolete metadata
           remote_metadata.get(remote_other_direction).clear();
         } else {
-          remote_metadata.get(remote_other_direction).unset_all(all_bidirectional_contexts);
-          remote_metadata.get(remote_other_direction)
-                  .unset_all(single_direction_only_context_types);
+          // The other direction was opened when already in a bidirectional scenario that was not a
+          // VoIP or a regular Call. We need to figure out which direction metadata is the leading
+          // one.
+          // Note: We usually remove any bidirectional or the previous direction specific context
+          //       from the previous direction metadata and replace it with the just-resumed
+          //       direction (but still bidirectional) context. However when recording is started
+          //       in a GAME scenario, we don't want to reconfigure to or mix the context with LIVE.
+          auto remote_game_uplink_available =
+                  group->GetAvailableContexts(le_audio::types::kLeAudioDirectionSource)
+                          .test(LeAudioContextType::GAME);
+          auto local_game_uplink_active =
+                  (audio_sender_state_ == AudioState::STARTED) &&
+                  remote_metadata.sink.test(LeAudioContextType::GAME) &&
+                  remote_metadata.source.test_any(LeAudioContextType::LIVE |
+                                                  LeAudioContextType::CONVERSATIONAL);
+          log::debug(
+                  "Remote {} metadata change ({}) while having remote {} context ({}) in a "
+                  "bidirectional scenario of {}, local_game_uplink_active: {}, "
+                  "remote_game_uplink_available: {}",
+                  remote_direction_str, ToString(remote_metadata.get(remote_direction)),
+                  remote_other_direction_str, ToString(remote_metadata.get(remote_other_direction)),
+                  ToString(configuration_context_type_), local_game_uplink_active,
+                  remote_game_uplink_available);
+          if (local_game_uplink_active && remote_game_uplink_available) {
+            remote_metadata.source.clear();
+            remote_metadata.source.set(LeAudioContextType::GAME);
+          } else {
+            remote_metadata.get(remote_other_direction).unset_all(all_bidirectional_contexts);
+            remote_metadata.get(remote_other_direction)
+                    .unset_all(single_direction_only_context_types);
+          }
         }
 
         remote_metadata.get(remote_other_direction)

@@ -40,16 +40,18 @@ types::AudioContexts GetAudioContextsFromSinkMetadata(
         const std::vector<struct record_track_metadata_v7>& sink_metadata);
 inline uint8_t GetTargetLatencyForAudioContext(types::LeAudioContextType ctx) {
   switch (ctx) {
-    case types::LeAudioContextType::GAME:
-      FALLTHROUGH_INTENDED;
-    case types::LeAudioContextType::VOICEASSISTANTS:
-      FALLTHROUGH_INTENDED;
+    case types::LeAudioContextType::MEDIA:
+      return types::kTargetLatencyHigherReliability;
+
     case types::LeAudioContextType::LIVE:
       FALLTHROUGH_INTENDED;
-    case types::LeAudioContextType::CONVERSATIONAL:
-      FALLTHROUGH_INTENDED;
-    case types::LeAudioContextType::RINGTONE:
+    case types::LeAudioContextType::GAME:
       return types::kTargetLatencyLower;
+
+    case types::LeAudioContextType::RINGTONE:
+      FALLTHROUGH_INTENDED;
+    case types::LeAudioContextType::CONVERSATIONAL:
+      return types::kTargetLatencyBalancedLatencyReliability;
 
     default:
       return types::kTargetLatencyUndefined;
