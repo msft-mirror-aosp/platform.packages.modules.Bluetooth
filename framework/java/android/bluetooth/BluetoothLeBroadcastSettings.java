@@ -162,13 +162,7 @@ public final class BluetoothLeBroadcastSettings implements Parcelable {
     public void writeToParcel(Parcel out, int flags) {
         out.writeBoolean(mIsPublicBroadcast);
         BluetoothUtils.writeStringToParcel(out, mBroadcastName);
-        if (mBroadcastCode != null) {
-            out.writeInt(mBroadcastCode.length);
-            out.writeByteArray(mBroadcastCode);
-        } else {
-            // -1 indicates missing broadcast code
-            out.writeInt(-1);
-        }
+        out.writeByteArray(mBroadcastCode);
         out.writeTypedObject(mPublicBroadcastMetadata, 0);
         out.writeTypedList(mSubgroupSettings);
     }
@@ -185,14 +179,7 @@ public final class BluetoothLeBroadcastSettings implements Parcelable {
                     Builder builder = new Builder();
                     builder.setPublicBroadcast(in.readBoolean());
                     builder.setBroadcastName(in.readString());
-                    final int codeLen = in.readInt();
-                    byte[] broadcastCode = null;
-                    if (codeLen != -1) {
-                        broadcastCode = new byte[codeLen];
-                        if (codeLen >= 0) {
-                            in.readByteArray(broadcastCode);
-                        }
-                    }
+                    byte[] broadcastCode = in.createByteArray();
                     builder.setBroadcastCode(broadcastCode);
                     builder.setPublicBroadcastMetadata(
                             in.readTypedObject(BluetoothLeAudioContentMetadata.CREATOR));
