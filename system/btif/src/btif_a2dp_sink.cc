@@ -540,7 +540,6 @@ static void btif_a2dp_sink_audio_handle_stop_decoding() {
 }
 
 static void btif_decode_alarm_cb(void* /* context */) {
-  LockGuard lock(g_mutex);
   btif_a2dp_sink_cb.worker_thread.DoInThread(FROM_HERE,
                                              base::BindOnce(btif_a2dp_sink_avk_handle_timer));
 }

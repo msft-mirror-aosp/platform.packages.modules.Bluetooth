@@ -27,6 +27,7 @@ import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
 
 import static com.android.bluetooth.a2dp.A2dpStateMachine.MESSAGE_CONNECT;
+import static com.android.bluetooth.a2dp.A2dpStateMachine.MESSAGE_DISCONNECT;
 import static com.android.bluetooth.a2dp.A2dpStateMachine.MESSAGE_STACK_EVENT;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -47,11 +48,14 @@ import android.bluetooth.BluetoothDevice;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.test.TestLooper;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.filters.MediumTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestUtils;
+import com.android.bluetooth.flags.Flags;
 
 import org.hamcrest.Matcher;
 import org.hamcrest.core.AllOf;
@@ -71,6 +75,8 @@ import java.util.Arrays;
 @RunWith(AndroidJUnit4.class)
 public class A2dpStateMachineTest {
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
+    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     @Mock private A2dpService mService;
     @Mock private A2dpNativeInterface mNativeInterface;
@@ -325,6 +331,23 @@ public class A2dpStateMachineTest {
         mStateMachine.processCodecConfigEvent(codecStatusSbcAndSbc);
 
         mStateMachine.dump(new StringBuilder());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_A2DP_SM_IGNORE_CONNECT_EVENTS_IN_CONNECTING_STATE)
+    public void connectEventNeglectedWhileInConnectingState() {
+        sendAndDispatchMessage(MESSAGE_CONNECT, mDevice);
+        verifyConnectionStateIntent(STATE_CONNECTING, STATE_DISCONNECTED);
+        assertThat(mStateMachine.getCurrentState()).isInstanceOf(A2dpStateMachine.Connecting.class);
+
+        // Dispatch CONNECT event twice more
+        sendAndDispatchMessage(MESSAGE_CONNECT, mDevice);
+        sendAndDispatchMessage(MESSAGE_CONNECT, mDevice);
+        sendAndDispatchMessage(MESSAGE_DISCONNECT, mDevice);
+        verifyConnectionStateIntent(STATE_DISCONNECTED, STATE_CONNECTING);
+        assertThat(mStateMachine.getCurrentState())
+                .isInstanceOf(A2dpStateMachine.Disconnected.class);
+        assertThat(mLooper.dispatchAll()).isEqualTo(0);
     }
 
     private void sendAndDispatchMessage(int what, Object obj) {

@@ -76,6 +76,7 @@ struct L2CA_isMediaChannel L2CA_isMediaChannel;
 struct L2CA_LeCreditDefault L2CA_LeCreditDefault;
 struct L2CA_LeCreditThreshold L2CA_LeCreditThreshold;
 struct L2CA_GetAclHandle L2CA_GetAclHandle;
+struct L2CA_GetLocalMtu L2CA_GetLocalMtu;
 
 }  // namespace stack_l2cap_api
 }  // namespace mock
@@ -254,6 +255,10 @@ uint16_t L2CA_LeCreditThreshold() {
 bool L2CA_GetAclHandle(uint16_t lcid, uint16_t* acl_handle) {
   inc_func_call_count(__func__);
   return test::mock::stack_l2cap_api::L2CA_GetAclHandle(lcid, acl_handle);
+}
+bool L2CA_GetLocalMtu(uint16_t lcid, uint16_t* local_mtu) {
+  inc_func_call_count(__func__);
+  return test::mock::stack_l2cap_api::L2CA_GetLocalMtu(lcid, local_mtu);
 }
 
 // END mockcify generation

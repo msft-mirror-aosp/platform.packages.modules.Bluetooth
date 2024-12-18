@@ -24,7 +24,6 @@
 #ifndef BTA_DM_INT_H
 #define BTA_DM_INT_H
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
@@ -79,7 +78,7 @@ inline std::string device_info_text(tBTA_DM_DEV_INFO info) {
           ":set_sniff", ":int_sniff", ":acp_sniff", ":unused", ":use_ssr", ":av_active",
   };
 
-  std::string s = base::StringPrintf("0x%02x", info);
+  std::string s = std::format("0x{:02x}", info);
   if (info == BTA_DM_DI_NONE) {
     return s + std::string(":none");
   }
@@ -181,10 +180,8 @@ typedef struct {
   bool new_request;
 
   std::string ToString() const {
-    return base::StringPrintf("peer:%s sys_name:%s app_id:%hhu state:%s new_request:%s",
-                              ADDRESS_TO_LOGGABLE_CSTR(peer_bdaddr), BtaIdSysText(id).c_str(),
-                              app_id, bta_sys_conn_status_text(state).c_str(),
-                              new_request ? "true" : "false");
+    return std::format("peer:{} sys_name:{} app_id:{} state:{} new_request:{}", peer_bdaddr,
+                       BtaIdSysText(id), app_id, bta_sys_conn_status_text(state), new_request);
   }
 } tBTA_DM_SRVCS;
 

@@ -188,7 +188,7 @@ void bta_hf_client_start_server() {
   port_status = RFCOMM_CreateConnectionWithSecurity(
           UUID_SERVCLASS_HF_HANDSFREE, bta_hf_client_cb_arr.scn, true, BTA_HF_CLIENT_MTU,
           RawAddress::kAny, &(bta_hf_client_cb_arr.serv_handle), bta_hf_client_mgmt_cback,
-          BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT);
+          BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT, RfcommCfgInfo{});
 
   log::verbose("started rfcomm server with handle {}", bta_hf_client_cb_arr.serv_handle);
 
@@ -240,10 +240,10 @@ void bta_hf_client_rfc_do_open(tBTA_HF_CLIENT_DATA* p_data) {
     return;
   }
 
-  if (RFCOMM_CreateConnectionWithSecurity(UUID_SERVCLASS_HF_HANDSFREE, client_cb->peer_scn, false,
-                                          BTA_HF_CLIENT_MTU, client_cb->peer_addr,
-                                          &(client_cb->conn_handle), bta_hf_client_mgmt_cback,
-                                          BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT) == PORT_SUCCESS) {
+  if (RFCOMM_CreateConnectionWithSecurity(
+              UUID_SERVCLASS_HF_HANDSFREE, client_cb->peer_scn, false, BTA_HF_CLIENT_MTU,
+              client_cb->peer_addr, &(client_cb->conn_handle), bta_hf_client_mgmt_cback,
+              BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT, RfcommCfgInfo{}) == PORT_SUCCESS) {
     bta_hf_client_setup_port(client_cb->conn_handle);
     log::verbose("bta_hf_client_rfc_do_open : conn_handle = {}", client_cb->conn_handle);
   } else {

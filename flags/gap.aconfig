@@ -84,16 +84,6 @@ flag {
 }
 
 flag {
-    name: "gatt_rediscover_on_canceled"
-    namespace: "bluetooth"
-    description: "Re-initiate discovery if the previous discovery is canceled for multiple GATT clients"
-    bug: "335082571"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "le_scan_use_uid_for_importance"
     namespace: "bluetooth"
     description: "Use uid instead of the first package name for fetching the importance of clients"
@@ -287,6 +277,26 @@ flag {
     namespace: "bluetooth"
     description: "Drop pending ACL packet fragments for disconnected connection"
     bug: "376379859"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "configure_scan_on_resume"
+    namespace: "bluetooth"
+    description: "Configure scan paramters when start scanning from onResume"
+    bug: "383436218"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "unregister_gatt_client_disconnected"
+    namespace: "bluetooth"
+    description: "Unregister gatt client when disconneted to prevent client leaks"
+    bug: "380388092"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

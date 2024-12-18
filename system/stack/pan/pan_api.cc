@@ -27,7 +27,6 @@
 
 #include "stack/include/pan_api.h"
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 
 #include <cstdint>
@@ -231,8 +230,7 @@ tPAN_RESULT PAN_SetRole(uint8_t role, std::string p_user_name, std::string p_nap
   pan_cb.role = role;
   log::verbose("PAN role set to: {}", role);
 
-  BTM_LogHistory(kBtmLogTag, RawAddress::kEmpty, "Role change",
-                 base::StringPrintf("role:0x%x", role));
+  BTM_LogHistory(kBtmLogTag, RawAddress::kEmpty, "Role change", std::format("role:0x{:x}", role));
   return PAN_SUCCESS;
 }
 
