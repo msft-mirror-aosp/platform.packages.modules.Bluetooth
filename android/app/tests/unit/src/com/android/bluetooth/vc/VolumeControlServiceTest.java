@@ -720,6 +720,14 @@ public class VolumeControlServiceTest {
         InOrder inOrderAudio = inOrder(mAudioManager);
         inOrderAudio.verify(mAudioManager, never()).setStreamVolume(anyInt(), anyInt(), anyInt());
 
+        InOrder inOrderNative = inOrder(mNativeInterface);
+        if (Flags.vcpDeviceVolumeApiImprovements()) {
+            // AF always call setVolume via LeAudioService at first connected remote from group
+            mService.setGroupVolume(groupId, 123);
+            // It should be ignored and not set to native
+            inOrderNative.verify(mNativeInterface, never()).setGroupVolume(anyInt(), anyInt());
+        }
+
         // Make device Active now. This will trigger setting volume to AF
         when(mLeAudioService.getActiveGroupId()).thenReturn(groupId);
         mService.setGroupActive(groupId, true);
@@ -743,9 +751,9 @@ public class VolumeControlServiceTest {
 
         inOrderAudio.verify(mAudioManager, never()).setStreamVolume(anyInt(), anyInt(), anyInt());
         if (Flags.vcpDeviceVolumeApiImprovements()) {
-            verify(mNativeInterface).setVolume(eq(mDeviceTwo), eq(volumeDevice));
+            inOrderNative.verify(mNativeInterface).setVolume(eq(mDeviceTwo), eq(volumeDevice));
         } else {
-            verify(mNativeInterface).setGroupVolume(eq(groupId), eq(volumeDevice));
+            inOrderNative.verify(mNativeInterface).setGroupVolume(eq(groupId), eq(volumeDevice));
         }
     }
 
@@ -788,6 +796,10 @@ public class VolumeControlServiceTest {
         InOrder inOrderAudio = inOrder(mAudioManager);
         inOrderAudio.verify(mAudioManager, never()).setStreamVolume(anyInt(), anyInt(), anyInt());
         InOrder inOrderNative = inOrder(mNativeInterface);
+        if (Flags.vcpDeviceVolumeApiImprovements()) {
+            // AF always call setVolume via LeAudioService at first connected remote from group
+            mService.setGroupVolume(groupId, expectedAfVol);
+        }
         inOrderNative.verify(mNativeInterface).setGroupVolume(eq(groupId), eq(expectedAfVol));
 
         // Make device Active now. This will trigger setting volume to AF

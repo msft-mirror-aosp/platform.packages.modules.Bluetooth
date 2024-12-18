@@ -124,6 +124,8 @@ public class VolumeControlService extends ProfileService {
     private final Map<BluetoothDevice, Integer> mDeviceVolumeCache = new ConcurrentHashMap<>();
     private final Map<BluetoothDevice, Boolean> mDeviceMuteCache = new ConcurrentHashMap<>();
 
+    private Boolean mIgnoreSetVolumeFromAF = false;
+
     @VisibleForTesting ServiceFactory mFactory = new ServiceFactory();
 
     public VolumeControlService(AdapterService adapterService) {
@@ -533,7 +535,8 @@ public class VolumeControlService extends ProfileService {
         mNativeInterface.setExtAudioOutVolumeOffset(device, instanceId, volumeOffset);
     }
 
-    public void setDeviceVolume(BluetoothDevice device, int volume, boolean isGroupOp) {
+    public synchronized void setDeviceVolume(
+            BluetoothDevice device, int volume, boolean isGroupOp) {
         Log.d(
                 TAG,
                 "setDeviceVolume: " + device + ", volume: " + volume + ", isGroupOp: " + isGroupOp);
@@ -587,8 +590,14 @@ public class VolumeControlService extends ProfileService {
         }
     }
 
-    public void setGroupVolume(int groupId, int volume) {
+    public synchronized void setGroupVolume(int groupId, int volume) {
         Log.d(TAG, "setGroupVolume: " + groupId + ", volume: " + volume);
+
+        if (mIgnoreSetVolumeFromAF) {
+            Log.d(TAG, "setGroupVolume ignored (from AF) because persisted/cached volume was used");
+            mIgnoreSetVolumeFromAF = false;
+            return;
+        }
 
         if (volume < 0) {
             Log.w(TAG, "Tried to set invalid volume " + volume + ". Ignored.");
@@ -696,7 +705,7 @@ public class VolumeControlService extends ProfileService {
      * @param groupId the group identifier
      * @param active indicator if group is active or not
      */
-    public void setGroupActive(int groupId, boolean active) {
+    public synchronized void setGroupActive(int groupId, boolean active) {
         Log.d(TAG, "setGroupActive: " + groupId + ", active: " + active);
         if (!active) {
             /* For now we don't need to handle group inactivation */
@@ -851,7 +860,7 @@ public class VolumeControlService extends ProfileService {
         notifyNewCallbackOfKnownVolumeInfo(callback);
     }
 
-    public void handleGroupNodeAdded(int groupId, BluetoothDevice device) {
+    public synchronized void handleGroupNodeAdded(int groupId, BluetoothDevice device) {
         // Ignore disconnected device, its volume will be set once it connects
         synchronized (mStateMachines) {
             VolumeControlStateMachine sm = mStateMachines.get(device);
@@ -973,7 +982,7 @@ public class VolumeControlService extends ProfileService {
         return (int) Math.round((double) streamVolume * LE_AUDIO_MAX_VOL / streamMaxVolume);
     }
 
-    void handleVolumeControlChanged(
+    synchronized void handleVolumeControlChanged(
             BluetoothDevice device,
             int groupId,
             int volume,
@@ -998,43 +1007,59 @@ public class VolumeControlService extends ProfileService {
             /* We are here, because system has just started and LeAudio device is connected. If
              * remote device has User Persistent flag set, Android sets the volume to local cache
              * and to the audio system if not already streaming to other devices.
-             * If Reset Flag is set, then Android sets to remote devices either cached volume volume
-             * taken from audio manager.
+             * If Reset Flag is set, then Android sets to remote devices either cached volume or
+             * volume taken from audio manager (AF always call setVolume via LeAudioService at first
+             * connected remote from group).
              * Note, to match BR/EDR behavior, don't show volume change in UI here
              */
             if (((flags & VOLUME_FLAGS_PERSISTED_USER_SET_VOLUME_MASK) == 0x01)
                     && (getConnectedDevices(groupId).size() == 1)) {
                 Log.i(TAG, "Setting device: " + device + " volume: " + volume + " to the system");
+                if (vcpDeviceVolumeApiImprovements()) {
+                    // Ignore volume from AF because persisted volume was used
+                    mIgnoreSetVolumeFromAF = true;
+                }
                 updateGroupCacheAndAudioSystem(groupId, volume, mute, false);
                 return;
             }
 
             // Reset flag is used
-            int groupVolume = getGroupVolume(groupId);
-            int deviceVolume = getDeviceVolume(device);
-            if (!vcpDeviceVolumeApiImprovements() && groupVolume != VOLUME_CONTROL_UNKNOWN_VOLUME) {
-                Log.i(TAG, "Setting group volume: " + groupVolume + " to the device: " + device);
-                setGroupVolume(groupId, groupVolume);
-            } else if (vcpDeviceVolumeApiImprovements()
-                    && deviceVolume != VOLUME_CONTROL_UNKNOWN_VOLUME) {
-                Log.i(
-                        TAG,
-                        "Setting device/group volume: "
-                                + deviceVolume
-                                + " to the device: "
-                                + device);
-                setDeviceVolume(device, deviceVolume, false);
-                Boolean isDeviceMuted = getMute(device);
-                Log.i(TAG, "Setting mute:" + isDeviceMuted + " to " + device);
-                if (isDeviceMuted) {
-                    mute(device);
-                } else {
-                    unmute(device);
+            if (vcpDeviceVolumeApiImprovements()) {
+                int deviceVolume = getDeviceVolume(device);
+                if (deviceVolume != VOLUME_CONTROL_UNKNOWN_VOLUME) {
+                    Log.i(
+                            TAG,
+                            "Setting device/group volume: "
+                                    + deviceVolume
+                                    + " to the device: "
+                                    + device);
+                    setDeviceVolume(device, deviceVolume, false);
+                    Boolean isDeviceMuted = getMute(device);
+                    Log.i(TAG, "Setting mute:" + isDeviceMuted + " to " + device);
+                    if (isDeviceMuted) {
+                        mute(device);
+                    } else {
+                        unmute(device);
+                    }
+                    if (getConnectedDevices(groupId).size() == 1) {
+                        // Ignore volume from AF because cached volume was used
+                        mIgnoreSetVolumeFromAF = true;
+                    }
                 }
             } else {
-                int systemVolume = getBleVolumeFromCurrentStream();
-                Log.i(TAG, "Setting system volume: " + systemVolume + " to the group: " + groupId);
-                setGroupVolume(groupId, systemVolume);
+                int groupVolume = getGroupVolume(groupId);
+                if (groupVolume != VOLUME_CONTROL_UNKNOWN_VOLUME) {
+                    Log.i(
+                            TAG,
+                            "Setting group volume: " + groupVolume + " to the device: " + device);
+                    setGroupVolume(groupId, groupVolume);
+                } else {
+                    int systemVolume = getBleVolumeFromCurrentStream();
+                    Log.i(
+                            TAG,
+                            "Setting system volume: " + systemVolume + " to the group: " + groupId);
+                    setGroupVolume(groupId, systemVolume);
+                }
             }
 
             return;
@@ -1419,7 +1444,7 @@ public class VolumeControlService extends ProfileService {
         input.onGainSettingsPropertiesChanged(id, unit, min, max);
     }
 
-    void handleStackEvent(VolumeControlStackEvent stackEvent) {
+    synchronized void handleStackEvent(VolumeControlStackEvent stackEvent) {
         if (!isAvailable()) {
             Log.e(TAG, "Event ignored, service not available: " + stackEvent);
             return;
