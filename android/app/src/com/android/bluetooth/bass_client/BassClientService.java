@@ -287,7 +287,7 @@ public class BassClientService extends ProfileService {
                                             break;
                                     }
                                     Handler handler = getOrCreateHandler(broadcastId);
-                                    if (!handler.hasMessagesOrCallbacks()) {
+                                    if (!hasAnyMessagesOrCallbacks(handler)) {
                                         mHandlers.remove(broadcastId);
                                     }
                                 }
@@ -310,7 +310,7 @@ public class BassClientService extends ProfileService {
             }
             Handler handler = getOrCreateHandler(broadcastId);
             handler.removeMessages(msg);
-            if (!handler.hasMessagesOrCallbacks()) {
+            if (!hasAnyMessagesOrCallbacks(handler)) {
                 mHandlers.remove(broadcastId);
             }
         }
@@ -328,7 +328,7 @@ public class BassClientService extends ProfileService {
                 Map.Entry<Integer, Handler> entry = iterator.next();
                 Handler handler = entry.getValue();
                 handler.removeMessages(msg);
-                if (!handler.hasMessagesOrCallbacks()) {
+                if (!hasAnyMessagesOrCallbacks(handler)) {
                     iterator.remove();
                 }
             }
@@ -340,6 +340,16 @@ public class BassClientService extends ProfileService {
             }
             Handler handler = getOrCreateHandler(broadcastId);
             return handler.hasMessages(msg);
+        }
+
+        private boolean hasAnyMessagesOrCallbacks(Handler handler) {
+            if (android.os.Flags.mainlineVcnPlatformApi()) {
+                return handler.hasMessagesOrCallbacks();
+            } else {
+                return handler.hasMessages(MESSAGE_SYNC_LOST_TIMEOUT)
+                        || handler.hasMessages(MESSAGE_BROADCAST_MONITOR_TIMEOUT)
+                        || handler.hasMessages(MESSAGE_BIG_MONITOR_TIMEOUT);
+            }
         }
     }
 
