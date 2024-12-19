@@ -205,52 +205,6 @@ std::string EpochMillisToString(long long time_ms) {
   return std::format("{}.{:03}", s, time_ms % MillisPerSecond);
 }
 
-inline bool IsRpa(const hci::AddressWithType address_with_type) {
-  return address_with_type.GetAddressType() == hci::AddressType::RANDOM_DEVICE_ADDRESS &&
-         ((address_with_type.GetAddress().address.data()[5] & 0xc0) == 0x40);
-}
-
-class ShadowAcceptlist {
-public:
-  explicit ShadowAcceptlist(uint8_t max_acceptlist_size)
-      : max_acceptlist_size_(max_acceptlist_size) {}
-
-  bool Add(const hci::AddressWithType& address_with_type) {
-    if (acceptlist_set_.size() == max_acceptlist_size_) {
-      log::error("Acceptlist is full size:{}", acceptlist_set_.size());
-      return false;
-    }
-    if (!acceptlist_set_.insert(ConnectAddressWithType(address_with_type)).second) {
-      log::warn("Attempted to add duplicate le address to acceptlist:{}", address_with_type);
-    }
-    return true;
-  }
-
-  bool Remove(const hci::AddressWithType& address_with_type) {
-    auto iter = acceptlist_set_.find(ConnectAddressWithType(address_with_type));
-    if (iter == acceptlist_set_.end()) {
-      log::warn("Unknown device being removed from acceptlist:{}", address_with_type);
-      return false;
-    }
-    acceptlist_set_.erase(ConnectAddressWithType(*iter));
-    return true;
-  }
-
-  std::unordered_set<ConnectAddressWithType> GetCopy() const { return acceptlist_set_; }
-
-  bool IsFull() const {
-    return acceptlist_set_.size() == static_cast<size_t>(max_acceptlist_size_);
-  }
-
-  void Clear() { acceptlist_set_.clear(); }
-
-  uint8_t GetMaxSize() const { return max_acceptlist_size_; }
-
-private:
-  uint8_t max_acceptlist_size_{0};
-  std::unordered_set<ConnectAddressWithType> acceptlist_set_;
-};
-
 class ShadowAddressResolutionList {
 public:
   explicit ShadowAddressResolutionList(uint8_t max_address_resolution_size)
@@ -862,9 +816,8 @@ private:
 };
 
 struct shim::Acl::impl {
-  impl(uint8_t max_acceptlist_size, uint8_t max_address_resolution_size)
-      : shadow_acceptlist_(ShadowAcceptlist(max_acceptlist_size)),
-        shadow_address_resolution_list_(ShadowAddressResolutionList(max_address_resolution_size)) {}
+  impl(uint8_t max_address_resolution_size)
+      : shadow_address_resolution_list_(ShadowAddressResolutionList(max_address_resolution_size)) {}
 
   std::map<HciHandle, std::unique_ptr<ClassicShimAclConnection>> handle_to_classic_connection_map_;
   std::map<HciHandle, std::unique_ptr<LeShimAclConnection>> handle_to_le_connection_map_;
@@ -875,7 +828,6 @@ struct shim::Acl::impl {
   FixedQueue<std::unique_ptr<ConnectionDescriptor>> connection_history_ =
           FixedQueue<std::unique_ptr<ConnectionDescriptor>>(kConnectionHistorySize);
 
-  ShadowAcceptlist shadow_acceptlist_;
   ShadowAddressResolutionList shadow_address_resolution_list_;
 
   struct timed_wakelock wakeup_wakelock_;
@@ -1083,12 +1035,6 @@ struct shim::Acl::impl {
 
   void accept_le_connection_from(const hci::AddressWithType& address_with_type, bool is_direct,
                                  std::promise<bool> promise) {
-    if (shadow_acceptlist_.IsFull()) {
-      log::error("Acceptlist is full preventing new Le connection");
-      promise.set_value(false);
-      return;
-    }
-    shadow_acceptlist_.Add(address_with_type);
     promise.set_value(true);
     GetAclManager()->CreateLeConnection(address_with_type, is_direct);
     log::debug("Allow Le connection from remote:{}", address_with_type);
@@ -1154,20 +1100,13 @@ struct shim::Acl::impl {
   }
 
   void ignore_le_connection_from(const hci::AddressWithType& address_with_type) {
-    shadow_acceptlist_.Remove(address_with_type);
     GetAclManager()->CancelLeConnect(address_with_type);
     log::debug("Ignore Le connection from remote:{}", address_with_type);
     BTM_LogHistory(kBtmLogTag, ToLegacyAddressWithType(address_with_type), "Ignore connection from",
                    "Le");
   }
 
-  void clear_acceptlist() {
-    auto shadow_acceptlist = shadow_acceptlist_.GetCopy();
-    size_t count = shadow_acceptlist.size();
-    GetAclManager()->ClearFilterAcceptList();
-    shadow_acceptlist_.Clear();
-    log::debug("Cleared entire Le address acceptlist count:{}", count);
-  }
+  void clear_acceptlist() { GetAclManager()->ClearFilterAcceptList(); }
 
   void AddToAddressResolution(const hci::AddressWithType& address_with_type,
                               const std::array<uint8_t, 16>& peer_irk,
@@ -1203,12 +1142,6 @@ struct shim::Acl::impl {
     for (auto& entry : history) {
       log::debug("{}", entry);
     }
-    const auto acceptlist = shadow_acceptlist_.GetCopy();
-    log::debug("Shadow le accept list  size:{:<3} controller_max_size:{}", acceptlist.size(),
-               shadow_acceptlist_.GetMaxSize());
-    for (auto& entry : acceptlist) {
-      log::debug("acceptlist:{}", entry);
-    }
   }
 
 #define DUMPSYS_TAG "shim::acl"
@@ -1230,21 +1163,12 @@ struct shim::Acl::impl {
       }
     }
 
-    auto acceptlist = shadow_acceptlist_.GetCopy();
-    LOG_DUMPSYS(fd,
-                "Shadow le accept list              size:%-3zu "
-                "controller_max_size:%hhu",
-                acceptlist.size(), shadow_acceptlist_.GetMaxSize());
-    unsigned cnt = 0;
-    for (auto& entry : acceptlist) {
-      LOG_DUMPSYS(fd, "  %03u %s", ++cnt, entry.ToRedactedStringForLogging().c_str());
-    }
     auto address_resolution_list = shadow_address_resolution_list_.GetCopy();
     LOG_DUMPSYS(fd,
                 "Shadow le address resolution list  size:%-3zu "
                 "controller_max_size:%hhu",
                 address_resolution_list.size(), shadow_address_resolution_list_.GetMaxSize());
-    cnt = 0;
+    unsigned cnt = 0;
     for (auto& entry : address_resolution_list) {
       LOG_DUMPSYS(fd, "  %03u %s", ++cnt, entry.ToRedactedStringForLogging().c_str());
     }
@@ -1351,11 +1275,11 @@ void shim::Acl::Dump(int fd) const {
 }
 
 shim::Acl::Acl(os::Handler* handler, const acl_interface_t& acl_interface,
-               uint8_t max_acceptlist_size, uint8_t max_address_resolution_size)
+               uint8_t max_address_resolution_size)
     : handler_(handler), acl_interface_(acl_interface) {
   log::assert_that(handler_ != nullptr, "assert failed: handler_ != nullptr");
   ValidateAclInterface(acl_interface_);
-  pimpl_ = std::make_unique<Acl::impl>(max_acceptlist_size, max_address_resolution_size);
+  pimpl_ = std::make_unique<Acl::impl>(max_address_resolution_size);
   GetAclManager()->RegisterCallbacks(this, handler_);
   GetAclManager()->RegisterLeCallbacks(this, handler_);
   GetController()->RegisterCompletedMonitorAclPacketsCallback(
@@ -1618,18 +1542,6 @@ void shim::Acl::OnLeConnectSuccess(hci::AddressWithType address_with_type,
                           std::chrono::system_clock::now()));
   pimpl_->handle_to_le_connection_map_[handle]->RegisterCallbacks();
 
-  // Once an le connection has successfully been established
-  // the device address is removed from the controller accept list.
-
-  if (IsRpa(address_with_type)) {
-    log::debug("Connection address is rpa:{} identity_addr:{}", address_with_type,
-               peer_address_with_type);
-    pimpl_->shadow_acceptlist_.Remove(peer_address_with_type);
-  } else {
-    log::debug("Connection address is not rpa addr:{}", address_with_type);
-    pimpl_->shadow_acceptlist_.Remove(address_with_type);
-  }
-
   if (!pimpl_->handle_to_le_connection_map_[handle]->IsInFilterAcceptList() &&
       connection_role == hci::Role::CENTRAL) {
     pimpl_->handle_to_le_connection_map_[handle]->InitiateDisconnect(
@@ -1668,7 +1580,6 @@ void shim::Acl::OnLeConnectFail(hci::AddressWithType address_with_type, hci::Err
                       enhanced, status);
 
   bluetooth::metrics::LogLeAclCompletionEvent(address_with_type.GetAddress(), reason, true);
-  pimpl_->shadow_acceptlist_.Remove(address_with_type);
   log::warn("Connection failed le remote:{}", address_with_type);
   BTM_LogHistory(kBtmLogTag, ToLegacyAddressWithType(address_with_type), "Connection failed",
                  std::format("le reason:{}", hci::ErrorCodeText(reason)));
