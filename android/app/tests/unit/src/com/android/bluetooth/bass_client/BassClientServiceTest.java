@@ -559,6 +559,9 @@ public class BassClientServiceTest {
                 injectRemoteSourceStateRemoval(sm, TEST_SOURCE_ID + 1);
             }
         }
+
+        doReturn(true).when(mLeAudioService).isPrimaryDevice(mCurrentDevice);
+        doReturn(true).when(mLeAudioService).isPrimaryDevice(mCurrentDevice1);
     }
 
     private void startSearchingForSources() {
@@ -1576,6 +1579,9 @@ public class BassClientServiceTest {
                 .getCallbacks()
                 .notifySourceAdded(
                         sm.getDevice(), recvState, BluetoothStatusCodes.REASON_LOCAL_APP_REQUEST);
+        mBassClientService
+                .getCallbacks()
+                .notifyReceiveStateChanged(sm.getDevice(), recvState.getSourceId(), recvState);
         TestUtils.waitForLooperToFinishScheduledTask(mBassClientService.getCallbacks().getLooper());
 
         return recvState;
@@ -1945,7 +1951,6 @@ public class BassClientServiceTest {
                             : BluetoothLeBroadcastReceiveState.BIG_ENCRYPTION_STATE_NOT_ENCRYPTED,
                     null,
                     (long) 0x00000001);
-            verify(mLeAudioService).activeBroadcastAssistantNotification(eq(true));
         }
 
         // Remove broadcast source
@@ -1971,6 +1976,8 @@ public class BassClientServiceTest {
         for (BassClientStateMachine sm : mStateMachines.values()) {
             injectRemoteSourceStateRemoval(sm, TEST_SOURCE_ID);
         }
+
+        verify(mLeAudioService).activeBroadcastAssistantNotification(eq(false));
     }
 
     private void verifyRemoveMessageAndInjectSourceRemoval() {
