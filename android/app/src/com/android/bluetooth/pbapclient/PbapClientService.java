@@ -478,11 +478,7 @@ public class PbapClientService extends ProfileService {
                     Log.e(TAG, "No Statemachine found for the device=" + device.toString());
                     return;
                 }
-
-                smOld.obtainMessage(
-                                PbapClientStateMachineOld.MSG_SDP_COMPLETE,
-                                new PbapSdpRecord(device, pseRecord))
-                        .sendToTarget();
+                smOld.onSdpResultReceived(status, new PbapSdpRecord(device, pseRecord));
             }
         }
     }
