@@ -383,7 +383,7 @@ std::ostream& operator<<(std::ostream& out, bluetooth::groups::DeviceGroup const
       << "      Uuid: " << group.group_uuid_ << std::endl;
   out << "      Devices:\n";
   for (auto const& addr : group.devices_) {
-    out << "        " << ADDRESS_TO_LOGGABLE_STR(addr) << std::endl;
+    out << "        " << addr.ToRedactedStringForLogging() << std::endl;
   }
   return out;
 }

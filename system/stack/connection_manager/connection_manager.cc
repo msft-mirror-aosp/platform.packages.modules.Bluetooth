@@ -579,7 +579,7 @@ void dump(int fd) {
   for (const auto& entry : bgconn_dev) {
     // TODO: confirm whether we need to replace this
     dprintf(fd, "\n\t * %s:\t\tin_accept_list: %s\t cap_targeted_announcements: %s",
-            ADDRESS_TO_LOGGABLE_CSTR(entry.first),
+            entry.first.ToRedactedStringForLogging().c_str(),
             entry.second.is_in_accept_list ? "true" : "false",
             entry.second.doing_targeted_announcements_conn.empty() ? "false" : "true");
 

@@ -920,7 +920,7 @@ void bta_gatt_client_dump(int fd) {
     tBTA_GATTC_CONN* p_conn_track = &bta_gattc_cb.conn_track[i];
     if (p_conn_track->in_use) {
       entry_count++;
-      stream << "  address: " << ADDRESS_TO_LOGGABLE_STR(p_conn_track->remote_bda);
+      stream << "  address: " << p_conn_track->remote_bda.ToRedactedStringForLogging();
       stream << "\n";
     }
   }
@@ -934,7 +934,7 @@ void bta_gatt_client_dump(int fd) {
       continue;
     }
     entry_count++;
-    stream << "  address: " << ADDRESS_TO_LOGGABLE_STR(p_bg_track->remote_bda)
+    stream << "  address: " << p_bg_track->remote_bda.ToRedactedStringForLogging()
            << "  cif_mask: " << loghex(p_bg_track->cif_mask);
     stream << "\n";
   }
@@ -974,7 +974,7 @@ void bta_gatt_client_dump(int fd) {
       }
       entry_count++;
       stream << "  conn_id: " << loghex(p_clcb->bta_conn_id)
-             << "  address: " << ADDRESS_TO_LOGGABLE_STR(p_clcb->bda)
+             << "  address: " << p_clcb->bda.ToRedactedStringForLogging()
              << "  transport: " << bt_transport_text(p_clcb->transport)
              << "  state: " << bta_clcb_state_text(p_clcb->state);
       stream << "\n";
@@ -988,7 +988,7 @@ void bta_gatt_client_dump(int fd) {
       }
       entry_count++;
       stream << "  conn_id: " << loghex(p_clcb->bta_conn_id)
-             << "  address: " << ADDRESS_TO_LOGGABLE_STR(p_clcb->bda)
+             << "  address: " << p_clcb->bda.ToRedactedStringForLogging()
              << "  transport: " << bt_transport_text(p_clcb->transport)
              << "  state: " << bta_clcb_state_text(p_clcb->state);
       stream << "\n";
@@ -1004,7 +1004,7 @@ void bta_gatt_client_dump(int fd) {
       continue;
     }
     entry_count++;
-    stream << "  server_address: " << ADDRESS_TO_LOGGABLE_STR(p_known_server->server_bda)
+    stream << "  server_address: " << p_known_server->server_bda.ToRedactedStringForLogging()
            << "  mtu: " << p_known_server->mtu
            << "  blocked_conn_id: " << loghex(p_known_server->blocked_conn_id)
            << "  num_clcb: " << +p_known_server->num_clcb
