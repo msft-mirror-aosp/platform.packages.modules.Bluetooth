@@ -455,57 +455,59 @@ static void find_in_device_record(const RawAddress& bd_addr, tBLE_BD_ADDR* addre
   return;
 }
 
-bool create_le_connection(uint8_t /* id */, const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type) {
+bool direct_connect_add(uint8_t app_id, const RawAddress& address, tBLE_ADDR_TYPE addr_type) {
   tBLE_BD_ADDR address_with_type{
           .type = addr_type,
-          .bda = bd_addr,
+          .bda = address,
   };
 
-  find_in_device_record(bd_addr, &address_with_type);
-
-  log::debug("Creating le direct connection to:{} type:{} (initial type: {})", address_with_type,
-             AddressTypeText(address_with_type.type), AddressTypeText(addr_type));
+  find_in_device_record(address, &address_with_type);
 
   if (address_with_type.type == BLE_ADDR_ANONYMOUS) {
-    log::warn(
-            "Creating le direct connection to:{}, address type 'anonymous' is "
-            "invalid",
-            address_with_type);
+    log::warn("Can't use anonymous address for connection: {}", address_with_type);
     return false;
   }
 
-  bluetooth::shim::ACL_AcceptLeConnectionFrom(address_with_type,
-                                              /* is_direct */ true);
-  return true;
-}
+  log::debug("app_id=0x{:x}, address={} (initial type: {})", static_cast<int>(app_id),
+             address_with_type, AddressTypeText(addr_type));
 
-/** Add a device to the direct connection list. Returns true if device
- * added to the list, false otherwise */
-bool direct_connect_add(uint8_t app_id, const RawAddress& address) {
-  log::debug("app_id={}, address={}", static_cast<int>(app_id), address);
   bool in_acceptlist = false;
   auto it = bgconn_dev.find(address);
   if (it != bgconn_dev.end()) {
+    const tAPPS_CONNECTING& info = it->second;
     // app already trying to connect to this particular device
-    if (it->second.doing_direct_conn.count(app_id)) {
-      log::info("direct connect attempt from app_id=0x{:x} already in progress", app_id);
+    if (info.doing_direct_conn.count(app_id)) {
+      log::info("attempt from app_id=0x{:x} to {} already in progress", app_id, address_with_type);
       return false;
     }
 
+    // This is to match existing GD connection manager behavior - if multiple apps try direct
+    // connect at same time, only 1st request is fully processed
+    if (!info.doing_direct_conn.empty()) {
+      log::info("app_id=0x{:x}: attempt from other app already in progress, will merge {}", app_id,
+                address_with_type);
+      return true;
+    }
+
     // are we already in the acceptlist ?
-    if (it->second.is_in_accept_list) {
-      log::warn("Background connection attempt already in progress app_id={:x}", app_id);
+    if (info.is_in_accept_list) {
+      log::warn("background connect attempt already in progress app_id=0x{:x} {}", app_id,
+                address_with_type);
       in_acceptlist = true;
     }
   }
 
   if (!in_acceptlist) {
-    if (!bluetooth::shim::ACL_AcceptLeConnectionFrom(BTM_Sec_GetAddressWithType(address), true)) {
+    if (!bluetooth::shim::ACL_AcceptLeConnectionFrom(address_with_type, true /* is_direct */)) {
       // if we can't add to acceptlist, turn parameters back to slow.
-      log::warn("Unable to add le device to acceptlist");
+      log::warn("unable to add le device to acceptlist {}", address_with_type);
       return false;
     }
     bgconn_dev[address].is_in_accept_list = true;
+  } else {
+    // if already in accept list, we should just bump parameters up for direct
+    // connection. There is no API for that yet, so use API that's adding to accept list.
+    bluetooth::shim::ACL_AcceptLeConnectionFrom(address_with_type, true /* is_direct */);
   }
 
   // Setup a timer
@@ -514,7 +516,6 @@ bool direct_connect_add(uint8_t app_id, const RawAddress& address) {
                     base::BindOnce(&wl_direct_connect_timeout_cb, app_id, address));
 
   bgconn_dev[address].doing_direct_conn.emplace(app_id, unique_alarm_ptr(timeout, &alarm_free));
-
   return true;
 }
 
@@ -526,13 +527,13 @@ bool direct_connect_remove(uint8_t app_id, const RawAddress& address, bool conne
   log::debug("app_id={}, address={}", static_cast<int>(app_id), address);
   auto it = bgconn_dev.find(address);
   if (it == bgconn_dev.end()) {
-    log::warn("Unable to find background connection to remove peer:{}", address);
+    log::warn("unable to find entry to remove: {}", address);
     return false;
   }
 
   auto app_it = it->second.doing_direct_conn.find(app_id);
   if (app_it == it->second.doing_direct_conn.end()) {
-    log::warn("Unable to find direct connection to remove peer:{}", address);
+    log::warn("unable to find direct connection to remove: {}", address);
     return false;
   }
 
@@ -544,13 +545,12 @@ bool direct_connect_remove(uint8_t app_id, const RawAddress& address, bool conne
 
   if (is_anyone_interested_to_use_accept_list(it)) {
     if (connection_timeout) {
-      /* In such case we need to add device back to allow list because,
-       * when connection timeout out, the lower layer removes device from
-       * the allow list.
+      /* In such case we need to add device back to allow list because, when connection timeout
+       * out, the lower layer removes device from the allow list.
        */
       if (!bluetooth::shim::ACL_AcceptLeConnectionFrom(BTM_Sec_GetAddressWithType(address),
-                                                       false)) {
-        log::warn("Failed to re-add device {} to accept list after connection timeout", address);
+                                                       false /* is_direct */)) {
+        log::warn("Failed to re-add {} to accept list after connection timeout", address);
       }
     }
     return true;
@@ -579,7 +579,7 @@ void dump(int fd) {
   for (const auto& entry : bgconn_dev) {
     // TODO: confirm whether we need to replace this
     dprintf(fd, "\n\t * %s:\t\tin_accept_list: %s\t cap_targeted_announcements: %s",
-            ADDRESS_TO_LOGGABLE_CSTR(entry.first),
+            entry.first.ToRedactedStringForLogging().c_str(),
             entry.second.is_in_accept_list ? "true" : "false",
             entry.second.doing_targeted_announcements_conn.empty() ? "false" : "true");
 

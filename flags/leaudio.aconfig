@@ -32,13 +32,6 @@ flag {
 }
 
 flag {
-    name: "asymmetric_phy_for_unidirectional_cis"
-    namespace: "bluetooth"
-    description: "Apply asymetric PHY setting for unidirectional CIS"
-    bug: "314176433"
-}
-
-flag {
     name: "leaudio_hal_client_asrc"
     namespace: "bluetooth"
     description: "Sync audio stream with the bluetooth link clock"
@@ -458,6 +451,16 @@ flag {
     namespace: "bluetooth"
     description: "Use trasparent codec for DSA hardware path"
     bug: "382263607"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_use_audio_recording_listener"
+    namespace: "bluetooth"
+    description: "Use Audio Recording listener instead of monitoring sink session"
+    bug: "381054654"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

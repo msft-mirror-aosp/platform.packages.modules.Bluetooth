@@ -86,7 +86,7 @@ void LogMetricLinkLayerConnectionEvent(const Address* address, uint32_t connecti
             common::ToHexString(cmd_status), common::ToHexString(reason_code),
             common::ToHexString(hci_cmd), common::ToHexString(hci_event),
             common::ToHexString(hci_ble_event),
-            address ? ADDRESS_TO_LOGGABLE_CSTR(*address) : "(NULL)", connection_handle,
+            address ? address->ToRedactedStringForLogging() : "(NULL)", connection_handle,
             common::ToHexString(link_type), ret);
   }
 }

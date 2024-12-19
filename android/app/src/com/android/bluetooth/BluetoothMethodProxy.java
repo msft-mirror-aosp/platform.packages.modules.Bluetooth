@@ -104,7 +104,13 @@ public class BluetoothMethodProxy {
             final String selection,
             final String[] selectionArgs,
             final String sortOrder) {
-        return contentResolver.query(contentUri, projection, selection, selectionArgs, sortOrder);
+        try {
+            return contentResolver.query(
+                    contentUri, projection, selection, selectionArgs, sortOrder);
+        } catch (Exception e) {
+            Log.e(TAG, "Exception happened" + e + "\n" + Log.getStackTraceString(new Throwable()));
+            return null;
+        }
     }
 
     /** Proxies {@link ContentResolver#query(Uri, String[], Bundle, CancellationSignal)}. */
@@ -114,7 +120,12 @@ public class BluetoothMethodProxy {
             final String[] projection,
             final Bundle queryArgs,
             final CancellationSignal cancellationSignal) {
-        return contentResolver.query(contentUri, projection, queryArgs, cancellationSignal);
+        try {
+            return contentResolver.query(contentUri, projection, queryArgs, cancellationSignal);
+        } catch (Exception e) {
+            Log.e(TAG, "Exception happened " + e + "\n" + Log.getStackTraceString(new Throwable()));
+            return null;
+        }
     }
 
     /** Proxies {@link ContentResolver#insert(Uri, ContentValues)}. */

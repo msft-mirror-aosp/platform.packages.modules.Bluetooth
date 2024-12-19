@@ -472,7 +472,7 @@ void gatt_tcb_dump(int fd) {
     if (p_tcb->in_use) {
       in_use_cnt++;
       stream << "  id: " << +p_tcb->tcb_idx
-             << "  address: " << ADDRESS_TO_LOGGABLE_STR(p_tcb->peer_bda)
+             << "  address: " << p_tcb->peer_bda.ToRedactedStringForLogging()
              << "  transport: " << bt_transport_text(p_tcb->transport)
              << "  ch_state: " << gatt_channel_state_text(p_tcb->ch_state) << ", "
              << gatt_tcb_get_holders_info_string(p_tcb) << "\n";

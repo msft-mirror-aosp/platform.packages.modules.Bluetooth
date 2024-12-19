@@ -1135,12 +1135,18 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
         Log.d(TAG, "setFallbackDeviceActive, recently removed: " + recentlyRemovedDevice);
         mDbManager = mAdapterService.getDatabase();
         List<BluetoothDevice> connectedHearingAidDevices = new ArrayList<>();
+        final LeAudioService leAudioService = mFactory.getLeAudioService();
         if (!mHearingAidConnectedDevices.isEmpty()) {
             connectedHearingAidDevices.addAll(mHearingAidConnectedDevices);
         }
-        if (!mLeHearingAidConnectedDevices.isEmpty()) {
-            connectedHearingAidDevices.addAll(mLeHearingAidConnectedDevices);
+        if (!mLeHearingAidConnectedDevices.isEmpty() && leAudioService != null) {
+            for (BluetoothDevice dev : mLeAudioConnectedDevices) {
+                if (leAudioService.isGroupAvailableForStream(leAudioService.getGroupId(dev))) {
+                    connectedHearingAidDevices.add(dev);
+                }
+            }
         }
+
         if (!connectedHearingAidDevices.isEmpty()) {
             BluetoothDevice device =
                     mDbManager.getMostRecentlyConnectedDevicesInList(connectedHearingAidDevices);
@@ -1196,7 +1202,13 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
         }
 
         List<BluetoothDevice> connectedDevices = new ArrayList<>();
-        connectedDevices.addAll(mLeAudioConnectedDevices);
+        if (leAudioService != null) {
+            for (BluetoothDevice dev : mLeAudioConnectedDevices) {
+                if (leAudioService.isGroupAvailableForStream(leAudioService.getGroupId(dev))) {
+                    connectedDevices.add(dev);
+                }
+            }
+        }
         Log.d(TAG, "Audio mode: " + mAudioManager.getMode());
         switch (mAudioManager.getMode()) {
             case AudioManager.MODE_NORMAL:

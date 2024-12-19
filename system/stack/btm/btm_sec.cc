@@ -2225,7 +2225,7 @@ tBTM_SEC_DEV_REC* btm_rnr_add_name_to_security_record(const RawAddress* p_bd_add
 void btm_sec_rmt_name_request_complete(const RawAddress* p_bd_addr, const uint8_t* p_bd_name,
                                        tHCI_STATUS hci_status) {
   log::info("btm_sec_rmt_name_request_complete for {}",
-            p_bd_addr ? ADDRESS_TO_LOGGABLE_CSTR(*p_bd_addr) : "null");
+            p_bd_addr ? p_bd_addr->ToRedactedStringForLogging() : "null");
 
   if ((!p_bd_addr && !get_btm_client_interface().peer.BTM_IsAclConnectionUp(
                              btm_sec_cb.connecting_bda, BT_TRANSPORT_BR_EDR)) ||
@@ -2239,9 +2239,8 @@ void btm_sec_rmt_name_request_complete(const RawAddress* p_bd_addr, const uint8_
   if (p_dev_rec == nullptr) {
     log::warn(
             "Remote read request complete for unknown device peer:{} "
-            "pairing_state:{} "
-            "hci_status:{} name:{}",
-            (p_bd_addr) ? ADDRESS_TO_LOGGABLE_CSTR(*p_bd_addr) : "null",
+            "pairing_state:{} hci_status:{} name:{}",
+            p_bd_addr ? p_bd_addr->ToRedactedStringForLogging() : "null",
             tBTM_SEC_CB::btm_pair_state_descr(btm_sec_cb.pairing_state),
             hci_status_code_text(hci_status), reinterpret_cast<char const*>(p_bd_name));
     return;
@@ -3237,6 +3236,11 @@ void btm_sec_encrypt_change(uint16_t handle, tHCI_STATUS status, uint8_t encr_en
 
   if (transport == BT_TRANSPORT_LE) {
     key_size = p_dev_rec->sec_rec.ble_keys.key_size;
+    if (key_size == 0 && status == HCI_SUCCESS && encr_enable == HCI_ENCRYPT_MODE_ON) {
+      /* Only case when key size is 0 during successfull encryption is pairing - for this case look
+       * up the key size */
+      key_size = SMP_GetPendingPairingKeySize();
+    }
   }
 
   log::debug(

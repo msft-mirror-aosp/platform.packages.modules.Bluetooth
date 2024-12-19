@@ -37,10 +37,22 @@ namespace connection_manager {
 
 using tAPP_ID = uint8_t;
 
-/* for background connection */
+/* Mark device as using targeted announcements.
+ *
+ * @return true if device added to the list, false otherwise */
 bool background_connect_targeted_announcement_add(tAPP_ID app_id, const RawAddress& address);
+
+/* Add a background connect request.
+ *
+ * @return true if device added to the list, false otherwise */
 bool background_connect_add(tAPP_ID app_id, const RawAddress& address);
+
+/* Remove a background connection request.
+ *
+ * @return true if the request is removed, false otherwise.
+ */
 bool background_connect_remove(tAPP_ID app_id, const RawAddress& address);
+
 bool remove_unconditional(const RawAddress& address);
 
 void reset(bool after_reset);
@@ -50,15 +62,15 @@ void on_connection_complete(const RawAddress& address);
 
 std::set<tAPP_ID> get_apps_connecting_to(const RawAddress& remote_bda);
 
-/* create_le_connection is adding device directly to AclManager, and relying on it's "direct
- * connect" implementation.
- * direct_connect_add method is doing multiplexing of apps request, and
- * sending the request to AclManager, but it lacks some extra checks and lookups. Currently these
- * methods are exclusive, if you try to use both you will get some bad behavior. These should be
- * merged into one. */
-bool create_le_connection(uint8_t /* id */, const RawAddress& bd_addr,
-                          tBLE_ADDR_TYPE addr_type = BLE_ADDR_PUBLIC);
-bool direct_connect_add(tAPP_ID app_id, const RawAddress& address);
+/* Add a direct connect request.
+ *
+ * @return true if device added to the list, false otherwise */
+bool direct_connect_add(tAPP_ID app_id, const RawAddress& address,
+                        tBLE_ADDR_TYPE addr_type = BLE_ADDR_PUBLIC);
+/* Remove a direct connection request.
+ *
+ * @return true if the request is removed, false otherwise.
+ */
 bool direct_connect_remove(tAPP_ID app_id, const RawAddress& address,
                            bool connection_timeout = false);
 
