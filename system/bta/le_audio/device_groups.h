@@ -112,6 +112,7 @@ public:
         notify_streaming_when_cises_are_ready_(false),
         audio_directions_(0),
         dsa_({DsaMode::DISABLED, false}),
+        asymmetric_phy_for_unidirectional_cis_supported(true),
         is_enabled_(true),
         transport_latency_mtos_us_(0),
         transport_latency_stom_us_(0),
@@ -142,8 +143,6 @@ public:
     is_output_preference_le_audio = true;
     is_duplex_preference_le_audio = true;
 #endif
-    asymmetric_phy_for_unidirectional_cis_supported =
-            com::android::bluetooth::flags::asymmetric_phy_for_unidirectional_cis();
   }
   ~LeAudioDeviceGroup(void);
 
