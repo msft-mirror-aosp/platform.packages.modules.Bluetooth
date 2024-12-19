@@ -2046,14 +2046,16 @@ static void gattConnectionParameterUpdateNative(JNIEnv* env, jobject /* object *
                                          (uint16_t)max_ce_len);
 }
 
-static void gattSubrateRequestNative(JNIEnv* env, jobject /* object */, jint /* client_if */,
-                                     jstring address, jint subrate_min, jint subrate_max,
-                                     jint max_latency, jint cont_num, jint sup_timeout) {
+static int gattSubrateRequestNative(JNIEnv* env, jobject /* object */, jint /* client_if */,
+                                    jstring address, jint subrate_min, jint subrate_max,
+                                    jint max_latency, jint cont_num, jint sup_timeout) {
   if (!sGattIf) {
-    return;
+    return 1;  // BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED
   }
+  // TODO does bt_status_t align with BluetoothStatusCodes ?
   sGattIf->client->subrate_request(str2addr(env, address), subrate_min, subrate_max, max_latency,
                                    cont_num, sup_timeout);
+  return 0;  // BluetoothStatusCodes.SUCCESS
 }
 
 void batchscan_cfg_storage_cb(uint8_t client_if, uint8_t status) {
@@ -3060,7 +3062,7 @@ static int register_com_android_bluetooth_gatt_(JNIEnv* env) {
           {"gattServerSendIndicationNative", "(III[B)V", (void*)gattServerSendIndicationNative},
           {"gattServerSendNotificationNative", "(III[B)V", (void*)gattServerSendNotificationNative},
           {"gattServerSendResponseNative", "(IIIIII[BI)V", (void*)gattServerSendResponseNative},
-          {"gattSubrateRequestNative", "(ILjava/lang/String;IIIII)V",
+          {"gattSubrateRequestNative", "(ILjava/lang/String;IIIII)I",
            (void*)gattSubrateRequestNative},
 
           {"gattTestNative", "(IJJLjava/lang/String;IIIII)V", (void*)gattTestNative},

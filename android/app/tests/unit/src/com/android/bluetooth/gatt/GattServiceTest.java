@@ -36,6 +36,7 @@ import android.bluetooth.le.DistanceMeasurementMethod;
 import android.bluetooth.le.DistanceMeasurementParams;
 import android.bluetooth.le.IDistanceMeasurementCallback;
 import android.bluetooth.le.PeriodicAdvertisingParameters;
+import android.companion.CompanionDeviceManager;
 import android.content.AttributionSource;
 import android.content.Context;
 import android.content.res.Resources;
@@ -102,6 +103,8 @@ public class GattServiceTest {
     private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
     private final AttributionSource mAttributionSource = mAdapter.getAttributionSource();
     private final Context mContext = InstrumentationRegistry.getTargetContext();
+    private final CompanionDeviceManager mCompanionDeviceManager =
+            mContext.getSystemService(CompanionDeviceManager.class);
 
     private MockContentResolver mMockContentResolver;
 
@@ -141,6 +144,11 @@ public class GattServiceTest {
                 mAdapterService, Context.LOCATION_SERVICE, LocationManager.class);
         TestUtils.mockGetSystemService(
                 mAdapterService, Context.ACTIVITY_SERVICE, ActivityManager.class);
+        TestUtils.mockGetSystemService(
+                mAdapterService,
+                Context.COMPANION_DEVICE_SERVICE,
+                CompanionDeviceManager.class,
+                mCompanionDeviceManager);
 
         mBtCompanionManager = new CompanionManager(mAdapterService, null);
         doReturn(mBtCompanionManager).when(mAdapterService).getCompanionManager();
