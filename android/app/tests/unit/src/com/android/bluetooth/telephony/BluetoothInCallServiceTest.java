@@ -1813,11 +1813,11 @@ public class BluetoothInCallServiceTest {
 
     @Test
     public void onDestroy() {
-        assertThat(mBluetoothInCallService.mOnCreateCalled).isTrue();
+        assertThat(BluetoothInCallService.getInstance()).isNotNull();
 
         mBluetoothInCallService.onDestroy();
 
-        assertThat(mBluetoothInCallService.mOnCreateCalled).isFalse();
+        assertThat(BluetoothInCallService.getInstance()).isNull();
     }
 
     @Test
