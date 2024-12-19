@@ -142,8 +142,7 @@ public class BaseDataTest {
                     (byte) 'A', // codecConfigInfo
                 };
 
-        BaseData data = BaseData.parseBaseData(serviceData);
-        assertThat(data).isEqualTo(null);
+        assertThat(BaseData.parseBaseData(serviceData)).isNull();
     }
 
     @Test
@@ -173,8 +172,7 @@ public class BaseDataTest {
                     (byte) 0x08, // metaData
                 };
 
-        BaseData data = BaseData.parseBaseData(serviceData);
-        assertThat(data).isEqualTo(null);
+        assertThat(BaseData.parseBaseData(serviceData)).isNull();
     }
 
     @Test
@@ -210,8 +208,7 @@ public class BaseDataTest {
                     (byte) 'C' // codecConfigInfo
                 };
 
-        BaseData data = BaseData.parseBaseData(serviceData);
-        assertThat(data).isEqualTo(null);
+        assertThat(BaseData.parseBaseData(serviceData)).isNull();
     }
 
     @Test
@@ -392,8 +389,7 @@ public class BaseDataTest {
                     (byte) 0x00, // metaDataLength
                 };
 
-        BaseData data = BaseData.parseBaseData(serviceData);
-        assertThat(data).isEqualTo(null);
+        assertThat(BaseData.parseBaseData(serviceData)).isNull();
     }
 
     @Test

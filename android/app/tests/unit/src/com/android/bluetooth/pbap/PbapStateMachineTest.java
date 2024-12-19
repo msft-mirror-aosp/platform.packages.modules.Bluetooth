@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.pbap;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.mockito.Mockito.*;
 
 import android.bluetooth.BluetoothAdapter;
@@ -97,8 +99,8 @@ public class PbapStateMachineTest {
     /** Test that initial state is WaitingForAuth */
     @Test
     public void testInitialState() {
-        Assert.assertEquals(
-                BluetoothProfile.STATE_CONNECTING, mPbapStateMachine.getConnectionState());
+        assertThat(mPbapStateMachine.getConnectionState())
+                .isEqualTo(BluetoothProfile.STATE_CONNECTING);
         Assert.assertThat(
                 mPbapStateMachine.getCurrentState(),
                 IsInstanceOf.instanceOf(PbapStateMachine.WaitingForAuth.class));
@@ -109,8 +111,8 @@ public class PbapStateMachineTest {
     @Test
     public void testStateTransition_WaitingForAuthToFinished() throws Exception {
         mPbapStateMachine.sendMessage(PbapStateMachine.REJECTED);
-        Assert.assertEquals(
-                BluetoothProfile.STATE_DISCONNECTED, mPbapStateMachine.getConnectionState());
+        assertThat(mPbapStateMachine.getConnectionState())
+                .isEqualTo(BluetoothProfile.STATE_DISCONNECTED);
         Assert.assertThat(
                 mPbapStateMachine.getCurrentState(),
                 IsInstanceOf.instanceOf(PbapStateMachine.Finished.class));
@@ -121,8 +123,8 @@ public class PbapStateMachineTest {
     @Test
     public void testStateTransition_WaitingForAuthToConnected() throws Exception {
         mPbapStateMachine.sendMessage(PbapStateMachine.AUTHORIZED);
-        Assert.assertEquals(
-                BluetoothProfile.STATE_CONNECTED, mPbapStateMachine.getConnectionState());
+        assertThat(mPbapStateMachine.getConnectionState())
+                .isEqualTo(BluetoothProfile.STATE_CONNECTED);
         Assert.assertThat(
                 mPbapStateMachine.getCurrentState(),
                 IsInstanceOf.instanceOf(PbapStateMachine.Connected.class));
@@ -133,16 +135,16 @@ public class PbapStateMachineTest {
     @Test
     public void testStateTransition_ConnectedToFinished() throws Exception {
         mPbapStateMachine.sendMessage(PbapStateMachine.AUTHORIZED);
-        Assert.assertEquals(
-                BluetoothProfile.STATE_CONNECTED, mPbapStateMachine.getConnectionState());
+        assertThat(mPbapStateMachine.getConnectionState())
+                .isEqualTo(BluetoothProfile.STATE_CONNECTED);
         Assert.assertThat(
                 mPbapStateMachine.getCurrentState(),
                 IsInstanceOf.instanceOf(PbapStateMachine.Connected.class));
 
         // PBAP OBEX transport is done.
         mPbapStateMachine.sendMessage(PbapStateMachine.DISCONNECT);
-        Assert.assertEquals(
-                BluetoothProfile.STATE_DISCONNECTED, mPbapStateMachine.getConnectionState());
+        assertThat(mPbapStateMachine.getConnectionState())
+                .isEqualTo(BluetoothProfile.STATE_DISCONNECTED);
         Assert.assertThat(
                 mPbapStateMachine.getCurrentState(),
                 IsInstanceOf.instanceOf(PbapStateMachine.Finished.class));

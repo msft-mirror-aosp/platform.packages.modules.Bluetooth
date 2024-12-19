@@ -137,7 +137,7 @@ public class SmsMmsContactsTest {
                 .when(mMapMethodProxy)
                 .contentResolverQuery(any(), any(), any(), any(), any(), any());
         assertThat(mContacts.mNames).isEmpty();
-        assertThat(mContacts.getPhoneNumber(mResolver, TEST_ID)).isEqualTo(null);
+        assertThat(mContacts.getPhoneNumber(mResolver, TEST_ID)).isNull();
     }
 
     @Test

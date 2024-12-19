@@ -186,8 +186,8 @@ public class HeadsetStateMachineTest {
     /** Test that default state is Disconnected */
     @Test
     public void testDefaultDisconnectedState() {
-        Assert.assertEquals(
-                BluetoothProfile.STATE_DISCONNECTED, mHeadsetStateMachine.getConnectionState());
+        assertThat(mHeadsetStateMachine.getConnectionState())
+                .isEqualTo(BluetoothProfile.STATE_DISCONNECTED);
         Assert.assertThat(
                 mHeadsetStateMachine.getCurrentState(),
                 IsInstanceOf.instanceOf(HeadsetStateMachine.Disconnected.class));
@@ -197,8 +197,8 @@ public class HeadsetStateMachineTest {
     @Test
     public void testSetupConnectedState() {
         setUpConnectedState();
-        Assert.assertEquals(
-                BluetoothProfile.STATE_CONNECTED, mHeadsetStateMachine.getConnectionState());
+        assertThat(mHeadsetStateMachine.getConnectionState())
+                .isEqualTo(BluetoothProfile.STATE_CONNECTED);
         Assert.assertThat(
                 mHeadsetStateMachine.getCurrentState(),
                 IsInstanceOf.instanceOf(HeadsetStateMachine.Connected.class));
@@ -1331,7 +1331,7 @@ public class HeadsetStateMachineTest {
         verify(mNativeInterface, timeout(ASYNC_CALL_TIMEOUT_MILLIS)).disconnectAudio(mTestDevice);
     }
 
-    /** A test to verfiy that we correctly handles AT+BIND event with driver safety case from HF */
+    /** A test to verify that we correctly handles AT+BIND event with driver safety case from HF */
     @Test
     public void testAtBindWithDriverSafetyEventWhenConnecting() {
         setUpConnectingState();
@@ -1344,22 +1344,21 @@ public class HeadsetStateMachineTest {
         verify(mHeadsetService, timeout(ASYNC_CALL_TIMEOUT_MILLIS))
                 .sendBroadcast(intentArgument.capture(), eq(BLUETOOTH_CONNECT), any(Bundle.class));
         verify(mHeadsetService).sendBroadcast(any(), any(), any());
-        Assert.assertEquals(
-                mTestDevice,
-                intentArgument.getValue().getExtra(BluetoothDevice.EXTRA_DEVICE, null));
-        Assert.assertEquals(
-                HeadsetHalConstants.HF_INDICATOR_ENHANCED_DRIVER_SAFETY,
-                intentArgument
-                        .getValue()
-                        .getIntExtra(BluetoothHeadset.EXTRA_HF_INDICATORS_IND_ID, -1));
-        Assert.assertEquals(
-                -1,
-                intentArgument
-                        .getValue()
-                        .getIntExtra(BluetoothHeadset.EXTRA_HF_INDICATORS_IND_VALUE, -2));
+        assertThat(intentArgument.getValue().getExtra(BluetoothDevice.EXTRA_DEVICE, null))
+                .isEqualTo(mTestDevice);
+        assertThat(
+                        intentArgument
+                                .getValue()
+                                .getIntExtra(BluetoothHeadset.EXTRA_HF_INDICATORS_IND_ID, -1))
+                .isEqualTo(HeadsetHalConstants.HF_INDICATOR_ENHANCED_DRIVER_SAFETY);
+        assertThat(
+                        intentArgument
+                                .getValue()
+                                .getIntExtra(BluetoothHeadset.EXTRA_HF_INDICATORS_IND_VALUE, -2))
+                .isEqualTo(-1);
     }
 
-    /** A test to verfiy that we correctly handles AT+BIND event with battery level case from HF */
+    /** A test to verify that we correctly handles AT+BIND event with battery level case from HF */
     @Test
     public void testAtBindEventWithBatteryLevelEventWhenConnecting() {
         setUpConnectingState();
@@ -1372,22 +1371,21 @@ public class HeadsetStateMachineTest {
         verify(mHeadsetService, timeout(ASYNC_CALL_TIMEOUT_MILLIS))
                 .sendBroadcast(intentArgument.capture(), eq(BLUETOOTH_CONNECT), any(Bundle.class));
         verify(mHeadsetService).sendBroadcast(any(), any(), any());
-        Assert.assertEquals(
-                mTestDevice,
-                intentArgument.getValue().getExtra(BluetoothDevice.EXTRA_DEVICE, null));
-        Assert.assertEquals(
-                HeadsetHalConstants.HF_INDICATOR_BATTERY_LEVEL_STATUS,
-                intentArgument
-                        .getValue()
-                        .getIntExtra(BluetoothHeadset.EXTRA_HF_INDICATORS_IND_ID, -1));
-        Assert.assertEquals(
-                -1,
-                intentArgument
-                        .getValue()
-                        .getIntExtra(BluetoothHeadset.EXTRA_HF_INDICATORS_IND_VALUE, -2));
+        assertThat(intentArgument.getValue().getExtra(BluetoothDevice.EXTRA_DEVICE, null))
+                .isEqualTo(mTestDevice);
+        assertThat(
+                        intentArgument
+                                .getValue()
+                                .getIntExtra(BluetoothHeadset.EXTRA_HF_INDICATORS_IND_ID, -1))
+                .isEqualTo(HeadsetHalConstants.HF_INDICATOR_BATTERY_LEVEL_STATUS);
+        assertThat(
+                        intentArgument
+                                .getValue()
+                                .getIntExtra(BluetoothHeadset.EXTRA_HF_INDICATORS_IND_VALUE, -2))
+                .isEqualTo(-1);
     }
 
-    /** A test to verfiy that we correctly handles AT+BIND event with error case from HF */
+    /** A test to verify that we correctly handles AT+BIND event with error case from HF */
     @Test
     public void testAtBindEventWithErrorEventWhenConnecting() {
         setUpConnectingState();
@@ -1400,19 +1398,18 @@ public class HeadsetStateMachineTest {
         verify(mHeadsetService, timeout(ASYNC_CALL_TIMEOUT_MILLIS))
                 .sendBroadcast(intentArgument.capture(), eq(BLUETOOTH_CONNECT), any(Bundle.class));
         verify(mHeadsetService).sendBroadcast(any(), any(), any());
-        Assert.assertEquals(
-                mTestDevice,
-                intentArgument.getValue().getExtra(BluetoothDevice.EXTRA_DEVICE, null));
-        Assert.assertEquals(
-                HeadsetHalConstants.HF_INDICATOR_ENHANCED_DRIVER_SAFETY,
-                intentArgument
-                        .getValue()
-                        .getIntExtra(BluetoothHeadset.EXTRA_HF_INDICATORS_IND_ID, -1));
-        Assert.assertEquals(
-                -1,
-                intentArgument
-                        .getValue()
-                        .getIntExtra(BluetoothHeadset.EXTRA_HF_INDICATORS_IND_VALUE, -2));
+        assertThat(intentArgument.getValue().getExtra(BluetoothDevice.EXTRA_DEVICE, null))
+                .isEqualTo(mTestDevice);
+        assertThat(
+                        intentArgument
+                                .getValue()
+                                .getIntExtra(BluetoothHeadset.EXTRA_HF_INDICATORS_IND_ID, -1))
+                .isEqualTo(HeadsetHalConstants.HF_INDICATOR_ENHANCED_DRIVER_SAFETY);
+        assertThat(
+                        intentArgument
+                                .getValue()
+                                .getIntExtra(BluetoothHeadset.EXTRA_HF_INDICATORS_IND_VALUE, -2))
+                .isEqualTo(-1);
     }
 
     /** A test to verify that we correctly set AG indicator mask when enter/exit silence mode */
@@ -1442,7 +1439,7 @@ public class HeadsetStateMachineTest {
         String input = "test";
         int fromIndex = 0;
 
-        Assert.assertEquals(HeadsetStateMachine.findChar(ch, input, fromIndex), 2);
+        assertThat(HeadsetStateMachine.findChar(ch, input, fromIndex)).isEqualTo(2);
     }
 
     @Test
@@ -1451,7 +1448,7 @@ public class HeadsetStateMachineTest {
         String input = "test";
         int fromIndex = 0;
 
-        Assert.assertEquals(HeadsetStateMachine.findChar(ch, input, fromIndex), input.length());
+        assertThat(HeadsetStateMachine.findChar(ch, input, fromIndex)).isEqualTo(input.length());
     }
 
     @Test
@@ -1460,7 +1457,7 @@ public class HeadsetStateMachineTest {
         String input = "te\"st";
         int fromIndex = 0;
 
-        Assert.assertEquals(HeadsetStateMachine.findChar(ch, input, fromIndex), input.length());
+        assertThat(HeadsetStateMachine.findChar(ch, input, fromIndex)).isEqualTo(input.length());
     }
 
     @Test
@@ -1470,46 +1467,47 @@ public class HeadsetStateMachineTest {
         expected.add(11);
         expected.add("notint");
 
-        Assert.assertEquals(HeadsetStateMachine.generateArgs(input), expected.toArray());
+        assertThat(HeadsetStateMachine.generateArgs(input)).isEqualTo(expected.toArray());
     }
 
     @Test
     public void testGetAtCommandType() {
         String atCommand = "start?";
-        Assert.assertEquals(
-                mHeadsetStateMachine.getAtCommandType(atCommand), AtPhonebook.TYPE_READ);
+        assertThat(mHeadsetStateMachine.getAtCommandType(atCommand))
+                .isEqualTo(AtPhonebook.TYPE_READ);
 
         atCommand = "start=?";
-        Assert.assertEquals(
-                mHeadsetStateMachine.getAtCommandType(atCommand), AtPhonebook.TYPE_TEST);
+        assertThat(mHeadsetStateMachine.getAtCommandType(atCommand))
+                .isEqualTo(AtPhonebook.TYPE_TEST);
 
         atCommand = "start=comm";
-        Assert.assertEquals(mHeadsetStateMachine.getAtCommandType(atCommand), AtPhonebook.TYPE_SET);
+        assertThat(mHeadsetStateMachine.getAtCommandType(atCommand))
+                .isEqualTo(AtPhonebook.TYPE_SET);
 
         atCommand = "start!";
-        Assert.assertEquals(
-                mHeadsetStateMachine.getAtCommandType(atCommand), AtPhonebook.TYPE_UNKNOWN);
+        assertThat(mHeadsetStateMachine.getAtCommandType(atCommand))
+                .isEqualTo(AtPhonebook.TYPE_UNKNOWN);
     }
 
     @Test
     public void testParseUnknownAt() {
         String atString = "\"command\"";
 
-        Assert.assertEquals(mHeadsetStateMachine.parseUnknownAt(atString), "\"command\"");
+        assertThat(mHeadsetStateMachine.parseUnknownAt(atString)).isEqualTo("\"command\"");
     }
 
     @Test
     public void testParseUnknownAt_withUnmatchingQuotes() {
         String atString = "\"command";
 
-        Assert.assertEquals(mHeadsetStateMachine.parseUnknownAt(atString), "\"command\"");
+        assertThat(mHeadsetStateMachine.parseUnknownAt(atString)).isEqualTo("\"command\"");
     }
 
     @Test
     public void testParseUnknownAt_withCharOutsideQuotes() {
         String atString = "a\"command\"";
 
-        Assert.assertEquals(mHeadsetStateMachine.parseUnknownAt(atString), "A\"command\"");
+        assertThat(mHeadsetStateMachine.parseUnknownAt(atString)).isEqualTo("A\"command\"");
     }
 
     @Ignore("b/265556073")
@@ -1803,7 +1801,7 @@ public class HeadsetStateMachineTest {
 
         mHeadsetStateMachine.processVolumeEvent(HeadsetHalConstants.VOLUME_TYPE_MIC, 1);
 
-        Assert.assertEquals(mHeadsetStateMachine.mMicVolume, 1);
+        assertThat(mHeadsetStateMachine.mMicVolume).isEqualTo(1);
     }
 
     @RequiresFlagsDisabled(FLAG_DEPRECATE_STREAM_BT_SCO)
@@ -1816,7 +1814,7 @@ public class HeadsetStateMachineTest {
 
         mHeadsetStateMachine.processVolumeEvent(HeadsetHalConstants.VOLUME_TYPE_SPK, 2);
 
-        Assert.assertEquals(mHeadsetStateMachine.mSpeakerVolume, 2);
+        assertThat(mHeadsetStateMachine.mSpeakerVolume).isEqualTo(2);
         verify(mockAudioManager).setStreamVolume(AudioManager.STREAM_BLUETOOTH_SCO, 2, 0);
     }
 
@@ -1830,7 +1828,7 @@ public class HeadsetStateMachineTest {
 
         mHeadsetStateMachine.processVolumeEvent(HeadsetHalConstants.VOLUME_TYPE_SPK, 2);
 
-        Assert.assertEquals(mHeadsetStateMachine.mSpeakerVolume, 2);
+        assertThat(mHeadsetStateMachine.mSpeakerVolume).isEqualTo(2);
         verify(mockAudioManager).setStreamVolume(AudioManager.STREAM_VOICE_CALL, 2, 0);
     }
 

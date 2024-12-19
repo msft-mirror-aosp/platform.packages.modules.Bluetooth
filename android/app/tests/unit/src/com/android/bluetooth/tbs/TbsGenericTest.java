@@ -247,8 +247,8 @@ public class TbsGenericTest {
         TbsCall capturedTbsCall = capturedCurrentCalls.get(capturedCallIndex);
         assertThat(capturedTbsCall).isNotNull();
         assertThat(capturedTbsCall.getState()).isEqualTo(BluetoothLeCall.STATE_INCOMING);
-        assertThat(capturedTbsCall.getUri()).isEqualTo(null);
-        assertThat(capturedTbsCall.getSafeUri()).isEqualTo(null);
+        assertThat(capturedTbsCall.getUri()).isNull();
+        assertThat(capturedTbsCall.getSafeUri()).isNull();
         assertThat(capturedTbsCall.getFlags()).isEqualTo(0);
         assertThat(capturedTbsCall.isIncoming()).isTrue();
         assertThat(capturedTbsCall.getFriendlyName()).isEqualTo("aFriendlyCaller");
@@ -283,9 +283,9 @@ public class TbsGenericTest {
         ArgumentCaptor<Map> currentCallsCaptor = ArgumentCaptor.forClass(Map.class);
         verify(mTbsGatt).setCallState(currentCallsCaptor.capture());
         Map<Integer, TbsCall> capturedCurrentCalls = currentCallsCaptor.getValue();
-        assertThat(capturedCurrentCalls.size()).isEqualTo(0);
+        assertThat(capturedCurrentCalls).isEmpty();
         verify(mTbsGatt).setBearerListCurrentCalls(currentCallsCaptor.capture());
-        assertThat(capturedCurrentCalls.size()).isEqualTo(0);
+        assertThat(capturedCurrentCalls).isEmpty();
     }
 
     @Test

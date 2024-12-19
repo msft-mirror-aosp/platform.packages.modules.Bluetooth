@@ -49,7 +49,6 @@ import com.android.bluetooth.btservice.RemoteDevices;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -226,7 +225,7 @@ public class HeadsetClientServiceTest {
 
         for (Map.Entry entry : amToHfMap.entrySet()) {
             // Convert back from collected HF to AM and check if equal the saved AM value
-            Assert.assertEquals(service.hfToAmVol((int) entry.getValue()), entry.getKey());
+            assertThat(service.hfToAmVol((int) entry.getValue())).isEqualTo(entry.getKey());
         }
     }
 
@@ -255,7 +254,7 @@ public class HeadsetClientServiceTest {
 
         for (Map.Entry entry : hfToAmMap.entrySet()) {
             // Convert back from collected AM to HF and check if equal the saved HF value
-            Assert.assertEquals(service.amToHfVol((int) entry.getValue()), entry.getKey());
+            assertThat(service.amToHfVol((int) entry.getValue())).isEqualTo(entry.getKey());
         }
     }
 
