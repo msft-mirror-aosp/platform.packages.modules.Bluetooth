@@ -4917,7 +4917,6 @@ packet LeSubrateRequestStatus : CommandStatus (command_op_code = LE_SUBRATE_REQU
 }
 
 packet LeCsReadLocalSupportedCapabilities : DistanceMeasurementCommand (op_code = LE_CS_READ_LOCAL_SUPPORTED_CAPABILITIES) {
-
 }
 
 struct CsRoleSupported {
@@ -5293,7 +5292,7 @@ packet LeCsTest : DistanceMeasurementCommand (op_code = LE_CS_TEST) {
   snr_control_reflector: CsSnrControl,
   drbg_nonce : 16,
   channel_map_repetition : 8,
-  override_config : 8,
+  override_config : 16,
   override_parameters_length : 8,
   override_parameters_data : 8[],
 }
