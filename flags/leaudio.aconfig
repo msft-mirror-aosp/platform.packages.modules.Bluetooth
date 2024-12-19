@@ -32,13 +32,6 @@ flag {
 }
 
 flag {
-    name: "leaudio_hal_client_asrc"
-    namespace: "bluetooth"
-    description: "Sync audio stream with the bluetooth link clock"
-    bug: "312273987"
-}
-
-flag {
     name: "metadata_api_inactive_audio_device_upon_connection"
     is_exported: true
     namespace: "bluetooth"
