@@ -38,51 +38,45 @@ namespace shim {
 os::Handler* GetGdShimHandler() { return Stack::GetInstance()->GetHandler(); }
 
 hci::LeAdvertisingManager* GetAdvertising() {
-  return Stack::GetInstance()->GetStackManager()->GetInstance<hci::LeAdvertisingManager>();
+  return Stack::GetInstance()->GetInstance<hci::LeAdvertisingManager>();
 }
 
 hci::ControllerInterface* GetController() {
-  return Stack::GetInstance()->GetStackManager()->GetInstance<hci::Controller>();
+  return Stack::GetInstance()->GetInstance<hci::Controller>();
 }
 
-hci::HciInterface* GetHciLayer() {
-  return Stack::GetInstance()->GetStackManager()->GetInstance<hci::HciLayer>();
-}
+hci::HciInterface* GetHciLayer() { return Stack::GetInstance()->GetInstance<hci::HciLayer>(); }
 
 hci::RemoteNameRequestModule* GetRemoteNameRequest() {
-  return Stack::GetInstance()->GetStackManager()->GetInstance<hci::RemoteNameRequestModule>();
+  return Stack::GetInstance()->GetInstance<hci::RemoteNameRequestModule>();
 }
 
 hci::LeScanningManager* GetScanning() {
-  return Stack::GetInstance()->GetStackManager()->GetInstance<hci::LeScanningManager>();
+  return Stack::GetInstance()->GetInstance<hci::LeScanningManager>();
 }
 
 hci::DistanceMeasurementManager* GetDistanceMeasurementManager() {
-  return Stack::GetInstance()->GetStackManager()->GetInstance<hci::DistanceMeasurementManager>();
+  return Stack::GetInstance()->GetInstance<hci::DistanceMeasurementManager>();
 }
 
-hal::SnoopLogger* GetSnoopLogger() {
-  return Stack::GetInstance()->GetStackManager()->GetInstance<hal::SnoopLogger>();
-}
+hal::SnoopLogger* GetSnoopLogger() { return Stack::GetInstance()->GetInstance<hal::SnoopLogger>(); }
 
 lpp::LppOffloadInterface* GetLppOffloadManager() {
-  return Stack::GetInstance()->GetStackManager()->GetInstance<lpp::LppOffloadManager>();
+  return Stack::GetInstance()->GetInstance<lpp::LppOffloadManager>();
 }
 
 storage::StorageModule* GetStorage() {
-  return Stack::GetInstance()->GetStackManager()->GetInstance<storage::StorageModule>();
+  return Stack::GetInstance()->GetInstance<storage::StorageModule>();
 }
 
-hci::AclManager* GetAclManager() {
-  return Stack::GetInstance()->GetStackManager()->GetInstance<hci::AclManager>();
-}
+hci::AclManager* GetAclManager() { return Stack::GetInstance()->GetInstance<hci::AclManager>(); }
 
 metrics::CounterMetrics* GetCounterMetrics() {
-  return Stack::GetInstance()->GetStackManager()->GetInstance<metrics::CounterMetrics>();
+  return Stack::GetInstance()->GetInstance<metrics::CounterMetrics>();
 }
 
 hci::MsftExtensionManager* GetMsftExtensionManager() {
-  return Stack::GetInstance()->GetStackManager()->GetInstance<hci::MsftExtensionManager>();
+  return Stack::GetInstance()->GetInstance<hci::MsftExtensionManager>();
 }
 
 }  // namespace shim

@@ -32,6 +32,9 @@
 #include "os/thread.h"
 
 namespace bluetooth {
+namespace shim {
+class Stack;
+}  // namespace shim
 
 class Module;
 class ModuleRegistry;
@@ -122,7 +125,7 @@ private:
 
 class ModuleRegistry {
   friend Module;
-  friend class StackManager;
+  friend shim::Stack;
 
 public:
   template <class T>
