@@ -60,7 +60,6 @@ import com.android.bluetooth.R;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.BluetoothAdapterProxy;
-import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.gatt.GattServiceConfig;
 import com.android.bluetooth.util.NumberUtils;
 import com.android.internal.annotations.VisibleForTesting;
@@ -962,16 +961,10 @@ public class TransitionalScanHelper {
             return;
         }
 
-        BluetoothDevice device;
-        if (Flags.leScanUseAddressType()) {
-            device =
-                    BluetoothAdapter.getDefaultAdapter()
-                            .getRemoteLeDevice(
-                                    trackingInfo.getAddress(), trackingInfo.getAddressType());
-        } else {
-            device =
-                    BluetoothAdapter.getDefaultAdapter().getRemoteDevice(trackingInfo.getAddress());
-        }
+        BluetoothDevice device =
+                BluetoothAdapter.getDefaultAdapter()
+                        .getRemoteLeDevice(
+                                trackingInfo.getAddress(), trackingInfo.getAddressType());
         int advertiserState = trackingInfo.getAdvState();
         ScanResult result =
                 new ScanResult(
