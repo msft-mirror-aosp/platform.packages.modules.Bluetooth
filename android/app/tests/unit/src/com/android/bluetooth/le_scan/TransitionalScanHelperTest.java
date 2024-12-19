@@ -393,7 +393,6 @@ public class TransitionalScanHelperTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LE_SCAN_USE_ADDRESS_TYPE)
     public void onTrackAdvFoundLost() throws Exception {
         int scannerId = 1;
         int advPktLen = 1;
