@@ -808,7 +808,7 @@ public class ActiveDeviceManagerTest {
         // Don't call mA2dpService.setActiveDevice()
         verify(mA2dpService, never()).setActiveDevice(mA2dpDevice);
         Assert.assertEquals(mA2dpDevice, mActiveDeviceManager.getA2dpActiveDevice());
-        Assert.assertTrue(mActiveDeviceManager.getHearingAidActiveDevices().isEmpty());
+        assertThat(mActiveDeviceManager.getHearingAidActiveDevices()).isEmpty();
     }
 
     /** A Hearing Aid is connected. Then a Headset active device is explicitly set. */
@@ -827,7 +827,7 @@ public class ActiveDeviceManagerTest {
         // Don't call mHeadsetService.setActiveDevice()
         verify(mHeadsetService, never()).setActiveDevice(mHeadsetDevice);
         Assert.assertEquals(mHeadsetDevice, mActiveDeviceManager.getHfpActiveDevice());
-        Assert.assertTrue(mActiveDeviceManager.getHearingAidActiveDevices().isEmpty());
+        assertThat(mActiveDeviceManager.getHearingAidActiveDevices()).isEmpty();
     }
 
     @Test
@@ -850,6 +850,66 @@ public class ActiveDeviceManagerTest {
     public void leAudioConnected_notReadyForStream() {
         when(mLeAudioService.isGroupAvailableForStream(anyInt())).thenReturn(false);
         leAudioConnected(mLeAudioDevice);
+        mTestLooper.dispatchAll();
+        verify(mLeAudioService, never()).setActiveDevice(mLeAudioDevice);
+    }
+
+    /**
+     * LE Audio is connected but is not ready for stream (no available context types). Check if it's
+     * not used as fallback device from A2DP
+     */
+    @Test
+    public void leAudioFallbackA2dpToLeaudio_notReadyForStream() {
+        when(mLeAudioService.isGroupAvailableForStream(anyInt())).thenReturn(false);
+        leAudioConnected(mLeAudioDevice);
+        a2dpConnected(mA2dpDevice, true);
+        mTestLooper.dispatchAll();
+        verify(mLeAudioService, never()).setActiveDevice(mLeAudioDevice);
+        verify(mA2dpService).setActiveDevice(mA2dpDevice);
+
+        a2dpDisconnected(mA2dpDevice);
+        mTestLooper.dispatchAll();
+        verify(mLeAudioService, never()).setActiveDevice(mLeAudioDevice);
+    }
+
+    /**
+     * LE Audio is connected but is not ready for stream (no available context types). Check if it's
+     * not used as fallback device from A2DP
+     */
+    @Test
+    public void leAudioFallbackLeaudioToLeaudio_notReadyForStream() {
+        /* LeAudio device from group 1 - not ready for stream */
+        when(mLeAudioService.getGroupId(mLeAudioDevice)).thenReturn(1);
+        /* LeAudio device from group 1 - ready for stream */
+        when(mLeAudioService.getGroupId(mSecondaryAudioDevice)).thenReturn(2);
+        when(mLeAudioService.isGroupAvailableForStream(1)).thenReturn(false);
+        when(mLeAudioService.isGroupAvailableForStream(2)).thenReturn(true);
+        leAudioConnected(mLeAudioDevice);
+        leAudioConnected(mSecondaryAudioDevice);
+        mTestLooper.dispatchAll();
+        verify(mLeAudioService, never()).setActiveDevice(mLeAudioDevice);
+        verify(mLeAudioService).setActiveDevice(mSecondaryAudioDevice);
+
+        leAudioDisconnected(mSecondaryAudioDevice);
+        mTestLooper.dispatchAll();
+        verify(mLeAudioService, never()).setActiveDevice(mLeAudioDevice);
+    }
+
+    /**
+     * LE Audio is connected but is not ready for stream (no available context types). Check if it's
+     * not used as fallback device from ASHA
+     */
+    @Test
+    public void leAudioFallbackAshaToLeaudio_notReadyForStream() {
+        when(mLeAudioService.isGroupAvailableForStream(anyInt())).thenReturn(false);
+
+        leAudioConnected(mLeAudioDevice);
+        hearingAidConnected(mHearingAidDevice);
+        mTestLooper.dispatchAll();
+        verify(mLeAudioService, never()).setActiveDevice(mLeAudioDevice);
+        verify(mHearingAidService).setActiveDevice(mHearingAidDevice);
+
+        hearingAidDisconnected(mHearingAidDevice);
         mTestLooper.dispatchAll();
         verify(mLeAudioService, never()).setActiveDevice(mLeAudioDevice);
     }
@@ -1144,7 +1204,7 @@ public class ActiveDeviceManagerTest {
         verify(mLeAudioService).removeActiveDevice(true);
         verify(mA2dpService).setActiveDevice(mA2dpDevice);
         Assert.assertEquals(mA2dpDevice, mActiveDeviceManager.getA2dpActiveDevice());
-        Assert.assertNull(mActiveDeviceManager.getLeAudioActiveDevice());
+        assertThat(mActiveDeviceManager.getLeAudioActiveDevice()).isNull();
     }
 
     /** An LE Audio is connected. Then a Headset active device is explicitly set. */
@@ -1162,7 +1222,7 @@ public class ActiveDeviceManagerTest {
         verify(mLeAudioService).removeActiveDevice(true);
         verify(mHeadsetService).setActiveDevice(mHeadsetDevice);
         Assert.assertEquals(mHeadsetDevice, mActiveDeviceManager.getHfpActiveDevice());
-        Assert.assertNull(mActiveDeviceManager.getLeAudioActiveDevice());
+        assertThat(mActiveDeviceManager.getLeAudioActiveDevice()).isNull();
     }
 
     /**
@@ -1555,9 +1615,9 @@ public class ActiveDeviceManagerTest {
         mTestLooper.dispatchAll();
         // Verify setting LEA active fails when all supported classic audio profiles are not active
         verify(mLeAudioService).setActiveDevice(mDualModeAudioDevice);
-        Assert.assertNull(mActiveDeviceManager.getLeAudioActiveDevice());
-        Assert.assertNull(mActiveDeviceManager.getA2dpActiveDevice());
-        Assert.assertNull(mActiveDeviceManager.getHfpActiveDevice());
+        assertThat(mActiveDeviceManager.getLeAudioActiveDevice()).isNull();
+        assertThat(mActiveDeviceManager.getA2dpActiveDevice()).isNull();
+        assertThat(mActiveDeviceManager.getHfpActiveDevice()).isNull();
 
         when(mLeAudioService.setActiveDevice(any())).thenReturn(true);
         when(mLeAudioService.removeActiveDevice(anyBoolean())).thenReturn(true);

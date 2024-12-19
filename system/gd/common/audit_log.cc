@@ -42,10 +42,9 @@ void LogConnectionAdminAuditEvent([[maybe_unused]] const char* action,
 #if defined(__ANDROID__) && !defined(FUZZ_TARGET)
 
   android_log_event_list(SEC_TAG_BLUETOOTH_CONNECTION)
-          << ADDRESS_TO_LOGGABLE_CSTR(address)
-          << /* success */ int32_t(status == hci::ErrorCode::SUCCESS)
-          << common::StringFormat("%s: %s", action, ErrorCodeText(status).c_str()).c_str()
-          << LOG_ID_SECURITY;
+          << address.ToRedactedStringForLogging()
+          << /* success */ int32_t(status == hci::ErrorCode::SUCCESS) << action << ": "
+          << ErrorCodeText(status) << LOG_ID_SECURITY;
 
 #endif /* defined(__ANDROID__) && !defined (FUZZ_TARGET) */
 }

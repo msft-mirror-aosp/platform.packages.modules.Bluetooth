@@ -173,6 +173,25 @@ struct btsock_rfc_signaled {
 };
 extern struct btsock_rfc_signaled btsock_rfc_signaled;
 
+// Name: on_btsocket_rfc_close
+// Params: uint64_t socket_id
+// Return: void
+struct on_btsocket_rfc_close {
+  std::function<void(uint64_t socket_id)> body{[](uint64_t /* socket_id */) {}};
+  void operator()(uint64_t socket_id) { body(socket_id); }
+};
+extern struct on_btsocket_rfc_close on_btsocket_rfc_close;
+
+// Name: on_btsocket_rfc_opened_complete
+// Params: uint64_t socket_id, bool success
+// Return: void
+struct on_btsocket_rfc_opened_complete {
+  std::function<void(uint64_t socket_id, bool success)> body{
+          [](uint64_t /* socket_id */, bool /* success */) {}};
+  void operator()(uint64_t socket_id, bool success) { body(socket_id, success); }
+};
+extern struct on_btsocket_rfc_opened_complete on_btsocket_rfc_opened_complete;
+
 }  // namespace btif_sock_rfc
 }  // namespace mock
 }  // namespace test

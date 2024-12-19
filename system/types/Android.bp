@@ -36,7 +36,6 @@ cc_library_static {
         /* we export all classes, so change default visibility, instead of having EXPORT_SYMBOL on each class*/
         "-fvisibility=default",
     ],
-    visibility: ["//visibility:public"],
     host_supported: true,
     srcs: [
         "bluetooth/uuid.cc",

@@ -368,8 +368,8 @@ public class MapClientStateMachineTest {
         // to MapClientService to change
         // state from STATE_CONNECTING to STATE_CONNECTED
         assertCurrentStateAfterScheduledTask(BluetoothProfile.STATE_CONNECTED);
-        Assert.assertTrue(
-                mMceStateMachine.setMessageStatus("123456789AB", BluetoothMapClient.READ));
+        assertThat(mMceStateMachine.setMessageStatus("123456789AB", BluetoothMapClient.READ))
+                .isTrue();
     }
 
     /** Test MceStateMachine#disconnect */
@@ -973,7 +973,7 @@ public class MapClientStateMachineTest {
         verify(mMockMapClientService, timeout(ASYNC_CALL_TIMEOUT_MILLIS).times(1))
                 .sendBroadcast(
                         mIntentArgument.capture(), eq(android.Manifest.permission.RECEIVE_SMS));
-        Assert.assertNull(mIntentArgument.getValue().getPackage());
+        assertThat(mIntentArgument.getValue().getPackage()).isNull();
     }
 
     @Test

@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.avrcpcontroller;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -55,7 +57,7 @@ public class BipImageTest {
         Bitmap bitmap = BitmapFactory.decodeStream(expectedInputStream);
 
         Assert.assertEquals(sImageHandle, image.getImageHandle());
-        Assert.assertTrue(bitmap.sameAs(image.getImage()));
+        assertThat(bitmap.sameAs(image.getImage())).isTrue();
     }
 
     @Test
@@ -69,7 +71,7 @@ public class BipImageTest {
         Bitmap bitmap = BitmapFactory.decodeStream(expectedInputStream);
 
         Assert.assertEquals(sImageHandle, image.getImageHandle());
-        Assert.assertTrue(bitmap.sameAs(image.getImage()));
+        assertThat(bitmap.sameAs(image.getImage())).isTrue();
     }
 
     @Test
@@ -79,7 +81,7 @@ public class BipImageTest {
         Bitmap bitmap = BitmapFactory.decodeStream(imageInputStream);
         BipImage image = new BipImage(sImageHandle, bitmap);
         Assert.assertEquals(sImageHandle, image.getImageHandle());
-        Assert.assertTrue(bitmap.sameAs(image.getImage()));
+        assertThat(bitmap.sameAs(image.getImage())).isTrue();
     }
 
     @Test
@@ -89,6 +91,6 @@ public class BipImageTest {
         Bitmap bitmap = BitmapFactory.decodeStream(imageInputStream);
         BipImage image = new BipImage(sImageHandle, bitmap);
         Assert.assertEquals(sImageHandle, image.getImageHandle());
-        Assert.assertTrue(bitmap.sameAs(image.getImage()));
+        assertThat(bitmap.sameAs(image.getImage())).isTrue();
     }
 }

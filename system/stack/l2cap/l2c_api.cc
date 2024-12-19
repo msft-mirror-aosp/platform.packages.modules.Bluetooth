@@ -1762,6 +1762,33 @@ bool L2CA_GetAclHandle(uint16_t lcid, uint16_t* acl_handle) {
   return true;
 }
 
+/*******************************************************************************
+ **
+ ** Function         L2CA_GetLocalMtu
+ **
+ ** Description      Given a local channel identifier, |lcid|, this function
+ **                  returns the L2CAP local mtu, |local_mtu|. If
+ **                  |lcid| is not known or is invalid, this function returns false and does not
+ **                  modify the value pointed at by |local_mtu|.
+ **
+ ** Parameters:      lcid: Local CID
+ **                  local_mtu: Pointer to L2CAP local mtu must NOT be nullptr
+ **
+ ** Returns          true if local_mtu lookup was successful
+ **
+ ******************************************************************************/
+bool L2CA_GetLocalMtu(uint16_t lcid, uint16_t* local_mtu) {
+  log::assert_that(local_mtu != nullptr, "assert failed: local_mtu != nullptr");
+
+  tL2C_CCB* p_ccb = l2cu_find_ccb_by_cid(nullptr, lcid);
+  if (p_ccb == nullptr) {
+    log::error("No CCB for CID:0x{:04x}", lcid);
+    return false;
+  }
+  *local_mtu = p_ccb->p_rcb->my_mtu;
+  return true;
+}
+
 using namespace bluetooth;
 
 #define DUMPSYS_TAG "shim::legacy::l2cap"

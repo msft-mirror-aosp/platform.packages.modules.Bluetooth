@@ -26,6 +26,7 @@ import static com.android.bluetooth.flags.Flags.leaudioAllowedContextMask;
 import static com.android.bluetooth.flags.Flags.leaudioBigDependsOnAudioState;
 import static com.android.bluetooth.flags.Flags.leaudioBroadcastApiManagePrimaryGroup;
 import static com.android.bluetooth.flags.Flags.leaudioBroadcastAssistantPeripheralEntrustment;
+import static com.android.bluetooth.flags.Flags.leaudioMonitorUnicastSourceWhenManagedByBroadcastDelegator;
 import static com.android.bluetooth.flags.Flags.leaudioUseAudioModeListener;
 import static com.android.modules.utils.build.SdkLevel.isAtLeastU;
 
@@ -1570,7 +1571,13 @@ public class LeAudioService extends ProfileService {
             return false;
         }
 
-        return descriptor.mGroupId == mUnicastGroupIdDeactivatedForBroadcastTransition;
+        if (leaudioMonitorUnicastSourceWhenManagedByBroadcastDelegator()) {
+            return (descriptor.mGroupId == mUnicastGroupIdDeactivatedForBroadcastTransition)
+                    || device.equals(mActiveAudioInDevice)
+                    || device.equals(mActiveAudioOutDevice);
+        } else {
+            return descriptor.mGroupId == mUnicastGroupIdDeactivatedForBroadcastTransition;
+        }
     }
 
     /** Return true if group is primary - is active or was active before switch to broadcast */

@@ -135,7 +135,7 @@ class AdapterProperties {
     private boolean mIsLeChannelSoundingSupported;
 
     private int mNumberOfSupportedOffloadedLeCocSockets;
-    private int mNumberOfSupportedOffloadedRfcommSockets = 0;
+    private int mNumberOfSupportedOffloadedRfcommSockets;
 
     // Lock for all getters and setters.
     // If finer grained locking is needer, more locks
@@ -1044,12 +1044,12 @@ class AdapterProperties {
     }
 
     private void updateLppOffloadFeatureSupport(byte[] val) {
-        if (val.length < 1) {
+        if (val == null || val.length < 2) {
             Log.e(TAG, "BT_PROPERTY_LPP_OFFLOAD_FEATURES: invalid value length");
             return;
         }
-        // TODO(b/342012881) Read mNumberOfSupportedOffloadedRfcommSockets from host stack
         mNumberOfSupportedOffloadedLeCocSockets = (0xFF & ((int) val[0]));
+        mNumberOfSupportedOffloadedRfcommSockets = (0xFF & ((int) val[1]));
 
         Log.d(
                 TAG,

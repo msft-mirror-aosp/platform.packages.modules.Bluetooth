@@ -3868,8 +3868,8 @@ void btif_debug_bond_event_dump(int fd) {
         break;
     }
 
-    dprintf(fd, "  %s  %s  %s  %s\n", eventtime, ADDRESS_TO_LOGGABLE_CSTR(event->bd_addr),
-            func_name, bond_state);
+    dprintf(fd, "  %s  %s  %s  %s\n", eventtime,
+            event->bd_addr.ToRedactedStringForLogging().c_str(), func_name, bond_state);
   }
 }
 

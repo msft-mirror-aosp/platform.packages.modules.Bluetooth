@@ -262,9 +262,10 @@ TEST_F(BleConnectionManager, test_app_unregister) {
    */
 
   EXPECT_CALL(*localAcceptlistMock, AcceptlistAdd(address1, true)).WillOnce(Return(true));
-  EXPECT_CALL(*localAcceptlistMock, AcceptlistAdd(address2, false)).WillOnce(Return(true));
   EXPECT_TRUE(direct_connect_add(CLIENT1, address1));
+  EXPECT_CALL(*localAcceptlistMock, AcceptlistAdd(address2, false)).WillOnce(Return(true));
   EXPECT_TRUE(background_connect_add(CLIENT1, address2));
+  EXPECT_CALL(*localAcceptlistMock, AcceptlistAdd(address2, true)).WillOnce(Return(true));
   EXPECT_TRUE(direct_connect_add(CLIENT2, address2));
   Mock::VerifyAndClearExpectations(localAcceptlistMock.get());
 
@@ -274,6 +275,8 @@ TEST_F(BleConnectionManager, test_app_unregister) {
 
   EXPECT_CALL(*localAcceptlistMock, AcceptlistRemove(address2)).Times(1);
   on_app_deregistered(CLIENT2);
+
+  Mock::VerifyAndClearExpectations(localAcceptlistMock.get());
 }
 
 /** Verify adding device to both direct connection and background connection. */

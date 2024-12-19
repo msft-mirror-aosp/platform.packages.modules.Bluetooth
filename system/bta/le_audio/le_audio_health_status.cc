@@ -221,7 +221,8 @@ private:
   void dumpsys_dev(int fd, const device_stats& dev) {
     std::stringstream stream;
 
-    stream << "\n " << ADDRESS_TO_LOGGABLE_STR(dev.address_) << ": " << dev.latest_recommendation_
+    stream << "\n " << dev.address_.ToRedactedStringForLogging() << ": "
+           << dev.latest_recommendation_
            << (dev.is_valid_service_ ? " service: OK" : " service : NOK")
            << (dev.is_valid_group_member_ ? " csis: OK" : " csis : NOK");
 
