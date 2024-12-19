@@ -545,6 +545,14 @@ static void cleanup_rfc_slot(rfc_slot_t* slot) {
             slot->role ? slot->service_name : slot->service_uuid.ToString().c_str());
 
     slot->fd = INVALID_FD;
+
+    if (com::android::bluetooth::flags::socket_settings_api()) {
+      if (slot->data_path == BTSOCK_DATA_PATH_HARDWARE_OFFLOAD && !slot->f.server &&
+          slot->socket_id != 0) {
+        bluetooth::shim::GetLppOffloadManager()->SocketClosed(slot->socket_id);
+        slot->socket_id = 0;
+      }
+    }
   }
 
   if (slot->app_fd != INVALID_FD) {
