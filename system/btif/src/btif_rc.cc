@@ -5544,7 +5544,7 @@ void btif_debug_rc_dump(int fd) {
   for (int i = 0; i < BTIF_RC_NUM_CONN; ++i) {
     btif_rc_device_cb_t* p_dev = &btif_rc_cb.rc_multi_cb[i];
     if (p_dev->rc_state != BTRC_CONNECTION_STATE_DISCONNECTED) {
-      dprintf(fd, "    %s:\n", ADDRESS_TO_LOGGABLE_CSTR(p_dev->rc_addr));
+      dprintf(fd, "    %s:\n", p_dev->rc_addr.ToRedactedStringForLogging().c_str());
 
       rc_transaction_set_t* transaction_set = &(p_dev->transaction_set);
       std::unique_lock<std::recursive_mutex> lock(transaction_set->label_lock);

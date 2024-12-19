@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.avrcpcontroller;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import android.annotation.SuppressLint;
 
 import androidx.test.runner.AndroidJUnit4;
@@ -74,7 +76,7 @@ public class BipDatetimeTest {
     private void testCreate(Date date, String dateStr) {
         BipDateTime bipDate = new BipDateTime(date);
         Assert.assertEquals(date, bipDate.getTime());
-        Assert.assertTrue(bipDate.isUtc());
+        assertThat(bipDate.isUtc()).isTrue();
         Assert.assertEquals(dateStr, bipDate.toString());
     }
 
@@ -215,10 +217,11 @@ public class BipDatetimeTest {
 
         BipDateTime bipDate = new BipDateTime(makeDate(1, 1, 2000, 6, 1, 15, utc));
 
-        Assert.assertTrue(bipDate.equals(bipDate));
+        assertThat(bipDate).isEqualTo(bipDate);
     }
 
     @Test
+    @SuppressLint("TruthIncompatibleType") // That the point of this test
     public void testEquals_withDifferentClass() {
         TimeZone utc = TimeZone.getTimeZone("UTC");
         utc.setRawOffset(0);
@@ -226,7 +229,7 @@ public class BipDatetimeTest {
         BipDateTime bipDate = new BipDateTime(makeDate(1, 1, 2000, 6, 1, 15, utc));
         String notBipDate = "notBipDate";
 
-        Assert.assertFalse(bipDate.equals(notBipDate));
+        assertThat(bipDate).isNotEqualTo(notBipDate);
     }
 
     @Test
@@ -238,6 +241,6 @@ public class BipDatetimeTest {
         BipDateTime bipDate = new BipDateTime(date);
         BipDateTime bipDateEqual = new BipDateTime(date);
 
-        Assert.assertTrue(bipDate.equals(bipDateEqual));
+        assertThat(bipDate).isEqualTo(bipDateEqual);
     }
 }

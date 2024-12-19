@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.audio_util;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.mockito.Mockito.*;
 
 import android.content.ContentResolver;
@@ -393,13 +395,13 @@ public class BrowserPlayerWrapperTest {
             Assert.assertEquals(expected.isBrowsable(), item.isFolder);
             if (item.isFolder) {
                 Folder folder = item.folder;
-                Assert.assertNotNull(folder);
-                Assert.assertFalse(folder.isPlayable);
+                assertThat(folder).isNotNull();
+                assertThat(folder.isPlayable).isFalse();
                 Assert.assertEquals(expected.getDescription().getMediaId(), folder.mediaId);
                 Assert.assertEquals(expected.getDescription().getTitle().toString(), folder.title);
             } else {
                 Metadata song = item.song;
-                Assert.assertNotNull(song);
+                assertThat(song).isNotNull();
                 Assert.assertEquals(expected.getDescription().getMediaId(), song.mediaId);
                 Assert.assertEquals(expected.getDescription().getTitle().toString(), song.title);
                 Assert.assertEquals(
@@ -407,11 +409,11 @@ public class BrowserPlayerWrapperTest {
                 Assert.assertEquals(
                         expected.getDescription().getDescription().toString(), song.album);
                 if (expected.getDescription().getIconBitmap() != null) {
-                    Assert.assertNotNull(song.image);
+                    assertThat(song.image).isNotNull();
                     Bitmap expectedBitmap = expected.getDescription().getIconBitmap();
-                    Assert.assertTrue(expectedBitmap.sameAs(song.image.getImage()));
+                    assertThat(expectedBitmap.sameAs(song.image.getImage())).isTrue();
                 } else if (expected.getDescription().getIconUri() != null) {
-                    Assert.assertTrue(mTestBitmap.sameAs(song.image.getImage()));
+                    assertThat(mTestBitmap.sameAs(song.image.getImage())).isTrue();
                 } else {
                     Assert.assertEquals(null, song.image);
                 }

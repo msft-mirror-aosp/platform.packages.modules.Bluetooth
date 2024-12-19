@@ -1033,7 +1033,7 @@ void LeAudioDevice::DumpPacsDebugState(std::stringstream& stream,
 }
 
 void LeAudioDevice::DumpPacsDebugState(std::stringstream& stream) {
-  stream << "      ● Device PACS, address: " << ADDRESS_TO_LOGGABLE_STR(address_) << "\n";
+  stream << "      ● Device PACS, address: " << address_.ToRedactedStringForLogging() << "\n";
   stream << "\t  == Sink PACs:\n";
   DumpPacsDebugState(stream, snk_pacs_);
   stream << "\t  == Source PACs:\n";
@@ -1060,7 +1060,7 @@ void LeAudioDevice::Dump(std::stringstream& stream) {
   std::string snk_location = locationToString(snk_audio_locations_.to_ulong());
   std::string src_location = locationToString(src_audio_locations_.to_ulong());
 
-  stream << "      ● Device address: " << ADDRESS_TO_LOGGABLE_STR(address_) << ", "
+  stream << "      ● Device address: " << address_.ToRedactedStringForLogging() << ", "
          << connection_state_
          << ", conn_id: " << (conn_id_ == GATT_INVALID_CONN_ID ? "-1" : std::to_string(conn_id_))
          << ", acl_handle: " << std::to_string(acl_handle) << ", snk_location: " << snk_location

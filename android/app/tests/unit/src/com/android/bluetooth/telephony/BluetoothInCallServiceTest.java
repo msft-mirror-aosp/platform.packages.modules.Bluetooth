@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.telephony;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -125,13 +127,12 @@ public class BluetoothInCallServiceTest {
         boolean callAnswered = mBluetoothInCallService.answerCall();
         verify(mockCall).answer(any(int.class));
 
-        Assert.assertTrue(callAnswered);
+        assertThat(callAnswered).isTrue();
     }
 
     @Test
     public void headsetAnswerCallNull() {
-        boolean callAnswered = mBluetoothInCallService.answerCall();
-        Assert.assertFalse(callAnswered);
+        assertThat(mBluetoothInCallService.answerCall()).isFalse();
     }
 
     @Test
@@ -141,13 +142,12 @@ public class BluetoothInCallServiceTest {
         boolean callHungup = mBluetoothInCallService.hangupCall();
 
         verify(mockCall).disconnect();
-        Assert.assertTrue(callHungup);
+        assertThat(callHungup).isTrue();
     }
 
     @Test
     public void headsetHangupCallNull() {
-        boolean callHungup = mBluetoothInCallService.hangupCall();
-        Assert.assertFalse(callHungup);
+        assertThat(mBluetoothInCallService.hangupCall()).isFalse();
     }
 
     @Test
@@ -158,13 +158,12 @@ public class BluetoothInCallServiceTest {
 
         verify(mockCall).playDtmfTone(eq((char) TEST_DTMF_TONE));
         verify(mockCall).stopDtmfTone();
-        Assert.assertTrue(sentDtmf);
+        assertThat(sentDtmf).isTrue();
     }
 
     @Test
     public void headsetSendDTMFNull() {
-        boolean sentDtmf = mBluetoothInCallService.sendDtmf(TEST_DTMF_TONE);
-        Assert.assertFalse(sentDtmf);
+        assertThat(mBluetoothInCallService.sendDtmf(TEST_DTMF_TONE)).isFalse();
     }
 
     @Test
@@ -1144,7 +1143,7 @@ public class BluetoothInCallServiceTest {
         boolean didProcess = mBluetoothInCallService.processChld(CHLD_TYPE_RELEASEHELD);
 
         verify(ringingCall).reject(eq(false), nullable(String.class));
-        Assert.assertTrue(didProcess);
+        assertThat(didProcess).isTrue();
     }
 
     @Test
@@ -1153,7 +1152,7 @@ public class BluetoothInCallServiceTest {
         boolean didProcess = mBluetoothInCallService.processChld(CHLD_TYPE_RELEASEHELD);
 
         verify(onHoldCall).disconnect();
-        Assert.assertTrue(didProcess);
+        assertThat(didProcess).isTrue();
     }
 
     @Test
@@ -1166,7 +1165,7 @@ public class BluetoothInCallServiceTest {
 
         verify(activeCall).disconnect();
         verify(ringingCall).answer(any(int.class));
-        Assert.assertTrue(didProcess);
+        assertThat(didProcess).isTrue();
     }
 
     @Test
@@ -1179,7 +1178,7 @@ public class BluetoothInCallServiceTest {
         verify(activeCall).disconnect();
         // BluetoothCall unhold will occur as part of CallsManager auto-unholding
         // the background BluetoothCall on its own.
-        Assert.assertTrue(didProcess);
+        assertThat(didProcess).isTrue();
     }
 
     @Test
@@ -1189,7 +1188,7 @@ public class BluetoothInCallServiceTest {
         boolean didProcess = mBluetoothInCallService.processChld(CHLD_TYPE_HOLDACTIVE_ACCEPTHELD);
 
         verify(ringingCall).answer(any(int.class));
-        Assert.assertTrue(didProcess);
+        assertThat(didProcess).isTrue();
     }
 
     @Test
@@ -1199,7 +1198,7 @@ public class BluetoothInCallServiceTest {
         boolean didProcess = mBluetoothInCallService.processChld(CHLD_TYPE_HOLDACTIVE_ACCEPTHELD);
 
         verify(heldCall).unhold();
-        Assert.assertTrue(didProcess);
+        assertThat(didProcess).isTrue();
     }
 
     @Test
@@ -1210,7 +1209,7 @@ public class BluetoothInCallServiceTest {
         boolean didProcess = mBluetoothInCallService.processChld(CHLD_TYPE_HOLDACTIVE_ACCEPTHELD);
 
         verify(activeCall).hold();
-        Assert.assertTrue(didProcess);
+        assertThat(didProcess).isTrue();
     }
 
     @Test
@@ -1221,7 +1220,7 @@ public class BluetoothInCallServiceTest {
         boolean didProcess = mBluetoothInCallService.processChld(CHLD_TYPE_ADDHELDTOCONF);
 
         verify(activeCall).mergeConference();
-        Assert.assertTrue(didProcess);
+        assertThat(didProcess).isTrue();
     }
 
     @Test
@@ -1237,7 +1236,7 @@ public class BluetoothInCallServiceTest {
         boolean didProcess = mBluetoothInCallService.processChld(CHLD_TYPE_ADDHELDTOCONF);
 
         verify(activeCall).conference(conferenceableCall);
-        Assert.assertTrue(didProcess);
+        assertThat(didProcess).isTrue();
     }
 
     @Test
@@ -1262,7 +1261,7 @@ public class BluetoothInCallServiceTest {
         verify(mMockBluetoothHeadset)
                 .phoneStateChanged(
                         eq(1), eq(1), eq(CALL_STATE_IDLE), eq(""), eq(128), nullable(String.class));
-        Assert.assertTrue(didProcess);
+        assertThat(didProcess).isTrue();
     }
 
     // Testing the CallsManager Listener Functionality on Bluetooth
@@ -1681,8 +1680,8 @@ public class BluetoothInCallServiceTest {
     public void clear() {
         mBluetoothInCallService.clear();
 
-        Assert.assertNull(mBluetoothInCallService.mBluetoothAdapterReceiver);
-        Assert.assertNull(mBluetoothInCallService.mBluetoothHeadset);
+        assertThat(mBluetoothInCallService.mBluetoothAdapterReceiver).isNull();
+        assertThat(mBluetoothInCallService.mBluetoothHeadset).isNull();
     }
 
     @Test
@@ -1814,11 +1813,11 @@ public class BluetoothInCallServiceTest {
 
     @Test
     public void onDestroy() {
-        Assert.assertTrue(mBluetoothInCallService.mOnCreateCalled);
+        assertThat(mBluetoothInCallService.mOnCreateCalled).isTrue();
 
         mBluetoothInCallService.onDestroy();
 
-        Assert.assertFalse(mBluetoothInCallService.mOnCreateCalled);
+        assertThat(mBluetoothInCallService.mOnCreateCalled).isFalse();
     }
 
     @Test

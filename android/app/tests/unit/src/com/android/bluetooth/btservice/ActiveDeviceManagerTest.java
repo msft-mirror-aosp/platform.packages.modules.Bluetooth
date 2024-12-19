@@ -808,7 +808,7 @@ public class ActiveDeviceManagerTest {
         // Don't call mA2dpService.setActiveDevice()
         verify(mA2dpService, never()).setActiveDevice(mA2dpDevice);
         Assert.assertEquals(mA2dpDevice, mActiveDeviceManager.getA2dpActiveDevice());
-        Assert.assertTrue(mActiveDeviceManager.getHearingAidActiveDevices().isEmpty());
+        assertThat(mActiveDeviceManager.getHearingAidActiveDevices()).isEmpty();
     }
 
     /** A Hearing Aid is connected. Then a Headset active device is explicitly set. */
@@ -827,7 +827,7 @@ public class ActiveDeviceManagerTest {
         // Don't call mHeadsetService.setActiveDevice()
         verify(mHeadsetService, never()).setActiveDevice(mHeadsetDevice);
         Assert.assertEquals(mHeadsetDevice, mActiveDeviceManager.getHfpActiveDevice());
-        Assert.assertTrue(mActiveDeviceManager.getHearingAidActiveDevices().isEmpty());
+        assertThat(mActiveDeviceManager.getHearingAidActiveDevices()).isEmpty();
     }
 
     @Test
@@ -1144,7 +1144,7 @@ public class ActiveDeviceManagerTest {
         verify(mLeAudioService).removeActiveDevice(true);
         verify(mA2dpService).setActiveDevice(mA2dpDevice);
         Assert.assertEquals(mA2dpDevice, mActiveDeviceManager.getA2dpActiveDevice());
-        Assert.assertNull(mActiveDeviceManager.getLeAudioActiveDevice());
+        assertThat(mActiveDeviceManager.getLeAudioActiveDevice()).isNull();
     }
 
     /** An LE Audio is connected. Then a Headset active device is explicitly set. */
@@ -1162,7 +1162,7 @@ public class ActiveDeviceManagerTest {
         verify(mLeAudioService).removeActiveDevice(true);
         verify(mHeadsetService).setActiveDevice(mHeadsetDevice);
         Assert.assertEquals(mHeadsetDevice, mActiveDeviceManager.getHfpActiveDevice());
-        Assert.assertNull(mActiveDeviceManager.getLeAudioActiveDevice());
+        assertThat(mActiveDeviceManager.getLeAudioActiveDevice()).isNull();
     }
 
     /**
@@ -1555,9 +1555,9 @@ public class ActiveDeviceManagerTest {
         mTestLooper.dispatchAll();
         // Verify setting LEA active fails when all supported classic audio profiles are not active
         verify(mLeAudioService).setActiveDevice(mDualModeAudioDevice);
-        Assert.assertNull(mActiveDeviceManager.getLeAudioActiveDevice());
-        Assert.assertNull(mActiveDeviceManager.getA2dpActiveDevice());
-        Assert.assertNull(mActiveDeviceManager.getHfpActiveDevice());
+        assertThat(mActiveDeviceManager.getLeAudioActiveDevice()).isNull();
+        assertThat(mActiveDeviceManager.getA2dpActiveDevice()).isNull();
+        assertThat(mActiveDeviceManager.getHfpActiveDevice()).isNull();
 
         when(mLeAudioService.setActiveDevice(any())).thenReturn(true);
         when(mLeAudioService.removeActiveDevice(anyBoolean())).thenReturn(true);

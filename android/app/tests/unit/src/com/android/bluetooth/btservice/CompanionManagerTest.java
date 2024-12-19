@@ -15,6 +15,8 @@
  */
 package com.android.bluetooth.btservice;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.mockito.Mockito.*;
 
 import android.bluetooth.BluetoothDevice;
@@ -30,7 +32,6 @@ import androidx.test.runner.AndroidJUnit4;
 import com.android.bluetooth.TestUtils;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -103,13 +104,13 @@ public class CompanionManagerTest {
     @Test
     public void testIsCompanionDevice() {
         loadCompanionInfoHelper(TEST_DEVICE, CompanionManager.COMPANION_TYPE_NONE);
-        Assert.assertTrue(mCompanionManager.isCompanionDevice(TEST_DEVICE));
+        assertThat(mCompanionManager.isCompanionDevice(TEST_DEVICE)).isTrue();
 
         loadCompanionInfoHelper(TEST_DEVICE, CompanionManager.COMPANION_TYPE_PRIMARY);
-        Assert.assertTrue(mCompanionManager.isCompanionDevice(TEST_DEVICE));
+        assertThat(mCompanionManager.isCompanionDevice(TEST_DEVICE)).isTrue();
 
         loadCompanionInfoHelper(TEST_DEVICE, CompanionManager.COMPANION_TYPE_SECONDARY);
-        Assert.assertTrue(mCompanionManager.isCompanionDevice(TEST_DEVICE));
+        assertThat(mCompanionManager.isCompanionDevice(TEST_DEVICE)).isTrue();
     }
 
     @Test
@@ -158,12 +159,12 @@ public class CompanionManagerTest {
                 mCompanionManager.getGattConnParameters(
                         TEST_DEVICE, CompanionManager.GATT_CONN_LATENCY, priority);
 
-        Assert.assertTrue(max >= min);
-        Assert.assertTrue(max >= minInterval);
-        Assert.assertTrue(min >= minInterval);
-        Assert.assertTrue(max <= maxInterval);
-        Assert.assertTrue(min <= maxInterval);
-        Assert.assertTrue(latency >= minLatency);
-        Assert.assertTrue(latency <= maxLatency);
+        assertThat(max).isAtLeast(min);
+        assertThat(max).isAtLeast(minInterval);
+        assertThat(min).isAtLeast(minInterval);
+        assertThat(max).isAtMost(maxInterval);
+        assertThat(min).isAtMost(maxInterval);
+        assertThat(latency).isAtLeast(minLatency);
+        assertThat(latency).isAtMost(maxLatency);
     }
 }

@@ -4402,10 +4402,21 @@ public:
       return;
     }
 
+    /* Group should not be resumed if:
+     * - configured context type is not allowed
+     * - updated metadata contains only not allowed context types
+     */
     if (!group->GetAllowedContextMask(bluetooth::le_audio::types::kLeAudioDirectionSink)
+                 .test_all(local_metadata_context_types_.source) ||
+        !group->GetAllowedContextMask(bluetooth::le_audio::types::kLeAudioDirectionSink)
                  .test(configuration_context_type_)) {
-      log::warn("Block source resume request context type: {}",
-                ToHexString(configuration_context_type_));
+      log::warn(
+              "Block source resume request context types: {}, allowed context mask: {}, "
+              "configured: {}",
+              ToString(local_metadata_context_types_.source),
+              ToString(group->GetAllowedContextMask(
+                      bluetooth::le_audio::types::kLeAudioDirectionSink)),
+              ToString(configuration_context_type_));
       CancelLocalAudioSourceStreamingRequest();
       return;
     }
@@ -4679,10 +4690,21 @@ public:
       return;
     }
 
+    /* Group should not be resumed if:
+     * - configured context type is not allowed
+     * - updated metadata contains only not allowed context types
+     */
     if (!group->GetAllowedContextMask(bluetooth::le_audio::types::kLeAudioDirectionSource)
+                 .test_all(local_metadata_context_types_.sink) ||
+        !group->GetAllowedContextMask(bluetooth::le_audio::types::kLeAudioDirectionSource)
                  .test(configuration_context_type_)) {
-      log::warn("Block sink resume request context type: {}",
-                ToHexString(configuration_context_type_));
+      log::warn(
+              "Block sink resume request context types: {} vs allowed context mask: {}, "
+              "configured: {}",
+              ToString(local_metadata_context_types_.sink),
+              ToString(group->GetAllowedContextMask(
+                      bluetooth::le_audio::types::kLeAudioDirectionSource)),
+              ToString(configuration_context_type_));
       CancelLocalAudioSourceStreamingRequest();
       return;
     }
@@ -4911,6 +4933,30 @@ public:
     return true;
   }
 
+  bool StopStreamIfUpdatedContextIsNoLongerSupporteded(uint8_t direction, LeAudioDeviceGroup* group,
+                                                       AudioContexts local_contexts) {
+    AudioContexts allowed_contexts = group->GetAllowedContextMask(direction);
+
+    /* Stream should be suspended if:
+     * - updated metadata is only not allowed
+     * - there is no metadata (cleared) but configuration is for not allowed context
+     */
+    if (group->IsStreaming() && !allowed_contexts.test_any(local_contexts) &&
+        !(allowed_contexts.test(configuration_context_type_) && local_contexts.none())) {
+      /* SuspendForReconfiguration and ReconfigurationComplete is a workaround method to let Audio
+       * Framework know that session is suspended. Strem resume would be handled from
+       * suspended session context with stopped group.
+       */
+      SuspendedForReconfiguration();
+      ReconfigurationComplete(direction);
+      GroupStop(active_group_id_);
+
+      return true;
+    }
+
+    return false;
+  }
+
   void OnLocalAudioSourceMetadataUpdate(
           const std::vector<struct playback_track_metadata_v7>& source_metadata, DsaMode dsa_mode) {
     if (active_group_id_ == bluetooth::groups::kGroupUnknown) {
@@ -4945,6 +4991,23 @@ public:
 
     /* Set the remote sink metadata context from the playback tracks metadata */
     local_metadata_context_types_.source = GetAudioContextsFromSourceMetadata(source_metadata);
+
+    /* Check if stream should be suspended due to reamaining only not allowed contexts in metadata
+     * or configured context.
+     */
+    if (com::android::bluetooth::flags::leaudio_stop_updated_to_not_available_context_stream() &&
+        StopStreamIfUpdatedContextIsNoLongerSupporteded(
+                bluetooth::le_audio::types::kLeAudioDirectionSink, group,
+                local_metadata_context_types_.source)) {
+      log::info(
+              "Updated source metadata contexts are not allowed context types: {} | configured: {} "
+              "vs allowed context mask: {}",
+              ToString(local_metadata_context_types_.source), ToString(configuration_context_type_),
+              ToString(group->GetAllowedContextMask(
+                      bluetooth::le_audio::types::kLeAudioDirectionSink)));
+
+      return;
+    }
 
     local_metadata_context_types_.source =
             ChooseMetadataContextType(local_metadata_context_types_.source);
@@ -5095,6 +5158,22 @@ public:
 
     /* Set remote source metadata context from the recording tracks metadata */
     local_metadata_context_types_.sink = GetAudioContextsFromSinkMetadata(sink_metadata);
+
+    /* Check if stream should be suspended due to only reamaining not allowed contexts in metadata
+     * or configured context.
+     */
+    if (com::android::bluetooth::flags::leaudio_stop_updated_to_not_available_context_stream() &&
+        StopStreamIfUpdatedContextIsNoLongerSupporteded(
+                bluetooth::le_audio::types::kLeAudioDirectionSource, group,
+                local_metadata_context_types_.sink)) {
+      log::info(
+              "Updated sink metadata contexts are not allowed context types: {} | configured: {} "
+              "vs allowed context mask: {}",
+              ToString(local_metadata_context_types_.sink), ToString(configuration_context_type_),
+              ToString(group->GetAllowedContextMask(
+                      bluetooth::le_audio::types::kLeAudioDirectionSource)));
+      return;
+    }
 
     local_metadata_context_types_.sink =
             ChooseMetadataContextType(local_metadata_context_types_.sink);

@@ -36,7 +36,6 @@
 #include <vector>
 
 #include "common/bind.h"
-#include "common/interfaces/ILoggable.h"
 #include "common/strings.h"
 #include "common/sync_map_count.h"
 #include "hci/acl_manager.h"
@@ -76,7 +75,7 @@ extern tBTM_CB btm_cb;
 using namespace bluetooth;
 using ::bluetooth::os::WakelockManager;
 
-class ConnectAddressWithType : public bluetooth::common::IRedactableLoggable {
+class ConnectAddressWithType {
 public:
   explicit ConnectAddressWithType(hci::AddressWithType address_with_type)
       : address_(address_with_type.GetAddress()),
@@ -89,8 +88,8 @@ public:
     return ss.str();
   }
 
-  std::string ToStringForLogging() const override { return ToString(); }
-  std::string ToRedactedStringForLogging() const override {
+  std::string ToStringForLogging() const { return ToString(); }
+  std::string ToRedactedStringForLogging() const {
     std::stringstream ss;
     ss << address_.ToRedactedStringForLogging() << "[" << FilterAcceptListAddressTypeText(type_)
        << "]";
@@ -333,7 +332,7 @@ struct ClassicConnectionDescriptor : public ConnectionDescriptor {
                              disconnect_reason),
         remote_address_(remote_address) {}
   virtual std::string GetPrivateRemoteAddress() const {
-    return ADDRESS_TO_LOGGABLE_CSTR(remote_address_);
+    return remote_address_.ToRedactedStringForLogging();
   }
 };
 
@@ -346,7 +345,7 @@ struct LeConnectionDescriptor : public ConnectionDescriptor {
                              disconnect_reason),
         remote_address_with_type_(remote_address_with_type) {}
   std::string GetPrivateRemoteAddress() const {
-    return ADDRESS_TO_LOGGABLE_CSTR(remote_address_with_type_);
+    return remote_address_with_type_.ToRedactedStringForLogging();
   }
 };
 
@@ -1238,7 +1237,7 @@ struct shim::Acl::impl {
                 acceptlist.size(), shadow_acceptlist_.GetMaxSize());
     unsigned cnt = 0;
     for (auto& entry : acceptlist) {
-      LOG_DUMPSYS(fd, "  %03u %s", ++cnt, ADDRESS_TO_LOGGABLE_CSTR(entry));
+      LOG_DUMPSYS(fd, "  %03u %s", ++cnt, entry.ToRedactedStringForLogging().c_str());
     }
     auto address_resolution_list = shadow_address_resolution_list_.GetCopy();
     LOG_DUMPSYS(fd,
@@ -1247,7 +1246,7 @@ struct shim::Acl::impl {
                 address_resolution_list.size(), shadow_address_resolution_list_.GetMaxSize());
     cnt = 0;
     for (auto& entry : address_resolution_list) {
-      LOG_DUMPSYS(fd, "  %03u %s", ++cnt, ADDRESS_TO_LOGGABLE_CSTR(entry));
+      LOG_DUMPSYS(fd, "  %03u %s", ++cnt, entry.ToRedactedStringForLogging().c_str());
     }
   }
 #undef DUMPSYS_TAG
@@ -1270,7 +1269,7 @@ void DumpsysAcl(int fd) {
     }
 
     LOG_DUMPSYS(fd, "remote_addr:%s handle:0x%04x transport:%s",
-                ADDRESS_TO_LOGGABLE_CSTR(link.remote_addr), link.hci_handle,
+                link.remote_addr.ToRedactedStringForLogging().c_str(), link.hci_handle,
                 bt_transport_text(link.transport).c_str());
     LOG_DUMPSYS(fd, "    link_up_issued:%5s", (link.link_up_issued) ? "true" : "false");
     LOG_DUMPSYS(fd, "    flush_timeout:0x%04x", link.flush_timeout_in_ticks);
@@ -1301,7 +1300,7 @@ void DumpsysAcl(int fd) {
                   bd_features_text(link.peer_le_features).c_str());
 
       LOG_DUMPSYS(fd, "    [le] active_remote_addr:%s[%s]",
-                  ADDRESS_TO_LOGGABLE_CSTR(link.active_remote_addr),
+                  link.active_remote_addr.ToRedactedStringForLogging().c_str(),
                   AddressTypeText(link.active_remote_addr_type).c_str());
     }
   }

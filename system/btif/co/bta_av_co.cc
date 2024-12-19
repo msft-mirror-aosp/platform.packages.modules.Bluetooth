@@ -1000,11 +1000,11 @@ void BtaAvCo::DebugDump(int fd) {
   dprintf(fd, "\nA2DP Peers State:\n");
   dprintf(fd, "  Source: active peer: %s\n",
           (bta_av_source_state_.getActivePeer() != nullptr)
-                  ? ADDRESS_TO_LOGGABLE_CSTR(bta_av_source_state_.getActivePeer()->addr)
+                  ? bta_av_source_state_.getActivePeer()->addr.ToRedactedStringForLogging().c_str()
                   : "null");
   dprintf(fd, "  Sink: active peer: %s\n",
           (bta_av_sink_state_.getActivePeer() != nullptr)
-                  ? ADDRESS_TO_LOGGABLE_CSTR(bta_av_sink_state_.getActivePeer()->addr)
+                  ? bta_av_sink_state_.getActivePeer()->addr.ToRedactedStringForLogging().c_str()
                   : "null");
 
   for (size_t i = 0; i < BTA_AV_CO_NUM_ELEMENTS(peer_cache_->peers_); i++) {
@@ -1012,7 +1012,7 @@ void BtaAvCo::DebugDump(int fd) {
     if (peer.addr.IsEmpty()) {
       continue;
     }
-    dprintf(fd, "  Peer: %s\n", ADDRESS_TO_LOGGABLE_CSTR(peer.addr));
+    dprintf(fd, "  Peer: %s\n", peer.addr.ToRedactedStringForLogging().c_str());
     dprintf(fd, "    Number of sinks: %u\n", peer.num_sinks);
     dprintf(fd, "    Number of sources: %u\n", peer.num_sources);
     dprintf(fd, "    Number of SEPs: %u\n", peer.num_seps);
