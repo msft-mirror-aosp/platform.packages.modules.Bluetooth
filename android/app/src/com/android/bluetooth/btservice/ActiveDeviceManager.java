@@ -1140,7 +1140,7 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
             connectedHearingAidDevices.addAll(mHearingAidConnectedDevices);
         }
         if (!mLeHearingAidConnectedDevices.isEmpty() && leAudioService != null) {
-            for (BluetoothDevice dev : mLeAudioConnectedDevices) {
+            for (BluetoothDevice dev : mLeHearingAidConnectedDevices) {
                 if (leAudioService.isGroupAvailableForStream(leAudioService.getGroupId(dev))) {
                     connectedHearingAidDevices.add(dev);
                 }
