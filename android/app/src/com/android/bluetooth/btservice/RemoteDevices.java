@@ -1186,15 +1186,6 @@ public class RemoteDevices {
         DeviceProperties deviceProperties;
         BluetoothDevice device = getDevice(mainAddress);
         if (device == null) {
-            if (!Flags.identityRetentionOnRestart()) {
-                errorLog(
-                        "addressConsolidateCallback: device is NULL, address="
-                                + Utils.getRedactedAddressStringFromByte(mainAddress)
-                                + ", secondaryAddress="
-                                + Utils.getRedactedAddressStringFromByte(secondaryAddress));
-                return;
-            }
-
             deviceProperties = addDeviceProperties(mainAddress);
             device = deviceProperties.getDevice();
         } else {
@@ -1227,16 +1218,6 @@ public class RemoteDevices {
         DeviceProperties deviceProperties;
         BluetoothDevice device = getDevice(mainAddress);
         if (device == null) {
-            if (!Flags.identityRetentionOnRestart()) {
-                errorLog(
-                        "leAddressAssociateCallback: device is NULL, address="
-                                + Utils.getRedactedAddressStringFromByte(mainAddress)
-                                + ", secondaryAddress="
-                                + Utils.getRedactedAddressStringFromByte(secondaryAddress)
-                                + ", identityAddressTypeFromNative="
-                                + identityAddressTypeFromNative);
-                return;
-            }
             deviceProperties = addDeviceProperties(mainAddress);
             device = deviceProperties.getDevice();
         } else {
