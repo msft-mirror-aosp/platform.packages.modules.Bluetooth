@@ -305,13 +305,6 @@ void PORT_ParNegInd(tRFC_MCB* p_mcb, uint8_t dlci, uint16_t mtu, uint8_t cl, uin
 
   p_port->bd_addr = p_mcb->bd_addr;
 
-  /* Update the local mtu with the optional configuration if set by the app */
-  if (com::android::bluetooth::flags::socket_settings_api()) {
-    if (p_port->rfc_cfg_info.rx_mtu_present) {
-      p_port->mtu = p_port->rfc_cfg_info.rx_mtu;
-    }
-  }
-
   /* Connection is up and we know local and remote features, select MTU */
   port_select_mtu(p_port);
 
