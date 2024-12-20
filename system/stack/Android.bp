@@ -1654,6 +1654,7 @@ cc_test {
         "libprotobuf-cpp-lite",
         "libstatslog_bt",
         "server_configurable_flags",
+        "libaconfig_storage_read_api_cc",
     ],
     target: {
         android: {
@@ -1975,6 +1976,7 @@ cc_test {
         "liblog",
         "libosi",
         "server_configurable_flags",
+        "libaconfig_storage_read_api_cc",
     ],
     aidl: {
         libs: ["bluetooth_constants"],
