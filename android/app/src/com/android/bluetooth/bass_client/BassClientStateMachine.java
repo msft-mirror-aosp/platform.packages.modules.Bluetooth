@@ -2163,22 +2163,35 @@ class BassClientStateMachine extends StateMachine {
 
         for (int i = 0; i < numSubGroups; i++) {
             int bisIndexValue = 0xFFFFFFFF;
+            int currentBisIndexValue = 0xFFFFFFFF;
+            if (i < existingState.getBisSyncState().size()) {
+                currentBisIndexValue = existingState.getBisSyncState().get(i).intValue();
+            }
+
             if (paSync == BassConstants.PA_SYNC_DO_NOT_SYNC) {
                 bisIndexValue = 0;
-            } else if (metaData != null
-                    && (paSync == BassConstants.PA_SYNC_PAST_AVAILABLE
-                            || paSync == BassConstants.PA_SYNC_PAST_NOT_AVAILABLE)) {
+            } else if (metaData != null) {
                 bisIndexValue =
                         getBisSyncFromChannelPreference(
                                 metaData.getSubgroups().get(i).getChannels());
-                // Let sink decide to which BIS sync if there is no channel preference
-                if (bisIndexValue == 0) {
-                    bisIndexValue = 0xFFFFFFFF;
+                // If updating metadata with paSync INVALID_PA_SYNC_VALUE
+                // Use bisIndexValue parsed from metadata channels
+                if (paSync == BassConstants.PA_SYNC_PAST_AVAILABLE
+                        || paSync == BassConstants.PA_SYNC_PAST_NOT_AVAILABLE) {
+                    // Let sink decide to which BIS sync if there is no channel preference
+                    if (bisIndexValue == 0) {
+                        bisIndexValue = 0xFFFFFFFF;
+                    }
                 }
-            } else if (i < existingState.getBisSyncState().size()) {
-                bisIndexValue = existingState.getBisSyncState().get(i).intValue();
+            } else {
+                // Keep using BIS index from remote receive state
+                bisIndexValue = currentBisIndexValue;
             }
-            log("UPDATE_BCAST_SOURCE: bisIndexValue : " + bisIndexValue);
+            log(
+                    "UPDATE_BCAST_SOURCE: bisIndexValue from: "
+                            + currentBisIndexValue
+                            + " to: "
+                            + bisIndexValue);
             // BIS_Sync
             res[offset++] = (byte) (bisIndexValue & 0x00000000000000FF);
             res[offset++] = (byte) ((bisIndexValue & 0x000000000000FF00) >>> 8);
