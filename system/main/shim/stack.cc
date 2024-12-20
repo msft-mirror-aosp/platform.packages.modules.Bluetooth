@@ -102,7 +102,14 @@ void Stack::StartEverything() {
   modules.add<hci::MsftExtensionManager>();
   modules.add<hci::LeScanningManager>();
   modules.add<hci::DistanceMeasurementManager>();
-  Start(&modules);
+
+  stack_thread_ = new os::Thread("gd_stack_thread", os::Thread::Priority::REAL_TIME);
+  StartUp(&modules, stack_thread_);
+
+  stack_handler_ = new os::Handler(stack_thread_);
+
+  log::info("Successfully toggled Gd stack");
+
   is_running_ = true;
   // Make sure the leaf modules are started
   log::assert_that(GetInstance<storage::StorageModule>() != nullptr,
@@ -133,18 +140,6 @@ void Stack::StartModuleStack(const ModuleList* modules, const os::Thread* thread
   is_running_ = true;
 }
 
-void Stack::Start(ModuleList* modules) {
-  log::assert_that(!is_running_, "Gd stack already running");
-  log::info("Starting Gd stack");
-
-  stack_thread_ = new os::Thread("gd_stack_thread", os::Thread::Priority::REAL_TIME);
-  StartUp(modules, stack_thread_);
-
-  stack_handler_ = new os::Handler(stack_thread_);
-
-  log::info("Successfully toggled Gd stack");
-}
-
 void Stack::Stop() {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
   bluetooth::shim::hci_on_shutting_down();
@@ -161,7 +156,26 @@ void Stack::Stop() {
 
   stack_handler_->Clear();
 
-  ShutDown();
+  WakelockManager::Get().Acquire();
+
+  std::promise<void> promise;
+  auto future = promise.get_future();
+  management_handler_->Post(
+          common::BindOnce(&Stack::handle_shut_down, common::Unretained(this), std::move(promise)));
+
+  auto stop_status = future.wait_for(
+          std::chrono::milliseconds(get_gd_stack_timeout_ms(/* is_start = */ false)));
+
+  WakelockManager::Get().Release();
+  WakelockManager::Get().CleanUp();
+
+  log::assert_that(stop_status == std::future_status::ready, "Can't stop stack, last instance: {}",
+                   registry_.last_instance_);
+
+  management_handler_->Clear();
+  management_handler_->WaitUntilStopped(std::chrono::milliseconds(2000));
+  delete management_handler_;
+  delete management_thread_;
 
   delete stack_handler_;
   stack_handler_ = nullptr;
@@ -210,14 +224,14 @@ void Stack::Dump(int fd, std::promise<void> promise) const {
 
 void Stack::StartUp(ModuleList* modules, Thread* stack_thread) {
   management_thread_ = new Thread("management_thread", Thread::Priority::NORMAL);
-  handler_ = new Handler(management_thread_);
+  management_handler_ = new Handler(management_thread_);
 
   WakelockManager::Get().Acquire();
 
   std::promise<void> promise;
   auto future = promise.get_future();
-  handler_->Post(common::BindOnce(&Stack::handle_start_up, common::Unretained(this), modules,
-                                  stack_thread, std::move(promise)));
+  management_handler_->Post(common::BindOnce(&Stack::handle_start_up, common::Unretained(this),
+                                             modules, stack_thread, std::move(promise)));
 
   auto init_status = future.wait_for(
           std::chrono::milliseconds(get_gd_stack_timeout_ms(/* is_start = */ true)));
@@ -235,29 +249,6 @@ void Stack::StartUp(ModuleList* modules, Thread* stack_thread) {
 void Stack::handle_start_up(ModuleList* modules, Thread* stack_thread, std::promise<void> promise) {
   registry_.Start(modules, stack_thread);
   promise.set_value();
-}
-
-void Stack::ShutDown() {
-  WakelockManager::Get().Acquire();
-
-  std::promise<void> promise;
-  auto future = promise.get_future();
-  handler_->Post(
-          common::BindOnce(&Stack::handle_shut_down, common::Unretained(this), std::move(promise)));
-
-  auto stop_status = future.wait_for(
-          std::chrono::milliseconds(get_gd_stack_timeout_ms(/* is_start = */ false)));
-
-  WakelockManager::Get().Release();
-  WakelockManager::Get().CleanUp();
-
-  log::assert_that(stop_status == std::future_status::ready, "Can't stop stack, last instance: {}",
-                   registry_.last_instance_);
-
-  handler_->Clear();
-  handler_->WaitUntilStopped(std::chrono::milliseconds(2000));
-  delete handler_;
-  delete management_thread_;
 }
 
 void Stack::handle_shut_down(std::promise<void> promise) {
