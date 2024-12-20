@@ -847,31 +847,6 @@ public class GattService extends ProfileService {
         }
 
         @Override
-        public void leSubrateRequest(
-                int clientIf,
-                String address,
-                int subrateMin,
-                int subrateMax,
-                int maxLatency,
-                int contNumber,
-                int supervisionTimeout,
-                AttributionSource attributionSource) {
-            GattService service = getService();
-            if (service == null) {
-                return;
-            }
-            service.leSubrateRequest(
-                    clientIf,
-                    address,
-                    subrateMin,
-                    subrateMax,
-                    maxLatency,
-                    contNumber,
-                    supervisionTimeout,
-                    attributionSource);
-        }
-
-        @Override
         public void registerServer(
                 ParcelUuid uuid,
                 IBluetoothGattServerCallback callback,
@@ -2926,47 +2901,6 @@ public class GattService extends ProfileService {
         return mNativeInterface.gattSubrateRequest(
                 clientIf,
                 device.getAddress(),
-                subrateMin,
-                subrateMax,
-                maxLatency,
-                contNumber,
-                supervisionTimeout);
-    }
-
-    @RequiresPermission(BLUETOOTH_CONNECT)
-    void leSubrateRequest(
-            int clientIf,
-            String address,
-            int subrateMin,
-            int subrateMax,
-            int maxLatency,
-            int contNumber,
-            int supervisionTimeout,
-            AttributionSource attributionSource) {
-        if (!Utils.checkConnectPermissionForDataDelivery(
-                this, attributionSource, "GattService leSubrateRequest")) {
-            return;
-        }
-
-        Log.d(
-                TAG,
-                "leSubrateRequest() - "
-                        + "address="
-                        + BluetoothUtils.toAnonymizedAddress(address)
-                        + ", subrate min/max="
-                        + subrateMin
-                        + "/"
-                        + subrateMax
-                        + ", maxLatency="
-                        + maxLatency
-                        + ", continuation Number="
-                        + contNumber
-                        + ", timeout="
-                        + supervisionTimeout);
-
-        mNativeInterface.gattSubrateRequest(
-                clientIf,
-                address,
                 subrateMin,
                 subrateMax,
                 maxLatency,
