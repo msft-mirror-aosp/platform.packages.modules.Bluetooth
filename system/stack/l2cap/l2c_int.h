@@ -394,6 +394,8 @@ enum tCONN_UPDATE_MASK : uint8_t {
   L2C_BLE_UPDATE_PENDING = (1u << 2),
   /* not using default connection parameters */
   L2C_BLE_NOT_DEFAULT_PARAM = (1u << 3),
+  /* Aggressive initial connection parameters are used */
+  L2C_BLE_AGGRESSIVE_INITIAL_PARAM = (1u << 4),
 };
 
 /* Define a link control block. There is one link control block between
