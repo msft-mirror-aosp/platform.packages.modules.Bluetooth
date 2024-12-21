@@ -55,11 +55,16 @@ public:
 
   static const std::string kAdapterSection;
 
+  StorageModule();
+  StorageModule(os::Handler*);
   StorageModule(const StorageModule&) = delete;
   StorageModule& operator=(const StorageModule&) = delete;
 
   ~StorageModule();
   static const ModuleFactory Factory;
+
+  void Start() override;
+  void Stop() override;
 
   // Methods to access the storage layer via Device abstraction
   // - Devices will be lazily created when methods below are called. Hence, no std::optional<> nor
@@ -121,8 +126,6 @@ public:
 
 protected:
   void ListDependencies(ModuleList* list) const override;
-  void Start() override;
-  void Stop() override;
   std::string ToString() const override;
 
   friend shim::BtifConfigInterface;
@@ -147,8 +150,9 @@ protected:
   // - temp_devices_capacity is the number of temporary, typically unpaired devices to hold in a
   // memory based LRU
   // - is_restricted_mode and is_single_user_mode are flags from upper layer
-  StorageModule(std::string config_file_path, std::chrono::milliseconds config_save_delay,
-                size_t temp_devices_capacity, bool is_restricted_mode, bool is_single_user_mode);
+  StorageModule(os::Handler* handler, std::string config_file_path,
+                std::chrono::milliseconds config_save_delay, size_t temp_devices_capacity,
+                bool is_restricted_mode, bool is_single_user_mode);
 
   bool HasSection(const std::string& section) const;
   bool HasProperty(const std::string& section, const std::string& property) const;
