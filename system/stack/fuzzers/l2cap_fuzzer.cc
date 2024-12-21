@@ -78,6 +78,9 @@ uint32_t GetSystemPropertyUint32Base(const std::string& /*property*/, uint32_t d
                                      int /*base*/) {
   return default_value;
 }
+uint32_t GetSystemPropertyUint32(const std::string& /*property*/, uint32_t default_value) {
+  return default_value;
+}
 }  // namespace os
 
 namespace hal {
