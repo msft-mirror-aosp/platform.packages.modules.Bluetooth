@@ -46,6 +46,8 @@ import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothUuid;
 import android.bluetooth.IBluetoothLeAudioCallback;
+import android.bluetooth.le.IScannerCallback;
+import android.bluetooth.le.ScanResult;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -56,6 +58,7 @@ import android.media.BluetoothProfileConnectionInfo;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.ParcelUuid;
+import android.os.RemoteException;
 import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
@@ -619,6 +622,13 @@ public class LeAudioServiceTest {
         } else {
             TestUtils.waitForNoIntent(TIMEOUT_MS, mDeviceQueueMap.get(device));
         }
+    }
+
+    private void injectAndVerifyDeviceConnected(BluetoothDevice device) {
+        generateConnectionMessageFromNative(
+                device,
+                LeAudioStackEvent.CONNECTION_STATE_CONNECTED,
+                LeAudioStackEvent.CONNECTION_STATE_DISCONNECTED);
     }
 
     private void injectNoVerifyDeviceConnected(BluetoothDevice device) {
@@ -1187,6 +1197,13 @@ public class LeAudioServiceTest {
         // Make device bonded
         mBondedDevices.add(device);
 
+        LeAudioStackEvent nodeGroupAdded =
+                new LeAudioStackEvent(LeAudioStackEvent.EVENT_TYPE_GROUP_NODE_STATUS_CHANGED);
+        nodeGroupAdded.device = device;
+        nodeGroupAdded.valueInt1 = GroupId;
+        nodeGroupAdded.valueInt2 = LeAudioStackEvent.GROUP_NODE_ADDED;
+        mService.messageFromNative(nodeGroupAdded);
+
         // Wait ASYNC_CALL_TIMEOUT_MILLIS for state to settle, timing is also tested here and
         // 250ms for processing two messages should be way more than enough. Anything that breaks
         // this indicate some breakage in other part of Android OS
@@ -1213,13 +1230,6 @@ public class LeAudioServiceTest {
                 BluetoothProfile.STATE_CONNECTING);
 
         assertThat(mService.getConnectionState(device)).isEqualTo(BluetoothProfile.STATE_CONNECTED);
-
-        LeAudioStackEvent nodeGroupAdded =
-                new LeAudioStackEvent(LeAudioStackEvent.EVENT_TYPE_GROUP_NODE_STATUS_CHANGED);
-        nodeGroupAdded.device = device;
-        nodeGroupAdded.valueInt1 = GroupId;
-        nodeGroupAdded.valueInt2 = LeAudioStackEvent.GROUP_NODE_ADDED;
-        mService.messageFromNative(nodeGroupAdded);
 
         // Verify that the device is in the list of connected devices
         assertThat(mService.getConnectedDevices().contains(device)).isTrue();
@@ -3049,16 +3059,194 @@ public class LeAudioServiceTest {
                         any(BluetoothProfileConnectionInfo.class));
     }
 
+    @Test
+    public void testAutoActiveMode_verifyDefaultState() {
+        int groupId = 1;
+
+        /* Test scenario:
+         * 1. Connected two devices
+         * 2. Verify that Auto Active Mode is true be default.
+         */
+
+        doReturn(true).when(mNativeInterface).connectLeAudio(any(BluetoothDevice.class));
+        connectTestDevice(mLeftDevice, groupId);
+        connectTestDevice(mRightDevice, groupId);
+
+        assertThat(mService.isAutoActiveModeEnabled(groupId)).isTrue();
+    }
+
+    @Test
+    public void testAutoActiveMode_whenDeviceIsConnected_failToDisableIt() {
+        int groupId = 1;
+        /* AUDIO_DIRECTION_OUTPUT_BIT = 0x01 */
+        int direction = 1;
+        int availableContexts = 5 + BluetoothLeAudio.CONTEXT_TYPE_RINGTONE;
+
+        /* Test scenario:
+         * 1. Connected two devices
+         * 2. Disconnect one device
+         * 3. Verify that Auto Active Mode cannot be set.
+         */
+
+        doReturn(true).when(mNativeInterface).connectLeAudio(any(BluetoothDevice.class));
+        connectTestDevice(mLeftDevice, groupId);
+        connectTestDevice(mRightDevice, groupId);
+
+        assertThat(mService.setAutoActiveModeState(groupId, false)).isFalse();
+
+        // Checks group device lists for groupId 1
+        List<BluetoothDevice> groupDevicesById = mService.getGroupDevices(groupId);
+
+        assertThat(groupDevicesById).containsExactly(mLeftDevice, mRightDevice);
+
+        injectAudioConfChanged(groupId, availableContexts, direction);
+        assertThat(mService.isGroupAvailableForStream(groupId)).isTrue();
+
+        injectAndVerifyDeviceDisconnected(mLeftDevice);
+
+        assertThat(mService.setAutoActiveModeState(groupId, false)).isFalse();
+    }
+
+    @Test
+    public void testAutoActiveMode_disabledWithSuccess() {
+        int groupId = 1;
+        /* AUDIO_DIRECTION_OUTPUT_BIT = 0x01 */
+        int direction = 1;
+        int availableContexts = 5 + BluetoothLeAudio.CONTEXT_TYPE_RINGTONE;
+
+        /* Test scenario:
+         * 1. Connected two devices
+         * 2. Disconnect both devices
+         * 3. Verify that Auto Active Mode can be set.
+         */
+
+        doReturn(true).when(mNativeInterface).connectLeAudio(any(BluetoothDevice.class));
+        connectTestDevice(mLeftDevice, groupId);
+        connectTestDevice(mRightDevice, groupId);
+
+        // Checks group device lists for groupId 1
+        List<BluetoothDevice> groupDevicesById = mService.getGroupDevices(groupId);
+
+        assertThat(groupDevicesById).containsExactly(mLeftDevice, mRightDevice);
+
+        injectAudioConfChanged(groupId, availableContexts, direction);
+
+        assertThat(mService.isGroupAvailableForStream(groupId)).isTrue();
+
+        injectAndVerifyDeviceDisconnected(mLeftDevice);
+        injectAndVerifyDeviceDisconnected(mRightDevice);
+
+        assertThat(mService.setAutoActiveModeState(groupId, false)).isTrue();
+        assertThat(mService.isAutoActiveModeEnabled(groupId)).isFalse();
+    }
+
+    @Test
+    public void testAutoActiveMode_whenUserSetsDeviceAsActive_resetToDefault() {
+        int groupId = 1;
+        /* AUDIO_DIRECTION_OUTPUT_BIT = 0x01 */
+        int direction = 1;
+        int availableContexts = 5 + BluetoothLeAudio.CONTEXT_TYPE_RINGTONE;
+
+        /* Test scenario:
+         * 1. Connected two devices
+         * 2. Disconnect both devices
+         * 3. Disable Auto Active Mode
+         * 4. Connect at least one device
+         * 5. Set group as Active
+         * 6. Verify Auto Active Mode is back to default
+         */
+
+        mService.handleBluetoothEnabled();
+
+        doReturn(true).when(mNativeInterface).connectLeAudio(any(BluetoothDevice.class));
+        connectTestDevice(mLeftDevice, groupId);
+        connectTestDevice(mRightDevice, groupId);
+
+        // Checks group device lists for groupId 1
+        List<BluetoothDevice> groupDevicesById = mService.getGroupDevices(groupId);
+
+        assertThat(groupDevicesById).containsExactly(mLeftDevice, mRightDevice);
+
+        injectAudioConfChanged(groupId, availableContexts, direction);
+
+        assertThat(mService.isGroupAvailableForStream(groupId)).isTrue();
+
+        injectAndVerifyDeviceDisconnected(mLeftDevice);
+        injectAndVerifyDeviceDisconnected(mRightDevice);
+
+        assertThat(mService.setAutoActiveModeState(groupId, false)).isTrue();
+        assertThat(mService.isAutoActiveModeEnabled(groupId)).isFalse();
+
+        injectAndVerifyDeviceConnected(mLeftDevice);
+        injectAudioConfChanged(groupId, availableContexts, direction);
+
+        assertThat(mService.setActiveDevice(mLeftDevice)).isTrue();
+        assertThat(mService.isAutoActiveModeEnabled(groupId)).isTrue();
+    }
+
+    @Test
+    public void testAutoActiveMode_whenRemoteUsesTargetedAnnouncements_resetToDefault()
+            throws RemoteException {
+        int groupId = 1;
+        /* AUDIO_DIRECTION_OUTPUT_BIT = 0x01 */
+        int direction = 1;
+        int availableContexts = 5 + BluetoothLeAudio.CONTEXT_TYPE_RINGTONE;
+
+        /* Test scenario:
+         * 1. Connected two devices
+         * 2. Disconnect both devices
+         * 3. Disable Auto Active Mode
+         * 4. Connect at least one device
+         * 5. Detect TA on remote device
+         * 6. Verify Auto Active Mode is back to default
+         */
+
+        mService.handleBluetoothEnabled();
+        ArgumentCaptor<IScannerCallback> scanCallbacks =
+                ArgumentCaptor.forClass(IScannerCallback.class);
+
+        doReturn(true).when(mNativeInterface).connectLeAudio(any(BluetoothDevice.class));
+        connectTestDevice(mLeftDevice, groupId);
+        connectTestDevice(mRightDevice, groupId);
+
+        // Checks group device lists for groupId 1
+        List<BluetoothDevice> groupDevicesById = mService.getGroupDevices(groupId);
+
+        assertThat(groupDevicesById).containsExactly(mLeftDevice, mRightDevice);
+        injectAudioConfChanged(groupId, availableContexts, direction);
+
+        assertThat(mService.isGroupAvailableForStream(groupId)).isTrue();
+
+        injectAndVerifyDeviceDisconnected(mLeftDevice);
+        injectAndVerifyDeviceDisconnected(mRightDevice);
+
+        assertThat(mService.setAutoActiveModeState(groupId, false)).isTrue();
+        assertThat(mService.isAutoActiveModeEnabled(groupId)).isFalse();
+
+        injectAndVerifyDeviceConnected(mLeftDevice);
+        injectAudioConfChanged(groupId, availableContexts, direction);
+
+        verify(mScanController).registerScannerInternal(scanCallbacks.capture(), any(), any());
+
+        ScanResult scanResult = new ScanResult(mRightDevice, null, 0, 0);
+
+        scanCallbacks.getValue().onScanResult(scanResult);
+
+        assertThat(mService.isAutoActiveModeEnabled(groupId)).isTrue();
+    }
+
     /**
      * Test the group is activated once the available contexts are back.
      *
+     * <pre>
      * Scenario:
-     *  1. Have a group of 2 devices that initially does not expose any available contexts.
-     *     The group shall be inactive at this point.
-     *  2. Once the available contexts are updated with non-zero value,
-     *     the group shall become active.
-     *  3. The available contexts are changed to zero. Group becomes inactive.
-     *  4. The available contexts are back again. Group becomes active.
+     *   1. Have a group of 2 devices that initially does not expose any available contexts. The
+     * group shall be inactive at this point.
+     *   2. Once the available contexts are updated with non-zero value, the group shall become
+     * active.
+     *   3. The available contexts are changed to zero. Group becomes inactive.
+     *   4. The available contexts are back again. Group becomes active.
+     * </pre>
      */
     @Test
     @EnableFlags(Flags.FLAG_LEAUDIO_UNICAST_NO_AVAILABLE_CONTEXTS)
@@ -3146,14 +3334,16 @@ public class LeAudioServiceTest {
     /**
      * Test the group is activated once the available contexts are back.
      *
+     * <pre>
      * Scenario:
-     *  1. Have a group of 2 devices. The available contexts are non-zero.
-     *     The group shall be active at this point.
-     *  2. Once the available contexts are updated with zero value,
-     *     the group shall become inactive.
-     *  3. All group devices are disconnected.
-     *  4. Group devices are reconnected. The available contexts are still zero.
-     *  4. The available contexts are updated with non-zero value. Group becomes active.
+     *   1. Have a group of 2 devices. The available contexts are non-zero. The group shall be
+     * active at this point.
+     *   2. Once the available contexts are updated with zero value, the group shall become
+     * inactive.
+     *   3. All group devices are disconnected.
+     *   4. Group devices are reconnected. The available contexts are still zero.
+     *   5. The available contexts are updated with non-zero value. Group becomes active.
+     * </pre>
      */
     @Test
     @EnableFlags(Flags.FLAG_LEAUDIO_UNICAST_NO_AVAILABLE_CONTEXTS)
@@ -3241,7 +3431,9 @@ public class LeAudioServiceTest {
         mService.messageFromNative(audioConfChangedEvent);
 
         generateConnectionMessageFromNative(
-                mRightDevice, BluetoothProfile.STATE_CONNECTED, BluetoothProfile.STATE_DISCONNECTED);
+                mRightDevice,
+                BluetoothProfile.STATE_CONNECTED,
+                BluetoothProfile.STATE_DISCONNECTED);
         assertThat(mService.getConnectionState(mRightDevice))
                 .isEqualTo(BluetoothProfile.STATE_CONNECTED);
         assertThat(mService.getConnectedDevices().contains(mRightDevice)).isTrue();
