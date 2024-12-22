@@ -19,7 +19,6 @@
 #ifndef BTIF_HH_H
 #define BTIF_HH_H
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 #include <hardware/bluetooth.h>
 #include <hardware/bt_hh.h>
@@ -74,7 +73,7 @@ inline std::string btif_hh_status_text(const BTIF_HH_STATUS& status) {
     CASE_RETURN_TEXT(BTIF_HH_ENABLED);
     CASE_RETURN_TEXT(BTIF_HH_DISABLING);
     default:
-      return base::StringPrintf("UNKNOWN[%u]", status);
+      return std::format("UNKNOWN[{}]", static_cast<unsigned>(status));
   }
 }
 

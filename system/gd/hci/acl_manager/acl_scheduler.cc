@@ -215,7 +215,7 @@ private:
   const std::string set_of_incoming_connecting_addresses() const {
     std::stringstream buffer;
     for (const auto& c : incoming_connecting_address_set_) {
-      buffer << " " << c;
+      buffer << " " << c.ToRedactedStringForLogging();
     }
     return buffer.str();
   }

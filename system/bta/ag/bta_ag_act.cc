@@ -403,6 +403,7 @@ void bta_ag_rfc_close(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& /* data */) {
   int i, num_active_conn = 0;
 
   /* reinitialize stuff */
+  p_scb->clip[0] = 0;
   p_scb->conn_service = 0;
   p_scb->peer_features = 0;
   p_scb->masked_features = p_scb->features;

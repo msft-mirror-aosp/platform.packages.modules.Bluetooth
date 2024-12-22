@@ -994,7 +994,7 @@ public final class BluetoothSocket implements Closeable {
             ret = mSocketIS.read(b, offset, length);
         }
         if (ret < 0) {
-            throw new IOException("bt socket closed, read return: " + ret);
+            return -1;
         }
         if (VDBG) Log.d(TAG, "read out:  " + mSocketIS + " ret: " + ret);
         return ret;

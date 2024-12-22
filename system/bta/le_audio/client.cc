@@ -86,6 +86,7 @@
 #include "osi/include/osi.h"
 #include "osi/include/properties.h"
 #include "stack/btm/btm_sec.h"
+#include "stack/gatt/gatt_int.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_status.h"
@@ -617,6 +618,8 @@ public:
 
   void AseInitialStateReadRequest(LeAudioDevice* leAudioDevice) {
     int ases_num = leAudioDevice->ases_.size();
+    bool is_eatt_supported = gatt_profile_get_eatt_support_by_conn_id(leAudioDevice->conn_id_);
+
     void* notify_flag_ptr = NULL;
 
     tBTA_GATTC_MULTI multi_read{};
@@ -630,7 +633,7 @@ public:
         notify_flag_ptr = INT_TO_PTR(leAudioDevice->notify_connected_after_read_);
       }
 
-      if (!com::android::bluetooth::flags::le_ase_read_multiple_variable()) {
+      if (!com::android::bluetooth::flags::le_ase_read_multiple_variable() || !is_eatt_supported) {
         BtaGattQueue::ReadCharacteristic(leAudioDevice->conn_id_,
                                          leAudioDevice->ases_[i].hdls.val_hdl, OnGattReadRspStatic,
                                          notify_flag_ptr);
@@ -802,7 +805,8 @@ public:
       leAudioDevice = group->GetNextActiveDevice(leAudioDevice);
     } while (leAudioDevice);
 
-    if (recovery) {
+    if (recovery && !group->NumOfConnected()) {
+      log::info("All devices disconnected, group becomes inactive");
       /* Both devices will  be disconnected soon. Notify upper layer that group
        * is inactive */
       groupSetAndNotifyInactive();
@@ -2554,7 +2558,9 @@ public:
   }
 
   void ReadMustHaveAttributesOnReconnect(LeAudioDevice* leAudioDevice) {
-    log::verbose("{}", leAudioDevice->address_);
+    bool is_eatt_supported = gatt_profile_get_eatt_support_by_conn_id(leAudioDevice->conn_id_);
+
+    log::verbose("{}, eatt supported {}", leAudioDevice->address_, is_eatt_supported);
     /* Here we read
      * 1) ASCS Control Point CCC descriptor in order to validate proper
      *    behavior of remote device which should store CCC values for bonded device.
@@ -2563,7 +2569,7 @@ public:
      *    it can change very often which, as we observed, might lead to not being sent by
      *    remote devices
      */
-    if (!com::android::bluetooth::flags::le_ase_read_multiple_variable()) {
+    if (!com::android::bluetooth::flags::le_ase_read_multiple_variable() || !is_eatt_supported) {
       BtaGattQueue::ReadCharacteristic(leAudioDevice->conn_id_,
                                        leAudioDevice->audio_avail_hdls_.val_hdl,
                                        OnGattReadRspStatic, NULL);
@@ -4396,10 +4402,21 @@ public:
       return;
     }
 
+    /* Group should not be resumed if:
+     * - configured context type is not allowed
+     * - updated metadata contains only not allowed context types
+     */
     if (!group->GetAllowedContextMask(bluetooth::le_audio::types::kLeAudioDirectionSink)
+                 .test_all(local_metadata_context_types_.source) ||
+        !group->GetAllowedContextMask(bluetooth::le_audio::types::kLeAudioDirectionSink)
                  .test(configuration_context_type_)) {
-      log::warn("Block source resume request context type: {}",
-                ToHexString(configuration_context_type_));
+      log::warn(
+              "Block source resume request context types: {}, allowed context mask: {}, "
+              "configured: {}",
+              ToString(local_metadata_context_types_.source),
+              ToString(group->GetAllowedContextMask(
+                      bluetooth::le_audio::types::kLeAudioDirectionSink)),
+              ToString(configuration_context_type_));
       CancelLocalAudioSourceStreamingRequest();
       return;
     }
@@ -4673,10 +4690,21 @@ public:
       return;
     }
 
+    /* Group should not be resumed if:
+     * - configured context type is not allowed
+     * - updated metadata contains only not allowed context types
+     */
     if (!group->GetAllowedContextMask(bluetooth::le_audio::types::kLeAudioDirectionSource)
+                 .test_all(local_metadata_context_types_.sink) ||
+        !group->GetAllowedContextMask(bluetooth::le_audio::types::kLeAudioDirectionSource)
                  .test(configuration_context_type_)) {
-      log::warn("Block sink resume request context type: {}",
-                ToHexString(configuration_context_type_));
+      log::warn(
+              "Block sink resume request context types: {} vs allowed context mask: {}, "
+              "configured: {}",
+              ToString(local_metadata_context_types_.sink),
+              ToString(group->GetAllowedContextMask(
+                      bluetooth::le_audio::types::kLeAudioDirectionSource)),
+              ToString(configuration_context_type_));
       CancelLocalAudioSourceStreamingRequest();
       return;
     }
@@ -4905,6 +4933,30 @@ public:
     return true;
   }
 
+  bool StopStreamIfUpdatedContextIsNoLongerSupporteded(uint8_t direction, LeAudioDeviceGroup* group,
+                                                       AudioContexts local_contexts) {
+    AudioContexts allowed_contexts = group->GetAllowedContextMask(direction);
+
+    /* Stream should be suspended if:
+     * - updated metadata is only not allowed
+     * - there is no metadata (cleared) but configuration is for not allowed context
+     */
+    if (group->IsStreaming() && !allowed_contexts.test_any(local_contexts) &&
+        !(allowed_contexts.test(configuration_context_type_) && local_contexts.none())) {
+      /* SuspendForReconfiguration and ReconfigurationComplete is a workaround method to let Audio
+       * Framework know that session is suspended. Strem resume would be handled from
+       * suspended session context with stopped group.
+       */
+      SuspendedForReconfiguration();
+      ReconfigurationComplete(direction);
+      GroupStop(active_group_id_);
+
+      return true;
+    }
+
+    return false;
+  }
+
   void OnLocalAudioSourceMetadataUpdate(
           const std::vector<struct playback_track_metadata_v7>& source_metadata, DsaMode dsa_mode) {
     if (active_group_id_ == bluetooth::groups::kGroupUnknown) {
@@ -4939,6 +4991,23 @@ public:
 
     /* Set the remote sink metadata context from the playback tracks metadata */
     local_metadata_context_types_.source = GetAudioContextsFromSourceMetadata(source_metadata);
+
+    /* Check if stream should be suspended due to reamaining only not allowed contexts in metadata
+     * or configured context.
+     */
+    if (com::android::bluetooth::flags::leaudio_stop_updated_to_not_available_context_stream() &&
+        StopStreamIfUpdatedContextIsNoLongerSupporteded(
+                bluetooth::le_audio::types::kLeAudioDirectionSink, group,
+                local_metadata_context_types_.source)) {
+      log::info(
+              "Updated source metadata contexts are not allowed context types: {} | configured: {} "
+              "vs allowed context mask: {}",
+              ToString(local_metadata_context_types_.source), ToString(configuration_context_type_),
+              ToString(group->GetAllowedContextMask(
+                      bluetooth::le_audio::types::kLeAudioDirectionSink)));
+
+      return;
+    }
 
     local_metadata_context_types_.source =
             ChooseMetadataContextType(local_metadata_context_types_.source);
@@ -5089,6 +5158,22 @@ public:
 
     /* Set remote source metadata context from the recording tracks metadata */
     local_metadata_context_types_.sink = GetAudioContextsFromSinkMetadata(sink_metadata);
+
+    /* Check if stream should be suspended due to only reamaining not allowed contexts in metadata
+     * or configured context.
+     */
+    if (com::android::bluetooth::flags::leaudio_stop_updated_to_not_available_context_stream() &&
+        StopStreamIfUpdatedContextIsNoLongerSupporteded(
+                bluetooth::le_audio::types::kLeAudioDirectionSource, group,
+                local_metadata_context_types_.sink)) {
+      log::info(
+              "Updated sink metadata contexts are not allowed context types: {} | configured: {} "
+              "vs allowed context mask: {}",
+              ToString(local_metadata_context_types_.sink), ToString(configuration_context_type_),
+              ToString(group->GetAllowedContextMask(
+                      bluetooth::le_audio::types::kLeAudioDirectionSource)));
+      return;
+    }
 
     local_metadata_context_types_.sink =
             ChooseMetadataContextType(local_metadata_context_types_.sink);

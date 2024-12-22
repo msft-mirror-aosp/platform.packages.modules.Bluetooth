@@ -22,6 +22,8 @@ import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTING;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -277,10 +279,10 @@ public class CsipSetCoordinatorStateMachineTest {
 
     @Test
     public void testIsConnected() {
-        Assert.assertFalse(mStateMachine.isConnected());
+        assertThat(mStateMachine.isConnected()).isFalse();
 
         initToConnectedState();
-        Assert.assertTrue(mStateMachine.isConnected());
+        assertThat(mStateMachine.isConnected()).isTrue();
     }
 
     @Test
@@ -396,9 +398,10 @@ public class CsipSetCoordinatorStateMachineTest {
         initToConnectingState();
         mStateMachine.sendMessage(CsipSetCoordinatorStateMachine.CONNECT);
         TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
-        Assert.assertTrue(
-                mStateMachine.doesSuperHaveDeferredMessages(
-                        CsipSetCoordinatorStateMachine.CONNECT));
+        assertThat(
+                        mStateMachine.doesSuperHaveDeferredMessages(
+                                CsipSetCoordinatorStateMachine.CONNECT))
+                .isTrue();
     }
 
     @Test

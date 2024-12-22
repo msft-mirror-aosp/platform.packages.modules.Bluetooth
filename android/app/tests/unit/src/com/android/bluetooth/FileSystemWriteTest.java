@@ -15,10 +15,11 @@
  */
 package com.android.bluetooth;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import androidx.test.filters.MediumTest;
 import androidx.test.runner.AndroidJUnit4;
 
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -30,35 +31,23 @@ import java.io.IOException;
 @RunWith(AndroidJUnit4.class)
 public class FileSystemWriteTest {
     @Test
-    public void testBluetoothDirWrite() {
-        try {
+    public void testBluetoothDirWrite() throws IOException {
             File file = new File("/data/misc/bluetooth/test.file");
-            Assert.assertTrue("File not created", file.createNewFile());
+        assertThat(file.createNewFile()).isTrue();
             file.delete();
-        } catch (IOException e) {
-            Assert.fail("Exception creating file /data/misc/bluetooth/test.file: " + e);
-        }
     }
 
     @Test
-    public void testBluedroidDirWrite() {
-        try {
+    public void testBluedroidDirWrite() throws IOException {
             File file = new File("/data/misc/bluedroid/test.file");
-            Assert.assertTrue("File not created", file.createNewFile());
+        assertThat(file.createNewFile()).isTrue();
             file.delete();
-        } catch (IOException e) {
-            Assert.fail("Exception creating file /data/misc/bluedroid/test.file: " + e);
-        }
     }
 
     @Test
-    public void testBluetoothLogsDirWrite() {
-        try {
+    public void testBluetoothLogsDirWrite() throws IOException {
             File file = new File("/data/misc/bluetooth/logs/test.file");
-            Assert.assertTrue("File not created", file.createNewFile());
+        assertThat(file.createNewFile()).isTrue();
             file.delete();
-        } catch (IOException e) {
-            Assert.fail("Exception creating file /data/misc/bluetooth/logs/test.file: " + e);
-        }
     }
 }

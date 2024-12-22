@@ -76,7 +76,6 @@ class PbapClientStateMachineOld extends StateMachine {
 
     // Messages for handling connect/disconnect requests.
     private static final int MSG_DISCONNECT = 2;
-    static final int MSG_SDP_COMPLETE = 9;
 
     // Messages for handling error conditions.
     private static final int MSG_CONNECT_TIMEOUT = 3;
@@ -87,9 +86,20 @@ class PbapClientStateMachineOld extends StateMachine {
     static final int MSG_CONNECTION_FAILED = 6;
     static final int MSG_CONNECTION_CLOSED = 7;
     static final int MSG_RESUME_DOWNLOAD = 8;
+    static final int MSG_SDP_COMPLETE = 9;
+    static final int MSG_SDP_BUSY = 10;
+    static final int MSG_SDP_FAIL = 11;
 
+    // Constants for SDP. Note that these values come from the native stack, but no centralized
+    // constants exist for them as part of the various SDP APIs.
+    public static final int SDP_SUCCESS = 0;
+    public static final int SDP_FAILED = 1;
+    public static final int SDP_BUSY = 2;
+
+    // All times are in milliseconds
     static final int CONNECT_TIMEOUT = 10000;
     static final int DISCONNECT_TIMEOUT = 3000;
+    static final int SDP_BUSY_RETRY_DELAY = 20;
 
     private static final int LOCAL_SUPPORTED_FEATURES =
             PbapSdpRecord.FEATURE_DEFAULT_IMAGE_FORMAT | PbapSdpRecord.FEATURE_DOWNLOADING;
@@ -210,12 +220,38 @@ class PbapClientStateMachineOld extends StateMachine {
                     break;
 
                 case MSG_SDP_COMPLETE:
+                    removeMessages(MSG_SDP_BUSY);
                     PbapClientConnectionHandler connectionHandler = mConnectionHandler;
                     if (connectionHandler != null) {
+                        if (message.obj == null) {
+                            Log.w(TAG, "Received SDP response without valid PSE record ");
+                        }
                         connectionHandler
                                 .obtainMessage(PbapClientConnectionHandler.MSG_CONNECT, message.obj)
                                 .sendToTarget();
+                    } else {
+                        Log.w(TAG, "Received SDP complete without connection handler");
                     }
+                    break;
+
+                case MSG_SDP_BUSY:
+                    removeMessages(MSG_SDP_BUSY);
+                    Log.d(TAG, "Received SDP busy, try again");
+                    mCurrentDevice.sdpSearch(BluetoothUuid.PBAP_PSE);
+                    break;
+
+                case MSG_SDP_FAIL:
+                    removeMessages(MSG_SDP_BUSY);
+                    int status = message.arg1;
+                    Log.w(TAG, "SDP failed status:" + status + ", starting disconnect");
+                    transitionTo(mDisconnecting);
+                    break;
+
+                case MSG_RESUME_DOWNLOAD:
+                    Log.i(
+                            TAG,
+                            "Received request to download phonebook but still in state "
+                                    + this.getName());
                     break;
 
                 default:
@@ -314,6 +350,24 @@ class PbapClientStateMachineOld extends StateMachine {
                     return NOT_HANDLED;
             }
             return HANDLED;
+        }
+    }
+
+    /** Notify of SDP completion. */
+    public void onSdpResultReceived(int status, PbapSdpRecord record) {
+        Log.d(TAG, "Received SDP Result, status=" + status + ", record=" + record);
+        switch (status) {
+            case SDP_SUCCESS:
+                sendMessage(PbapClientStateMachineOld.MSG_SDP_COMPLETE, record);
+                break;
+
+            case SDP_BUSY:
+                sendMessageDelayed(PbapClientStateMachineOld.MSG_SDP_BUSY, SDP_BUSY_RETRY_DELAY);
+                break;
+
+            default:
+                sendMessage(PbapClientStateMachineOld.MSG_SDP_FAIL);
+                break;
         }
     }
 

@@ -34,6 +34,8 @@ namespace bluetooth::hal {
 
 constexpr uint16_t kLeCocMtuMin = 23;
 constexpr uint16_t kLeCocMtuMax = 65535;
+constexpr uint16_t kRfcommFrameSizeMin = 23;
+constexpr uint16_t kRfcommFrameSizeMax = 32767;
 
 class SocketAidlCallback : public BnBluetoothSocketCallback {
   class : public hal::SocketHalCallback {
@@ -159,11 +161,33 @@ protected:
     log::info("le_coc_capabilities number_of_supported_sockets: {}, mtu: {}",
               socket_capabilities.leCocCapabilities.numberOfSupportedSockets,
               socket_capabilities.leCocCapabilities.mtu);
+
+    if (socket_capabilities.rfcommCapabilities.numberOfSupportedSockets < 0) {
+      log::error("Invalid rfcommCapabilities.numberOfSupportedSockets: {}",
+                 socket_capabilities.rfcommCapabilities.numberOfSupportedSockets);
+      return {};
+    }
+    if (socket_capabilities.rfcommCapabilities.numberOfSupportedSockets) {
+      if (socket_capabilities.rfcommCapabilities.maxFrameSize < kRfcommFrameSizeMin ||
+          socket_capabilities.rfcommCapabilities.maxFrameSize > kRfcommFrameSizeMax) {
+        log::error("Invalid rfcommCapabilities.maxFrameSize: {}",
+                   socket_capabilities.rfcommCapabilities.maxFrameSize);
+        return {};
+      }
+    }
+    log::info("rfcomm_capabilities number_of_supported_sockets: {}, max_frame_size: {}",
+              socket_capabilities.rfcommCapabilities.numberOfSupportedSockets,
+              socket_capabilities.rfcommCapabilities.maxFrameSize);
+
     return hal::SocketCapabilities{
             .le_coc_capabilities.number_of_supported_sockets =
                     socket_capabilities.leCocCapabilities.numberOfSupportedSockets,
             .le_coc_capabilities.mtu =
-                    static_cast<uint16_t>(socket_capabilities.leCocCapabilities.mtu)};
+                    static_cast<uint16_t>(socket_capabilities.leCocCapabilities.mtu),
+            .rfcomm_capabilities.number_of_supported_sockets =
+                    socket_capabilities.rfcommCapabilities.numberOfSupportedSockets,
+            .rfcomm_capabilities.max_frame_size =
+                    static_cast<uint16_t>(socket_capabilities.rfcommCapabilities.maxFrameSize)};
   }
 
   bool RegisterCallback(hal::SocketHalCallback const* callback) override {
@@ -202,6 +226,21 @@ protected:
               le_coc_context.local_mtu, le_coc_context.remote_mtu, le_coc_context.local_mps,
               le_coc_context.remote_mps, le_coc_context.initial_rx_credits,
               le_coc_context.initial_tx_credits);
+    } else if (std::holds_alternative<hal::RfcommChannelInfo>(context.channel_info)) {
+      auto& rfcomm_context = std::get<hal::RfcommChannelInfo>(context.channel_info);
+      hal_context.channelInfo = ::aidl::android::hardware::bluetooth::socket::RfcommChannelInfo(
+              rfcomm_context.local_cid, rfcomm_context.remote_cid, rfcomm_context.local_mtu,
+              rfcomm_context.remote_mtu, rfcomm_context.initial_rx_credits,
+              rfcomm_context.initial_tx_credits, rfcomm_context.dlci, rfcomm_context.max_frame_size,
+              rfcomm_context.mux_initiator);
+      log::info(
+              "rfcomm local_cid: {}, remote_cid: {}, local_mtu: {}, remote_mtu: {}, "
+              "initial_rx_credits: {}, initial_tx_credits: {}, dlci: {}, max_frame_size: {}, "
+              "mux_initiator: {}",
+              rfcomm_context.local_cid, rfcomm_context.remote_cid, rfcomm_context.local_mtu,
+              rfcomm_context.remote_mtu, rfcomm_context.initial_rx_credits,
+              rfcomm_context.initial_tx_credits, rfcomm_context.dlci, rfcomm_context.max_frame_size,
+              rfcomm_context.mux_initiator);
     } else {
       log::error("Unsupported protocol");
       return false;

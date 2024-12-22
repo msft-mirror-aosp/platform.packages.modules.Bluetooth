@@ -779,13 +779,13 @@ public class CsipSetCoordinatorService extends ProfileService {
         Log.d(TAG, "notifySetMemberAvailable: " + device + ", " + groupId);
 
         /* Sent intent as well */
-        Intent intent = new Intent(BluetoothCsipSetCoordinator.ACTION_CSIS_SET_MEMBER_AVAILABLE);
-        intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
-        intent.putExtra(BluetoothCsipSetCoordinator.EXTRA_CSIS_GROUP_ID, groupId);
-
-        intent.addFlags(
-                Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT
-                        | Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
+        Intent intent =
+                new Intent(BluetoothCsipSetCoordinator.ACTION_CSIS_SET_MEMBER_AVAILABLE)
+                        .putExtra(BluetoothDevice.EXTRA_DEVICE, device)
+                        .putExtra(BluetoothCsipSetCoordinator.EXTRA_CSIS_GROUP_ID, groupId)
+                        .addFlags(
+                                Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT
+                                        | Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
         sendOrderedBroadcast(intent, BLUETOOTH_PRIVILEGED);
 
         /* Notify registered parties */
@@ -796,18 +796,9 @@ public class CsipSetCoordinatorService extends ProfileService {
         BluetoothDevice device = stackEvent.device;
         Log.d(TAG, "Message from native: " + stackEvent);
 
-        Intent intent = null;
         int groupId = stackEvent.valueInt1;
         if (stackEvent.type == CsipSetCoordinatorStackEvent.EVENT_TYPE_DEVICE_AVAILABLE) {
             requireNonNull(device);
-
-            intent = new Intent(BluetoothCsipSetCoordinator.ACTION_CSIS_DEVICE_AVAILABLE);
-            intent.putExtra(BluetoothDevice.EXTRA_DEVICE, stackEvent.device);
-            intent.putExtra(BluetoothCsipSetCoordinator.EXTRA_CSIS_GROUP_ID, groupId);
-            intent.putExtra(
-                    BluetoothCsipSetCoordinator.EXTRA_CSIS_GROUP_SIZE, stackEvent.valueInt2);
-            intent.putExtra(
-                    BluetoothCsipSetCoordinator.EXTRA_CSIS_GROUP_TYPE_UUID, stackEvent.valueUuid1);
 
             handleDeviceAvailable(
                     device,
@@ -815,6 +806,21 @@ public class CsipSetCoordinatorService extends ProfileService {
                     stackEvent.valueInt3,
                     stackEvent.valueUuid1,
                     stackEvent.valueInt2);
+
+            Intent intent =
+                    new Intent(BluetoothCsipSetCoordinator.ACTION_CSIS_DEVICE_AVAILABLE)
+                            .putExtra(BluetoothDevice.EXTRA_DEVICE, stackEvent.device)
+                            .putExtra(BluetoothCsipSetCoordinator.EXTRA_CSIS_GROUP_ID, groupId)
+                            .putExtra(
+                                    BluetoothCsipSetCoordinator.EXTRA_CSIS_GROUP_SIZE,
+                                    stackEvent.valueInt2)
+                            .putExtra(
+                                    BluetoothCsipSetCoordinator.EXTRA_CSIS_GROUP_TYPE_UUID,
+                                    stackEvent.valueUuid1)
+                            .addFlags(
+                                    Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT
+                                            | Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
+            sendOrderedBroadcast(intent, BLUETOOTH_PRIVILEGED);
         } else if (stackEvent.type
                 == CsipSetCoordinatorStackEvent.EVENT_TYPE_SET_MEMBER_AVAILABLE) {
             requireNonNull(device);
@@ -828,13 +834,6 @@ public class CsipSetCoordinatorService extends ProfileService {
             int lock_status = stackEvent.valueInt2;
             boolean lock_state = stackEvent.valueBool1;
             handleGroupLockChanged(groupId, lock_status, lock_state);
-        }
-
-        if (intent != null) {
-            intent.addFlags(
-                    Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT
-                            | Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
-            sendOrderedBroadcast(intent, BLUETOOTH_PRIVILEGED);
         }
 
         synchronized (mStateMachines) {

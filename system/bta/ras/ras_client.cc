@@ -40,6 +40,7 @@
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_ble_addr.h"
 #include "stack/include/gap_api.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/main_thread.h"
 #include "types/ble_address_with_type.h"
 #include "types/bluetooth/uuid.h"
@@ -68,6 +69,7 @@ class RasClientImpl : public bluetooth::ras::RasClient {
   static constexpr uint16_t kFollowingSegmentTimeoutMs = 1000;
   static constexpr uint16_t kRangingDataReadyTimeoutMs = 5000;
   static constexpr uint16_t kInvalidConnInterval = 0;  // valid value is from 0x0006 to 0x0C0
+  static constexpr uint16_t kMinimumRasMtu = 247;      // 4.1 Maximum transmission unit of RAP 1.0
 
 public:
   struct GattReadCallbackData {
@@ -108,6 +110,7 @@ public:
     RangingType ranging_type_ = RANGING_TYPE_NONE;
     TimeoutType timeout_type_ = TIMEOUT_NONE;
     uint16_t conn_interval_ = kInvalidConnInterval;
+    uint16_t mtu = kDefaultGattMtu;
 
     const gatt::Characteristic* FindCharacteristicByUuid(Uuid uuid) {
       if (service_ == nullptr) {
@@ -235,6 +238,9 @@ public:
       case BTA_GATTC_SEARCH_CMPL_EVT: {
         OnGattServiceSearchComplete(p_data->search_cmpl);
       } break;
+      case BTA_GATTC_CFG_MTU_EVT: {
+        OnGattConfigMtu(p_data->cfg_mtu);
+      } break;
       case BTA_GATTC_NOTIF_EVT: {
         OnGattNotification(p_data->notify);
       } break;
@@ -252,9 +258,13 @@ public:
       log::debug("no ongoing measurement, skip");
       return;
     }
-    tracker->conn_interval_ = evt.interval;
-    log::info("conn interval is updated as {}", evt.interval);
-    callbacks_->OnConnIntervalUpdated(tracker->address_for_cs_, tracker->conn_interval_);
+    if (tracker->conn_interval_ != evt.interval) {
+      tracker->conn_interval_ = evt.interval;
+      log::info("conn interval is updated as {}", evt.interval);
+      callbacks_->OnConnIntervalUpdated(tracker->address_for_cs_, tracker->conn_interval_);
+    } else {
+      log::debug("conn interval was not updated");
+    }
   }
 
   void OnGattConnected(const tBTA_GATTC_OPEN& evt) {
@@ -280,6 +290,9 @@ public:
     }
     tracker->conn_id_ = evt.conn_id;
     tracker->is_connected_ = true;
+    tracker->conn_interval_ =
+            bluetooth::stack::l2cap::get_interface().L2CA_GetBleConnInterval(tracker->address_);
+    log::debug("The initial conn interval {}", tracker->conn_interval_);
     log::info("Search service");
     BTA_GATTC_ServiceSearchRequest(tracker->conn_id_, kRangingService);
   }
@@ -315,6 +328,9 @@ public:
         break;
       }
     }
+    // config mtu anyway, if it had been configured by others, it can get the current mtu.
+    log::info("config the MTU size as RAP minimum value {}", kMinimumRasMtu);
+    BTA_GATTC_ConfigureMTU(evt.conn_id, kMinimumRasMtu);
 
     if (tracker->service_search_complete_) {
       log::info("Service search already completed, ignore");
@@ -364,6 +380,20 @@ public:
               &gatt_read_callback_data_);
 
       SubscribeCharacteristic(tracker, kRasControlPointCharacteristic);
+    }
+  }
+
+  void OnGattConfigMtu(const tBTA_GATTC_CFG_MTU& evt) {
+    if (evt.status != GATT_SUCCESS) {
+      log::warn("Failed to config the MTU size:{}", evt.mtu);
+      return;
+    }
+    // the MTU is always 517 since android 14
+    log::info("conn_id=0x{:04x}, status:{}, mtu:{}", evt.conn_id, evt.status, evt.mtu);
+    auto tracker = FindTrackerByHandle(evt.conn_id);
+    if (tracker != nullptr) {
+      tracker->mtu = evt.mtu;
+      callbacks_->OnMtuChangedFromClient(tracker->address_for_cs_, evt.mtu);
     }
   }
 

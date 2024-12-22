@@ -26,6 +26,7 @@ import static com.android.bluetooth.flags.Flags.leaudioAllowedContextMask;
 import static com.android.bluetooth.flags.Flags.leaudioBigDependsOnAudioState;
 import static com.android.bluetooth.flags.Flags.leaudioBroadcastApiManagePrimaryGroup;
 import static com.android.bluetooth.flags.Flags.leaudioBroadcastAssistantPeripheralEntrustment;
+import static com.android.bluetooth.flags.Flags.leaudioMonitorUnicastSourceWhenManagedByBroadcastDelegator;
 import static com.android.bluetooth.flags.Flags.leaudioUseAudioModeListener;
 import static com.android.modules.utils.build.SdkLevel.isAtLeastU;
 
@@ -1570,7 +1571,13 @@ public class LeAudioService extends ProfileService {
             return false;
         }
 
-        return descriptor.mGroupId == mUnicastGroupIdDeactivatedForBroadcastTransition;
+        if (leaudioMonitorUnicastSourceWhenManagedByBroadcastDelegator()) {
+            return (descriptor.mGroupId == mUnicastGroupIdDeactivatedForBroadcastTransition)
+                    || device.equals(mActiveAudioInDevice)
+                    || device.equals(mActiveAudioOutDevice);
+        } else {
+            return descriptor.mGroupId == mUnicastGroupIdDeactivatedForBroadcastTransition;
+        }
     }
 
     /** Return true if group is primary - is active or was active before switch to broadcast */
@@ -2900,7 +2907,7 @@ public class LeAudioService extends ProfileService {
                             .getBroadcastItem(i)
                             .onGroupStreamStatusChanged(groupId, groupStreamStatus);
                 } catch (RemoteException e) {
-                    continue;
+                    // Ignore Exception
                 }
             }
             mLeAudioCallbacks.finishBroadcast();
@@ -2916,7 +2923,7 @@ public class LeAudioService extends ProfileService {
                             .getBroadcastItem(i)
                             .onBroadcastToUnicastFallbackGroupChanged(groupId);
                 } catch (RemoteException e) {
-                    continue;
+                    // Ignore Exception
                 }
             }
             mLeAudioCallbacks.finishBroadcast();
@@ -4768,7 +4775,7 @@ public class LeAudioService extends ProfileService {
                 try {
                     mLeAudioCallbacks.getBroadcastItem(i).onGroupNodeAdded(device, groupId);
                 } catch (RemoteException e) {
-                    continue;
+                    // Ignore Exception
                 }
             }
             mLeAudioCallbacks.finishBroadcast();
@@ -4847,7 +4854,7 @@ public class LeAudioService extends ProfileService {
                 try {
                     mLeAudioCallbacks.getBroadcastItem(i).onGroupNodeRemoved(device, groupId);
                 } catch (RemoteException e) {
-                    continue;
+                    // Ignore Exception
                 }
             }
             mLeAudioCallbacks.finishBroadcast();
@@ -4861,7 +4868,7 @@ public class LeAudioService extends ProfileService {
                 try {
                     mLeAudioCallbacks.getBroadcastItem(i).onGroupStatusChanged(groupId, status);
                 } catch (RemoteException e) {
-                    continue;
+                    // Ignore Exception
                 }
             }
             mLeAudioCallbacks.finishBroadcast();
@@ -4875,7 +4882,7 @@ public class LeAudioService extends ProfileService {
                 try {
                     mLeAudioCallbacks.getBroadcastItem(i).onCodecConfigChanged(groupId, status);
                 } catch (RemoteException e) {
-                    continue;
+                    // Ignore Exception
                 }
             }
             mLeAudioCallbacks.finishBroadcast();
@@ -4889,7 +4896,7 @@ public class LeAudioService extends ProfileService {
                 try {
                     mBroadcastCallbacks.getBroadcastItem(i).onBroadcastStarted(reason, broadcastId);
                 } catch (RemoteException e) {
-                    continue;
+                    // Ignore Exception
                 }
             }
             mBroadcastCallbacks.finishBroadcast();
@@ -4903,7 +4910,7 @@ public class LeAudioService extends ProfileService {
                 try {
                     mBroadcastCallbacks.getBroadcastItem(i).onBroadcastStartFailed(reason);
                 } catch (RemoteException e) {
-                    continue;
+                    // Ignore Exception
                 }
             }
             mBroadcastCallbacks.finishBroadcast();
@@ -4917,7 +4924,7 @@ public class LeAudioService extends ProfileService {
                 try {
                     mBroadcastCallbacks.getBroadcastItem(i).onBroadcastStopped(reason, broadcastId);
                 } catch (RemoteException e) {
-                    continue;
+                    // Ignore Exception
                 }
             }
             mBroadcastCallbacks.finishBroadcast();
@@ -4931,7 +4938,7 @@ public class LeAudioService extends ProfileService {
                 try {
                     mBroadcastCallbacks.getBroadcastItem(i).onBroadcastStopFailed(reason);
                 } catch (RemoteException e) {
-                    continue;
+                    // Ignore Exception
                 }
             }
             mBroadcastCallbacks.finishBroadcast();
@@ -4945,7 +4952,7 @@ public class LeAudioService extends ProfileService {
                 try {
                     mBroadcastCallbacks.getBroadcastItem(i).onPlaybackStarted(reason, broadcastId);
                 } catch (RemoteException e) {
-                    continue;
+                    // Ignore Exception
                 }
             }
             mBroadcastCallbacks.finishBroadcast();
@@ -4959,7 +4966,7 @@ public class LeAudioService extends ProfileService {
                 try {
                     mBroadcastCallbacks.getBroadcastItem(i).onPlaybackStopped(reason, broadcastId);
                 } catch (RemoteException e) {
-                    continue;
+                    // Ignore Exception
                 }
             }
             mBroadcastCallbacks.finishBroadcast();
@@ -4975,7 +4982,7 @@ public class LeAudioService extends ProfileService {
                             .getBroadcastItem(i)
                             .onBroadcastUpdateFailed(reason, broadcastId);
                 } catch (RemoteException e) {
-                    continue;
+                    // Ignore Exception
                 }
             }
             mBroadcastCallbacks.finishBroadcast();
@@ -4992,7 +4999,7 @@ public class LeAudioService extends ProfileService {
                             .getBroadcastItem(i)
                             .onBroadcastMetadataChanged(broadcastId, metadata);
                 } catch (RemoteException e) {
-                    continue;
+                    // Ignore Exception
                 }
             }
             mBroadcastCallbacks.finishBroadcast();

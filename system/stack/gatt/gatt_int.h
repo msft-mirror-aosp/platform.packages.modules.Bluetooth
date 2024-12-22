@@ -20,7 +20,6 @@
 #define GATT_INT_H
 
 #include <base/functional/bind.h>
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 
 #include <deque>
@@ -64,7 +63,7 @@ inline std::string gatt_security_action_text(const tGATT_SEC_ACTION& action) {
     CASE_RETURN_TEXT(GATT_SEC_ENCRYPT_MITM);
     CASE_RETURN_TEXT(GATT_SEC_ENC_PENDING);
     default:
-      return base::StringPrintf("UNKNOWN[%hhu]", action);
+      return std::format("UNKNOWN[{}]", static_cast<uint8_t>(action));
   }
 }
 
@@ -248,7 +247,7 @@ inline std::string gatt_channel_state_text(const tGATT_CH_STATE& state) {
     CASE_RETURN_TEXT(GATT_CH_CFG);
     CASE_RETURN_TEXT(GATT_CH_OPEN);
     default:
-      return base::StringPrintf("UNKNOWN[%hhu]", state);
+      return std::format("UNKNOWN[{}]", static_cast<uint8_t>(state));
   }
 }
 
@@ -473,8 +472,7 @@ inline std::string EpochMillisToString(uint64_t time_ms) {
   struct tm tm;
   localtime_r(&time_sec, &tm);
   std::string s = bluetooth::common::StringFormatTime(kTimeFormatString, tm);
-  return base::StringPrintf("%s.%03u", s.c_str(),
-                            static_cast<unsigned int>(time_ms % MillisPerSecond));
+  return std::format("{}.{:03}", s, time_ms % MillisPerSecond);
 }
 }  // namespace
 
@@ -484,9 +482,8 @@ struct tTCB_STATE_HISTORY {
   tGATT_CH_STATE state;
   std::string holders_info;
   std::string ToString() const {
-    return base::StringPrintf("%s, %s, state: %s, %s", ADDRESS_TO_LOGGABLE_CSTR(address),
-                              bt_transport_text(transport).c_str(),
-                              gatt_channel_state_text(state).c_str(), holders_info.c_str());
+    return std::format("{}, {}, state: {}, {}", address, bt_transport_text(transport),
+                       gatt_channel_state_text(state), holders_info);
   }
 };
 

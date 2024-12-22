@@ -1441,6 +1441,16 @@ static void bta_jv_port_mgmt_cl_cback(const tPORT_RESULT code, uint16_t port_han
                             .rem_bda = rem_bda,
                     },
     };
+    if (com::android::bluetooth::flags::socket_settings_api()) {
+      if (PORT_GetChannelInfo(port_handle, &evt_data.rfc_open.rx_mtu, &evt_data.rfc_open.tx_mtu,
+                              &evt_data.rfc_open.local_credit, &evt_data.rfc_open.remote_credit,
+                              &evt_data.rfc_open.local_cid, &evt_data.rfc_open.remote_cid,
+                              &evt_data.rfc_open.dlci, &evt_data.rfc_open.max_frame_size,
+                              &evt_data.rfc_open.acl_handle,
+                              &evt_data.rfc_open.mux_initiator) != PORT_SUCCESS) {
+        log::warn("Unable to get RFCOMM channel info peer:{} handle:{}", rem_bda, port_handle);
+      }
+    }
     p_pcb->state = BTA_JV_ST_CL_OPEN;
     p_cb->p_cback(BTA_JV_RFCOMM_OPEN_EVT, &evt_data, p_pcb->rfcomm_slot_id);
   } else {
@@ -1501,7 +1511,8 @@ static void bta_jv_port_event_cl_cback(uint32_t code, uint16_t port_handle) {
 
 /* Client initiates an RFCOMM connection */
 void bta_jv_rfcomm_connect(tBTA_SEC sec_mask, uint8_t remote_scn, const RawAddress& peer_bd_addr,
-                           tBTA_JV_RFCOMM_CBACK* p_cback, uint32_t rfcomm_slot_id) {
+                           tBTA_JV_RFCOMM_CBACK* p_cback, uint32_t rfcomm_slot_id,
+                           RfcommCfgInfo cfg) {
   uint16_t handle = 0;
   uint32_t event_mask = BTA_JV_RFC_EV_MASK;
   PortSettings port_settings;
@@ -1525,9 +1536,16 @@ void bta_jv_rfcomm_connect(tBTA_SEC sec_mask, uint8_t remote_scn, const RawAddre
             0);
   }
 
-  if (RFCOMM_CreateConnectionWithSecurity(UUID_SERVCLASS_SERIAL_PORT, remote_scn, false,
-                                          BTA_JV_DEF_RFC_MTU, peer_bd_addr, &handle,
-                                          bta_jv_port_mgmt_cl_cback, sec_mask) != PORT_SUCCESS) {
+  uint16_t mtu = BTA_JV_DEF_RFC_MTU;
+  if (com::android::bluetooth::flags::socket_settings_api()) {
+    if (cfg.rx_mtu_present) {
+      mtu = cfg.rx_mtu;
+    }
+  }
+
+  if (RFCOMM_CreateConnectionWithSecurity(UUID_SERVCLASS_SERIAL_PORT, remote_scn, false, mtu,
+                                          peer_bd_addr, &handle, bta_jv_port_mgmt_cl_cback,
+                                          sec_mask, cfg) != PORT_SUCCESS) {
     log::error("RFCOMM_CreateConnection failed");
     bta_jv.rfc_cl_init.status = tBTA_JV_STATUS::FAILURE;
   } else {
@@ -1648,6 +1666,17 @@ static void bta_jv_port_mgmt_sr_cback(const tPORT_RESULT code, uint16_t port_han
     evt_data.rfc_srv_open.handle = p_pcb->handle;
     evt_data.rfc_srv_open.status = tBTA_JV_STATUS::SUCCESS;
     evt_data.rfc_srv_open.rem_bda = rem_bda;
+    if (com::android::bluetooth::flags::socket_settings_api()) {
+      if (PORT_GetChannelInfo(port_handle, &evt_data.rfc_srv_open.rx_mtu,
+                              &evt_data.rfc_srv_open.tx_mtu, &evt_data.rfc_srv_open.local_credit,
+                              &evt_data.rfc_srv_open.remote_credit,
+                              &evt_data.rfc_srv_open.local_cid, &evt_data.rfc_srv_open.remote_cid,
+                              &evt_data.rfc_srv_open.dlci, &evt_data.rfc_srv_open.max_frame_size,
+                              &evt_data.rfc_srv_open.acl_handle,
+                              &evt_data.rfc_srv_open.mux_initiator) != PORT_SUCCESS) {
+        log::warn("Unable to get RFCOMM channel info peer:{} handle:{}", rem_bda, port_handle);
+      }
+    }
     tBTA_JV_PCB* p_pcb_new_listen = bta_jv_add_rfc_port(p_cb, p_pcb);
     if (p_pcb_new_listen) {
       evt_data.rfc_srv_open.new_listen_handle = p_pcb_new_listen->handle;
@@ -1775,9 +1804,10 @@ static tBTA_JV_PCB* bta_jv_add_rfc_port(tBTA_JV_RFC_CB* p_cb, tBTA_JV_PCB* p_pcb
         log::error("RFCOMM_CreateConnection failed: invalid port_handle");
       }
 
-      if (RFCOMM_CreateConnectionWithSecurity(
-                  p_cb->sec_id, p_cb->scn, true, BTA_JV_DEF_RFC_MTU, RawAddress::kAny,
-                  &(p_cb->rfc_hdl[si]), bta_jv_port_mgmt_sr_cback, sec_mask) == PORT_SUCCESS) {
+      if (RFCOMM_CreateConnectionWithSecurity(p_cb->sec_id, p_cb->scn, true, BTA_JV_DEF_RFC_MTU,
+                                              RawAddress::kAny, &(p_cb->rfc_hdl[si]),
+                                              bta_jv_port_mgmt_sr_cback, sec_mask,
+                                              RfcommCfgInfo{}) == PORT_SUCCESS) {
         p_cb->curr_sess++;
         p_pcb = &bta_jv_cb.port_cb[p_cb->rfc_hdl[si] - 1];
         p_pcb->state = BTA_JV_ST_SR_LISTEN;
@@ -1821,7 +1851,8 @@ static tBTA_JV_PCB* bta_jv_add_rfc_port(tBTA_JV_RFC_CB* p_cb, tBTA_JV_PCB* p_pcb
 
 /* waits for an RFCOMM client to connect */
 void bta_jv_rfcomm_start_server(tBTA_SEC sec_mask, uint8_t local_scn, uint8_t max_session,
-                                tBTA_JV_RFCOMM_CBACK* p_cback, uint32_t rfcomm_slot_id) {
+                                tBTA_JV_RFCOMM_CBACK* p_cback, uint32_t rfcomm_slot_id,
+                                RfcommCfgInfo cfg) {
   uint16_t handle = 0;
   uint32_t event_mask = BTA_JV_RFC_EV_MASK;
   PortSettings port_settings;
@@ -1832,10 +1863,17 @@ void bta_jv_rfcomm_start_server(tBTA_SEC sec_mask, uint8_t local_scn, uint8_t ma
   memset(&evt_data, 0, sizeof(evt_data));
   evt_data.status = tBTA_JV_STATUS::FAILURE;
 
+  uint16_t mtu = BTA_JV_DEF_RFC_MTU;
+  if (com::android::bluetooth::flags::socket_settings_api()) {
+    if (cfg.rx_mtu_present) {
+      mtu = cfg.rx_mtu;
+    }
+  }
+
   do {
-    if (RFCOMM_CreateConnectionWithSecurity(0, local_scn, true, BTA_JV_DEF_RFC_MTU,
-                                            RawAddress::kAny, &handle, bta_jv_port_mgmt_sr_cback,
-                                            sec_mask) != PORT_SUCCESS) {
+    if (RFCOMM_CreateConnectionWithSecurity(0, local_scn, true, mtu, RawAddress::kAny, &handle,
+                                            bta_jv_port_mgmt_sr_cback, sec_mask,
+                                            cfg) != PORT_SUCCESS) {
       log::error("RFCOMM_CreateConnection failed");
       break;
     }

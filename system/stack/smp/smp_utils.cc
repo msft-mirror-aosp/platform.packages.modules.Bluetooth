@@ -997,7 +997,7 @@ void smp_proc_pairing_cmpl(tSMP_CB* p_cb) {
             "sec_level:0x{:0x}",
             p_cb->pairing_bda, smp_status_text(evt_data.cmplt.reason), evt_data.cmplt.sec_level);
     BTM_LogHistory(kBtmLogTag, pairing_bda, "Pairing failed",
-                   base::StringPrintf("reason:%s", smp_status_text(evt_data.cmplt.reason).c_str()));
+                   std::format("reason:{}", smp_status_text(evt_data.cmplt.reason)));
   }
 
   // Log pairing complete event

@@ -294,14 +294,5 @@ TEST(AddressWithTypeTest, ToPeerAddressType) {
   }
 }
 
-TEST(AddressWithTypeTest, StringStream) {
-  AddressWithType address_with_type = AddressWithType(Address{{0x11, 0x22, 0x33, 0x44, 0x55, 0x66}},
-                                                      AddressType::PUBLIC_DEVICE_ADDRESS);
-
-  std::stringstream oss;
-  oss << address_with_type;
-  ASSERT_STREQ("66:55:44:33:22:11[PUBLIC_DEVICE_ADDRESS(0x00)]", oss.str().c_str());
-}
-
 }  // namespace hci
 }  // namespace bluetooth

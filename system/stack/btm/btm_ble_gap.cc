@@ -30,6 +30,7 @@
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
+#include <bitset>
 #include <cstdint>
 #include <list>
 #include <memory>
@@ -594,10 +595,10 @@ tBTM_STATUS BTM_BleObserve(bool start, uint8_t duration, tBTM_INQ_RESULTS_CB* p_
   } else if (btm_cb.ble_ctr_cb.is_ble_observe_active()) {
     const uint64_t duration_timestamp =
             timestamper_in_milliseconds.GetTimestamp() - btm_cb.neighbor.le_observe.start_time_ms;
-    BTM_LogHistory(kBtmLogTag, RawAddress::kEmpty, "Le observe stopped",
-                   base::StringPrintf("duration_s:%6.3f results:%-3lu",
-                                      (double)duration_timestamp / 1000.0,
-                                      (unsigned long)btm_cb.neighbor.le_observe.results));
+    BTM_LogHistory(
+            kBtmLogTag, RawAddress::kEmpty, "Le observe stopped",
+            std::format("duration_s:{:6.3f} results:{:<3}", (double)duration_timestamp / 1000.0,
+                        btm_cb.neighbor.le_observe.results));
     status = tBTM_STATUS::BTM_CMD_STARTED;
     btm_ble_stop_observe();
   } else {
@@ -1464,15 +1465,25 @@ void btm_send_hci_set_scan_params(uint8_t scan_type, uint16_t scan_int, uint16_t
                                   uint8_t scan_phy, tBLE_ADDR_TYPE addr_type_own,
                                   uint8_t scan_filter_policy) {
   if (bluetooth::shim::GetController()->SupportsBleExtendedAdvertising()) {
-    scanning_phy_cfg phy_cfg;
-    phy_cfg.scan_type = scan_type;
-    phy_cfg.scan_int = scan_int;
-    phy_cfg.scan_win = scan_win;
-
     if (com::android::bluetooth::flags::phy_to_native()) {
+      int phy_cnt = std::bitset<std::numeric_limits<uint8_t>::digits>(scan_phy).count();
+
+      scanning_phy_cfg phy_cfgs[phy_cnt];
+
+      for (int i = 0; i < phy_cnt; i++) {
+        phy_cfgs[i].scan_type = scan_type;
+        phy_cfgs[i].scan_int = scan_int;
+        phy_cfgs[i].scan_win = scan_win;
+      }
+
       btsnd_hcic_ble_set_extended_scan_params(addr_type_own, scan_filter_policy, scan_phy,
-                                              &phy_cfg);
+                                              phy_cfgs);
     } else {
+      scanning_phy_cfg phy_cfg;
+      phy_cfg.scan_type = scan_type;
+      phy_cfg.scan_int = scan_int;
+      phy_cfg.scan_win = scan_win;
+
       btsnd_hcic_ble_set_extended_scan_params(addr_type_own, scan_filter_policy, 1, &phy_cfg);
     }
   } else {
@@ -2425,8 +2436,8 @@ static void btm_ble_stop_scan(void) {
           timestamper_in_milliseconds.GetTimestamp() - btm_cb.neighbor.le_legacy_scan.start_time_ms;
   BTM_LogHistory(
           kBtmLogTag, RawAddress::kEmpty, "Le legacy scan stopped",
-          base::StringPrintf("duration_s:%6.3f results:%-3lu", (double)duration_timestamp / 1000.0,
-                             (unsigned long)btm_cb.neighbor.le_legacy_scan.results));
+          std::format("duration_s:{:6.3f} results:{:<3}", (double)duration_timestamp / 1000.0,
+                      btm_cb.neighbor.le_legacy_scan.results));
   btm_send_hci_scan_enable(BTM_BLE_SCAN_DISABLE, BTM_BLE_DUPLICATE_ENABLE);
 
   btm_update_scanner_filter_policy(SP_ADV_ALL);
@@ -2447,8 +2458,8 @@ void btm_ble_stop_inquiry(void) {
           timestamper_in_milliseconds.GetTimestamp() - btm_cb.neighbor.le_inquiry.start_time_ms;
   BTM_LogHistory(
           kBtmLogTag, RawAddress::kEmpty, "Le inquiry stopped",
-          base::StringPrintf("duration_s:%6.3f results:%-3lu", (double)duration_timestamp / 1000.0,
-                             (unsigned long)btm_cb.neighbor.le_inquiry.results));
+          std::format("duration_s:{:6.3f} results:{:<3}", (double)duration_timestamp / 1000.0,
+                      btm_cb.neighbor.le_inquiry.results));
   btm_cb.ble_ctr_cb.reset_ble_inquiry();
 
   /* Cleanup anything remaining on index 0 */

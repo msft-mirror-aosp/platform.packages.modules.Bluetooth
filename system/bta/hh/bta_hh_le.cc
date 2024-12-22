@@ -1716,10 +1716,9 @@ static void bta_hh_le_input_rpt_notify(tBTA_GATTC_NOTIFY* p_data) {
 void bta_hh_le_open_fail(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data) {
   const tBTA_HH_LE_CLOSE* le_close = &p_data->le_close;
 
-  BTM_LogHistory(
-          kBtmLogTag, p_cb->link_spec.addrt.bda, "Open failed",
-          base::StringPrintf("%s reason %s", bt_transport_text(p_cb->link_spec.transport).c_str(),
-                             gatt_disconnection_reason_text(le_close->reason).c_str()));
+  BTM_LogHistory(kBtmLogTag, p_cb->link_spec.addrt.bda, "Open failed",
+                 std::format("{} reason {}", bt_transport_text(p_cb->link_spec.transport),
+                             gatt_disconnection_reason_text(le_close->reason)));
   log::warn("Open failed for device:{}", p_cb->link_spec.addrt.bda);
 
   /* open failure in the middle of service discovery, clear all services */
@@ -1763,10 +1762,9 @@ void bta_hh_le_open_fail(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data) {
 void bta_hh_gatt_close(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data) {
   const tBTA_HH_LE_CLOSE* le_close = &p_data->le_close;
 
-  BTM_LogHistory(
-          kBtmLogTag, p_cb->link_spec.addrt.bda, "Closed",
-          base::StringPrintf("%s reason %s", bt_transport_text(p_cb->link_spec.transport).c_str(),
-                             gatt_disconnection_reason_text(le_close->reason).c_str()));
+  BTM_LogHistory(kBtmLogTag, p_cb->link_spec.addrt.bda, "Closed",
+                 std::format("{} reason {}", bt_transport_text(p_cb->link_spec.transport),
+                             gatt_disconnection_reason_text(le_close->reason)));
 
   /* deregister all notification */
   bta_hh_le_deregister_input_notif(p_cb);

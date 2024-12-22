@@ -17,7 +17,6 @@
 #define LOG_TAG "bt_bta_dm"
 
 #include <base/functional/bind.h>
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
@@ -257,9 +256,9 @@ void bta_dm_sdp_result(tSDP_STATUS sdp_result, tBTA_DM_SDP_STATE* sdp_state) {
     /* callbacks */
     /* start next bd_addr if necessary */
     BTM_LogHistory(kBtmLogTag, sdp_state->bd_addr, "Discovery completed",
-                   base::StringPrintf("Result:%s services_found:0x%x service_index:0x%d",
-                                      sdp_result_text(sdp_result).c_str(),
-                                      sdp_state->services_found, sdp_state->service_index));
+                   std::format("Result:{} services_found:0x{:x} service_index:0x{}",
+                               sdp_result_text(sdp_result), sdp_state->services_found,
+                               sdp_state->service_index));
 
     // Copy the raw_data to the discovery result structure
     if (p_sdp_db != NULL && p_sdp_db->raw_used != 0 && p_sdp_db->raw_data != NULL) {
@@ -284,7 +283,7 @@ void bta_dm_sdp_result(tSDP_STATUS sdp_result, tBTA_DM_SDP_STATE* sdp_state) {
     bta_dm_sdp_finished(sdp_state->bd_addr, result, uuid_list, gatt_uuids);
   } else {
     BTM_LogHistory(kBtmLogTag, sdp_state->bd_addr, "Discovery failed",
-                   base::StringPrintf("Result:%s", sdp_result_text(sdp_result).c_str()));
+                   std::format("Result:{}", sdp_result_text(sdp_result)));
     log::error("SDP connection failed {}", sdp_status_text(sdp_result));
 
     /* not able to connect go to next device */
