@@ -338,7 +338,7 @@ tGATT_STATUS gatt_sr_process_app_rsp(tGATT_TCB& tcb, tGATT_IF gatt_if, uint32_t 
 
     sr_res_p->status = status;
 
-    if (gatt_sr_is_cback_cnt_zero(tcb) && status == GATT_SUCCESS) {
+    if (gatt_sr_is_cback_cnt_zero(tcb, sr_res_p->cid) && status == GATT_SUCCESS) {
       if (sr_res_p->p_rsp_msg == NULL) {
         sr_res_p->p_rsp_msg =
                 attp_build_sr_msg(tcb, (uint8_t)(op_code + 1), (tGATT_SR_MSG*)p_msg, payload_size);
@@ -347,7 +347,7 @@ tGATT_STATUS gatt_sr_process_app_rsp(tGATT_TCB& tcb, tGATT_IF gatt_if, uint32_t 
       }
     }
   }
-  if (gatt_sr_is_cback_cnt_zero(tcb)) {
+  if (gatt_sr_is_cback_cnt_zero(tcb, sr_res_p->cid)) {
     if ((sr_res_p->status == GATT_SUCCESS) && (sr_res_p->p_rsp_msg)) {
       ret_code = attp_send_sr_msg(tcb, sr_res_p->cid, sr_res_p->p_rsp_msg);
       sr_res_p->p_rsp_msg = NULL;
