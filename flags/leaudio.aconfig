@@ -193,16 +193,6 @@ flag {
 }
 
 flag {
-    name: "headtracker_codec_capability"
-    namespace: "bluetooth"
-    description: "Use Android Headtracker codec capabilities"
-    bug: "338098113"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "leaudio_use_audio_mode_listener"
     namespace: "bluetooth"
     description: "Use Audio Mode listener instead of Telecom in call callback"
