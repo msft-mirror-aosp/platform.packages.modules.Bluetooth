@@ -243,6 +243,14 @@ SuspendIdState ToSuspendIdState(uint32_t state) {
   return state == 1 ? SuspendIdState::Recorded : SuspendIdState::NoRecord;
 }
 
+LLPrivacyState ToLLPrivacyState(uint32_t state) {
+  return state == 1 ? LLPrivacyState::Enabled : LLPrivacyState::Disabled;
+}
+
+AddressPrivacyState ToAddressPrivacyState(uint32_t state) {
+  return state == 1 ? AddressPrivacyState::Enabled : AddressPrivacyState::Disabled;
+}
+
 ConnectionType ToPairingDeviceType(std::string addr, uint32_t device_type) {
   // A map stores the pending ConnectionType used to match a pairing event with unknown type.
   // map<address, type>
