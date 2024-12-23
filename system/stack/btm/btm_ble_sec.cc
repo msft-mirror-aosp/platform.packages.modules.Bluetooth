@@ -1407,6 +1407,42 @@ void btm_ble_ltk_request_reply(const RawAddress& bda, bool use_stk, const Octet1
   btsnd_hcic_ble_ltk_req_reply(btm_sec_cb.enc_handle, p_rec->sec_rec.ble_keys.lltk);
 }
 
+static void btm_ble_get_auth_req(const tBTM_SEC_DEV_REC* p_dev_rec, tBTM_LE_AUTH_REQ* p_auth_req) {
+  // If the device is bonded and we are trying to encrypt the link with it as a
+  // peripheral, then we need to ensure that the authentication requirements
+  // match what was agreed upon during bonding.
+  if (com::android::bluetooth::flags::peripheral_auth_req() &&
+      btm_sec_cb.pairing_bda != p_dev_rec->bd_addr &&
+      btm_sec_cb.pairing_bda != p_dev_rec->ble.pseudo_addr) {  // Not pairing
+    if (!p_dev_rec->role_central && p_dev_rec->sec_rec.is_le_link_key_known() &&
+        p_dev_rec->sec_rec.ble_keys.key_type != BTM_LE_KEY_NONE &&
+        p_dev_rec->sec_rec.le_link == tSECURITY_STATE::AUTHENTICATING) {
+      // Trying to encrypt the link with already bonded device in peripheral role
+      if ((p_dev_rec->sec_rec.security_required & BTM_SEC_IN_MITM) ||
+          p_dev_rec->sec_rec.ble_keys.sec_level == SMP_SEC_AUTHENTICATED) {
+        // Authentication required or existing bond record was authenticated
+        *p_auth_req |= BTM_LE_AUTH_REQ_MITM;
+      } else {
+        // No authentication required and no bond record
+        *p_auth_req &= ~BTM_LE_AUTH_REQ_MITM;
+      }
+
+      // Request Secure Connections only if the remote device claim support earlier
+      if (p_dev_rec->SupportsSecureConnections()) {
+        *p_auth_req |= BTM_LE_AUTH_REQ_SC_ONLY;
+      } else {
+        *p_auth_req &= ~BTM_LE_AUTH_REQ_SC_ONLY;
+      }
+      return;
+    }
+  }
+
+  /* Authentication requested? */
+  if (p_dev_rec->sec_rec.security_required & BTM_SEC_IN_MITM) {
+    *p_auth_req |= BTM_LE_AUTH_REQ_MITM;
+  }
+}
+
 /*******************************************************************************
  *
  * Function         btm_ble_io_capabilities_req
@@ -1439,10 +1475,7 @@ static tBTM_STATUS btm_ble_io_capabilities_req(tBTM_SEC_DEV_REC* p_dev_rec,
   log::verbose("2:i_keys=0x{:x} r_keys=0x{:x} (bit 0-LTK 1-IRK 2-CSRK)", p_data->init_keys,
                p_data->resp_keys);
 
-  /* if authentication requires MITM protection, put on the mask */
-  if (p_dev_rec->sec_rec.security_required & BTM_SEC_IN_MITM) {
-    p_data->auth_req |= BTM_LE_AUTH_REQ_MITM;
-  }
+  btm_ble_get_auth_req(p_dev_rec, &p_data->auth_req);
 
   if (!(p_data->auth_req & SMP_AUTH_BOND)) {
     log::verbose("Non bonding: No keys should be exchanged");
