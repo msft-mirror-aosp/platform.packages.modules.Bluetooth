@@ -2981,7 +2981,7 @@ public class BassClientStateMachineTest {
                 TEST_SOURCE_ID,
                 BluetoothLeBroadcastReceiveState.PA_SYNC_STATE_SYNCHRONIZED,
                 BluetoothLeBroadcastReceiveState.BIG_ENCRYPTION_STATE_DECRYPTING,
-                BassConstants.BIS_SYNC_FAILED_SYNC_TO_BIG);
+                BassConstants.BCAST_RCVR_STATE_BIS_SYNC_FAILED_SYNC_TO_BIG);
         // Verify broadcast audio session is logged when bis sync failed
         verify(mMetricsLogger)
                 .logLeAudioBroadcastAudioSync(

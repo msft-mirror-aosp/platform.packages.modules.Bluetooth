@@ -939,15 +939,15 @@ class BassClientStateMachine extends StateMachine {
         // Check Bis state
         for (int i = 0; i < recvState.getNumSubgroups(); i++) {
             Long bisState = recvState.getBisSyncState().get(i);
-            if (bisState != BassConstants.BIS_SYNC_FAILED_SYNC_TO_BIG
-                    && bisState != BassConstants.BIS_SYNC_NOT_SYNC_TO_BIS) {
+            if (bisState != BassConstants.BCAST_RCVR_STATE_BIS_SYNC_FAILED_SYNC_TO_BIG
+                    && bisState != BassConstants.BCAST_RCVR_STATE_BIS_SYNC_NOT_SYNC_TO_BIS) {
                 // Any bis synced, update status and break
                 syncStats.updateBisSyncedTime(SystemClock.elapsedRealtime());
                 syncStats.updateSyncStatus(
                         BluetoothStatsLog
                                 .BROADCAST_AUDIO_SYNC_REPORTED__SYNC_STATUS__SYNC_STATUS_AUDIO_SYNC_SUCCESS);
                 break;
-            } else if (bisState == BassConstants.BIS_SYNC_FAILED_SYNC_TO_BIG) {
+            } else if (bisState == BassConstants.BCAST_RCVR_STATE_BIS_SYNC_FAILED_SYNC_TO_BIG) {
                 logBroadcastSyncStatsWithStatus(
                         broadcastId,
                         BluetoothStatsLog
@@ -2049,15 +2049,16 @@ class BassClientStateMachine extends StateMachine {
         }
     }
 
-    private static int getBisSyncFromChannelPreference(List<BluetoothLeBroadcastChannel> channels) {
-        int bisSync = 0;
+    private static long getBisSyncFromChannelPreference(
+            List<BluetoothLeBroadcastChannel> channels) {
+        long bisSync = 0L;
         for (BluetoothLeBroadcastChannel channel : channels) {
             if (channel.isSelected()) {
                 if (channel.getChannelIndex() == 0) {
                     Log.e(TAG, "getBisSyncFromChannelPreference: invalid channel index=0");
                     continue;
                 }
-                bisSync |= 1 << (channel.getChannelIndex() - 1);
+                bisSync |= 1L << (channel.getChannelIndex() - 1);
             }
         }
 
@@ -2106,14 +2107,14 @@ class BassClientStateMachine extends StateMachine {
 
         for (BluetoothLeBroadcastSubgroup subGroup : subGroups) {
             // BIS_Sync
-            int bisSync = getBisSyncFromChannelPreference(subGroup.getChannels());
-            if (bisSync == 0) {
-                bisSync = 0xFFFFFFFF;
+            long bisSync = getBisSyncFromChannelPreference(subGroup.getChannels());
+            if (bisSync == BassConstants.BIS_SYNC_DO_NOT_SYNC_TO_BIS) {
+                bisSync = BassConstants.BIS_SYNC_NO_PREFERENCE;
             }
-            stream.write(bisSync & 0x00000000000000FF);
-            stream.write((bisSync & 0x000000000000FF00) >>> 8);
-            stream.write((bisSync & 0x0000000000FF0000) >>> 16);
-            stream.write((bisSync & 0x00000000FF000000) >>> 24);
+            stream.write((byte) (bisSync & 0x00000000000000FFL));
+            stream.write((byte) ((bisSync & 0x000000000000FF00L) >>> 8));
+            stream.write((byte) ((bisSync & 0x0000000000FF0000L) >>> 16));
+            stream.write((byte) ((bisSync & 0x00000000FF000000L) >>> 24));
 
             // Metadata_Length
             BluetoothLeAudioContentMetadata metadata = subGroup.getContentMetadata();
@@ -2162,14 +2163,14 @@ class BassClientStateMachine extends StateMachine {
         res[offset++] = (byte) numSubGroups;
 
         for (int i = 0; i < numSubGroups; i++) {
-            int bisIndexValue = 0xFFFFFFFF;
-            int currentBisIndexValue = 0xFFFFFFFF;
+            long bisIndexValue = BassConstants.BIS_SYNC_NO_PREFERENCE;
+            long currentBisIndexValue = BassConstants.BIS_SYNC_NO_PREFERENCE;
             if (i < existingState.getBisSyncState().size()) {
-                currentBisIndexValue = existingState.getBisSyncState().get(i).intValue();
+                currentBisIndexValue = existingState.getBisSyncState().get(i);
             }
 
             if (paSync == BassConstants.PA_SYNC_DO_NOT_SYNC) {
-                bisIndexValue = 0;
+                bisIndexValue = BassConstants.BIS_SYNC_DO_NOT_SYNC_TO_BIS;
             } else if (metaData != null) {
                 bisIndexValue =
                         getBisSyncFromChannelPreference(
@@ -2179,8 +2180,8 @@ class BassClientStateMachine extends StateMachine {
                 if (paSync == BassConstants.PA_SYNC_PAST_AVAILABLE
                         || paSync == BassConstants.PA_SYNC_PAST_NOT_AVAILABLE) {
                     // Let sink decide to which BIS sync if there is no channel preference
-                    if (bisIndexValue == 0) {
-                        bisIndexValue = 0xFFFFFFFF;
+                    if (bisIndexValue == BassConstants.BIS_SYNC_DO_NOT_SYNC_TO_BIS) {
+                        bisIndexValue = BassConstants.BIS_SYNC_NO_PREFERENCE;
                     }
                 }
             } else {
@@ -2193,10 +2194,10 @@ class BassClientStateMachine extends StateMachine {
                             + " to: "
                             + bisIndexValue);
             // BIS_Sync
-            res[offset++] = (byte) (bisIndexValue & 0x00000000000000FF);
-            res[offset++] = (byte) ((bisIndexValue & 0x000000000000FF00) >>> 8);
-            res[offset++] = (byte) ((bisIndexValue & 0x0000000000FF0000) >>> 16);
-            res[offset++] = (byte) ((bisIndexValue & 0x00000000FF000000) >>> 24);
+            res[offset++] = (byte) (bisIndexValue & 0x00000000000000FFL);
+            res[offset++] = (byte) ((bisIndexValue & 0x000000000000FF00L) >>> 8);
+            res[offset++] = (byte) ((bisIndexValue & 0x0000000000FF0000L) >>> 16);
+            res[offset++] = (byte) ((bisIndexValue & 0x00000000FF000000L) >>> 24);
             // Metadata_Length; On Modify source, don't update any Metadata
             res[offset++] = 0;
         }
