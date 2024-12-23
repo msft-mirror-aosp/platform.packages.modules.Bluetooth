@@ -1238,8 +1238,7 @@ void BTM_PasskeyReqReply(tBTM_STATUS res, const RawAddress& bd_addr, uint32_t pa
  *
  ******************************************************************************/
 void BTM_ReadLocalOobData(void) {
-  if (com::android::bluetooth::flags::use_local_oob_extended_command() &&
-      bluetooth::shim::GetController()->SupportsSecureConnections()) {
+  if (bluetooth::shim::GetController()->SupportsSecureConnections()) {
     btsnd_hcic_read_local_oob_extended_data();
   } else {
     btsnd_hcic_read_local_oob_data();
