@@ -6280,7 +6280,9 @@ public class BassClientServiceTest {
 
         checkAndDispatchTimeout(
                 TEST_BROADCAST_ID, BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
-        verifyStopBigMonitoringWithUnsync();
+        mInOrderMethodProxy
+                .verify(mMethodProxy)
+                .periodicAdvertisingManagerUnregisterSync(any(), any());
         verifyRemoveMessageAndInjectSourceRemoval();
         checkNoResumeSynchronizationByBig();
     }
@@ -6310,7 +6312,9 @@ public class BassClientServiceTest {
 
         checkAndDispatchTimeout(
                 TEST_BROADCAST_ID, BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
-        verifyStopBigMonitoringWithoutUnsync();
+        mInOrderMethodProxy
+                .verify(mMethodProxy, never())
+                .periodicAdvertisingManagerUnregisterSync(any(), any());
         verifyRemoveMessageAndInjectSourceRemoval();
         checkNoResumeSynchronizationByBig();
     }
@@ -6324,7 +6328,9 @@ public class BassClientServiceTest {
         sinkUnintentionalWithoutScanning();
 
         checkAndDispatchTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT);
-        verifyStopBigMonitoringWithUnsync();
+        mInOrderMethodProxy
+                .verify(mMethodProxy)
+                .periodicAdvertisingManagerUnregisterSync(any(), any());
         verifyRemoveMessageAndInjectSourceRemoval();
         checkNoResumeSynchronizationByBig();
     }
@@ -6338,7 +6344,9 @@ public class BassClientServiceTest {
         sinkUnintentionalDuringScanning();
 
         checkAndDispatchTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT);
-        verifyStopBigMonitoringWithoutUnsync();
+        mInOrderMethodProxy
+                .verify(mMethodProxy, never())
+                .periodicAdvertisingManagerUnregisterSync(any(), any());
         verifyRemoveMessageAndInjectSourceRemoval();
         checkNoResumeSynchronizationByBig();
     }
@@ -6711,7 +6719,9 @@ public class BassClientServiceTest {
 
         checkAndDispatchTimeout(
                 TEST_BROADCAST_ID, BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
-        verifyStopBigMonitoringWithUnsync();
+        mInOrderMethodProxy
+                .verify(mMethodProxy)
+                .periodicAdvertisingManagerUnregisterSync(any(), any());
     }
 
     @Test
