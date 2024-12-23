@@ -826,9 +826,6 @@ tBTM_STATUS BTM_SecBond(const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type,
   if ((transport == BT_TRANSPORT_LE && (dev_type & BT_DEVICE_TYPE_BLE) == 0) ||
       (transport == BT_TRANSPORT_BR_EDR && (dev_type & BT_DEVICE_TYPE_BREDR) == 0)) {
     log::warn("Requested transport and supported transport don't match");
-    if (!com::android::bluetooth::flags::pairing_on_unknown_transport()) {
-      return tBTM_STATUS::BTM_ILLEGAL_ACTION;
-    }
   }
   return btm_sec_bond_by_transport(bd_addr, addr_type, transport);
 }
