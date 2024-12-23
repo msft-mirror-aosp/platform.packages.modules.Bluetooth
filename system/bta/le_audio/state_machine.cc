@@ -644,14 +644,12 @@ public:
       return;
     }
 
-    if (com::android::bluetooth::flags::leaudio_dynamic_spatial_audio()) {
-      if (group->dsa_.active &&
-          (group->dsa_.mode == DsaMode::ISO_SW || group->dsa_.mode == DsaMode::ISO_HW) &&
-          leAudioDevice->GetDsaDataPathState() == DataPathState::CONFIGURING) {
-        log::info("Datapath configured for headtracking");
-        leAudioDevice->SetDsaDataPathState(DataPathState::CONFIGURED);
-        return;
-      }
+    if (group->dsa_.active &&
+        (group->dsa_.mode == DsaMode::ISO_SW || group->dsa_.mode == DsaMode::ISO_HW) &&
+        leAudioDevice->GetDsaDataPathState() == DataPathState::CONFIGURING) {
+      log::info("Datapath configured for headtracking");
+      leAudioDevice->SetDsaDataPathState(DataPathState::CONFIGURED);
+      return;
     }
 
     /* Update state for the given cis.*/
@@ -721,7 +719,7 @@ public:
         ases_pair.source->cis_state = CisState::DISCONNECTING;
         do_disconnect = true;
       }
-    } else if (com::android::bluetooth::flags::leaudio_dynamic_spatial_audio()) {
+    } else {
       if (group->dsa_.active && leAudioDevice->GetDsaDataPathState() == DataPathState::REMOVING) {
         log::info("DSA data path removed");
         leAudioDevice->SetDsaDataPathState(DataPathState::IDLE);
@@ -899,10 +897,6 @@ public:
 
   void applyDsaDataPath(LeAudioDeviceGroup* group, LeAudioDevice* leAudioDevice,
                         uint16_t conn_hdl) {
-    if (!com::android::bluetooth::flags::leaudio_dynamic_spatial_audio()) {
-      return;
-    }
-
     if (!group->dsa_.active) {
       log::info("DSA mode not used");
       return;
@@ -1111,11 +1105,9 @@ public:
       value |= bluetooth::hci::iso_manager::kRemoveIsoDataPathDirectionOutput;
       ases_pair.source->data_path_state = DataPathState::REMOVING;
     } else {
-      if (com::android::bluetooth::flags::leaudio_dynamic_spatial_audio()) {
-        if (leAudioDevice->GetDsaDataPathState() == DataPathState::CONFIGURED) {
-          value |= bluetooth::hci::iso_manager::kRemoveIsoDataPathDirectionOutput;
-          leAudioDevice->SetDsaDataPathState(DataPathState::REMOVING);
-        }
+      if (leAudioDevice->GetDsaDataPathState() == DataPathState::CONFIGURED) {
+        value |= bluetooth::hci::iso_manager::kRemoveIsoDataPathDirectionOutput;
+        leAudioDevice->SetDsaDataPathState(DataPathState::REMOVING);
       }
     }
 
@@ -1440,10 +1432,6 @@ private:
 
   void ApplyDsaParams(LeAudioDeviceGroup* group,
                       bluetooth::hci::iso_manager::cig_create_params& param) {
-    if (!com::android::bluetooth::flags::leaudio_dynamic_spatial_audio()) {
-      return;
-    }
-
     log::info("DSA mode selected: {}", (int)group->dsa_.mode);
     group->dsa_.active = false;
 

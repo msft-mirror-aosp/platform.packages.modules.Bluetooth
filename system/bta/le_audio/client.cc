@@ -1464,9 +1464,7 @@ public:
     log::assert_that(le_audio_sink_hal_client_ != nullptr, "Sink session not acquired");
 
     DsaModes dsa_modes = {DsaMode::DISABLED};
-    if (com::android::bluetooth::flags::leaudio_dynamic_spatial_audio()) {
-      dsa_modes = group->GetAllowedDsaModes();
-    }
+    dsa_modes = group->GetAllowedDsaModes();
 
     /* We assume that peer device always use same frame duration */
     uint32_t frame_duration_us = 0;
@@ -5459,10 +5457,6 @@ public:
   }
 
   bool DsaReconfigureNeeded(LeAudioDeviceGroup* group, LeAudioContextType context) {
-    if (!com::android::bluetooth::flags::leaudio_dynamic_spatial_audio()) {
-      return false;
-    }
-
     // Reconfigure if DSA mode changed for media streaming
     if (context != bluetooth::le_audio::types::LeAudioContextType::MEDIA) {
       return false;
@@ -6253,10 +6247,6 @@ private:
   }
 
   bool DsaDataConsume(bluetooth::hci::iso_manager::cis_data_evt* event) {
-    if (!com::android::bluetooth::flags::leaudio_dynamic_spatial_audio()) {
-      return false;
-    }
-
     if (active_group_id_ == bluetooth::groups::kGroupUnknown) {
       return false;
     }
@@ -6714,10 +6704,6 @@ void LeAudioClient::Cleanup(void) {
 }
 
 bool LeAudioClient::RegisterIsoDataConsumer(LeAudioIsoDataCallback callback) {
-  if (!com::android::bluetooth::flags::leaudio_dynamic_spatial_audio()) {
-    return false;
-  }
-
   log::info("ISO data consumer changed");
   iso_data_callback = callback;
   return true;
