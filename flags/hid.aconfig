@@ -2,13 +2,6 @@ package: "com.android.bluetooth.flags"
 container: "com.android.btservices"
 
 flag {
-    name: "break_uhid_polling_early"
-    namespace: "bluetooth"
-    description: "Break from UHID polling early if HID host disconnects"
-    bug: "319846147"
-}
-
-flag {
     name: "allow_switching_hid_and_hogp"
     is_exported: true
     namespace: "bluetooth"
