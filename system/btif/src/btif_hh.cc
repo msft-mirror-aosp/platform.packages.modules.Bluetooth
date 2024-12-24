@@ -819,8 +819,7 @@ static void hh_get_dscp_handler(tBTA_HH_DEV_DSCP_INFO& dscp_info) {
             dscp_info.descriptor.dsc_list);
 
     // Allow incoming connections
-    if (com::android::bluetooth::flags::allow_switching_hid_and_hogp() &&
-        com::android::bluetooth::flags::save_initial_hid_connection_policy()) {
+    if (com::android::bluetooth::flags::allow_switching_hid_and_hogp()) {
       btif_storage_set_hid_connection_policy(p_dev->link_spec, true);
     }
 
