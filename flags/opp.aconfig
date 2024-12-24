@@ -9,16 +9,6 @@ flag {
 }
 
 flag {
-    name: "opp_fix_multiple_notifications_issues"
-    namespace: "bluetooth"
-    description: "Fix UI issues related to multiple OPP notifications"
-    bug: "323096132"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "opp_ignore_content_observer_after_service_stop"
     namespace: "bluetooth"
     description: "When OppService.stop() is called, previously posted ContentObserver.onChange() should not run"
