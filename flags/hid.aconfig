@@ -30,16 +30,6 @@ flag {
 }
 
 flag {
-    name: "android_headtracker_service"
-    namespace: "bluetooth"
-    description: "Support headtracking through Android Headtracker Service"
-    bug: "335708774"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "suppress_hid_rejection_broadcast"
     namespace: "bluetooth"
     description: "Don't generate state change event when an incoming HID connection is rejected"

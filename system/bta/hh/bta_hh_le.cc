@@ -1600,8 +1600,7 @@ static void bta_hh_le_srvc_search_cmpl(tBTA_GATTC_SEARCH_CMPL* p_data) {
       scp_service = &service;
     } else if (service.uuid == Uuid::From16Bit(UUID_SERVCLASS_GAP_SERVER)) {
       gap_service = &service;
-    } else if (com::android::bluetooth::flags::android_headtracker_service() &&
-               service.uuid == ANDROID_HEADTRACKER_SERVICE_UUID) {
+    } else if (service.uuid == ANDROID_HEADTRACKER_SERVICE_UUID) {
       headtracker_service = &service;
     }
   }
