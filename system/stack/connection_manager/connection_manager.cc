@@ -27,7 +27,9 @@
 #include <memory>
 #include <set>
 
+#include "gd/hci/controller_interface.h"
 #include "main/shim/acl_api.h"
+#include "main/shim/entry.h"
 #include "main/shim/le_scanning_manager.h"
 #include "os/logging/log_adapter.h"
 #include "osi/include/alarm.h"
@@ -105,14 +107,42 @@ bool is_anyone_connecting(const std::map<RawAddress, tAPPS_CONNECTING>::iterator
          !it->second.doing_targeted_announcements_conn.empty();
 }
 
+static bool accept_list_is_full() {
+  uint8_t accept_list_size = shim::GetController()->GetLeFilterAcceptListSize();
+
+  int num_entries = 0;
+  for (const auto& entry : bgconn_dev) {
+    if (entry.second.is_in_accept_list) {
+      num_entries++;
+    }
+  }
+
+  if (num_entries >= accept_list_size) {
+    return true;
+  }
+
+  return false;
+}
+
 }  // namespace
 
-/** background connection device from the list. Returns pointer to the device
- * record, or nullptr if not found */
+/** Return all apps interested in device, or empty set if not found. */
 std::set<tAPP_ID> get_apps_connecting_to(const RawAddress& address) {
   log::debug("address={}", address);
   auto it = bgconn_dev.find(address);
-  return (it != bgconn_dev.end()) ? it->second.doing_bg_conn : std::set<tAPP_ID>();
+  if (it == bgconn_dev.end()) {
+    return std::set<tAPP_ID>();
+  }
+
+  std::set<tAPP_ID> result;
+  result.insert(it->second.doing_bg_conn.begin(), it->second.doing_bg_conn.end());
+  result.insert(it->second.doing_targeted_announcements_conn.begin(),
+                it->second.doing_targeted_announcements_conn.end());
+
+  for (const auto& entry : it->second.doing_direct_conn) {
+    result.insert(entry.first);
+  }
+  return result;
 }
 
 static bool IsTargetedAnnouncement(const uint8_t* p_eir, uint16_t eir_len) {
@@ -273,6 +303,12 @@ bool background_connect_add(uint8_t app_id, const RawAddress& address) {
     if (is_targeted_announcement_enabled) {
       log::debug("Targeted announcement enabled, do not add to AcceptList");
     } else {
+      if (accept_list_is_full()) {
+        log::warn("accept list is full ({}), can't add {}",
+                  shim::GetController()->GetLeFilterAcceptListSize(), address);
+        return false;
+      }
+
       if (!bluetooth::shim::ACL_AcceptLeConnectionFrom(BTM_Sec_GetAddressWithType(address),
                                                        false)) {
         log::warn("Failed to add device {} to accept list for app {}", address,
@@ -498,9 +534,15 @@ bool direct_connect_add(uint8_t app_id, const RawAddress& address, tBLE_ADDR_TYP
   }
 
   if (!in_acceptlist) {
+    if (accept_list_is_full()) {
+      log::warn("accept list is full ({}), can't add {}",
+                shim::GetController()->GetLeFilterAcceptListSize(), address_with_type);
+      return false;
+    }
+
     if (!bluetooth::shim::ACL_AcceptLeConnectionFrom(address_with_type, true /* is_direct */)) {
       // if we can't add to acceptlist, turn parameters back to slow.
-      log::warn("unable to add le device to acceptlist {}", address_with_type);
+      log::warn("unable to add to acceptlist {}", address_with_type);
       return false;
     }
     bgconn_dev[address].is_in_accept_list = true;

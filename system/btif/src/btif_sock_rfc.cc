@@ -545,6 +545,14 @@ static void cleanup_rfc_slot(rfc_slot_t* slot) {
             slot->role ? slot->service_name : slot->service_uuid.ToString().c_str());
 
     slot->fd = INVALID_FD;
+
+    if (com::android::bluetooth::flags::socket_settings_api()) {
+      if (slot->data_path == BTSOCK_DATA_PATH_HARDWARE_OFFLOAD && !slot->f.server &&
+          slot->socket_id != 0) {
+        bluetooth::shim::GetLppOffloadManager()->SocketClosed(slot->socket_id);
+        slot->socket_id = 0;
+      }
+    }
   }
 
   if (slot->app_fd != INVALID_FD) {
@@ -683,8 +691,6 @@ static uint32_t on_srv_rfc_connect_offload(tBTA_JV_RFCOMM_SRV_OPEN* p_open, uint
 
   // Start monitoring the socket.
   btsock_thread_add_fd(pth, srv_rs->fd, BTSOCK_RFCOMM, SOCK_THREAD_FD_EXCEPTION, srv_rs->id);
-  btsock_thread_add_fd(pth, accept_rs->fd, BTSOCK_RFCOMM, SOCK_THREAD_FD_RD, accept_rs->id);
-  accept_rs->app_fd = INVALID_FD;  // Ownership of the application fd has been transferred.
   // start monitoring the socketpair to get call back when app is accepting on server socket
   btsock_thread_add_fd(pth, srv_rs->fd, BTSOCK_RFCOMM, SOCK_THREAD_FD_RD, srv_rs->id);
   return srv_rs->id;
@@ -847,12 +853,8 @@ void on_btsocket_rfc_opened_complete(uint64_t socket_id, bool success) {
     // The fd is closed after sent to app in send_app_connect_signal()
     slot->app_fd = -1;
   } else {
-    if (!send_app_scn(slot)) {
-      log::error("Unable to send rfcomm socket to application socket_id: {}", slot->id);
-      return;
-    }
     if (!send_app_connect_signal(slot->fd, &slot->addr, slot->scn, 0, -1, slot->socket_id)) {
-      log::error("Unable to connect l2cap socket to application socket_id: {}", slot->id);
+      log::error("Unable to connect rfcomm socket to application socket_id: {}", slot->id);
       return;
     }
 

@@ -56,6 +56,7 @@ import android.bluetooth.le.PeriodicAdvertisingParameters;
 import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanResult;
 import android.bluetooth.le.ScanSettings;
+import android.companion.CompanionDeviceManager;
 import android.content.AttributionSource;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
@@ -180,6 +181,7 @@ public class GattService extends ProfileService {
     private final AdapterService mAdapterService;
     private final AdvertiseManager mAdvertiseManager;
     private final GattNativeInterface mNativeInterface;
+    private final CompanionDeviceManager mCompanionDeviceManager;
     private final DistanceMeasurementManager mDistanceMeasurementManager;
     private final ActivityManager mActivityManager;
     private final PackageManager mPackageManager;
@@ -192,6 +194,7 @@ public class GattService extends ProfileService {
         mAdapterService = adapterService;
         mActivityManager = requireNonNull(getSystemService(ActivityManager.class));
         mPackageManager = requireNonNull(mAdapterService.getPackageManager());
+        mCompanionDeviceManager = requireNonNull(getSystemService(CompanionDeviceManager.class));
 
         mTransitionalScanHelper =
                 new TransitionalScanHelper(adapterService, this::isTestModeEnabled);
@@ -808,41 +811,39 @@ public class GattService extends ProfileService {
         }
 
         @Override
-        public void subrateModeRequest(
+        public int subrateModeRequest(
                 int clientIf,
-                String address,
+                BluetoothDevice device,
                 int subrateMode,
                 AttributionSource attributionSource) {
             GattService service = getService();
             if (service == null) {
-                return;
+                return BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED;
             }
-            service.subrateModeRequest(clientIf, address, subrateMode, attributionSource);
-        }
+            if (!callerIsSystemOrActiveOrManagedUser(service, TAG, "subrateModeRequest")) {
+                return BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ALLOWED;
+            }
 
-        @Override
-        public void leSubrateRequest(
-                int clientIf,
-                String address,
-                int subrateMin,
-                int subrateMax,
-                int maxLatency,
-                int contNumber,
-                int supervisionTimeout,
-                AttributionSource attributionSource) {
-            GattService service = getService();
-            if (service == null) {
-                return;
+            if (!Utils.checkConnectPermissionForDataDelivery(
+                    service, attributionSource, "GattService subrateModeRequest")) {
+                return BluetoothStatusCodes.ERROR_MISSING_BLUETOOTH_CONNECT_PERMISSION;
             }
-            service.leSubrateRequest(
-                    clientIf,
-                    address,
-                    subrateMin,
-                    subrateMax,
-                    maxLatency,
-                    contNumber,
-                    supervisionTimeout,
-                    attributionSource);
+
+            Utils.enforceCdmAssociationIfNotBluetoothPrivileged(
+                    service, service.mCompanionDeviceManager, attributionSource, device);
+
+            if (subrateMode < BluetoothGatt.SUBRATE_REQUEST_MODE_BALANCED
+                    || subrateMode > BluetoothGatt.SUBRATE_REQUEST_MODE_LOW_POWER) {
+                throw new IllegalArgumentException("Subrate Mode not within valid range");
+            }
+
+            requireNonNull(device);
+            String address = device.getAddress();
+            if (!BluetoothAdapter.checkBluetoothAddress(address)) {
+                throw new IllegalArgumentException("Invalid device address: " + address);
+            }
+
+            return service.subrateModeRequest(clientIf, device, subrateMode);
         }
 
         @Override
@@ -2855,14 +2856,7 @@ public class GattService extends ProfileService {
                 maxConnectionEventLen);
     }
 
-    @RequiresPermission(BLUETOOTH_CONNECT)
-    void subrateModeRequest(
-            int clientIf, String address, int subrateMode, AttributionSource attributionSource) {
-        if (!Utils.checkConnectPermissionForDataDelivery(
-                this, attributionSource, "GattService subrateModeRequest")) {
-            return;
-        }
-
+    private int subrateModeRequest(int clientIf, BluetoothDevice device, int subrateMode) {
         int subrateMin;
         int subrateMax;
         int maxLatency;
@@ -2898,64 +2892,15 @@ public class GattService extends ProfileService {
 
         Log.d(
                 TAG,
-                "subrateModeRequest() - "
-                        + "address="
-                        + BluetoothUtils.toAnonymizedAddress(address)
-                        + ", subrate min/max="
-                        + subrateMin
-                        + "/"
-                        + subrateMax
-                        + ", maxLatency="
-                        + maxLatency
-                        + ", continuation Number="
-                        + contNumber
-                        + ", timeout="
-                        + supervisionTimeout);
+                ("subrateModeRequest(" + device + ", " + subrateMode + "): ")
+                        + (", subrate min/max=" + subrateMin + "/" + subrateMax)
+                        + (", maxLatency=" + maxLatency)
+                        + (", continuationNumber=" + contNumber)
+                        + (", timeout=" + supervisionTimeout));
 
-        mNativeInterface.gattSubrateRequest(
+        return mNativeInterface.gattSubrateRequest(
                 clientIf,
-                address,
-                subrateMin,
-                subrateMax,
-                maxLatency,
-                contNumber,
-                supervisionTimeout);
-    }
-
-    @RequiresPermission(BLUETOOTH_CONNECT)
-    void leSubrateRequest(
-            int clientIf,
-            String address,
-            int subrateMin,
-            int subrateMax,
-            int maxLatency,
-            int contNumber,
-            int supervisionTimeout,
-            AttributionSource attributionSource) {
-        if (!Utils.checkConnectPermissionForDataDelivery(
-                this, attributionSource, "GattService leSubrateRequest")) {
-            return;
-        }
-
-        Log.d(
-                TAG,
-                "leSubrateRequest() - "
-                        + "address="
-                        + BluetoothUtils.toAnonymizedAddress(address)
-                        + ", subrate min/max="
-                        + subrateMin
-                        + "/"
-                        + subrateMax
-                        + ", maxLatency="
-                        + maxLatency
-                        + ", continuation Number="
-                        + contNumber
-                        + ", timeout="
-                        + supervisionTimeout);
-
-        mNativeInterface.gattSubrateRequest(
-                clientIf,
-                address,
+                device.getAddress(),
                 subrateMin,
                 subrateMax,
                 maxLatency,

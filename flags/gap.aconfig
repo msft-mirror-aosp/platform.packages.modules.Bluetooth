@@ -84,30 +84,10 @@ flag {
 }
 
 flag {
-    name: "le_scan_use_uid_for_importance"
-    namespace: "bluetooth"
-    description: "Use uid instead of the first package name for fetching the importance of clients"
-    bug: "336965663"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "sec_dont_clear_keys_on_encryption_err"
     namespace: "bluetooth"
     description: "Do not clear security record on encryption error"
     bug: "342521414"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "le_scan_use_address_type"
-    namespace: "bluetooth"
-    description: "Fix an issue that le scanner omits address type for MATCH_FIRST scan"
-    bug: "342127181"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -297,6 +277,16 @@ flag {
     namespace: "bluetooth"
     description: "Unregister gatt client when disconneted to prevent client leaks"
     bug: "380388092"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "fix_execute_write_no_pending"
+    namespace: "bluetooth"
+    description: "Send ATT_EXECUTE_WRITE_RSP when no pending write requests"
+    bug: "385118069"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

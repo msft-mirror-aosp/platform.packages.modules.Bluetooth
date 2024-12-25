@@ -32,20 +32,6 @@ flag {
 }
 
 flag {
-    name: "asymmetric_phy_for_unidirectional_cis"
-    namespace: "bluetooth"
-    description: "Apply asymetric PHY setting for unidirectional CIS"
-    bug: "314176433"
-}
-
-flag {
-    name: "leaudio_hal_client_asrc"
-    namespace: "bluetooth"
-    description: "Sync audio stream with the bluetooth link clock"
-    bug: "312273987"
-}
-
-flag {
     name: "metadata_api_inactive_audio_device_upon_connection"
     is_exported: true
     namespace: "bluetooth"

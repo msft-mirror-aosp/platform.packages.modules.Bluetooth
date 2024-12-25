@@ -23,6 +23,9 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include <chrono>
+#include <future>
+#include <queue>
 #include <string>
 
 #include "common/strings.h"
@@ -47,6 +50,7 @@
 #include "main/shim/le_advertising_manager.h"
 #include "main/shim/le_scanning_manager.h"
 #include "metrics/counter_metrics.h"
+#include "os/system_properties.h"
 #include "os/wakelock_manager.h"
 #include "storage/storage_module.h"
 
@@ -54,10 +58,12 @@
 #include "sysprops/sysprops_module.h"
 #endif
 
+using ::bluetooth::os::Handler;
+using ::bluetooth::os::Thread;
+using ::bluetooth::os::WakelockManager;
+
 namespace bluetooth {
 namespace shim {
-
-using ::bluetooth::common::StringFormat;
 
 struct Stack::impl {
   Acl* acl_ = nullptr;
@@ -96,16 +102,21 @@ void Stack::StartEverything() {
   modules.add<hci::MsftExtensionManager>();
   modules.add<hci::LeScanningManager>();
   modules.add<hci::DistanceMeasurementManager>();
-  Start(&modules);
+
+  stack_thread_ = new os::Thread("gd_stack_thread", os::Thread::Priority::REAL_TIME);
+  StartUp(&modules, stack_thread_);
+
+  stack_handler_ = new os::Handler(stack_thread_);
+
+  log::info("Successfully toggled Gd stack");
+
   is_running_ = true;
   // Make sure the leaf modules are started
-  log::assert_that(stack_manager_.GetInstance<storage::StorageModule>() != nullptr,
-                   "assert failed: stack_manager_.GetInstance<storage::StorageModule>() != "
-                   "nullptr");
-  if (stack_manager_.IsStarted<hci::Controller>()) {
+  log::assert_that(GetInstance<storage::StorageModule>() != nullptr,
+                   "assert failed: GetInstance<storage::StorageModule>() != nullptr");
+  if (IsStarted<hci::Controller>()) {
     pimpl_->acl_ =
-            new Acl(stack_handler_, GetAclInterface(), GetController()->GetLeFilterAcceptListSize(),
-                    GetController()->GetLeResolvingListSize());
+            new Acl(stack_handler_, GetAclInterface(), GetController()->GetLeResolvingListSize());
   } else {
     log::error("Unable to create shim ACL layer as Controller has not started");
   }
@@ -122,23 +133,11 @@ void Stack::StartModuleStack(const ModuleList* modules, const os::Thread* thread
   stack_thread_ = const_cast<os::Thread*>(thread);
   log::info("Starting Gd stack");
 
-  stack_manager_.StartUp(const_cast<ModuleList*>(modules), stack_thread_);
+  StartUp(const_cast<ModuleList*>(modules), stack_thread_);
   stack_handler_ = new os::Handler(stack_thread_);
 
   num_modules_ = modules->NumModules();
   is_running_ = true;
-}
-
-void Stack::Start(ModuleList* modules) {
-  log::assert_that(!is_running_, "Gd stack already running");
-  log::info("Starting Gd stack");
-
-  stack_thread_ = new os::Thread("gd_stack_thread", os::Thread::Priority::REAL_TIME);
-  stack_manager_.StartUp(modules, stack_thread_);
-
-  stack_handler_ = new os::Handler(stack_thread_);
-
-  log::info("Successfully toggled Gd stack");
 }
 
 void Stack::Stop() {
@@ -157,7 +156,26 @@ void Stack::Stop() {
 
   stack_handler_->Clear();
 
-  stack_manager_.ShutDown();
+  WakelockManager::Get().Acquire();
+
+  std::promise<void> promise;
+  auto future = promise.get_future();
+  management_handler_->Post(
+          common::BindOnce(&Stack::handle_shut_down, common::Unretained(this), std::move(promise)));
+
+  auto stop_status = future.wait_for(
+          std::chrono::milliseconds(get_gd_stack_timeout_ms(/* is_start = */ false)));
+
+  WakelockManager::Get().Release();
+  WakelockManager::Get().CleanUp();
+
+  log::assert_that(stop_status == std::future_status::ready, "Can't stop stack, last instance: {}",
+                   registry_.last_instance_);
+
+  management_handler_->Clear();
+  management_handler_->WaitUntilStopped(std::chrono::milliseconds(2000));
+  delete management_handler_;
+  delete management_thread_;
 
   delete stack_handler_;
   stack_handler_ = nullptr;
@@ -172,18 +190,6 @@ void Stack::Stop() {
 bool Stack::IsRunning() {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
   return is_running_;
-}
-
-StackManager* Stack::GetStackManager() {
-  std::lock_guard<std::recursive_mutex> lock(mutex_);
-  log::assert_that(is_running_, "assert failed: is_running_");
-  return &stack_manager_;
-}
-
-const StackManager* Stack::GetStackManager() const {
-  std::lock_guard<std::recursive_mutex> lock(mutex_);
-  log::assert_that(is_running_, "assert failed: is_running_");
-  return &stack_manager_;
 }
 
 Acl* Stack::GetAcl() {
@@ -214,6 +220,49 @@ void Stack::Dump(int fd, std::promise<void> promise) const {
   } else {
     promise.set_value();
   }
+}
+
+void Stack::StartUp(ModuleList* modules, Thread* stack_thread) {
+  management_thread_ = new Thread("management_thread", Thread::Priority::NORMAL);
+  management_handler_ = new Handler(management_thread_);
+
+  WakelockManager::Get().Acquire();
+
+  std::promise<void> promise;
+  auto future = promise.get_future();
+  management_handler_->Post(common::BindOnce(&Stack::handle_start_up, common::Unretained(this),
+                                             modules, stack_thread, std::move(promise)));
+
+  auto init_status = future.wait_for(
+          std::chrono::milliseconds(get_gd_stack_timeout_ms(/* is_start = */ true)));
+
+  WakelockManager::Get().Release();
+
+  log::info("init_status == {}", int(init_status));
+
+  log::assert_that(init_status == std::future_status::ready, "Can't start stack, last instance: {}",
+                   registry_.last_instance_);
+
+  log::info("init complete");
+}
+
+void Stack::handle_start_up(ModuleList* modules, Thread* stack_thread, std::promise<void> promise) {
+  registry_.Start(modules, stack_thread);
+  promise.set_value();
+}
+
+void Stack::handle_shut_down(std::promise<void> promise) {
+  registry_.StopAll();
+  promise.set_value();
+}
+
+std::chrono::milliseconds Stack::get_gd_stack_timeout_ms(bool is_start) {
+  auto gd_timeout = os::GetSystemPropertyUint32(
+          is_start ? "bluetooth.gd.start_timeout" : "bluetooth.gd.stop_timeout",
+          /* default_value = */ is_start ? 3000 : 5000);
+  return std::chrono::milliseconds(gd_timeout *
+                                   os::GetSystemPropertyUint32("ro.hw_timeout_multiplier",
+                                                               /* default_value = */ 1));
 }
 
 }  // namespace shim

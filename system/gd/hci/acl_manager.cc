@@ -84,7 +84,7 @@ struct AclManager::impl {
                                        crash_on_unknown_handle, acl_scheduler_,
                                        remote_name_request_module_);
       le_impl_ = new le_impl(hci_layer_, controller_, handler_, round_robin_scheduler_,
-                             crash_on_unknown_handle);
+                             crash_on_unknown_handle, classic_impl_);
     }
 
     hci_queue_end_ = hci_layer_->GetAclQueueEnd();
