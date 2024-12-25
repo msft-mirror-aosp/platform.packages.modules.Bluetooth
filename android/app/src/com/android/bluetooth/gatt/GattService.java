@@ -1987,7 +1987,8 @@ public class GattService extends ProfileService {
             return;
         }
         if (parameters.getOwnAddressType() != AdvertisingSetParameters.ADDRESS_TYPE_DEFAULT
-                || serverIf != 0) {
+                || serverIf != 0
+                || parameters.isDirected()) {
             this.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
         }
         mAdvertiseManager.startAdvertisingSet(
