@@ -57,7 +57,6 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.ParcelUuid;
 import android.os.Parcelable;
-import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.util.Log;
@@ -392,7 +391,6 @@ public class HidHostDualModeTest {
      * </ol>
      */
     @Test
-    @RequiresFlagsEnabled({Flags.FLAG_ALLOW_SWITCHING_HID_AND_HOGP})
     public void setPreferredTransportTest() {
         // BR/EDR transport
         mHidService.setPreferredTransport(mDevice, TRANSPORT_BREDR);
@@ -410,7 +408,6 @@ public class HidHostDualModeTest {
      * </ol>
      */
     @Test
-    @RequiresFlagsEnabled({Flags.FLAG_ALLOW_SWITCHING_HID_AND_HOGP})
     public void hogpGetReportTest() throws Exception {
         // Keyboard report
         mReportData = new byte[0];
@@ -444,7 +441,6 @@ public class HidHostDualModeTest {
      * </ol>
      */
     @Test
-    @RequiresFlagsEnabled({Flags.FLAG_ALLOW_SWITCHING_HID_AND_HOGP})
     public void hogpGetProtocolModeTest() {
         mHidService.getProtocolMode(mDevice);
         verifyIntentReceived(
@@ -463,7 +459,6 @@ public class HidHostDualModeTest {
      * </ol>
      */
     @Test
-    @RequiresFlagsEnabled({Flags.FLAG_ALLOW_SWITCHING_HID_AND_HOGP})
     public void hogpSetProtocolModeTest() throws Exception {
         mHidService.setProtocolMode(mDevice, BluetoothHidHost.PROTOCOL_BOOT_MODE);
         // Must cast ERROR_RSP_SUCCESS, otherwise, it won't match with the int extra
@@ -482,7 +477,6 @@ public class HidHostDualModeTest {
      * </ol>
      */
     @Test
-    @RequiresFlagsEnabled({Flags.FLAG_ALLOW_SWITCHING_HID_AND_HOGP})
     public void hogpSetReportTest() throws Exception {
         // Keyboard report
         mHidService.setReport(mDevice, BluetoothHidHost.REPORT_TYPE_INPUT, "010203040506070809");
@@ -509,7 +503,6 @@ public class HidHostDualModeTest {
      * </ol>
      */
     @Test
-    @RequiresFlagsEnabled({Flags.FLAG_ALLOW_SWITCHING_HID_AND_HOGP})
     public void hogpVirtualUnplugFromHidHostTest() throws Exception {
         mHidService.virtualUnplug(mDevice);
         verifyIntentReceived(
