@@ -58,6 +58,7 @@ java_defaults {
         "automotive-general-tests",
         "general-tests",
         "mts-bluetooth",
+        "mts-bt",
     ],
 
     instrumentation_for: "Bluetooth",
