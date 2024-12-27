@@ -370,7 +370,8 @@ public final class BluetoothGatt implements BluetoothProfile {
                                         + (" status=" + status)
                                         + (" clientIf=" + clientIf)
                                         + (" connected=" + connected)
-                                        + (" device=" + address));
+                                        + (" device="
+                                                + BluetoothUtils.toAnonymizedAddress(address)));
                     }
                     if (!address.equals(mDevice.getAddress())) {
                         return;
@@ -479,7 +480,7 @@ public final class BluetoothGatt implements BluetoothProfile {
                         Log.d(
                                 TAG,
                                 "onCharacteristicRead() -"
-                                        + (" Device=" + address)
+                                        + (" Device=" + BluetoothUtils.toAnonymizedAddress(address))
                                         + (" handle=" + handle)
                                         + (" Status=" + status));
                     }
@@ -546,7 +547,7 @@ public final class BluetoothGatt implements BluetoothProfile {
                         Log.d(
                                 TAG,
                                 "onCharacteristicWrite() -"
-                                        + (" Device=" + address)
+                                        + (" Device=" + BluetoothUtils.toAnonymizedAddress(address))
                                         + (" handle=" + handle)
                                         + (" Status=" + status));
                     }
@@ -819,7 +820,7 @@ public final class BluetoothGatt implements BluetoothProfile {
                         Log.d(
                                 TAG,
                                 "onReadRemoteRssi() -"
-                                        + (" Device=" + address)
+                                        + (" Device=" + BluetoothUtils.toAnonymizedAddress(address))
                                         + (" rssi=" + rssi)
                                         + (" status=" + status));
                     }
@@ -849,7 +850,7 @@ public final class BluetoothGatt implements BluetoothProfile {
                         Log.d(
                                 TAG,
                                 "onConfigureMTU() -"
-                                        + (" Device=" + address)
+                                        + (" Device=" + BluetoothUtils.toAnonymizedAddress(address))
                                         + (" mtu=" + mtu)
                                         + (" status=" + status));
                     }
@@ -881,7 +882,7 @@ public final class BluetoothGatt implements BluetoothProfile {
                         Log.d(
                                 TAG,
                                 "onConnectionUpdated() -"
-                                        + (" Device=" + address)
+                                        + (" Device=" + BluetoothUtils.toAnonymizedAddress(address))
                                         + (" interval=" + interval)
                                         + (" latency=" + latency)
                                         + (" timeout=" + timeout)
@@ -916,7 +917,10 @@ public final class BluetoothGatt implements BluetoothProfile {
                 @Override
                 public void onServiceChanged(String address) {
                     if (DBG) {
-                        Log.d(TAG, "onServiceChanged() - Device=" + address);
+                        Log.d(
+                                TAG,
+                                "onServiceChanged() - Device="
+                                        + BluetoothUtils.toAnonymizedAddress(address));
                     }
 
                     if (!address.equals(mDevice.getAddress())) {
@@ -951,7 +955,7 @@ public final class BluetoothGatt implements BluetoothProfile {
                     Log.d(
                             TAG,
                             "onSubrateChange() - "
-                                    + (" Device=" + address)
+                                    + (" Device=" + BluetoothUtils.toAnonymizedAddress(address))
                                     + (" subrateFactor=" + subrateFactor)
                                     + (" latency=" + latency)
                                     + (" contNum=" + contNum)
