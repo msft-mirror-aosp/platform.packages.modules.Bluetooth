@@ -9,13 +9,6 @@ flag {
 }
 
 flag {
-    name: "bt_system_context_report"
-    namespace: "bluetooth"
-    description: "Report Bluetooth system context through bta_ble_energy_info_cmpl"
-    bug: "323083457"
-}
-
-flag {
     name: "bta_dm_discover_both"
     namespace: "bluetooth"
     description: "perform both LE and Classic service discovery simulteanously on capable devices"

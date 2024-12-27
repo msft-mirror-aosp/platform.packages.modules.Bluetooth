@@ -1671,9 +1671,7 @@ static void bta_ble_energy_info_cmpl(tBTM_BLE_TX_TIME_MS tx_time, tBTM_BLE_RX_TI
   tBTM_CONTRL_STATE ctrl_state = BTM_CONTRL_UNKNOWN;
 
   if (BTA_SUCCESS == st) {
-    ctrl_state = com::android::bluetooth::flags::bt_system_context_report()
-                         ? bta_dm_obtain_system_context()
-                         : bta_dm_pm_obtain_controller_state();
+    ctrl_state = bta_dm_obtain_system_context();
   }
 
   if (bta_dm_cb.p_energy_info_cback) {
