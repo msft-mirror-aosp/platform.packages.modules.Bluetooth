@@ -2061,7 +2061,12 @@ public class GattService extends ProfileService {
         mAdvertiseManager.setScanResponseData(advertiserId, data);
     }
 
-    @RequiresPermission(BLUETOOTH_ADVERTISE)
+    @RequiresPermission(
+            allOf = {
+                BLUETOOTH_ADVERTISE,
+                BLUETOOTH_PRIVILEGED,
+            },
+            conditional = true)
     void setAdvertisingParameters(
             int advertiserId,
             AdvertisingSetParameters parameters,
@@ -2069,6 +2074,10 @@ public class GattService extends ProfileService {
         if (!Utils.checkAdvertisePermissionForDataDelivery(
                 this, attributionSource, "GattService setAdvertisingParameters")) {
             return;
+        }
+        if (parameters.getOwnAddressType() != AdvertisingSetParameters.ADDRESS_TYPE_DEFAULT
+                || parameters.isDirected()) {
+            this.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
         }
         mAdvertiseManager.setAdvertisingParameters(advertiserId, parameters);
     }
