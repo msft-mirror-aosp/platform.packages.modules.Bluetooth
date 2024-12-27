@@ -1242,7 +1242,7 @@ package android.bluetooth.le {
   public final class AdvertisingSet {
     method @RequiresPermission(android.Manifest.permission.BLUETOOTH_ADVERTISE) public void enableAdvertising(boolean, int, int);
     method @RequiresPermission(android.Manifest.permission.BLUETOOTH_ADVERTISE) public void setAdvertisingData(android.bluetooth.le.AdvertiseData);
-    method @RequiresPermission(android.Manifest.permission.BLUETOOTH_ADVERTISE) public void setAdvertisingParameters(android.bluetooth.le.AdvertisingSetParameters);
+    method @RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_ADVERTISE, android.Manifest.permission.BLUETOOTH_PRIVILEGED}, conditional=true) public void setAdvertisingParameters(android.bluetooth.le.AdvertisingSetParameters);
     method @RequiresPermission(android.Manifest.permission.BLUETOOTH_ADVERTISE) public void setPeriodicAdvertisingData(android.bluetooth.le.AdvertiseData);
     method @RequiresPermission(android.Manifest.permission.BLUETOOTH_ADVERTISE) public void setPeriodicAdvertisingEnabled(boolean);
     method @RequiresPermission(android.Manifest.permission.BLUETOOTH_ADVERTISE) public void setPeriodicAdvertisingParameters(android.bluetooth.le.PeriodicAdvertisingParameters);
