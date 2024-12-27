@@ -63,6 +63,8 @@ public:
   void UpdateConnInterval(uint16_t /* connection_handle */, uint16_t /* conn_interval */) override {
   }
 
+  bool IsAbortedProcedureRequired(uint16_t /*connection_handle*/) { return false; }
+
 protected:
   void ListDependencies(ModuleList* /*list*/) const {}
 
