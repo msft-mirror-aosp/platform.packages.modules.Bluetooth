@@ -62,3 +62,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "fix_buf_len_check_for_first_k_frame"
+    namespace: "bluetooth"
+    description: "Fix L2cap buffer length check against MPS for the first k-frame"
+    bug: "386382446"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
