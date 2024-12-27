@@ -521,6 +521,25 @@ public:
     }
   }
 
+  bool IsAbortedProcedureRequired(uint16_t connection_handle) override {
+    auto it = session_trackers_.find(connection_handle);
+    if (it == session_trackers_.end()) {
+      log::error("Can't find session for connection_handle:0x{:04x}", connection_handle);
+      return false;
+    }
+    if (it->second->GetSession() == nullptr) {
+      log::error("Session not opened");
+      return false;
+    }
+    bool isRequired = false;
+    auto aidl_ret = it->second->GetSession()->isAbortedProcedureRequired(&isRequired);
+    if (aidl_ret.isOk()) {
+      return isRequired;
+    }
+    log::error("can not get result for isAbortedProcedureRequired.");
+    return false;
+  }
+
 protected:
   void ListDependencies(ModuleList* /*list*/) const {}
 

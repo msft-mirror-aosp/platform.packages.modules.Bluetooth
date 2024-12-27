@@ -323,6 +323,7 @@ public:
   virtual void WriteProcedureData(uint16_t connection_handle, hci::CsRole local_cs_role,
                                   const ProcedureDataV2& procedure_data,
                                   uint16_t procedure_counter) = 0;
+  virtual bool IsAbortedProcedureRequired(uint16_t connection_handle) = 0;
 };
 
 }  // namespace hal
