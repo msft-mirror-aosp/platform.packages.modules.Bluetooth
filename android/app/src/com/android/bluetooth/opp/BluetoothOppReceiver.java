@@ -214,20 +214,7 @@ public class BluetoothOppReceiver extends BroadcastReceiver {
                 }
                 cursor.close();
             }
-        } else if (action.equals(Constants.ACTION_COMPLETE_HIDE)
-                && !Flags.oppFixMultipleNotificationsIssues()) {
-            Log.v(TAG, "Receiver ACTION_COMPLETE_HIDE");
-            ContentValues updateValues = new ContentValues();
-            updateValues.put(BluetoothShare.VISIBILITY, BluetoothShare.VISIBILITY_HIDDEN);
-            BluetoothMethodProxy.getInstance()
-                    .contentResolverUpdate(
-                            context.getContentResolver(),
-                            BluetoothShare.CONTENT_URI,
-                            updateValues,
-                            BluetoothOppNotification.WHERE_COMPLETED,
-                            null);
-        } else if (action.equals(Constants.ACTION_HIDE_COMPLETED_INBOUND_TRANSFER)
-                && Flags.oppFixMultipleNotificationsIssues()) {
+        } else if (action.equals(Constants.ACTION_HIDE_COMPLETED_INBOUND_TRANSFER)) {
             Log.v(TAG, "Received ACTION_HIDE_COMPLETED_INBOUND_TRANSFER");
             ContentValues updateValues = new ContentValues();
             updateValues.put(BluetoothShare.VISIBILITY, BluetoothShare.VISIBILITY_HIDDEN);
@@ -238,8 +225,7 @@ public class BluetoothOppReceiver extends BroadcastReceiver {
                             updateValues,
                             BluetoothOppNotification.WHERE_COMPLETED_INBOUND,
                             null);
-        } else if (action.equals(Constants.ACTION_HIDE_COMPLETED_OUTBOUND_TRANSFER)
-                && Flags.oppFixMultipleNotificationsIssues()) {
+        } else if (action.equals(Constants.ACTION_HIDE_COMPLETED_OUTBOUND_TRANSFER)) {
             Log.v(TAG, "Received ACTION_HIDE_COMPLETED_OUTBOUND_TRANSFER");
             ContentValues updateValues = new ContentValues();
             updateValues.put(BluetoothShare.VISIBILITY, BluetoothShare.VISIBILITY_HIDDEN);
