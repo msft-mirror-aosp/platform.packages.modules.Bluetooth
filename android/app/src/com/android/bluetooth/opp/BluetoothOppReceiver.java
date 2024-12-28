@@ -100,15 +100,6 @@ public class BluetoothOppReceiver extends BroadcastReceiver {
                 toastMsg = context.getString(R.string.bt_toast_4, deviceName);
             }
             Toast.makeText(context, toastMsg, Toast.LENGTH_SHORT).show();
-        } else if (action.equals(Constants.ACTION_INCOMING_FILE_CONFIRM)
-                && !Flags.oppStartActivityDirectlyFromNotification()) {
-            Log.v(TAG, "Receiver ACTION_INCOMING_FILE_CONFIRM");
-
-            Uri uri = intent.getData();
-            Intent in = new Intent(context, BluetoothOppIncomingFileConfirmActivity.class);
-            in.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            in.setDataAndNormalize(uri);
-            context.startActivity(in);
         } else if (action.equals(Constants.ACTION_DECLINE)) {
             Log.v(TAG, "Receiver ACTION_DECLINE");
 
@@ -164,22 +155,6 @@ public class BluetoothOppReceiver extends BroadcastReceiver {
                 context.startActivity(in);
             }
 
-        } else if (action.equals(Constants.ACTION_OPEN_OUTBOUND_TRANSFER)
-                && !Flags.oppStartActivityDirectlyFromNotification()) {
-            Log.v(TAG, "Received ACTION_OPEN_OUTBOUND_TRANSFER.");
-
-            Intent in = new Intent(context, BluetoothOppTransferHistory.class);
-            in.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-            in.putExtra(Constants.EXTRA_DIRECTION, BluetoothShare.DIRECTION_OUTBOUND);
-            context.startActivity(in);
-        } else if (action.equals(Constants.ACTION_OPEN_INBOUND_TRANSFER)
-                && !Flags.oppStartActivityDirectlyFromNotification()) {
-            Log.v(TAG, "Received ACTION_OPEN_INBOUND_TRANSFER.");
-
-            Intent in = new Intent(context, BluetoothOppTransferHistory.class);
-            in.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-            in.putExtra(Constants.EXTRA_DIRECTION, BluetoothShare.DIRECTION_INBOUND);
-            context.startActivity(in);
         } else if (action.equals(Constants.ACTION_HIDE)) {
             Log.v(TAG, "Receiver hide for " + intent.getData());
             Cursor cursor =
