@@ -247,28 +247,6 @@ void btgattc_register_app_cb(int status, int clientIf, const Uuid& app_uuid) {
                                UUID_PARAMS(app_uuid));
 }
 
-void btgattc_scan_result_cb(uint16_t event_type, uint8_t addr_type, RawAddress* bda,
-                            uint8_t primary_phy, uint8_t secondary_phy, uint8_t advertising_sid,
-                            int8_t tx_power, int8_t rssi, uint16_t periodic_adv_int,
-                            std::vector<uint8_t> adv_data, RawAddress* original_bda) {
-  std::shared_lock<std::shared_mutex> lock(callbacks_mutex);
-  CallbackEnv sCallbackEnv(__func__);
-  if (!sCallbackEnv.valid() || !mScanCallbacksObj) {
-    return;
-  }
-
-  ScopedLocalRef<jstring> address(sCallbackEnv.get(), bdaddr2newjstr(sCallbackEnv.get(), bda));
-  ScopedLocalRef<jbyteArray> jb(sCallbackEnv.get(), sCallbackEnv->NewByteArray(adv_data.size()));
-  sCallbackEnv->SetByteArrayRegion(jb.get(), 0, adv_data.size(), (jbyte*)adv_data.data());
-
-  ScopedLocalRef<jstring> original_address(sCallbackEnv.get(),
-                                           bdaddr2newjstr(sCallbackEnv.get(), original_bda));
-
-  sCallbackEnv->CallVoidMethod(mScanCallbacksObj, method_onScanResult, event_type, addr_type,
-                               address.get(), primary_phy, secondary_phy, advertising_sid, tx_power,
-                               rssi, periodic_adv_int, jb.get(), original_address.get());
-}
-
 void btgattc_open_cb(int conn_id, int status, int clientIf, const RawAddress& bda) {
   std::shared_lock<std::shared_mutex> lock(callbacks_mutex);
   CallbackEnv sCallbackEnv(__func__);
@@ -442,65 +420,6 @@ void btgattc_congestion_cb(int conn_id, bool congested) {
   sCallbackEnv->CallVoidMethod(mCallbacksObj, method_onClientCongestion, conn_id, congested);
 }
 
-void btgattc_batchscan_reports_cb(int client_if, int status, int report_format, int num_records,
-                                  std::vector<uint8_t> data) {
-  std::shared_lock<std::shared_mutex> lock(callbacks_mutex);
-  CallbackEnv sCallbackEnv(__func__);
-  if (!sCallbackEnv.valid() || !mScanCallbacksObj) {
-    return;
-  }
-  ScopedLocalRef<jbyteArray> jb(sCallbackEnv.get(), sCallbackEnv->NewByteArray(data.size()));
-  sCallbackEnv->SetByteArrayRegion(jb.get(), 0, data.size(), (jbyte*)data.data());
-
-  sCallbackEnv->CallVoidMethod(mScanCallbacksObj, method_onBatchScanReports, status, client_if,
-                               report_format, num_records, jb.get());
-}
-
-void btgattc_batchscan_threshold_cb(int client_if) {
-  std::shared_lock<std::shared_mutex> lock(callbacks_mutex);
-  CallbackEnv sCallbackEnv(__func__);
-  if (!sCallbackEnv.valid() || !mScanCallbacksObj) {
-    return;
-  }
-  sCallbackEnv->CallVoidMethod(mScanCallbacksObj, method_onBatchScanThresholdCrossed, client_if);
-}
-
-void btgattc_track_adv_event_cb(btgatt_track_adv_info_t* p_adv_track_info) {
-  std::shared_lock<std::shared_mutex> lock(callbacks_mutex);
-  CallbackEnv sCallbackEnv(__func__);
-  if (!sCallbackEnv.valid() || !mScanCallbacksObj) {
-    return;
-  }
-
-  ScopedLocalRef<jstring> address(sCallbackEnv.get(),
-                                  bdaddr2newjstr(sCallbackEnv.get(), &p_adv_track_info->bd_addr));
-
-  ScopedLocalRef<jbyteArray> jb_adv_pkt(sCallbackEnv.get(),
-                                        sCallbackEnv->NewByteArray(p_adv_track_info->adv_pkt_len));
-  ScopedLocalRef<jbyteArray> jb_scan_rsp(
-          sCallbackEnv.get(), sCallbackEnv->NewByteArray(p_adv_track_info->scan_rsp_len));
-
-  sCallbackEnv->SetByteArrayRegion(jb_adv_pkt.get(), 0, p_adv_track_info->adv_pkt_len,
-                                   (jbyte*)p_adv_track_info->p_adv_pkt_data);
-
-  sCallbackEnv->SetByteArrayRegion(jb_scan_rsp.get(), 0, p_adv_track_info->scan_rsp_len,
-                                   (jbyte*)p_adv_track_info->p_scan_rsp_data);
-
-  ScopedLocalRef<jobject> trackadv_obj(
-          sCallbackEnv.get(),
-          sCallbackEnv->CallObjectMethod(
-                  mScanCallbacksObj, method_createOnTrackAdvFoundLostObject,
-                  p_adv_track_info->client_if, p_adv_track_info->adv_pkt_len, jb_adv_pkt.get(),
-                  p_adv_track_info->scan_rsp_len, jb_scan_rsp.get(), p_adv_track_info->filt_index,
-                  p_adv_track_info->advertiser_state, p_adv_track_info->advertiser_info_present,
-                  address.get(), p_adv_track_info->addr_type, p_adv_track_info->tx_power,
-                  p_adv_track_info->rssi_value, p_adv_track_info->time_stamp));
-
-  if (NULL != trackadv_obj.get()) {
-    sCallbackEnv->CallVoidMethod(mScanCallbacksObj, method_onTrackAdvFoundLost, trackadv_obj.get());
-  }
-}
-
 void fillGattDbElementArray(JNIEnv* env, jobject* array, const btgatt_db_element_t* db, int count) {
   // Because JNI uses a different class loader in the callback context, we
   // cannot simply get the class.
@@ -627,13 +546,6 @@ void btgattc_subrate_change_cb(int conn_id, uint16_t subrate_factor, uint16_t la
   sCallbackEnv->CallVoidMethod(mCallbacksObj, method_onClientSubrateChange, conn_id, subrate_factor,
                                latency, cont_num, timeout, status);
 }
-
-static const btgatt_scanner_callbacks_t sGattScannerCallbacks = {
-        btgattc_scan_result_cb,
-        btgattc_batchscan_reports_cb,
-        btgattc_batchscan_threshold_cb,
-        btgattc_track_adv_event_cb,
-};
 
 static const btgatt_client_callbacks_t sGattClientCallbacks = {
         btgattc_register_app_cb,
@@ -919,7 +831,6 @@ static const btgatt_callbacks_t sGattCallbacks = {
         sizeof(btgatt_callbacks_t),
         &sGattClientCallbacks,
         &sGattServerCallbacks,
-        &sGattScannerCallbacks,
 };
 
 class JniAdvertisingCallbacks : AdvertisingCallbacks {

@@ -2,8 +2,8 @@ use crate::bindings::root as bindings;
 use crate::btif::{ptr_to_vec, BluetoothInterface, BtStatus, RawAddress, SupportedProfiles, Uuid};
 use crate::profiles::gatt::bindings::{
     btgatt_callbacks_t, btgatt_client_callbacks_t, btgatt_client_interface_t, btgatt_interface_t,
-    btgatt_scanner_callbacks_t, btgatt_server_callbacks_t, btgatt_server_interface_t,
-    BleAdvertiserInterface, BleScannerInterface,
+    btgatt_server_callbacks_t, btgatt_server_interface_t, BleAdvertiserInterface,
+    BleScannerInterface,
 };
 use crate::topstack::get_dispatchers;
 use crate::utils::LTCheckedPtr;
@@ -1723,7 +1723,6 @@ pub struct Gatt {
     callbacks: Option<Box<bindings::btgatt_callbacks_t>>,
     gatt_client_callbacks: Option<Box<bindings::btgatt_client_callbacks_t>>,
     gatt_server_callbacks: Option<Box<bindings::btgatt_server_callbacks_t>>,
-    gatt_scanner_callbacks: Option<Box<bindings::btgatt_scanner_callbacks_t>>,
 }
 
 impl Gatt {
@@ -1759,7 +1758,6 @@ impl Gatt {
             callbacks: None,
             gatt_client_callbacks: None,
             gatt_server_callbacks: None,
-            gatt_scanner_callbacks: None,
         }
     }
 
@@ -1869,18 +1867,10 @@ impl Gatt {
             subrate_chg_cb: Some(gs_subrate_chg_cb),
         });
 
-        let gatt_scanner_callbacks = Box::new(btgatt_scanner_callbacks_t {
-            scan_result_cb: None,
-            batchscan_reports_cb: None,
-            batchscan_threshold_cb: None,
-            track_adv_event_cb: None,
-        });
-
         let callbacks = Box::new(btgatt_callbacks_t {
             size: std::mem::size_of::<btgatt_callbacks_t>(),
             client: &*gatt_client_callbacks,
             server: &*gatt_server_callbacks,
-            scanner: &*gatt_scanner_callbacks,
         });
 
         let cb_ptr = LTCheckedPtr::from(&callbacks);
@@ -1890,7 +1880,6 @@ impl Gatt {
         self.callbacks = Some(callbacks);
         self.gatt_client_callbacks = Some(gatt_client_callbacks);
         self.gatt_server_callbacks = Some(gatt_server_callbacks);
-        self.gatt_scanner_callbacks = Some(gatt_scanner_callbacks);
 
         // Register callbacks for gatt scanner and advertiser
         mutcxxcall!(self.scanner, RegisterCallbacks);
