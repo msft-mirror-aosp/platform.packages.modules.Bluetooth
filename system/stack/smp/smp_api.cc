@@ -525,3 +525,8 @@ void SMP_SirkConfirmDeviceReply(const RawAddress& bd_addr, uint8_t res) {
     smp_sm_event(p_cb, SMP_SIRK_DEVICE_VALID_EVT, &smp_int_data);
   }
 }
+
+uint16_t SMP_GetPendingPairingKeySize() {
+  tSMP_CB* p_cb = &smp_cb;
+  return p_cb->loc_enc_size;
+}

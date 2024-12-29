@@ -22,7 +22,6 @@
 #include "module.h"
 #include "os/handler.h"
 #include "os/thread.h"
-#include "stack_manager.h"
 
 // The shim layer implementation on the Gd stack side.
 namespace bluetooth {
@@ -48,8 +47,15 @@ public:
   void Stop();
   bool IsRunning();
 
-  StackManager* GetStackManager();
-  const StackManager* GetStackManager() const;
+  template <class T>
+  T* GetInstance() const {
+    return static_cast<T*>(registry_.Get(&T::Factory));
+  }
+
+  template <class T>
+  bool IsStarted() const {
+    return registry_.IsStarted(&T::Factory);
+  }
 
   Acl* GetAcl();
 
@@ -67,12 +73,20 @@ private:
   std::shared_ptr<impl> pimpl_;
 
   mutable std::recursive_mutex mutex_;
-  StackManager stack_manager_;
   bool is_running_ = false;
   os::Thread* stack_thread_ = nullptr;
   os::Handler* stack_handler_ = nullptr;
   size_t num_modules_{0};
-  void Start(ModuleList* modules);
+
+  void StartUp(ModuleList* modules, os::Thread* stack_thread);
+
+  os::Thread* management_thread_ = nullptr;
+  os::Handler* management_handler_ = nullptr;
+  ModuleRegistry registry_;
+
+  void handle_start_up(ModuleList* modules, os::Thread* stack_thread, std::promise<void> promise);
+  void handle_shut_down(std::promise<void> promise);
+  static std::chrono::milliseconds get_gd_stack_timeout_ms(bool is_start);
 };
 
 }  // namespace shim

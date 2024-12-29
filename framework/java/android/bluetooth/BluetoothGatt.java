@@ -17,6 +17,8 @@
 package android.bluetooth;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
+import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.bluetooth.BluetoothUtils.logRemoteException;
 
 import android.annotation.IntDef;
 import android.annotation.NonNull;
@@ -2118,85 +2120,40 @@ public final class BluetoothGatt implements BluetoothProfile {
      *
      * <p>This function will send a LE subrate request to the remote device.
      *
+     * <p>This method requires the calling app to have the {@link
+     * android.Manifest.permission#BLUETOOTH_CONNECT} permission. Additionally, an app must either
+     * have the {@link android.Manifest.permission#BLUETOOTH_PRIVILEGED} or be associated with the
+     * Companion Device manager (see {@link android.companion.CompanionDeviceManager#associate(
+     * AssociationRequest, android.companion.CompanionDeviceManager.Callback, Handler)})
+     *
      * @param subrateMode Request a specific subrate mode.
      * @throws IllegalArgumentException If the parameters are outside of their specified range.
      * @return true, if the request is send to the Bluetooth stack.
      * @hide
      */
     @RequiresBluetoothConnectPermission
-    @RequiresPermission(BLUETOOTH_CONNECT)
-    public boolean requestSubrateMode(@SubrateRequestMode int subrateMode) {
+    @RequiresPermission(
+            allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED},
+            conditional = true)
+    public int requestSubrateMode(@SubrateRequestMode int subrateMode) {
         if (subrateMode < SUBRATE_REQUEST_MODE_BALANCED
                 || subrateMode > SUBRATE_REQUEST_MODE_LOW_POWER) {
             throw new IllegalArgumentException("Subrate Mode not within valid range");
         }
 
         if (DBG) {
-            Log.d(TAG, "requestsubrateMode() - subrateMode: " + subrateMode);
+            Log.d(TAG, "requestsubrateMode(" + subrateMode + ")");
         }
         if (mService == null || mClientIf == 0) {
-            return false;
+            return BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED;
         }
 
         try {
-            mService.subrateModeRequest(
-                    mClientIf, mDevice.getAddress(), subrateMode, mAttributionSource);
+            return mService.subrateModeRequest(mClientIf, mDevice, subrateMode, mAttributionSource);
         } catch (RemoteException e) {
-            Log.e(TAG, "", e);
-            return false;
+            logRemoteException(TAG, e);
+            return BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED;
         }
-        return true;
-    }
-
-    /**
-     * Request a LE subrate request.
-     *
-     * <p>This function will send a LE subrate request to the remote device.
-     *
-     * @return true, if the request is send to the Bluetooth stack.
-     * @hide
-     */
-    @RequiresBluetoothConnectPermission
-    @RequiresPermission(BLUETOOTH_CONNECT)
-    public boolean bleSubrateRequest(
-            int subrateMin,
-            int subrateMax,
-            int maxLatency,
-            int contNumber,
-            int supervisionTimeout) {
-        if (DBG) {
-            Log.d(
-                    TAG,
-                    "bleSubrateRequest() - subrateMin="
-                            + subrateMin
-                            + " subrateMax="
-                            + (subrateMax)
-                            + " maxLatency= "
-                            + maxLatency
-                            + "contNumber="
-                            + contNumber
-                            + " supervisionTimeout="
-                            + supervisionTimeout);
-        }
-        if (mService == null || mClientIf == 0) {
-            return false;
-        }
-
-        try {
-            mService.leSubrateRequest(
-                    mClientIf,
-                    mDevice.getAddress(),
-                    subrateMin,
-                    subrateMax,
-                    maxLatency,
-                    contNumber,
-                    supervisionTimeout,
-                    mAttributionSource);
-        } catch (RemoteException e) {
-            Log.e(TAG, "", e);
-            return false;
-        }
-        return true;
     }
 
     /**

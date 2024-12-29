@@ -719,14 +719,9 @@ public class ScanManager {
                 return;
             }
             int importance = ActivityManager.RunningAppProcessInfo.IMPORTANCE_CACHED;
-            if (Flags.leScanUseUidForImportance()) {
-                for (String packageName : packages) {
-                    importance =
-                            Math.min(
-                                    importance, mActivityManager.getPackageImportance(packageName));
-                }
-            } else {
-                importance = mActivityManager.getPackageImportance(packages[0]);
+            for (String packageName : packages) {
+                importance =
+                        Math.min(importance, mActivityManager.getPackageImportance(packageName));
             }
             boolean isForeground =
                     importance
