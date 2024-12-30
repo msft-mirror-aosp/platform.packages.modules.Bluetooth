@@ -534,8 +534,10 @@ public class PbapClientServiceTest {
         // Clean up and wait for it to complete
         PbapClientStateMachine sm = mMockDeviceMap.get(mRemoteDevice);
         assertThat(sm).isNotNull();
+
+        Looper looper = sm.getHandler().getLooper();
         sm.disconnect();
-        TestUtils.waitForLooperToFinishScheduledTask(sm.getHandler().getLooper());
+        TestUtils.waitForLooperToFinishScheduledTask(looper);
     }
 
     // connect (device null) -> false
