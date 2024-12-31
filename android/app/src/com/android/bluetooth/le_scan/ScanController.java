@@ -36,7 +36,9 @@ import android.os.WorkSource;
 import android.text.format.DateUtils;
 import android.util.Log;
 
+import com.android.bluetooth.BluetoothMetricsProto;
 import com.android.bluetooth.btservice.AdapterService;
+import com.android.bluetooth.btservice.ProfileService;
 
 import libcore.util.HexEncoding;
 
@@ -137,6 +139,20 @@ public class ScanController {
             mTestModeHandler.sendEmptyMessageDelayed(
                     0, enableTestMode ? DateUtils.SECOND_IN_MILLIS : 0);
         }
+    }
+
+    public void dumpRegisterId(StringBuilder sb) {
+        sb.append("  Scanner:\n");
+        mTransitionalScanHelper.getScannerMap().dumpApps(sb, ProfileService::println);
+    }
+
+    public void dump(StringBuilder sb) {
+        sb.append("GATT Scanner Map\n");
+        mTransitionalScanHelper.getScannerMap().dump(sb);
+    }
+
+    public void dumpProto(BluetoothMetricsProto.BluetoothLog.Builder builder) {
+        mTransitionalScanHelper.dumpProto(builder);
     }
 
     static class BluetoothScanBinder extends IBluetoothScan.Stub {
