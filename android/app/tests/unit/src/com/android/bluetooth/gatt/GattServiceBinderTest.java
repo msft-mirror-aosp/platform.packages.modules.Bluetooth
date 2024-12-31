@@ -20,8 +20,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import android.app.PendingIntent;
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothProfile;
@@ -30,23 +28,12 @@ import android.bluetooth.IBluetoothGattServerCallback;
 import android.bluetooth.le.AdvertiseData;
 import android.bluetooth.le.AdvertisingSetParameters;
 import android.bluetooth.le.IAdvertisingSetCallback;
-import android.bluetooth.le.IPeriodicAdvertisingCallback;
-import android.bluetooth.le.IScannerCallback;
 import android.bluetooth.le.PeriodicAdvertisingParameters;
-import android.bluetooth.le.ScanFilter;
-import android.bluetooth.le.ScanResult;
-import android.bluetooth.le.ScanSettings;
 import android.content.AttributionSource;
-import android.content.Context;
-import android.content.Intent;
 import android.os.ParcelUuid;
-import android.os.WorkSource;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
-
-import com.android.bluetooth.le_scan.TransitionalScanHelper;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -56,8 +43,6 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
 @SmallTest
@@ -69,26 +54,16 @@ public class GattServiceBinderTest {
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
     @Mock private GattService mService;
-    @Mock private TransitionalScanHelper mScanHelper;
 
-    private Context mContext;
-    private BluetoothDevice mDevice;
-    private PendingIntent mPendingIntent;
     private AttributionSource mAttributionSource;
 
     private GattService.BluetoothGattBinder mBinder;
 
     @Before
     public void setUp() throws Exception {
-        mContext = InstrumentationRegistry.getTargetContext();
-        Intent intent = new Intent();
-        mPendingIntent =
-                PendingIntent.getBroadcast(mContext, 0, intent, PendingIntent.FLAG_IMMUTABLE);
         when(mService.isAvailable()).thenReturn(true);
-        when(mService.getTransitionalScanHelper()).thenReturn(mScanHelper);
         mBinder = new GattService.BluetoothGattBinder(mService);
         mAttributionSource = new AttributionSource.Builder(1).build();
-        mDevice = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(REMOTE_DEVICE_ADDRESS);
     }
 
     @Test
@@ -118,72 +93,6 @@ public class GattServiceBinderTest {
         mBinder.unregisterClient(clientIf, mAttributionSource);
 
         verify(mService).unregisterClient(clientIf, mAttributionSource);
-    }
-
-    @Test
-    public void registerScanner() throws Exception {
-        IScannerCallback callback = mock(IScannerCallback.class);
-        WorkSource workSource = mock(WorkSource.class);
-
-        mBinder.registerScanner(callback, workSource, mAttributionSource);
-
-        verify(mScanHelper).registerScanner(callback, workSource, mAttributionSource);
-    }
-
-    @Test
-    public void unregisterScanner() {
-        int scannerId = 3;
-
-        mBinder.unregisterScanner(scannerId, mAttributionSource);
-
-        verify(mScanHelper).unregisterScanner(scannerId, mAttributionSource);
-    }
-
-    @Test
-    public void startScan() throws Exception {
-        int scannerId = 1;
-        ScanSettings settings = new ScanSettings.Builder().build();
-        List<ScanFilter> filters = new ArrayList<>();
-
-        mBinder.startScan(scannerId, settings, filters, mAttributionSource);
-
-        verify(mScanHelper).startScan(scannerId, settings, filters, mAttributionSource);
-    }
-
-    @Test
-    public void startScanForIntent() throws Exception {
-        ScanSettings settings = new ScanSettings.Builder().build();
-        List<ScanFilter> filters = new ArrayList<>();
-
-        mBinder.startScanForIntent(mPendingIntent, settings, filters, mAttributionSource);
-
-        verify(mScanHelper)
-                .registerPiAndStartScan(mPendingIntent, settings, filters, mAttributionSource);
-    }
-
-    @Test
-    public void stopScanForIntent() throws Exception {
-        mBinder.stopScanForIntent(mPendingIntent, mAttributionSource);
-
-        verify(mScanHelper).stopScan(mPendingIntent, mAttributionSource);
-    }
-
-    @Test
-    public void stopScan() throws Exception {
-        int scannerId = 3;
-
-        mBinder.stopScan(scannerId, mAttributionSource);
-
-        verify(mScanHelper).stopScan(scannerId, mAttributionSource);
-    }
-
-    @Test
-    public void flushPendingBatchResults() throws Exception {
-        int scannerId = 3;
-
-        mBinder.flushPendingBatchResults(scannerId, mAttributionSource);
-
-        verify(mScanHelper).flushPendingBatchResults(scannerId, mAttributionSource);
     }
 
     @Test
@@ -740,60 +649,10 @@ public class GattServiceBinderTest {
     }
 
     @Test
-    public void registerSync() throws Exception {
-        ScanResult scanResult = new ScanResult(mDevice, 1, 2, 3, 4, 5, 6, 7, null, 8);
-        int skip = 1;
-        int timeout = 2;
-        IPeriodicAdvertisingCallback callback = mock(IPeriodicAdvertisingCallback.class);
-
-        mBinder.registerSync(scanResult, skip, timeout, callback, mAttributionSource);
-
-        verify(mScanHelper).registerSync(scanResult, skip, timeout, callback, mAttributionSource);
-    }
-
-    @Test
-    public void transferSync() throws Exception {
-        int serviceData = 1;
-        int syncHandle = 2;
-
-        mBinder.transferSync(mDevice, serviceData, syncHandle, mAttributionSource);
-
-        verify(mScanHelper).transferSync(mDevice, serviceData, syncHandle, mAttributionSource);
-    }
-
-    @Test
-    public void transferSetInfo() throws Exception {
-        int serviceData = 1;
-        int advHandle = 2;
-        IPeriodicAdvertisingCallback callback = mock(IPeriodicAdvertisingCallback.class);
-
-        mBinder.transferSetInfo(mDevice, serviceData, advHandle, callback, mAttributionSource);
-
-        verify(mScanHelper)
-                .transferSetInfo(mDevice, serviceData, advHandle, callback, mAttributionSource);
-    }
-
-    @Test
-    public void unregisterSync() throws Exception {
-        IPeriodicAdvertisingCallback callback = mock(IPeriodicAdvertisingCallback.class);
-
-        mBinder.unregisterSync(callback, mAttributionSource);
-
-        verify(mScanHelper).unregisterSync(callback, mAttributionSource);
-    }
-
-    @Test
     public void disconnectAll() throws Exception {
         mBinder.disconnectAll(mAttributionSource);
 
         verify(mService).disconnectAll(mAttributionSource);
-    }
-
-    @Test
-    public void numHwTrackFiltersAvailable() throws Exception {
-        mBinder.numHwTrackFiltersAvailable(mAttributionSource);
-
-        verify(mScanHelper).numHwTrackFiltersAvailable(mAttributionSource);
     }
 
     @Test
