@@ -6135,11 +6135,17 @@ public class AdapterService extends Service {
     }
 
     IBinder getBluetoothScan() {
-        return mScanController == null ? null : mScanController.getBinder();
+        ScanController controller = getBluetoothScanController();
+        return controller == null ? null : controller.getBinder();
     }
 
+    @Nullable
     public ScanController getBluetoothScanController() {
-        return mScanController;
+        if (Flags.scanManagerRefactor()) {
+            return mScanController;
+        } else {
+            return mGattService == null ? null : mGattService.getScanController();
+        }
     }
 
     @RequiresPermission(BLUETOOTH_CONNECT)
@@ -6429,14 +6435,7 @@ public class AdapterService extends Service {
             long idleTime,
             long energyUsed,
             UidTraffic[] data) {
-        if (Flags.btSystemContextReport()) {
-            energyInfoCallbackInternal(
-                    status, ctrlState, txTime, rxTime, idleTime, energyUsed, data);
-        } else if (ctrlState >= BluetoothActivityEnergyInfo.BT_STACK_STATE_INVALID
-                && ctrlState <= BluetoothActivityEnergyInfo.BT_STACK_STATE_STATE_IDLE) {
-            energyInfoCallbackInternal(
-                    status, ctrlState, txTime, rxTime, idleTime, energyUsed, data);
-        }
+        energyInfoCallbackInternal(status, ctrlState, txTime, rxTime, idleTime, energyUsed, data);
         Log.v(
                 TAG,
                 "energyInfoCallback()"

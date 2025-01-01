@@ -174,12 +174,9 @@ public class PairingTest {
         mRemoteLeDevice =
                 sAdapter.getRemoteLeDevice(
                         Utils.BUMBLE_RANDOM_ADDRESS, BluetoothDevice.ADDRESS_TYPE_RANDOM);
-        Set<BluetoothDevice> bondedDevices = sAdapter.getBondedDevices();
-        if (bondedDevices.contains(mBumbleDevice)) {
-            removeBond(mBumbleDevice);
-        }
-        if (bondedDevices.contains(mRemoteLeDevice)) {
-            removeBond(mRemoteLeDevice);
+
+        for (BluetoothDevice device : sAdapter.getBondedDevices()) {
+            removeBond(device);
         }
     }
 

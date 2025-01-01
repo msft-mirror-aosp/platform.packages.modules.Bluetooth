@@ -17,6 +17,10 @@ const BTMANAGERD_CONF: &str = "/var/lib/bluetooth/btmanagerd.json";
 /// Folder to keep files which override floss configuration
 const FLOSS_SYSPROPS_OVERRIDE_DIR: &str = "/var/lib/bluetooth/sysprops.conf.d";
 
+/// File to persist the address privacy setting
+const FLOSS_ADDRESS_PRIVACY_CONFIG_SAVE: &str =
+    "/var/lib/bluetooth/privacy_address_override.conf.save";
+
 /// Key used for default adapter entry.
 const DEFAULT_ADAPTER_KEY: &str = "default_adapter";
 
@@ -242,8 +246,10 @@ pub fn write_floss_address_privacy_enabled(enabled: bool) -> std::io::Result<()>
 
     std::fs::write(
         format!("{}/{}", FLOSS_SYSPROPS_OVERRIDE_DIR, "privacy_address_override.conf"),
-        data,
-    )
+        data.clone(),
+    )?;
+
+    std::fs::write(format!("{}", FLOSS_ADDRESS_PRIVACY_CONFIG_SAVE), data.clone())
 }
 
 #[cfg(test)]

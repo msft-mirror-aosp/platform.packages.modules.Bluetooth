@@ -136,11 +136,17 @@ public final class AdvertisingSet {
      * advertising is not active. This method returns immediately, the operation status is delivered
      * through {@code callback.onAdvertisingParametersUpdated}.
      *
+     * <p>Requires the {@link android.Manifest.permission#BLUETOOTH_PRIVILEGED} permission when
+     * {@code parameters.getOwnAddressType()} is different from {@code
+     * AdvertisingSetParameters.ADDRESS_TYPE_DEFAULT} or {@code parameters.isDirected()} is true.
+     *
      * @param parameters advertising set parameters.
      */
     @RequiresLegacyBluetoothAdminPermission
     @RequiresBluetoothAdvertisePermission
-    @RequiresPermission(BLUETOOTH_ADVERTISE)
+    @RequiresPermission(
+            allOf = {BLUETOOTH_ADVERTISE, BLUETOOTH_PRIVILEGED},
+            conditional = true)
     public void setAdvertisingParameters(AdvertisingSetParameters parameters) {
         try {
             mGatt.setAdvertisingParameters(mAdvertiserId, parameters, mAttributionSource);
