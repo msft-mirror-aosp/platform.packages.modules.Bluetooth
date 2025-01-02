@@ -799,10 +799,6 @@ bool LeAudioClientInterface::ReleaseSource(LeAudioClientInterface::Source* sourc
 }
 
 void LeAudioClientInterface::SetAllowedDsaModes(DsaModes dsa_modes) {
-  if (!com::android::bluetooth::flags::leaudio_dynamic_spatial_audio()) {
-    return;
-  }
-
   if (HalVersionManager::GetHalTransport() == BluetoothAudioHalTransport::AIDL) {
     if (aidl::le_audio::LeAudioSinkTransport::interface_unicast_ == nullptr ||
         aidl::le_audio::LeAudioSinkTransport::instance_unicast_ == nullptr) {
