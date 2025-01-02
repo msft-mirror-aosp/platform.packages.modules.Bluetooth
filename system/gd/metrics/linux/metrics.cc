@@ -44,5 +44,7 @@ void LogMetricsChipsetInfoReport() {}
 
 void LogMetricsSuspendIdState(uint32_t state) {}
 
+void LogMetricsLLPrivacyState(uint32_t llp_state, uint32_t rpa_state) {}
+
 }  // namespace metrics
 }  // namespace bluetooth
