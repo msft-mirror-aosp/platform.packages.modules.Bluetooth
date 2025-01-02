@@ -32,16 +32,6 @@ flag {
 }
 
 flag {
-    name: "use_local_oob_extended_command"
-    namespace: "bluetooth"
-    description: "Use HCI Read Local OOB Extended Data command to generate local OOB when Secure Connections is supported by the controller"
-    bug: "342250775"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "pairing_name_discovery_addresss_mismatch"
     namespace: "bluetooth"
     description: "Do not abort pairing if name discovery for a another device fails"
