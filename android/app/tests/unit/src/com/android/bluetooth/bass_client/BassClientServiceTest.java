@@ -6764,6 +6764,44 @@ public class BassClientServiceTest {
         Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
         Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
     })
+    public void outOfRange_syncEstablishedFailed_restartSearching() {
+        prepareSynchronizedPairAndStopSearching();
+
+        // Bis and PA unsynced, SINK_UNINTENTIONAL
+        BluetoothLeBroadcastMetadata meta = createBroadcastMetadata(TEST_BROADCAST_ID);
+        injectRemoteSourceStateChanged(meta, false, false);
+        mInOrderMethodProxy
+                .verify(mMethodProxy)
+                .periodicAdvertisingManagerRegisterSync(
+                        any(), any(), anyInt(), anyInt(), any(), any());
+        checkTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT);
+        checkNoTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
+
+        onSyncEstablishedFailed(mSourceDevice, TEST_SYNC_HANDLE);
+        checkTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
+        mInOrderMethodProxy
+                .verify(mMethodProxy)
+                .periodicAdvertisingManagerRegisterSync(
+                        any(), any(), anyInt(), anyInt(), any(), any());
+
+        // Start searching again should not removed cache for SINK_UNINTENTIONAL
+        // which allow to register sync again after onSyncEstablishedFailed
+        startSearchingForSources();
+
+        checkTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT);
+
+        onSyncEstablishedFailed(mSourceDevice, TEST_SYNC_HANDLE);
+        mInOrderMethodProxy
+                .verify(mMethodProxy)
+                .periodicAdvertisingManagerRegisterSync(
+                        any(), any(), anyInt(), anyInt(), any(), any());
+    }
+
+    @Test
+    @EnableFlags({
+        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
+        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
+    })
     public void autoSyncToBroadcast_AlreadySyncedToSink_onStartSearching() {
         prepareSynchronizedPairAndStopSearching();
 
