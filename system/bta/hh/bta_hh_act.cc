@@ -507,7 +507,7 @@ void bta_hh_connect(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data) {
 
   // Initiate HID host connection
   if (p_cb->link_spec.transport == BT_TRANSPORT_LE) {
-    bta_hh_le_open_conn(p_cb);
+    bta_hh_le_open_conn(p_cb, p_data->api_conn.direct);
   } else {
     bta_hh_bredr_conn(p_cb);
   }
