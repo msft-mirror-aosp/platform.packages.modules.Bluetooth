@@ -158,12 +158,10 @@ void LeAudioTransport::SetLatencyMode(LatencyMode latency_mode) {
       return;
   }
 
-  if (com::android::bluetooth::flags::leaudio_dynamic_spatial_audio()) {
-    if (dsa_mode_ != prev_dsa_mode && cached_source_metadata_.tracks != nullptr &&
-        cached_source_metadata_.tracks != 0) {
-      log::info(", latency mode changed, update source metadata");
-      stream_cb_.on_metadata_update_(cached_source_metadata_, dsa_mode_);
-    }
+  if (dsa_mode_ != prev_dsa_mode && cached_source_metadata_.tracks != nullptr &&
+      cached_source_metadata_.tracks != 0) {
+    log::info(", latency mode changed, update source metadata");
+    stream_cb_.on_metadata_update_(cached_source_metadata_, dsa_mode_);
   }
 }
 
@@ -193,21 +191,19 @@ void LeAudioTransport::SourceMetadataChanged(const source_metadata_v7_t& source_
     return;
   }
 
-  if (com::android::bluetooth::flags::leaudio_dynamic_spatial_audio()) {
-    if (cached_source_metadata_.tracks != nullptr) {
-      free(cached_source_metadata_.tracks);
-      cached_source_metadata_.tracks = nullptr;
-    }
-
-    log::info(", caching source metadata");
-
-    playback_track_metadata_v7* tracks;
-    tracks = (playback_track_metadata_v7*)malloc(sizeof(*tracks) * track_count);
-    memcpy(tracks, source_metadata.tracks, sizeof(*tracks) * track_count);
-
-    cached_source_metadata_.track_count = track_count;
-    cached_source_metadata_.tracks = tracks;
+  if (cached_source_metadata_.tracks != nullptr) {
+    free(cached_source_metadata_.tracks);
+    cached_source_metadata_.tracks = nullptr;
   }
+
+  log::info(", caching source metadata");
+
+  playback_track_metadata_v7* tracks;
+  tracks = (playback_track_metadata_v7*)malloc(sizeof(*tracks) * track_count);
+  memcpy(tracks, source_metadata.tracks, sizeof(*tracks) * track_count);
+
+  cached_source_metadata_.track_count = track_count;
+  cached_source_metadata_.tracks = tracks;
 
   stream_cb_.on_metadata_update_(source_metadata, dsa_mode_);
 }

@@ -353,10 +353,6 @@ public:
   types::AudioContexts GetSupportedContexts(int direction = types::kLeAudioDirectionBoth) const;
 
   DsaModes GetAllowedDsaModes() {
-    if (!com::android::bluetooth::flags::leaudio_dynamic_spatial_audio()) {
-      return {DsaMode::DISABLED};
-    }
-
     DsaModes dsa_modes{};
     std::set<DsaMode> dsa_mode_set{};
 
