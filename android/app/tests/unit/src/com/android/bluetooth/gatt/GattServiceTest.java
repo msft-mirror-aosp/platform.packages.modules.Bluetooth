@@ -55,6 +55,7 @@ import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.CompanionManager;
 import com.android.bluetooth.flags.Flags;
+import com.android.bluetooth.le_scan.PeriodicScanManager;
 import com.android.bluetooth.le_scan.ScanManager;
 import com.android.bluetooth.le_scan.ScanObjectsFactory;
 
@@ -84,6 +85,7 @@ public class GattServiceTest {
 
     @Mock private ContextMap<IBluetoothGattCallback> mClientMap;
     @Mock private ScanManager mScanManager;
+    @Mock private PeriodicScanManager mPeriodicScanManager;
     @Mock private Set<String> mReliableQueue;
     @Mock private ContextMap<IBluetoothGattServerCallback> mServerMap;
     @Mock private DistanceMeasurementManager mDistanceMeasurementManager;
@@ -130,6 +132,7 @@ public class GattServiceTest {
         doReturn(mScanManager)
                 .when(mScanObjectsFactory)
                 .createScanManager(any(), any(), any(), any());
+        doReturn(mPeriodicScanManager).when(mScanObjectsFactory).createPeriodicScanManager(any());
         doReturn(mContext.getPackageManager()).when(mAdapterService).getPackageManager();
         doReturn(mContext.getSharedPreferences("GattServiceTestPrefs", Context.MODE_PRIVATE))
                 .when(mAdapterService)
