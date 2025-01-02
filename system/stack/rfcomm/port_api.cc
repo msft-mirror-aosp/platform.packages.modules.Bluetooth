@@ -206,7 +206,8 @@ int RFCOMM_CreateConnectionWithSecurity(uint16_t uuid, uint8_t scn, bool is_serv
     p_port->rfc_cfg_info = cfg;
     // Update the local mtu with the optional configuration if set by the app
     if (p_port->rfc_cfg_info.rx_mtu_present) {
-      p_port->mtu = p_port->rfc_cfg_info.rx_mtu;
+      p_port->mtu =
+              (p_port->rfc_cfg_info.rx_mtu < rfcomm_mtu) ? p_port->rfc_cfg_info.rx_mtu : rfcomm_mtu;
     }
   }
 
