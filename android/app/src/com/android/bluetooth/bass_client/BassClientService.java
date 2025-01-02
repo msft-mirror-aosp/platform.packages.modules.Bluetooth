@@ -343,6 +343,7 @@ public class BassClientService extends ProfileService {
             return handler.hasMessages(msg);
         }
 
+        @SuppressLint("NewApi") // Api is protected by flag check and the lint is wrong
         private boolean hasAnyMessagesOrCallbacks(Handler handler) {
             if (android.os.Flags.mainlineVcnPlatformApi()) {
                 return handler.hasMessagesOrCallbacks();
