@@ -201,8 +201,7 @@ public class HidHostService extends ProfileService {
         if (!Flags.allowSwitchingHidAndHogp()) {
             boolean hogpSupported = Utils.arrayContains(uuids, BluetoothUuid.HOGP);
             boolean headtrackerSupported =
-                    Flags.androidHeadtrackerService()
-                            && Utils.arrayContains(uuids, HidHostService.ANDROID_HEADTRACKER_UUID);
+                    Utils.arrayContains(uuids, HidHostService.ANDROID_HEADTRACKER_UUID);
 
             if (hogpSupported || headtrackerSupported) {
                 // Use pseudo address when HOGP is available
@@ -1100,8 +1099,7 @@ public class HidHostService extends ProfileService {
         boolean hidSupported = Utils.arrayContains(uuids, BluetoothUuid.HID);
         boolean hogpSupported = Utils.arrayContains(uuids, BluetoothUuid.HOGP);
         boolean headtrackerSupported =
-                Flags.androidHeadtrackerService()
-                        && Utils.arrayContains(uuids, HidHostService.ANDROID_HEADTRACKER_UUID);
+                Utils.arrayContains(uuids, HidHostService.ANDROID_HEADTRACKER_UUID);
         if (transport == BluetoothDevice.TRANSPORT_BREDR && !hidSupported) {
             Log.w(TAG, "device " + device + " does not support HID");
             return false;
