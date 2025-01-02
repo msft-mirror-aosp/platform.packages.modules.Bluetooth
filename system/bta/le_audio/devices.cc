@@ -482,10 +482,6 @@ void LeAudioDevice::ParseHeadtrackingCodec(const struct types::acs_ac_record& pa
             DsaMode::ISO_HW,
     };
 
-    if (!com::android::bluetooth::flags::headtracker_codec_capability()) {
-      return;
-    }
-
     /*
      * Android Headtracker Codec Metadata description
      *   length: 5
