@@ -292,10 +292,7 @@ public class HidHeadTrackerTest {
      */
     @SuppressLint("MissingPermission")
     @Test
-    @RequiresFlagsEnabled({
-        Flags.FLAG_ALLOW_SWITCHING_HID_AND_HOGP,
-        Flags.FLAG_SAVE_INITIAL_HID_CONNECTION_POLICY
-    })
+    @RequiresFlagsEnabled({Flags.FLAG_ALLOW_SWITCHING_HID_AND_HOGP})
     public void connectWithoutHidServiceTest() {
 
         registerIntentActions(
@@ -388,10 +385,7 @@ public class HidHeadTrackerTest {
      */
     @SuppressLint("MissingPermission")
     @Test
-    @RequiresFlagsEnabled({
-        Flags.FLAG_ALLOW_SWITCHING_HID_AND_HOGP,
-        Flags.FLAG_SAVE_INITIAL_HID_CONNECTION_POLICY
-    })
+    @RequiresFlagsEnabled({Flags.FLAG_ALLOW_SWITCHING_HID_AND_HOGP})
     public void connectWithHidServiceTest() {
 
         registerIntentActions(
