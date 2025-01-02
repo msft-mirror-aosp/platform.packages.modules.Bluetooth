@@ -933,6 +933,36 @@ void btif_hh_load_bonded_dev(const tAclLinkSpec& link_spec_ref, tBTA_HH_ATTR_MAS
   }
 }
 
+void btif_hh_disconnected(const RawAddress& addr, tBT_TRANSPORT transport) {
+  if (!com::android::bluetooth::flags::hogp_reconnection()) {
+    return;
+  }
+
+  // We want to reconnect HoGP in the background, so we're only interested in LE case.
+  if (transport != BT_TRANSPORT_LE) {
+    return;
+  }
+
+  tAclLinkSpec link_spec = {};
+  link_spec.addrt.bda = addr;
+  link_spec.addrt.type = BLE_ADDR_PUBLIC;
+  link_spec.transport = BT_TRANSPORT_LE;
+
+  btif_hh_device_t* p_dev = btif_hh_find_dev_by_link_spec(link_spec);
+  if (p_dev == nullptr) {
+    return;
+  }
+  if (com::android::bluetooth::flags::allow_switching_hid_and_hogp()) {
+    btif_hh_added_device_t* added_dev = btif_hh_find_added_dev(link_spec);
+    if (added_dev == nullptr || !added_dev->reconnect_allowed) {
+      return;
+    }
+  }
+
+  log::debug("Rearm HoGP reconnection for {}", addr);
+  BTA_HhOpen(p_dev->link_spec, false);
+}
+
 /*******************************************************************************
  **
  ** Function         btif_hh_remove_device
@@ -1131,7 +1161,7 @@ bt_status_t btif_hh_connect(const tAclLinkSpec& link_spec) {
    sending this request from host, for subsequent user initiated connection.
    If the remote is not in pagescan mode, we will do 2 retries to connect before
    giving up */
-  BTA_HhOpen(link_spec);
+  BTA_HhOpen(link_spec, true);
 
   do_in_jni_thread(base::Bind(
           [](tAclLinkSpec link_spec) { BTHH_STATE_UPDATE(link_spec, BTHH_CONN_STATE_CONNECTING); },
