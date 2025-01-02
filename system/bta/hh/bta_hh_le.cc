@@ -232,9 +232,7 @@ void bta_hh_le_enable(void) {
                         }),
                         false);
 
-  if (com::android::bluetooth::flags::leaudio_dynamic_spatial_audio()) {
-    LeAudioClient::RegisterIsoDataConsumer(bta_hh_le_iso_data_callback);
-  }
+  LeAudioClient::RegisterIsoDataConsumer(bta_hh_le_iso_data_callback);
 }
 
 /*******************************************************************************
@@ -2423,10 +2421,6 @@ static void bta_hh_process_cache_rpt(tBTA_HH_DEV_CB* p_cb, tBTA_HH_RPT_CACHE_ENT
 
 static bool bta_hh_le_iso_data_callback(const RawAddress& addr, uint16_t /*cis_conn_hdl*/,
                                         uint8_t* data, uint16_t size, uint32_t /*timestamp*/) {
-  if (!com::android::bluetooth::flags::leaudio_dynamic_spatial_audio()) {
-    log::warn("DSA not supported");
-    return false;
-  }
 
   tAclLinkSpec link_spec = {.addrt.bda = addr, .transport = BT_TRANSPORT_LE};
 

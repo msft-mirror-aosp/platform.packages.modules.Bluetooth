@@ -472,10 +472,6 @@ LeAudioDevice::~LeAudioDevice(void) {
 }
 
 void LeAudioDevice::ParseHeadtrackingCodec(const struct types::acs_ac_record& pac) {
-  if (!com::android::bluetooth::flags::leaudio_dynamic_spatial_audio()) {
-    return;
-  }
-
   if (pac.codec_id == types::kLeAudioCodecHeadtracking) {
     log::info("Headtracking supported");
 
