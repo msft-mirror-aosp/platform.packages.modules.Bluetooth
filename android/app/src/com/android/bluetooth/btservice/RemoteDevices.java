@@ -1440,7 +1440,7 @@ public class RemoteDevices {
     void onBondStateChange(BluetoothDevice device, int newState) {
         String address = device.getAddress();
 
-        if (Flags.removeAddressMapOnUnbond() && newState == BluetoothDevice.BOND_NONE) {
+        if (newState == BluetoothDevice.BOND_NONE) {
             removeAddressMapping(address);
         }
     }
