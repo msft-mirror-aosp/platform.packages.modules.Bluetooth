@@ -105,22 +105,26 @@ import java.util.concurrent.TimeUnit;
 @MediumTest
 @RunWith(ParameterizedAndroidJunit4.class)
 public class MapClientStateMachineTest {
-    private static final String TAG = "MapClientStateMachineTest";
-
     @Rule public final SetFlagsRule mSetFlagsRule;
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
     @Rule public final ServiceTestRule mServiceRule = new ServiceTestRule();
 
+    @Mock private AdapterService mAdapterService;
+    @Mock private DatabaseManager mDatabaseManager;
+    @Mock private MapClientService mMockMapClientService;
+    @Mock private MapClientContent mMockDatabase;
+    @Mock private TelephonyManager mMockTelephonyManager;
+    @Mock private MasClient mMockMasClient;
+    @Mock private RequestPushMessage mMockRequestPushMessage;
+    @Mock private SubscriptionManager mMockSubscriptionManager;
+    @Mock private RequestGetMessagesListingForOwnNumber mMockRequestOwnNumberCompletedWithNumber;
+    @Mock private RequestGetMessagesListingForOwnNumber mMockRequestOwnNumberIncompleteSearch;
+    @Mock private RequestGetMessage mMockRequestGetMessage;
+    @Mock private RequestGetMessagesListing mMockRequestGetMessagesListing;
+
+    private static final String TAG = "MapClientStateMachineTest";
+
     private static final long PENDING_INTENT_TIMEOUT_MS = 3_000;
-
-    private Bmessage mTestIncomingSmsBmessage;
-    private Bmessage mTestIncomingMmsBmessage;
-    private String mTestMessageSmsHandle = "0001";
-    private String mTestMessageMmsHandle = "0002";
-    private String mTestMessageUnknownHandle = "0003";
-    boolean mIsAdapterServiceSet;
-    boolean mIsMapClientServiceStarted;
-
     private static final boolean MESSAGE_SEEN = true;
     private static final boolean MESSAGE_NOT_SEEN = false;
 
@@ -129,48 +133,31 @@ public class MapClientStateMachineTest {
     private static final String SENT_PATH = "telecom/msg/sent";
     private static final Uri[] TEST_CONTACTS_ONE_PHONENUM = new Uri[] {Uri.parse("tel://5551234")};
     private static final String TEST_DATETIME = "19991231T235959";
-
-    private VCardEntry mOriginator;
-
-    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
-    private final BluetoothDevice mTestDevice = mAdapter.getRemoteDevice("00:01:02:03:04:05");
-    private final Context mTargetContext = InstrumentationRegistry.getTargetContext();
-
-    private MceStateMachine mMceStateMachine;
-
-    @Mock private AdapterService mAdapterService;
-    @Mock private DatabaseManager mDatabaseManager;
-    @Mock private MapClientService mMockMapClientService;
-    @Mock private MapClientContent mMockDatabase;
-    private MockContentResolver mMockContentResolver;
-    private MockSmsContentProvider mMockContentProvider;
-
-    @Mock private TelephonyManager mMockTelephonyManager;
-
-    @Mock private MasClient mMockMasClient;
-
-    @Mock private RequestPushMessage mMockRequestPushMessage;
-
-    @Mock private SubscriptionManager mMockSubscriptionManager;
-
     private static final String TEST_OWN_PHONE_NUMBER = "555-1234";
-    @Mock private RequestGetMessagesListingForOwnNumber mMockRequestOwnNumberCompletedWithNumber;
-    @Mock private RequestGetMessagesListingForOwnNumber mMockRequestOwnNumberIncompleteSearch;
-    @Mock private RequestGetMessage mMockRequestGetMessage;
-    @Mock private RequestGetMessagesListing mMockRequestGetMessagesListing;
-
     private static final Correspondence<Request, String> GET_FOLDER_NAME =
             Correspondence.transforming(
                     MapClientStateMachineTest::getFolderNameFromRequestGetMessagesListing,
                     "has folder name of");
-
     private static final String ACTION_MESSAGE_SENT =
             "com.android.bluetooth.mapclient.MapClientStateMachineTest.action.MESSAGE_SENT";
     private static final String ACTION_MESSAGE_DELIVERED =
             "com.android.bluetooth.mapclient.MapClientStateMachineTest.action.MESSAGE_DELIVERED";
 
-    private SentDeliveryReceiver mSentDeliveryReceiver;
+    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
+    private final BluetoothDevice mTestDevice = mAdapter.getRemoteDevice("00:01:02:03:04:05");
+    private final Context mTargetContext = InstrumentationRegistry.getTargetContext();
+    private final String mTestMessageSmsHandle = "0001";
+    private final String mTestMessageMmsHandle = "0002";
+    private final String mTestMessageUnknownHandle = "0003";
 
+    private Bmessage mTestIncomingSmsBmessage;
+    private Bmessage mTestIncomingMmsBmessage;
+    boolean mIsAdapterServiceSet;
+    boolean mIsMapClientServiceStarted;
+    private MceStateMachine mMceStateMachine;
+    private MockContentResolver mMockContentResolver;
+    private MockSmsContentProvider mMockContentProvider;
+    private SentDeliveryReceiver mSentDeliveryReceiver;
     private TestLooper mLooper;
     private InOrder mInOrder;
 
@@ -1172,25 +1159,25 @@ public class MapClientStateMachineTest {
 
     // create new Bmessages for testing
     void createTestMessages() {
-        mOriginator = new VCardEntry();
+        VCardEntry originator = new VCardEntry();
         VCardProperty property = new VCardProperty();
         property.setName(VCardConstants.PROPERTY_TEL);
         property.addValues("555-1212");
-        mOriginator.addProperty(property);
+        originator.addProperty(property);
 
         mTestIncomingSmsBmessage = new Bmessage();
         mTestIncomingSmsBmessage.setBodyContent("HelloWorld");
         mTestIncomingSmsBmessage.setType(Bmessage.Type.SMS_GSM);
         mTestIncomingSmsBmessage.setFolder("telecom/msg/inbox");
-        mTestIncomingSmsBmessage.addOriginator(mOriginator);
-        mTestIncomingSmsBmessage.addRecipient(mOriginator);
+        mTestIncomingSmsBmessage.addOriginator(originator);
+        mTestIncomingSmsBmessage.addRecipient(originator);
 
         mTestIncomingMmsBmessage = new Bmessage();
         mTestIncomingMmsBmessage.setBodyContent("HelloWorld");
         mTestIncomingMmsBmessage.setType(Bmessage.Type.MMS);
         mTestIncomingMmsBmessage.setFolder("telecom/msg/inbox");
-        mTestIncomingMmsBmessage.addOriginator(mOriginator);
-        mTestIncomingMmsBmessage.addRecipient(mOriginator);
+        mTestIncomingMmsBmessage.addOriginator(originator);
+        mTestIncomingMmsBmessage.addRecipient(originator);
     }
 
     private void sendAndDispatchEvent(EventReport ev) {
