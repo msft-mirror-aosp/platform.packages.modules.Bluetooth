@@ -734,6 +734,8 @@ public class BassClientStateMachineTest {
         BassClientStateMachine.BluetoothGattTestableWrapper btGatt =
                 Mockito.mock(BassClientStateMachine.BluetoothGattTestableWrapper.class);
         mBassClientStateMachine.mBluetoothGatt = btGatt;
+        BassClientService.Callbacks callbacks = Mockito.mock(BassClientService.Callbacks.class);
+        when(mBassClientService.getCallbacks()).thenReturn(callbacks);
 
         // Do nothing if mDiscoveryInitiated is false.
         mBassClientStateMachine.mDiscoveryInitiated = false;
@@ -748,6 +750,8 @@ public class BassClientStateMachineTest {
         cb.onServicesDiscovered(null, status);
 
         verify(btGatt, never()).requestMtu(anyInt());
+        verify(callbacks).notifyBassStateSetupFailed(eq(mBassClientStateMachine.getDevice()));
+        assertThat(mBassClientStateMachine.isBassStateReady()).isEqualTo(false);
 
         // call requestMtu() if status is GATT_SUCCESS.
         mBassClientStateMachine.mDiscoveryInitiated = true;
@@ -1435,6 +1439,15 @@ public class BassClientStateMachineTest {
         mBassClientStateMachine.connectGatt(true);
         BluetoothGattCallback cb = mBassClientStateMachine.mGattCallback;
         mBassClientStateMachine.mMTUChangeRequested = true;
+
+        BassClientService.Callbacks callbacks = Mockito.mock(BassClientService.Callbacks.class);
+        when(mBassClientService.getCallbacks()).thenReturn(callbacks);
+
+        // Verify notifyBassStateSetupFailed is called
+        cb.onMtuChanged(null, 10, GATT_FAILURE);
+        verify(callbacks).notifyBassStateSetupFailed(eq(mBassClientStateMachine.getDevice()));
+        assertThat(mBassClientStateMachine.mMTUChangeRequested).isTrue();
+        assertThat(mBassClientStateMachine.isBassStateReady()).isEqualTo(false);
 
         cb.onMtuChanged(null, 10, GATT_SUCCESS);
         assertThat(mBassClientStateMachine.mMTUChangeRequested).isTrue();
@@ -3088,6 +3101,7 @@ public class BassClientStateMachineTest {
                 0x0L);
         // Verify notifyBassStateReady is called
         verify(callbacks).notifyBassStateReady(eq(mTestDevice));
+        assertThat(mBassClientStateMachine.isBassStateReady()).isEqualTo(true);
     }
 
     @Test
