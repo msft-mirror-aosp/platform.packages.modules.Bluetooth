@@ -16,10 +16,21 @@
 
 package com.android.bluetooth.mapclient;
 
+import static android.Manifest.permission.BLUETOOTH_CONNECT;
+import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.bluetooth.BluetoothProfile.EXTRA_PREVIOUS_STATE;
+import static android.bluetooth.BluetoothProfile.EXTRA_STATE;
+
+import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
+import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
+import static androidx.test.espresso.intent.matcher.IntentMatchers.hasPackage;
+
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.inOrder;
 
 import android.app.Activity;
 import android.app.BroadcastOptions;
@@ -64,6 +75,8 @@ import com.android.vcard.VCardProperty;
 
 import com.google.common.truth.Correspondence;
 
+import org.hamcrest.Matcher;
+import org.hamcrest.core.AllOf;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -71,8 +84,10 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.hamcrest.MockitoHamcrest;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
@@ -98,8 +113,6 @@ public class MapClientStateMachineTest {
 
     private static final long PENDING_INTENT_TIMEOUT_MS = 3_000;
 
-    private static final int CONNECTION_STATE_UNDEFINED = -1;
-
     private Bmessage mTestIncomingSmsBmessage;
     private Bmessage mTestIncomingMmsBmessage;
     private String mTestMessageSmsHandle = "0001";
@@ -124,7 +137,6 @@ public class MapClientStateMachineTest {
     private final Context mTargetContext = InstrumentationRegistry.getTargetContext();
 
     private MceStateMachine mMceStateMachine;
-    private ArgumentCaptor<Intent> mIntentArgument = ArgumentCaptor.forClass(Intent.class);
 
     @Mock private AdapterService mAdapterService;
     @Mock private DatabaseManager mDatabaseManager;
@@ -160,6 +172,7 @@ public class MapClientStateMachineTest {
     private SentDeliveryReceiver mSentDeliveryReceiver;
 
     private TestLooper mLooper;
+    private InOrder mInOrder;
 
     private static class SentDeliveryReceiver extends BroadcastReceiver {
         private CountDownLatch mActionReceivedLatch;
@@ -205,6 +218,8 @@ public class MapClientStateMachineTest {
     public void setUp() throws Exception {
         mLooper = new TestLooper();
 
+        mInOrder = inOrder(mMockMapClientService);
+
         TestUtils.setAdapterService(mAdapterService);
         mIsAdapterServiceSet = true;
         mMockContentProvider = new MockSmsContentProvider();
@@ -222,7 +237,6 @@ public class MapClientStateMachineTest {
                 .thenReturn(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
 
         doReturn(mTargetContext.getResources()).when(mMockMapClientService).getResources();
-
 
         when(mMockMasClient.makeRequest(any(Request.class))).thenReturn(true);
         mMceStateMachine =
@@ -293,9 +307,7 @@ public class MapClientStateMachineTest {
         // state from STATE_CONNECTING to STATE_DISCONNECTED
         verify(mMockMapClientService, times(2))
                 .sendBroadcastMultiplePermissions(
-                        mIntentArgument.capture(),
-                        any(String[].class),
-                        any(BroadcastOptions.class));
+                        any(Intent.class), any(String[].class), any(BroadcastOptions.class));
         assertThat(mMceStateMachine.getState()).isEqualTo(BluetoothProfile.STATE_DISCONNECTED);
     }
 
@@ -374,9 +386,7 @@ public class MapClientStateMachineTest {
 
         verify(mMockMapClientService, times(4))
                 .sendBroadcastMultiplePermissions(
-                        mIntentArgument.capture(),
-                        any(String[].class),
-                        any(BroadcastOptions.class));
+                        any(Intent.class), any(String[].class), any(BroadcastOptions.class));
 
         assertThat(mMceStateMachine.getState()).isEqualTo(BluetoothProfile.STATE_DISCONNECTED);
     }
@@ -394,18 +404,14 @@ public class MapClientStateMachineTest {
         mLooper.dispatchAll();
         verify(mMockMapClientService, times(3))
                 .sendBroadcastMultiplePermissions(
-                        mIntentArgument.capture(),
-                        any(String[].class),
-                        any(BroadcastOptions.class));
+                        any(Intent.class), any(String[].class), any(BroadcastOptions.class));
         assertThat(mMceStateMachine.getState()).isEqualTo(BluetoothProfile.STATE_DISCONNECTING);
 
         mLooper.moveTimeForward(MceStateMachine.DISCONNECT_TIMEOUT.toMillis());
         mLooper.dispatchAll();
         verify(mMockMapClientService, times(4))
                 .sendBroadcastMultiplePermissions(
-                        mIntentArgument.capture(),
-                        any(String[].class),
-                        any(BroadcastOptions.class));
+                        any(Intent.class), any(String[].class), any(BroadcastOptions.class));
         assertThat(mMceStateMachine.getState()).isEqualTo(BluetoothProfile.STATE_DISCONNECTED);
     }
 
@@ -836,10 +842,8 @@ public class MapClientStateMachineTest {
 
         sendAndDispatchMessage(MceStateMachine.MSG_MAS_REQUEST_COMPLETED, mMockRequestGetMessage);
 
-        verify(mMockMapClientService, times(1))
-                .sendBroadcast(
-                        mIntentArgument.capture(), eq(android.Manifest.permission.RECEIVE_SMS));
-        assertThat(mIntentArgument.getValue().getPackage()).isNull();
+        verifyIntentSent(
+                android.Manifest.permission.RECEIVE_SMS, hasPackage(nullValue(String.class)));
     }
 
     @Test
@@ -871,9 +875,7 @@ public class MapClientStateMachineTest {
         // Verify we move into the disconnecting state
         verify(mMockMapClientService, times(2))
                 .sendBroadcastMultiplePermissions(
-                        mIntentArgument.capture(),
-                        any(String[].class),
-                        any(BroadcastOptions.class));
+                        any(Intent.class), any(String[].class), any(BroadcastOptions.class));
 
         assertThat(mMceStateMachine.getState()).isEqualTo(BluetoothProfile.STATE_DISCONNECTING);
 
@@ -1076,22 +1078,13 @@ public class MapClientStateMachineTest {
         assertThat(mMceStateMachine.getState()).isEqualTo(expectedState);
     }
 
-    private void verifyStateTransitionAndIntent(int expectedFromState, int expectedToState) {
-        assertThat(mMceStateMachine.getState()).isEqualTo(expectedToState);
-        verify(mMockMapClientService, atLeastOnce())
-                .sendBroadcastMultiplePermissions(
-                        mIntentArgument.capture(),
-                        any(String[].class),
-                        any(BroadcastOptions.class));
-        Intent capturedIntent = mIntentArgument.getValue();
-        int intentFromState =
-                capturedIntent.getIntExtra(
-                        BluetoothProfile.EXTRA_PREVIOUS_STATE, CONNECTION_STATE_UNDEFINED);
-        int intentToState =
-                capturedIntent.getIntExtra(
-                        BluetoothProfile.EXTRA_STATE, CONNECTION_STATE_UNDEFINED);
-        assertThat(intentFromState).isEqualTo(expectedFromState);
-        assertThat(intentToState).isEqualTo(expectedToState);
+    private void verifyStateTransitionAndIntent(int oldState, int newState) {
+        assertThat(mMceStateMachine.getState()).isEqualTo(newState);
+        verifyIntentSent(
+                new String[] {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED},
+                hasAction(BluetoothMapClient.ACTION_CONNECTION_STATE_CHANGED),
+                hasExtra(EXTRA_STATE, newState),
+                hasExtra(EXTRA_PREVIOUS_STATE, oldState));
     }
 
     private static class MockSmsContentProvider extends MockContentProvider {
@@ -1211,5 +1204,18 @@ public class MapClientStateMachineTest {
     private void sendAndDispatchMessage(int what, Object obj) {
         mMceStateMachine.sendMessage(what, obj);
         mLooper.dispatchAll();
+    }
+
+    @SafeVarargs
+    private void verifyIntentSent(String permission, Matcher<Intent>... matchers) {
+        mInOrder.verify(mMockMapClientService)
+                .sendBroadcast(MockitoHamcrest.argThat(AllOf.allOf(matchers)), eq(permission));
+    }
+
+    @SafeVarargs
+    private void verifyIntentSent(String[] permissions, Matcher<Intent>... matchers) {
+        mInOrder.verify(mMockMapClientService)
+                .sendBroadcastMultiplePermissions(
+                        MockitoHamcrest.argThat(AllOf.allOf(matchers)), eq(permissions), any(BroadcastOptions .class));
     }
 }
