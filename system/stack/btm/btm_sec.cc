@@ -2167,7 +2167,7 @@ tBTM_SEC_DEV_REC* btm_rnr_add_name_to_security_record(const RawAddress* p_bd_add
 
   BTM_LogHistory(kBtmLogTag, (p_bd_addr) ? *p_bd_addr : RawAddress::kEmpty, "RNR complete",
                  std::format("hci_status:{} name:{}", hci_error_code_text(hci_status),
-                             PRIVATE_NAME(reinterpret_cast<char const*>(p_bd_name))));
+                             reinterpret_cast<char const*>(p_bd_name)));
 
   if (p_dev_rec == nullptr) {
     // We need to send the callbacks to complete the RNR cycle despite failure

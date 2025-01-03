@@ -330,7 +330,7 @@ public:
             "name:\"{}\" sec_prop:{}",
             bd_addr, DeviceTypeText(device_type), dev_class_text(dev_class),
             remote_version_info.ToString(), sm4, remote_supports_secure_connections ? 'T' : 'F',
-            PRIVATE_NAME(reinterpret_cast<char const*>(sec_bd_name)), sec_rec.ToString());
+            reinterpret_cast<char const*>(sec_bd_name), sec_rec.ToString());
   }
 
 public:

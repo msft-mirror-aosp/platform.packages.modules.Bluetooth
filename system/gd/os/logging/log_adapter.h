@@ -24,5 +24,3 @@
   (number.replace(0, (number.size() > 2) ? number.size() - 2 : 0,   \
                   (number.size() > 2) ? number.size() - 2 : 0, '*') \
            .c_str())
-
-#define PRIVATE_NAME(name) (name)
