@@ -64,9 +64,7 @@ import androidx.test.filters.MediumTest;
 import androidx.test.rule.ServiceTestRule;
 
 import com.android.bluetooth.ObexAppParameters;
-import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.btservice.storage.DatabaseManager;
 import com.android.bluetooth.flags.Flags;
 import com.android.obex.HeaderSet;
 import com.android.vcard.VCardConstants;
@@ -110,7 +108,6 @@ public class MapClientStateMachineTest {
     @Rule public final ServiceTestRule mServiceRule = new ServiceTestRule();
 
     @Mock private AdapterService mAdapterService;
-    @Mock private DatabaseManager mDatabaseManager;
     @Mock private MapClientService mMockMapClientService;
     @Mock private MapClientContent mMockDatabase;
     @Mock private TelephonyManager mMockTelephonyManager;
@@ -152,7 +149,6 @@ public class MapClientStateMachineTest {
 
     private Bmessage mTestIncomingSmsBmessage;
     private Bmessage mTestIncomingMmsBmessage;
-    boolean mIsAdapterServiceSet;
     boolean mIsMapClientServiceStarted;
     private MceStateMachine mMceStateMachine;
     private MockContentResolver mMockContentResolver;
@@ -207,11 +203,8 @@ public class MapClientStateMachineTest {
 
         mInOrder = inOrder(mMockMapClientService);
 
-        TestUtils.setAdapterService(mAdapterService);
-        mIsAdapterServiceSet = true;
         mMockContentProvider = new MockSmsContentProvider();
         mMockContentResolver = new MockContentResolver();
-        when(mAdapterService.getDatabase()).thenReturn(mDatabaseManager);
         mIsMapClientServiceStarted = true;
         mMockContentResolver.addProvider("sms", mMockContentProvider);
         mMockContentResolver.addProvider("mms", mMockContentProvider);
@@ -230,9 +223,10 @@ public class MapClientStateMachineTest {
                 new MceStateMachine(
                         mMockMapClientService,
                         mTestDevice,
+                        mAdapterService,
+                        mLooper.getLooper(),
                         mMockMasClient,
-                        mMockDatabase,
-                        mLooper.getLooper());
+                        mMockDatabase);
         mLooper.dispatchAll();
 
         int initialExpectedState = BluetoothProfile.STATE_CONNECTING;
@@ -268,9 +262,6 @@ public class MapClientStateMachineTest {
             mMceStateMachine.doQuit();
         }
 
-        if (mIsAdapterServiceSet) {
-            TestUtils.clearAdapterService(mAdapterService);
-        }
         mTargetContext.unregisterReceiver(mSentDeliveryReceiver);
     }
 
@@ -856,8 +847,9 @@ public class MapClientStateMachineTest {
         // Note: There's no way to validate the BluetoothDevice#sdpSearch call
         mMceStateMachine.sendSdpResult(MceStateMachine.SDP_BUSY, null);
 
-        // Timeout waiting for record
-        sendAndDispatchMessage(MceStateMachine.MSG_CONNECTING_TIMEOUT);
+        // Simulate timeout waiting for record
+        mLooper.moveTimeForward(MceStateMachine.CONNECT_TIMEOUT.toMillis());
+        mLooper.dispatchAll();
 
         // Verify we move into the disconnecting state
         verify(mMockMapClientService, times(2))
