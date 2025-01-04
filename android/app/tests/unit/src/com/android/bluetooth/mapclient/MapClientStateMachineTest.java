@@ -283,7 +283,6 @@ public class MapClientStateMachineTest {
     /** Test that default state is STATE_CONNECTING */
     @Test
     public void testDefaultConnectingState() {
-        Log.i(TAG, "in testDefaultConnectingState");
         Assert.assertEquals(BluetoothProfile.STATE_CONNECTING, mMceStateMachine.getState());
     }
 
@@ -293,7 +292,6 @@ public class MapClientStateMachineTest {
      */
     @Test
     public void testStateTransitionFromConnectingToDisconnected() {
-        Log.i(TAG, "in testStateTransitionFromConnectingToDisconnected");
         setupSdpRecordReceipt();
         Message msg = Message.obtain(mHandler, MceStateMachine.MSG_MAS_DISCONNECTED);
         mMceStateMachine.sendMessage(msg);
@@ -312,7 +310,6 @@ public class MapClientStateMachineTest {
     /** Test transition from STATE_CONNECTING --> (receive MSG_MAS_CONNECTED) --> STATE_CONNECTED */
     @Test
     public void testStateTransitionFromConnectingToConnected() {
-        Log.i(TAG, "in testStateTransitionFromConnectingToConnected");
         setupSdpRecordReceipt();
 
         int expectedFromState = BluetoothProfile.STATE_CONNECTING;
@@ -327,7 +324,6 @@ public class MapClientStateMachineTest {
      */
     @Test
     public void testStateTransitionFromConnectedToDisconnected() {
-        Log.i(TAG, "in testStateTransitionFromConnectedWithMasDisconnected");
 
         setupSdpRecordReceipt();
         // transition to the connected state
@@ -1219,7 +1215,10 @@ public class MapClientStateMachineTest {
     }
 
     private void assertCurrentStateAfterScheduledTask(int expectedState) {
-        TestUtils.waitForLooperToFinishScheduledTask(mMceStateMachine.getHandler().getLooper());
+        Handler handler = mMceStateMachine.getHandler();
+        if (handler != null) {
+            TestUtils.waitForLooperToFinishScheduledTask(handler.getLooper());
+        }
         assertThat(mMceStateMachine.getState()).isEqualTo(expectedState);
     }
 
