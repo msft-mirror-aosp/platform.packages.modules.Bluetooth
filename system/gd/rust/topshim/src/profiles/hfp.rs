@@ -192,6 +192,7 @@ pub mod ffi {
 
         unsafe fn GetHfpProfile(btif: *const u8) -> UniquePtr<HfpIntf>;
         unsafe fn interop_insert_call_when_sco_start(bt_addr: RawAddress) -> bool;
+        unsafe fn interop_disable_hf_profile(name: *const c_char) -> bool;
         fn init(self: Pin<&mut HfpIntf>) -> i32;
         fn connect(self: Pin<&mut HfpIntf>, bt_addr: RawAddress) -> u32;
         fn connect_audio(
@@ -263,6 +264,12 @@ pub mod ffi {
 pub fn interop_insert_call_when_sco_start(bt_addr: RawAddress) -> bool {
     //Call an unsafe function in c++. This is necessary for bridge C++ interop API with floss(rust).
     unsafe { return ffi::interop_insert_call_when_sco_start(bt_addr) }
+}
+
+pub fn interop_disable_hf_profile(name: String) -> bool {
+    let c_name = std::ffi::CString::new(name).unwrap();
+    // Call an unsafe function in c++. This is necessary for bridge C++ interop API with floss(rust).
+    unsafe { return ffi::interop_disable_hf_profile(c_name.as_ptr()) }
 }
 
 pub type TelephonyDeviceStatus = ffi::TelephonyDeviceStatus;
