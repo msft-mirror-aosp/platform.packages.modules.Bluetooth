@@ -15,7 +15,7 @@ use bt_topshim::profiles::avrcp::{
 use bt_topshim::profiles::csis::{
     BtCsisConnectionState, CsisClient, CsisClientCallbacks, CsisClientCallbacksDispatcher,
 };
-use bt_topshim::profiles::hfp::interop_insert_call_when_sco_start;
+use bt_topshim::profiles::hfp::{interop_disable_hf_profile, interop_insert_call_when_sco_start};
 use bt_topshim::profiles::hfp::{
     BthfAudioState, BthfConnectionState, CallHoldCommand, CallInfo, CallState, EscoCodingFormat,
     Hfp, HfpCallbacks, HfpCallbacksDispatcher, HfpCodecBitId, HfpCodecFormat, HfpCodecId,
@@ -2553,15 +2553,23 @@ impl BluetoothMedia {
     }
 
     fn adapter_get_classic_audio_profiles(&self, addr: RawAddress) -> HashSet<Profile> {
+        let name = self.adapter_get_remote_name(addr);
         let device = BluetoothDevice::new(addr, "".to_string());
-        self.adapter
+        let mut profiles: HashSet<_> = self
+            .adapter
             .lock()
             .unwrap()
             .get_remote_uuids(device)
             .into_iter()
             .filter_map(|u| UuidHelper::is_known_profile(&u))
             .filter(|u| MEDIA_CLASSIC_AUDIO_PROFILES.contains(u))
-            .collect()
+            .collect();
+
+        if interop_disable_hf_profile(name) {
+            profiles.remove(&Profile::Hfp);
+        }
+
+        profiles
     }
 
     pub fn get_hfp_connection_state(&self) -> ProfileConnectionState {
