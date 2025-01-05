@@ -208,6 +208,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     RangingHeader ranging_header_;
     PacketViewForRecombination segment_data_;
     uint16_t conn_interval_ = kInvalidConnInterval;
+    uint8_t procedure_sequence_after_enable = -1;
   };
 
   bool get_free_config_id(uint16_t connection_handle, uint8_t& config_id) {
@@ -1193,6 +1194,8 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
                                                                       METHOD_CS);
       }
       if (live_tracker->local_start && is_hal_v2()) {
+        // reset the procedure sequence
+        live_tracker->procedure_sequence_after_enable = -1;
         ranging_hal_->UpdateProcedureEnableConfig(connection_handle, event_view);
       }
     } else if (event_view.GetState() == Enable::DISABLED) {
@@ -1357,9 +1360,9 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
               static_cast<bluetooth::ras::SubeventAbortReason>(subevent_abort_reason);
     }
     parse_cs_result_data(result_data_structures, *procedure_data, live_tracker->role);
-    check_cs_procedure_complete(live_tracker, procedure_data, connection_handle);
 
     if (live_tracker->local_start) {
+      check_cs_procedure_complete(live_tracker, procedure_data, connection_handle);
       // Skip to send remote
       return;
     }
@@ -1963,40 +1966,59 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     return procedure_data;
   }
 
-  void check_cs_procedure_complete(CsTracker* live_tracker, CsProcedureData* procedure_data,
-                                   uint16_t connection_handle) const {
-    if (live_tracker->local_start &&
-        procedure_data->local_status == CsProcedureDoneStatus::ALL_RESULTS_COMPLETE &&
-        procedure_data->remote_status == CsProcedureDoneStatus::ALL_RESULTS_COMPLETE &&
-        procedure_data->contains_complete_subevent_) {
-      log::debug("Procedure complete counter:{} data size:{}, main_mode_type:{}, sub_mode_type:{}",
-                 (uint16_t)procedure_data->counter, (uint16_t)procedure_data->step_channel.size(),
-                 (uint16_t)live_tracker->main_mode_type, (uint16_t)live_tracker->sub_mode_type);
-
-      if (ranging_hal_->IsBound()) {
-        if (is_hal_v2()) {
-          ranging_hal_->WriteProcedureData(connection_handle, live_tracker->role,
-                                           procedure_data->procedure_data_v2_,
-                                           procedure_data->counter);
-        } else {
-          // Use algorithm in the HAL
-          bluetooth::hal::ChannelSoundingRawData raw_data;
-          raw_data.num_antenna_paths_ = procedure_data->num_antenna_paths;
-          raw_data.step_channel_ = procedure_data->step_channel;
-          raw_data.tone_pct_initiator_ = procedure_data->tone_pct_initiator;
-          raw_data.tone_quality_indicator_initiator_ =
-                  procedure_data->tone_quality_indicator_initiator;
-          raw_data.tone_pct_reflector_ = procedure_data->tone_pct_reflector;
-          raw_data.tone_quality_indicator_reflector_ =
-                  procedure_data->tone_quality_indicator_reflector;
-          raw_data.toa_tod_initiators_ = procedure_data->toa_tod_initiators;
-          raw_data.tod_toa_reflectors_ = procedure_data->tod_toa_reflectors;
-          raw_data.packet_quality_initiator = procedure_data->packet_quality_initiator;
-          raw_data.packet_quality_reflector = procedure_data->packet_quality_reflector;
-          ranging_hal_->WriteRawData(connection_handle, raw_data);
-        }
+  void try_send_data_to_hal(uint16_t connection_handle, const CsTracker* live_tracker,
+                            const CsProcedureData* procedure_data) const {
+    if (!ranging_hal_->IsBound()) {
+      return;
+    }
+    bool should_send_to_hal = false;
+    if (ranging_hal_->IsAbortedProcedureRequired(connection_handle)) {
+      should_send_to_hal = procedure_data->local_status != CsProcedureDoneStatus::PARTIAL_RESULTS &&
+                           procedure_data->remote_status != CsProcedureDoneStatus::PARTIAL_RESULTS;
+    } else {
+      should_send_to_hal =
+              procedure_data->local_status == CsProcedureDoneStatus::ALL_RESULTS_COMPLETE &&
+              procedure_data->remote_status == CsProcedureDoneStatus::ALL_RESULTS_COMPLETE &&
+              procedure_data->contains_complete_subevent_;
+    }
+    if (should_send_to_hal) {
+      log::debug("Procedure complete counter:{} data size:{}", (uint16_t)procedure_data->counter,
+                 procedure_data->step_channel.size());
+      if (is_hal_v2()) {
+        ranging_hal_->WriteProcedureData(connection_handle, live_tracker->role,
+                                         procedure_data->procedure_data_v2_,
+                                         procedure_data->counter);
+      } else {
+        // Use algorithm in the HAL
+        bluetooth::hal::ChannelSoundingRawData raw_data;
+        raw_data.num_antenna_paths_ = procedure_data->num_antenna_paths;
+        raw_data.step_channel_ = procedure_data->step_channel;
+        raw_data.tone_pct_initiator_ = procedure_data->tone_pct_initiator;
+        raw_data.tone_quality_indicator_initiator_ =
+                procedure_data->tone_quality_indicator_initiator;
+        raw_data.tone_pct_reflector_ = procedure_data->tone_pct_reflector;
+        raw_data.tone_quality_indicator_reflector_ =
+                procedure_data->tone_quality_indicator_reflector;
+        raw_data.toa_tod_initiators_ = procedure_data->toa_tod_initiators;
+        raw_data.tod_toa_reflectors_ = procedure_data->tod_toa_reflectors;
+        raw_data.packet_quality_initiator = procedure_data->packet_quality_initiator;
+        raw_data.packet_quality_reflector = procedure_data->packet_quality_reflector;
+        ranging_hal_->WriteRawData(connection_handle, raw_data);
       }
     }
+  }
+
+  void check_cs_procedure_complete(CsTracker* live_tracker, CsProcedureData* procedure_data,
+                                   uint16_t connection_handle) const {
+    if (is_hal_v2() && procedure_data->local_status != CsProcedureDoneStatus::PARTIAL_RESULTS &&
+        procedure_data->remote_status != CsProcedureDoneStatus::PARTIAL_RESULTS) {
+      live_tracker->procedure_sequence_after_enable++;
+      log::debug("procedure sequence after enabled is {}",
+                 live_tracker->procedure_sequence_after_enable);
+      procedure_data->procedure_data_v2_.procedure_sequence_ =
+              live_tracker->procedure_sequence_after_enable;
+    }
+    try_send_data_to_hal(connection_handle, live_tracker, procedure_data);
 
     // If the procedure is completed or aborted, delete all previous data
     if (procedure_data->local_status != CsProcedureDoneStatus::PARTIAL_RESULTS &&

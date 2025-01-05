@@ -21,6 +21,8 @@ import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.hamcrest.Matchers.greaterThan;
+import static org.junit.Assume.assumeThat;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.eq;
@@ -181,6 +183,11 @@ public class GattClientTest {
     @RequiresFlagsEnabled(Flags.FLAG_INITIAL_CONN_PARAMS_P1)
     @Test
     public void onConnectionUpdatedIsCalledOnlyOnceForRelaxingConnectionParameters_noGattCache() {
+        int aggressiveConnectionThreshold =
+                SystemProperties.getInt("bluetooth.core.le.aggressive_connection_threshold", 2);
+        // This test is for the case where aggressive initial parameters are used.
+        assumeThat(aggressiveConnectionThreshold, greaterThan(0));
+
         BluetoothGattCallback gattCallback = mock(BluetoothGattCallback.class);
         ArgumentCaptor<Integer> connectionIntervalCaptor = ArgumentCaptor.forClass(Integer.class);
 

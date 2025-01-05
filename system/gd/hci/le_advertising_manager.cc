@@ -1139,11 +1139,9 @@ struct LeAdvertisingManager::impl : public bluetooth::hci::LeAddressManagerCallb
           data_len += data[i].size();
         }
 
-        int maxDataLength =
-                (com::android::bluetooth::flags::ble_check_data_length_on_legacy_advertising() &&
-                 advertising_sets_[advertiser_id].is_legacy)
-                        ? kLeMaximumLegacyAdvertisingDataLength
-                        : le_maximum_advertising_data_length_;
+        int maxDataLength = advertising_sets_[advertiser_id].is_legacy
+                                    ? kLeMaximumLegacyAdvertisingDataLength
+                                    : le_maximum_advertising_data_length_;
 
         if (data_len > maxDataLength) {
           log::warn("advertising data len {} exceeds maxDataLength {}", data_len, maxDataLength);

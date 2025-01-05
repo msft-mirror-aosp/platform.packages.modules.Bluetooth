@@ -9,8 +9,8 @@ import subprocess
 import sys
 import xml.etree.ElementTree as ET
 
-JAVA_UNIT_TESTS = 'test/mts/tools/mts-tradefed/res/config/mts-bluetooth-tests-list-shard-01.xml'
-NATIVE_UNIT_TESTS = 'test/mts/tools/mts-tradefed/res/config/mts-bluetooth-tests-list-shard-02.xml'
+JAVA_UNIT_TESTS = 'test/mts/tools/mts-tradefed/res/config/mts-bt-tests-list-shard-01.xml'
+NATIVE_UNIT_TESTS = 'test/mts/tools/mts-tradefed/res/config/mts-bt-tests-list-shard-02.xml'
 DO_NOT_RETRY_TESTS = {
   'CtsBluetoothTestCases',
   'GoogleBluetoothInstrumentationTests',
