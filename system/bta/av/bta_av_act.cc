@@ -26,21 +26,36 @@
 #define LOG_TAG "bluetooth-a2dp"
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
 
+#include "avct_api.h"
+#include "avdt_api.h"
+#include "avrc_api.h"
+#include "avrc_defs.h"
+#include "bt_dev_class.h"
 #include "bta/av/bta_av_int.h"
 #include "bta/include/bta_ar_api.h"
 #include "bta/include/utl.h"
+#include "bta_av_api.h"
+#include "bta_sys.h"
 #include "btif/avrcp/avrcp_service.h"
 #include "btif/include/btif_av.h"
+#include "common/bind.h"
+#include "device/include/device_iot_conf_defs.h"
 #include "device/include/device_iot_config.h"
 #include "device/include/interop.h"
 #include "internal_include/bt_target.h"
+#include "l2cap_types.h"
+#include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
+#include "osi/include/list.h"
 #include "osi/include/osi.h"  // UINT_TO_PTR PTR_TO_UINT
 #include "osi/include/properties.h"
-#include "stack/include/acl_api.h"
+#include "sdpdefs.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
@@ -48,6 +63,7 @@
 #include "stack/include/l2cap_interface.h"
 #include "stack/include/sdp_api.h"
 #include "stack/include/sdp_status.h"
+#include "stack/sdp/sdp_discovery_db.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth::legacy::stack::sdp;
@@ -1015,10 +1031,9 @@ void bta_av_rc_msg(tBTA_AV_CB* p_cb, tBTA_AV_DATA* p_data) {
         memcpy(&av.remote_cmd.hdr, &p_data->rc_msg.msg.hdr, sizeof(tAVRC_HDR));
         av.remote_cmd.label = p_data->rc_msg.label;
       }
-    }
-    /* else if this is a pass thru response */
-    /* id response type is not impl, we have to release label */
-    else if (p_data->rc_msg.msg.hdr.ctype >= AVRC_RSP_NOT_IMPL) {
+    } else if (p_data->rc_msg.msg.hdr.ctype >= AVRC_RSP_NOT_IMPL) {
+      /* else if this is a pass thru response */
+      /* id response type is not impl, we have to release label */
       /* set up for callback */
       evt = BTA_AV_REMOTE_RSP_EVT;
       av.remote_rsp.rc_id = p_data->rc_msg.msg.pass.op_id;
@@ -1036,15 +1051,13 @@ void bta_av_rc_msg(tBTA_AV_CB* p_cb, tBTA_AV_DATA* p_data) {
         memcpy(av.remote_rsp.p_data, p_data->rc_msg.msg.pass.p_pass_data,
                p_data->rc_msg.msg.pass.pass_len);
       }
-    }
-    /* must be a bad ctype -> reject*/
-    else {
+    } else {
+      /* must be a bad ctype -> reject*/
       p_data->rc_msg.msg.hdr.ctype = AVRC_RSP_REJ;
       AVRC_PassRsp(p_data->rc_msg.handle, p_data->rc_msg.label, &p_data->rc_msg.msg.pass);
     }
-  }
-  /* else if this is a vendor specific command or response */
-  else if (p_data->rc_msg.opcode == AVRC_OP_VENDOR) {
+  } else if (p_data->rc_msg.opcode == AVRC_OP_VENDOR) {
+    /* else if this is a vendor specific command or response */
     /* set up for callback */
     av.vendor_cmd.code = p_data->rc_msg.msg.hdr.ctype;
     av.vendor_cmd.company_id = p_vendor->company_id;
@@ -1396,7 +1409,10 @@ void bta_av_disable(tBTA_AV_CB* p_cb, tBTA_AV_DATA* /* p_data */) {
       p_cb->p_scb[xx]->link_signalling_timer = NULL;
       alarm_free(p_cb->p_scb[xx]->accept_signalling_timer);
       p_cb->p_scb[xx]->accept_signalling_timer = NULL;
-
+      if (com::android::bluetooth::flags::avdt_handle_signaling_on_peer_failure()) {
+        alarm_free(p_cb->p_scb[xx]->accept_open_timer);
+        p_cb->p_scb[xx]->accept_open_timer = NULL;
+      }
       hdr.layer_specific = xx + 1;
       bta_av_api_deregister((tBTA_AV_DATA*)&hdr);
       disabling_in_progress = true;
@@ -1560,7 +1576,7 @@ void bta_av_sig_chg(tBTA_AV_DATA* p_data) {
       /* this entry is not used yet. */
       p_cb->conn_lcb |= mask; /* mark it as used */
       log::verbose("start sig timer {}", p_data->hdr.offset);
-      if (p_data->hdr.offset == AVDT_ACP) {
+      if (p_data->hdr.offset == static_cast<uint16_t>(tAVDT_ROLE::AVDT_ACP)) {
         log::verbose("Incoming L2CAP acquired, set state as incoming");
         p_scb->OnConnected(p_data->str_msg.bd_addr);
         p_scb->use_rc = true; /* allowing RC for incoming connection */

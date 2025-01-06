@@ -26,9 +26,9 @@
 #include <vector>
 
 #include "avrcp/avrcp.h"
-#include "bluetooth/uuid.h"
-#include "bt_transport.h"
-#include "raw_address.h"
+#include "types/bluetooth/uuid.h"
+#include "types/bt_transport.h"
+#include "types/raw_address.h"
 
 /**
  * The Bluetooth Hardware Module ID
@@ -238,6 +238,11 @@ typedef struct {
   bool le_channel_sounding_supported;
 } bt_local_le_features_t;
 
+typedef struct {
+  uint8_t number_of_supported_offloaded_le_coc_sockets;
+  uint8_t number_of_supported_offloaded_rfcomm_sockets;
+} bt_lpp_offload_features_t;
+
 /** Bluetooth Vendor and Product ID info */
 typedef struct {
   uint8_t vendor_id_src;
@@ -415,6 +420,13 @@ typedef enum {
    */
   BT_PROPERTY_REMOTE_MAX_SESSION_KEY_SIZE,
 
+  /**
+   * Description - Low power processor offload features
+   * Access mode - GET.
+   * Data Type   - bt_lpp_offload_features_t.
+   */
+  BT_PROPERTY_LPP_OFFLOAD_FEATURES,
+
   BT_PROPERTY_REMOTE_DEVICE_TIMESTAMP = 0xFF,
 } bt_property_type_t;
 
@@ -545,9 +557,10 @@ typedef void (*address_consolidate_callback)(RawAddress* main_bd_addr,
 
 /** Bluetooth LE Address association callback */
 /* Callback for the upper layer to associate the LE-only device's RPA to the
- * identity address */
+ * identity address and identity address type */
 typedef void (*le_address_associate_callback)(RawAddress* main_bd_addr,
-                                              RawAddress* secondary_bd_addr);
+                                              RawAddress* secondary_bd_addr,
+                                              uint8_t identity_address_type);
 
 /** Bluetooth ACL connection state changed callback */
 typedef void (*acl_state_changed_callback)(bt_status_t status, RawAddress* remote_bd_addr,
@@ -993,7 +1006,6 @@ typedef struct {
 
   /** check if pbap pse dynamic version upgrade is enable */
   bool (*pbap_pse_dynamic_version_upgrade_is_enabled)();
-
 } bt_interface_t;
 
 #define BLUETOOTH_INTERFACE_STRING "bluetoothInterface"
@@ -1001,7 +1013,7 @@ typedef struct {
 #if __has_include(<bluetooth/log.h>)
 #include <bluetooth/log.h>
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bt_status_t> : enum_formatter<bt_status_t> {};
 template <>
@@ -1010,7 +1022,9 @@ template <>
 struct formatter<bt_bond_state_t> : enum_formatter<bt_bond_state_t> {};
 template <>
 struct formatter<bt_property_type_t> : enum_formatter<bt_property_type_t> {};
-}  // namespace fmt
+template <>
+struct formatter<bt_ssp_variant_t> : enum_formatter<bt_ssp_variant_t> {};
+}  // namespace std
 
 #endif  // __has_include(<bluetooth/log.h>)
 

@@ -141,10 +141,10 @@ inline std::string port_connection_state_text(const tPORT_CONNECTION_STATE& stat
   RETURN_UNKNOWN_TYPE_STRING(tPORT_CONNECTION_STATE, state);
 }
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tPORT_CONNECTION_STATE> : enum_formatter<tPORT_CONNECTION_STATE> {};
-}  // namespace fmt
+}  // namespace std
 
 /*
  * Define control block containing information about PORT connection
@@ -205,6 +205,8 @@ typedef struct {
   uint16_t keep_mtu; /* Max MTU that port can receive by server */
   uint16_t sec_mask; /* Bitmask of security requirements for this port */
                      /* see the BTM_SEC_* values in btm_api_types.h */
+  RfcommCfgInfo rfc_cfg_info; /* store optional rfc configure info for incoming */
+                              /* connection while connecting */
 } tPORT;
 
 /* Define the PORT/RFCOMM control structure

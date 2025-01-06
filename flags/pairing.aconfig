@@ -1,5 +1,5 @@
 package: "com.android.bluetooth.flags"
-container: "com.android.btservices"
+container: "com.android.bt"
 
 flag {
     name: "clear_auth_collision_state_on_pairing_complete"
@@ -12,40 +12,10 @@ flag {
 }
 
 flag {
-    name: "pairing_on_unknown_transport"
-    namespace: "bluetooth"
-    description: "Allow pairing on transport not known to be supported by the remote device"
-    bug: "335239971"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "cancel_pairing_only_on_disconnected_transport"
     namespace: "bluetooth"
     description: "Cancel pairing due to unexpected disconnection only if the transport matches"
     bug: "338152239"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "temporary_pairing_device_properties"
-    namespace: "bluetooth"
-    description: "Do not remove the device properties immediately after insecure pairing"
-    bug: "342202557"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "use_local_oob_extended_command"
-    namespace: "bluetooth"
-    description: "Use HCI Read Local OOB Extended Data command to generate local OOB when Secure Connections is supported by the controller"
-    bug: "342250775"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -106,16 +76,6 @@ flag {
     namespace: "bluetooth"
     description: "Ensure that SMP packets are transmitted before SMP channel is released"
     bug: "357106628"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "use_encrypt_req_for_av"
-    namespace: "bluetooth"
-    description: "Use encrypted link for AVDTP and AVCTP channel"
-    bug: "357662929"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -196,6 +156,86 @@ flag {
     namespace: "bluetooth"
     description: "Fix state machine stuck after pairing device disconnection"
     bug: "376306092"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "prevent_service_connections_on_remove_bond"
+    namespace: "bluetooth"
+    description: "Disable service connections on remove bond"
+    bug: "378736590"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "donot_update_sec_flags_on_csrk_save"
+    namespace: "bluetooth"
+    description: "Updating sec flags while saving csrk info can cause setting securith level wrongly as security level might have not determined at that time"
+    bug: "379109304"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "ignore_auth_req_when_collision_timer_active"
+    namespace: "bluetooth"
+    description: "Ignore authentication request when collision timer is still active"
+    bug: "380328715"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "remove_device_in_main_thread"
+    namespace: "bluetooth"
+    description: "Device must be removed in main thread"
+    bug: "381275933"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "bonded_device_smp_failure_handling"
+    namespace: "bluetooth"
+    description: "Don't remove bond on SMP failure for bonded devices in peripheral role"
+    bug: "385181815"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "peripheral_auth_req"
+    namespace: "bluetooth"
+    description: "Use appropriate authentication requirements for SMP security request in peripheral role"
+    bug: "385202199"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "le_appearance_after_ctkd"
+    namespace: "bluetooth"
+    description: "Allow read of LE appearance after CTKD if class of device is unknown"
+    bug: "386835787"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "create_metadata_after_bonding"
+    namespace: "bluetooth"
+    description: "Don't create metadata before the device is bonded"
+    bug: "387523991"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

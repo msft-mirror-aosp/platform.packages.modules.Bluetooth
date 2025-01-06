@@ -1,5 +1,5 @@
 package: "com.android.bluetooth.flags"
-container: "com.android.btservices"
+container: "com.android.bt"
 
 flag {
     name: "key_missing_classic_device"
@@ -101,6 +101,16 @@ flag {
     namespace: "bluetooth"
     description: "Don't update device properties for bonded devices from the device discovery results"
     bug: "376928594"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "disconnect_on_encryption_failure"
+    namespace: "bluetooth"
+    description: "Disconnect ACL link when encryption fails"
+    bug: "378764380"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

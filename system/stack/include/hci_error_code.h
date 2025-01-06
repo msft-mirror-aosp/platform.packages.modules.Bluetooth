@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 #include <hardware/bluetooth.h>
 
@@ -121,7 +120,7 @@ inline std::string hci_error_code_text(const tHCI_ERROR_CODE& error_code) {
     CASE_RETURN_TEXT(HCI_ERR_LIMIT_REACHED);
     CASE_RETURN_TEXT(HCI_ERR_CANCELLED_BY_LOCAL_HOST);
     default:
-      return base::StringPrintf("UNKNOWN[0x%02hx]", error_code);
+      return std::format("UNKNOWN[0x{:02x}]", static_cast<uint8_t>(error_code));
   }
 }
 
@@ -247,7 +246,7 @@ inline tHCI_REASON to_hci_reason_code(const uint8_t& reason_code) {
   return static_cast<tHCI_REASON>(reason_code);
 }
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tHCI_ERROR_CODE> : enum_formatter<tHCI_ERROR_CODE> {};
-}  // namespace fmt
+}  // namespace std

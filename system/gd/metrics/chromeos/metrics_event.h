@@ -110,7 +110,6 @@ enum class MetricProfileConnectionStatus : int64_t {
   PROFILE_CONN_STATE_REMOTE_UNAVAILABLE = 6,
   PROFILE_CONN_STATE_PROFILE_NOT_SUPPORTED = 7,
   PROFILE_CONN_STATE_UNKNOWN_ERROR = 8,
-
 };
 
 // ENUM definition for profile disconnection status that in sync with ChromeOS structured metrics
@@ -203,6 +202,14 @@ enum class MetricTransportType {
 // BluetoothSuspendIdStateChanged/SuspendIdState.
 enum class SuspendIdState : int64_t { NoRecord = 0, Recorded = 1 };
 
+// ENUM definition for LL Privacy that in sync with ChromeOS structured metrics
+// BluetoothLLPrivacyState/LLPrivacyState.
+enum class LLPrivacyState : int64_t { Disabled = 0, Enabled = 1 };
+
+// ENUM definition for Host RPA that in sync with ChromeOS structured metrics
+// BluetoothLLPrivacyState/AddressPrivacyState.
+enum class AddressPrivacyState : int64_t { Disabled = 0, Enabled = 1 };
+
 // A struct holds the parsed profile connection event.
 struct ProfileConnectionEvent {
   int64_t type;
@@ -215,6 +222,12 @@ AdapterState ToAdapterState(uint32_t state);
 
 // Convert to SuspendIdState.
 SuspendIdState ToSuspendIdState(uint32_t state);
+
+// Convert to LLPrivacyState.
+LLPrivacyState ToLLPrivacyState(uint32_t state);
+
+// Convert to AddressPrivacyState.
+AddressPrivacyState ToAddressPrivacyState(uint32_t state);
 
 // Convert topshim::btif::BtDeviceType to ConnectionType
 ConnectionType ToPairingDeviceType(std::string addr, uint32_t device_type);

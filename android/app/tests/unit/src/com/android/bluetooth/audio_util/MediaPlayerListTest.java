@@ -71,13 +71,16 @@ public class MediaPlayerListTest {
         if (Looper.myLooper() == null) {
             Looper.prepare();
         }
-        Assert.assertNotNull(Looper.myLooper());
 
         AudioManager mockAudioManager = mock(AudioManager.class);
         when(mMockContext.getSystemService(Context.AUDIO_SERVICE)).thenReturn(mockAudioManager);
         when(mMockContext.getSystemServiceName(AudioManager.class))
                 .thenReturn(Context.AUDIO_SERVICE);
 
+        // MediaSessionManager is final and Bluetooth can't use extended Mockito to mock it. Thus,
+        // using this as is risks leaking device state into the tests. To avoid this, the injected
+        // controller and player below in the factory pattern will essentially replace each found
+        // player with the *same* mock, giving us only one player in the end-- "testPlayer"
         mMediaSessionManager =
                 InstrumentationRegistry.getTargetContext()
                         .getSystemService(MediaSessionManager.class);
@@ -87,9 +90,6 @@ public class MediaPlayerListTest {
         when(mMockContext.getSystemServiceName(MediaSessionManager.class))
                 .thenReturn(Context.MEDIA_SESSION_SERVICE);
 
-        mMediaPlayerList =
-                new MediaPlayerList(Looper.myLooper(), InstrumentationRegistry.getTargetContext());
-
         when(mMockContext.registerReceiver(any(), any())).thenReturn(null);
         when(mMockContext.getApplicationContext()).thenReturn(mMockContext);
         when(mMockContext.getPackageManager()).thenReturn(mockPackageManager);
@@ -97,13 +97,18 @@ public class MediaPlayerListTest {
 
         BrowsablePlayerConnector mockConnector = mock(BrowsablePlayerConnector.class);
         BrowsablePlayerConnector.setInstanceForTesting(mockConnector);
-        mMediaPlayerList.init(mMediaUpdateCallback);
 
         MediaControllerFactory.inject(mMockController);
         MediaPlayerWrapperFactory.inject(mMockPlayerWrapper);
 
         doReturn("testPlayer").when(mMockController).getPackageName();
         when(mMockPlayerWrapper.isMetadataSynced()).thenReturn(false);
+
+        // Be sure to do this setup last, after factor injections, or you risk leaking device state
+        // into the tests
+        mMediaPlayerList =
+                new MediaPlayerList(Looper.myLooper(), InstrumentationRegistry.getTargetContext());
+        mMediaPlayerList.init(mMediaUpdateCallback);
         mMediaPlayerList.setActivePlayer(mMediaPlayerList.addMediaPlayer(mMockController));
 
         verify(mMockPlayerWrapper).registerCallback(mPlayerWrapperCb.capture());

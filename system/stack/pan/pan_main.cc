@@ -25,13 +25,14 @@
 
 #define LOG_TAG "pan"
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 #include <string.h>  // memset
 
 #include <cstdint>
 
+#include "internal_include/bt_target.h"
 #include "osi/include/allocator.h"
+#include "pan_api.h"
 #include "stack/include/bnep_api.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_uuid16.h"

@@ -18,16 +18,18 @@
 
 #include <bluetooth/log.h>
 
-#include <cstdint>
+#include <cstddef>
+#include <cstdio>
+#include <ctime>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "common/circular_buffer.h"
 #include "common/strings.h"
 #include "main/shim/dumpsys.h"
 #include "os/logging/log_adapter.h"
-#include "osi/include/osi.h"
-#include "osi/include/properties.h"
+#include "types/raw_address.h"
 
 using namespace bluetooth;
 
@@ -111,7 +113,7 @@ private:
     history_->Push("%-*s GID %-3d  %-*s: %-22s %s", kMaxLogHistoryTagLength,
                    tag.substr(0, kMaxLogHistoryTagLength).c_str(), group_id,
                    kMaxLogHistoryMsgLength, msg.substr(0, kMaxLogHistoryMsgLength).c_str(),
-                   ADDRESS_TO_LOGGABLE_CSTR(addr), extra.c_str());
+                   addr.ToRedactedStringForLogging().c_str(), extra.c_str());
   }
 
   std::shared_ptr<TimestampedStringCircularBuffer> history_{nullptr};

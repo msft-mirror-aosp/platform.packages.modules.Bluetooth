@@ -9,13 +9,19 @@
 
 #include <memory>
 
+#include "gd/hci/controller_interface_mock.h"
+#include "main/shim/acl_api.h"
+#include "main/shim/entry.h"
+#include "main/shim/le_scanning_manager.h"
 #include "osi/include/alarm.h"
 #include "osi/test/alarm_mock.h"
 #include "security_device_record.h"
+#include "stack/btm/btm_dev.h"
+#include "stack/btm/internal/btm_api.h"
 #include "stack/btm/neighbor_inquiry.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+#include "stack/include/btm_ble_api.h"
+#include "stack/include/btm_log_history.h"
+#include "stack/l2cap/internal/l2c_api.h"
 
 using testing::_;
 using testing::DoAll;
@@ -69,6 +75,13 @@ void ACL_IgnoreLeConnectionFrom(const tBLE_BD_ADDR& address) {
 
 void ACL_IgnoreAllLeConnections() { return localAcceptlistMock->AcceptlistClear(); }
 
+testing::NiceMock<bluetooth::hci::testing::MockControllerInterface> controller;
+
+hci::ControllerInterface* GetController() {
+  ON_CALL(controller, GetLeFilterAcceptListSize).WillByDefault(Return(128));
+  return &controller;
+}
+
 }  // namespace shim
 }  // namespace bluetooth
 
@@ -86,7 +99,7 @@ void set_target_announcements_filter(bool /*enable*/) {}
 }  // namespace bluetooth
 
 bool L2CA_ConnectFixedChnl(uint16_t /*fixed_cid*/, const RawAddress& /*bd_addr*/) { return false; }
-uint16_t BTM_GetHCIConnHandle(RawAddress const&, unsigned char) { return 0xFFFF; }
+uint16_t BTM_GetHCIConnHandle(RawAddress const&, tBT_TRANSPORT) { return 0xFFFF; }
 
 namespace connection_manager {
 class BleConnectionManager : public testing::Test {
@@ -258,9 +271,10 @@ TEST_F(BleConnectionManager, test_app_unregister) {
    */
 
   EXPECT_CALL(*localAcceptlistMock, AcceptlistAdd(address1, true)).WillOnce(Return(true));
-  EXPECT_CALL(*localAcceptlistMock, AcceptlistAdd(address2, false)).WillOnce(Return(true));
   EXPECT_TRUE(direct_connect_add(CLIENT1, address1));
+  EXPECT_CALL(*localAcceptlistMock, AcceptlistAdd(address2, false)).WillOnce(Return(true));
   EXPECT_TRUE(background_connect_add(CLIENT1, address2));
+  EXPECT_CALL(*localAcceptlistMock, AcceptlistAdd(address2, true)).WillOnce(Return(true));
   EXPECT_TRUE(direct_connect_add(CLIENT2, address2));
   Mock::VerifyAndClearExpectations(localAcceptlistMock.get());
 
@@ -270,6 +284,8 @@ TEST_F(BleConnectionManager, test_app_unregister) {
 
   EXPECT_CALL(*localAcceptlistMock, AcceptlistRemove(address2)).Times(1);
   on_app_deregistered(CLIENT2);
+
+  Mock::VerifyAndClearExpectations(localAcceptlistMock.get());
 }
 
 /** Verify adding device to both direct connection and background connection. */

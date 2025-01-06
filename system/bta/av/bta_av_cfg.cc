@@ -23,13 +23,12 @@
  *
  ******************************************************************************/
 
-#include <bluetooth/log.h>
-
+#include <cstddef>
 #include <cstdint>
 
+#include "avrc_defs.h"
 #include "bta/av/bta_av_int.h"
 #include "bta/include/bta_av_api.h"
-#include "internal_include/bt_target.h"
 #include "stack/include/avrc_api.h"
 
 #ifndef BTA_AV_RC_COMP_ID

@@ -26,7 +26,6 @@
 #define BTA_API_H
 
 #include <base/functional/callback.h>
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 
 #include <cstdint>
@@ -124,22 +123,20 @@ inline std::string preferred_role_text(const tBTA_PREF_ROLES& role) {
     CASE_RETURN_TEXT(BTA_CENTRAL_ROLE_ONLY);
     CASE_RETURN_TEXT(BTA_PERIPHERAL_ROLE_ONLY);
     default:
-      return base::StringPrintf("UNKNOWN[%hhu]", role);
+      return std::format("UNKNOWN[{}]", static_cast<uint8_t>(role));
   }
 }
 
 enum {
-
   BTA_DM_NO_SCATTERNET,      /* Device doesn't support scatternet, it might
                                 support "role switch during connection" for
                                 an incoming connection, when it already has
                                 another connection in central role */
   BTA_DM_PARTIAL_SCATTERNET, /* Device supports partial scatternet. It can have
                                 simultaneous connection in Central and
-                                Peripheral roles for short period of time */
+                                Peripheral roles for small period of time */
   BTA_DM_FULL_SCATTERNET     /* Device can have simultaneous connection in central
                                 and peripheral roles */
-
 };
 
 typedef struct {
@@ -159,10 +156,11 @@ typedef struct {
 typedef uint8_t tBTA_DM_BLE_RSSI_ALERT_TYPE;
 
 typedef enum : uint8_t {
-  BTA_DM_LINK_UP_EVT = 5,         /* Connection UP event */
-  BTA_DM_LINK_DOWN_EVT = 6,       /* Connection DOWN event */
-  BTA_DM_LE_FEATURES_READ = 27,   /* Cotroller specific LE features are read */
-  BTA_DM_LINK_UP_FAILED_EVT = 34, /* Create connection failed event */
+  BTA_DM_LINK_UP_EVT = 5,                /* Connection UP event */
+  BTA_DM_LINK_DOWN_EVT = 6,              /* Connection DOWN event */
+  BTA_DM_LE_FEATURES_READ = 27,          /* Controller specific LE features are read */
+  BTA_DM_LPP_OFFLOAD_FEATURES_READ = 28, /* Low power processor offload features are read */
+  BTA_DM_LINK_UP_FAILED_EVT = 34,        /* Create connection failed event */
 } tBTA_DM_ACL_EVT;
 
 /* Structure associated with BTA_DM_LINK_UP_EVT */
@@ -218,7 +216,7 @@ inline std::string bta_dm_search_evt_text(const tBTA_DM_SEARCH_EVT& event) {
     CASE_RETURN_TEXT(BTA_DM_NAME_READ_EVT);
     CASE_RETURN_TEXT(BTA_DM_OBSERVE_CMPL_EVT);
     default:
-      return base::StringPrintf("UNKNOWN[%hhu]", event);
+      return std::format("UNKNOWN[{}]", static_cast<uint8_t>(event));
   }
 }
 
@@ -849,13 +847,13 @@ bool BTA_DmCheckLeAudioCapable(const RawAddress& address);
 
 void DumpsysBtaDm(int fd);
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tBTA_DM_SEARCH_EVT> : enum_formatter<tBTA_DM_SEARCH_EVT> {};
 template <>
 struct formatter<tBTA_DM_ACL_EVT> : enum_formatter<tBTA_DM_ACL_EVT> {};
 template <>
 struct formatter<tBTA_PREF_ROLES> : enum_formatter<tBTA_PREF_ROLES> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif /* BTA_API_H */

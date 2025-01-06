@@ -295,7 +295,7 @@
         </activity>
 
         <service android:process="@string/process"
-             android:name="com.android.bluetooth.pbapclient.AuthenticationService"
+             android:name="com.android.bluetooth.pbapclient.PbapClientAccountAuthenticatorService"
              android:enabled="false"
              android:exported="true">
             <intent-filter>

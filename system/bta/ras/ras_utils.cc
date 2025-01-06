@@ -16,14 +16,12 @@
 
 #include <base/functional/bind.h>
 
-#include <unordered_map>
+#include <cstdint>
+#include <cstring>
+#include <string>
 
-#include "bta/include/bta_gatt_api.h"
-#include "bta/include/bta_ras_api.h"
+#include "bluetooth/log.h"
 #include "bta/ras/ras_types.h"
-#include "stack/include/bt_types.h"
-#include "stack/include/btm_ble_addr.h"
-#include "stack/include/gap_api.h"
 #include "types/bluetooth/uuid.h"
 
 using namespace bluetooth;
@@ -77,6 +75,7 @@ bool ParseControlPointCommand(ControlPointCommand* command, const uint8_t* value
       break;
     default:
       log::warn("unknown opcode 0x{:02x}", value[0]);
+      command->isValid_ = true;
       return false;
   }
   std::memcpy(command->parameter_, value + 1, len - 1);

@@ -20,16 +20,31 @@
 
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
+#include <stdio.h>
 
+#include <chrono>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <mutex>
 #include <optional>
+#include <ostream>
+#include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "audio/asrc/asrc_resampler.h"
 #include "audio_hal_client.h"
 #include "audio_hal_interface/le_audio_software.h"
 #include "bta/le_audio/codec_manager.h"
+#include "common/message_loop_thread.h"
 #include "common/repeating_timer.h"
 #include "common/time_util.h"
-#include "gd/hal/link_clocker.h"
+#include "hardware/bluetooth.h"
+#include "le_audio/broadcaster/broadcaster_types.h"
+#include "le_audio/le_audio_types.h"
 #include "osi/include/wakelock.h"
 #include "stack/include/main_thread.h"
 
@@ -212,19 +227,12 @@ void SourceImpl::SendAudioData() {
     sStats.media_read_last_underflow_us = bluetooth::common::time_get_os_boottime_us();
   }
 
-  if (com::android::bluetooth::flags::leaudio_hal_client_asrc()) {
-    auto asrc_buffers = asrc_->Run(data);
+  auto asrc_buffers = asrc_->Run(data);
 
-    std::lock_guard<std::mutex> guard(audioSourceCallbacksMutex_);
-    for (auto buffer : asrc_buffers) {
-      if (audioSourceCallbacks_ != nullptr) {
-        audioSourceCallbacks_->OnAudioDataReady(*buffer);
-      }
-    }
-  } else {
-    std::lock_guard<std::mutex> guard(audioSourceCallbacksMutex_);
+  std::lock_guard<std::mutex> guard(audioSourceCallbacksMutex_);
+  for (auto buffer : asrc_buffers) {
     if (audioSourceCallbacks_ != nullptr) {
-      audioSourceCallbacks_->OnAudioDataReady(data);
+      audioSourceCallbacks_->OnAudioDataReady(*buffer);
     }
   }
 }
@@ -252,11 +260,9 @@ bool SourceImpl::InitAudioSinkThread() {
 
 void SourceImpl::StartAudioTicks() {
   wakelock_acquire();
-  if (com::android::bluetooth::flags::leaudio_hal_client_asrc()) {
-    asrc_ = std::make_unique<bluetooth::audio::asrc::SourceAudioHalAsrc>(
-            worker_thread_, source_codec_config_.num_channels, source_codec_config_.sample_rate,
-            source_codec_config_.bits_per_sample, source_codec_config_.data_interval_us);
-  }
+  asrc_ = std::make_unique<bluetooth::audio::asrc::SourceAudioHalAsrc>(
+          worker_thread_, source_codec_config_.num_channels, source_codec_config_.sample_rate,
+          source_codec_config_.bits_per_sample, source_codec_config_.data_interval_us);
   audio_timer_.SchedulePeriodic(
           worker_thread_->GetWeakPtr(), FROM_HERE,
           base::BindRepeating(&SourceImpl::SendAudioData, weak_factory_.GetWeakPtr()),
@@ -505,7 +511,7 @@ std::unique_ptr<LeAudioSourceAudioHalClient> LeAudioSourceAudioHalClient::Acquir
 std::unique_ptr<LeAudioSourceAudioHalClient> LeAudioSourceAudioHalClient::AcquireBroadcast() {
   std::unique_ptr<SourceImpl> impl(new SourceImpl(true));
   if (!impl->Acquire()) {
-    log::error("Could not acquire Broadcast Source on LE Audio HAL enpoint");
+    log::error("Could not acquire Broadcast Source on LE Audio HAL endpoint");
     impl.reset();
     return nullptr;
   }
@@ -524,7 +530,7 @@ void LeAudioSourceAudioHalClient::DebugDump(int fd) {
          << sStats.media_read_total_underflow_bytes
          << "\n    Last update time ago in ms (underflow)                  : "
          << (sStats.media_read_last_underflow_us > 0
-                     ? (unsigned long long)(now_us - sStats.media_read_last_underflow_us) / 1000
+                     ? (now_us - sStats.media_read_last_underflow_us) / 1000
                      : 0)
          << std::endl;
   dprintf(fd, "%s", stream.str().c_str());

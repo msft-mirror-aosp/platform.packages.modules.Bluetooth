@@ -22,15 +22,30 @@
 #include <base/functional/callback.h>
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
+#include <string.h>
 
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
+#include <list>
+#include <utility>
 #include <vector>
 
 #include "bta/hh/bta_hh_int.h"
 #include "bta/include/bta_gatt_queue.h"
 #include "bta/include/bta_hh_co.h"
 #include "bta/include/bta_le_audio_api.h"
+#include "bta_api.h"
+#include "bta_gatt_api.h"
+#include "bta_hh_api.h"
+#include "btm_ble_api_types.h"
+#include "btm_sec_api_types.h"
 #include "device/include/interop.h"
+#include "gatt/database.h"
+#include "gatt_api.h"
+#include "gattdefs.h"
+#include "hardware/bt_gatt_types.h"
+#include "hiddefs.h"
 #include "osi/include/allocator.h"
 #include "osi/include/osi.h"    // ARRAY_SIZE
 #include "stack/btm/btm_sec.h"  // BTM_
@@ -43,22 +58,14 @@
 #include "stack/include/l2cap_interface.h"
 #include "stack/include/main_thread.h"
 #include "stack/include/srvc_api.h"  // tDIS_VALUE
+#include "types/ble_address_with_type.h"
 #include "types/bluetooth/uuid.h"
+#include "types/bt_transport.h"
 #include "types/raw_address.h"
 
 using bluetooth::Uuid;
 using std::vector;
 using namespace bluetooth;
-
-/* TODO: b/329720661 Remove this namespace entirely when
- * prevent_hogp_reconnect_when_connected flag is shipped */
-namespace {
-#ifndef BTA_HH_LE_RECONN
-constexpr bool kBTA_HH_LE_RECONN = true;
-#else
-constexpr bool kBTA_HH_LE_RECONN = false;
-#endif
-}  // namespace
 
 #define BTA_HH_APP_ID_LE 0xff
 
@@ -215,9 +222,7 @@ void bta_hh_le_enable(void) {
                         }),
                         false);
 
-  if (com::android::bluetooth::flags::leaudio_dynamic_spatial_audio()) {
-    LeAudioClient::RegisterIsoDataConsumer(bta_hh_le_iso_data_callback);
-  }
+  LeAudioClient::RegisterIsoDataConsumer(bta_hh_le_iso_data_callback);
 }
 
 /*******************************************************************************
@@ -263,7 +268,7 @@ static uint8_t bta_hh_le_get_le_dev_hdl(uint8_t cb_index) {
  * Parameters:
  *
  ******************************************************************************/
-void bta_hh_le_open_conn(tBTA_HH_DEV_CB* p_cb) {
+void bta_hh_le_open_conn(tBTA_HH_DEV_CB* p_cb, bool direct) {
   p_cb->hid_handle = bta_hh_le_get_le_dev_hdl(p_cb->index);
   if (p_cb->hid_handle == BTA_HH_IDX_INVALID) {
     tBTA_HH_STATUS status = BTA_HH_ERR_NO_RES;
@@ -272,6 +277,15 @@ void bta_hh_le_open_conn(tBTA_HH_DEV_CB* p_cb) {
   }
 
   bta_hh_cb.le_cb_index[BTA_HH_GET_LE_CB_IDX(p_cb->hid_handle)] = p_cb->index;  // Update index map
+  if (!direct) {
+    // don't reconnect unbonded device
+    if (!BTM_IsLinkKeyKnown(p_cb->link_spec.addrt.bda, BT_TRANSPORT_LE)) {
+      return;
+    }
+    log::debug("Add {} to background connection list", p_cb->link_spec);
+    bta_hh_le_add_dev_bg_conn(p_cb);
+    return;
+  }
 
   BTA_GATTC_Open(bta_hh_cb.gatt_if, p_cb->link_spec.addrt.bda, BTM_BLE_DIRECT_CONNECTION, false);
 }
@@ -542,18 +556,16 @@ static void bta_hh_le_register_input_notif(tBTA_HH_DEV_CB* p_dev_cb, uint8_t pro
       if (register_ba && p_rpt->uuid == GATT_UUID_BATTERY_LEVEL) {
         BTA_GATTC_RegisterForNotifications(bta_hh_cb.gatt_if, p_dev_cb->link_spec.addrt.bda,
                                            p_rpt->char_inst_id);
-      }
-      /* boot mode, deregister report input notification */
-      else if (proto_mode == BTA_HH_PROTO_BOOT_MODE) {
+      } else if (proto_mode == BTA_HH_PROTO_BOOT_MODE) {
+        /* boot mode, deregister report input notification */
         if (p_rpt->uuid == GATT_UUID_HID_REPORT &&
             p_rpt->client_cfg_value == GATT_CLT_CONFIG_NOTIFICATION) {
           log::verbose("---> Deregister Report ID:{}", p_rpt->rpt_id);
           BTA_GATTC_DeregisterForNotifications(bta_hh_cb.gatt_if, p_dev_cb->link_spec.addrt.bda,
                                                p_rpt->char_inst_id);
-        }
-        /* register boot reports notification */
-        else if (p_rpt->uuid == GATT_UUID_HID_BT_KB_INPUT ||
-                 p_rpt->uuid == GATT_UUID_HID_BT_MOUSE_INPUT) {
+        } else if (p_rpt->uuid == GATT_UUID_HID_BT_KB_INPUT ||
+                   /* register boot reports notification */
+                   p_rpt->uuid == GATT_UUID_HID_BT_MOUSE_INPUT) {
           log::verbose("<--- Register Boot Report ID:{}", p_rpt->rpt_id);
           BTA_GATTC_RegisterForNotifications(bta_hh_cb.gatt_if, p_dev_cb->link_spec.addrt.bda,
                                              p_rpt->char_inst_id);
@@ -624,13 +636,6 @@ static void bta_hh_le_open_cmpl(tBTA_HH_DEV_CB* p_cb) {
     if (interop_match_vendor_product_ids(INTEROP_HOGP_FORCE_MTU_EXCHANGE, p_cb->dscp_info.vendor_id,
                                          p_cb->dscp_info.product_id)) {
       BTA_GATTC_ConfigureMTU(p_cb->conn_id, GATT_MAX_MTU_SIZE);
-    }
-
-    if (!com::android::bluetooth::flags::prevent_hogp_reconnect_when_connected()) {
-      if (kBTA_HH_LE_RECONN && p_cb->status == BTA_HH_OK) {
-        bta_hh_le_add_dev_bg_conn(p_cb);
-      }
-      return;
     }
   }
 }
@@ -1026,9 +1031,8 @@ void bta_hh_security_cmpl(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* /* p_buf */)
       if (!bta_hh_le_set_protocol_mode(p_cb, p_cb->mode)) {
         bta_hh_le_open_cmpl(p_cb);
       }
-    }
-    /* start primary service discovery for HID service */
-    else {
+    } else {
+      /* start primary service discovery for HID service */
       log::verbose("Starting service discovery");
       bta_hh_le_pri_service_discovery(p_cb);
     }
@@ -1103,9 +1107,8 @@ void bta_hh_start_security(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* /* p_buf */
     log::debug("addr:{} already encrypted", p_cb->link_spec.addrt.bda);
     p_cb->status = BTA_HH_OK;
     bta_hh_sm_execute(p_cb, BTA_HH_ENC_CMPL_EVT, NULL);
-  }
-  /* if bonded and link not encrypted */
-  else if (BTM_IsLinkKeyKnown(p_cb->link_spec.addrt.bda, BT_TRANSPORT_LE)) {
+  } else if (BTM_IsLinkKeyKnown(p_cb->link_spec.addrt.bda, BT_TRANSPORT_LE)) {
+    /* if bonded and link not encrypted */
     log::debug("addr:{} bonded, not encrypted", p_cb->link_spec.addrt.bda);
     p_cb->status = BTA_HH_ERR_AUTH_FAILED;
     BTM_SetEncryption(p_cb->link_spec.addrt.bda, BT_TRANSPORT_LE, bta_hh_le_encrypt_cback, NULL,
@@ -1587,8 +1590,7 @@ static void bta_hh_le_srvc_search_cmpl(tBTA_GATTC_SEARCH_CMPL* p_data) {
       scp_service = &service;
     } else if (service.uuid == Uuid::From16Bit(UUID_SERVCLASS_GAP_SERVER)) {
       gap_service = &service;
-    } else if (com::android::bluetooth::flags::android_headtracker_service() &&
-               service.uuid == ANDROID_HEADTRACKER_SERVICE_UUID) {
+    } else if (service.uuid == ANDROID_HEADTRACKER_SERVICE_UUID) {
       headtracker_service = &service;
     }
   }
@@ -1703,10 +1705,9 @@ static void bta_hh_le_input_rpt_notify(tBTA_GATTC_NOTIFY* p_data) {
 void bta_hh_le_open_fail(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data) {
   const tBTA_HH_LE_CLOSE* le_close = &p_data->le_close;
 
-  BTM_LogHistory(
-          kBtmLogTag, p_cb->link_spec.addrt.bda, "Open failed",
-          base::StringPrintf("%s reason %s", bt_transport_text(p_cb->link_spec.transport).c_str(),
-                             gatt_disconnection_reason_text(le_close->reason).c_str()));
+  BTM_LogHistory(kBtmLogTag, p_cb->link_spec.addrt.bda, "Open failed",
+                 std::format("{} reason {}", bt_transport_text(p_cb->link_spec.transport),
+                             gatt_disconnection_reason_text(le_close->reason)));
   log::warn("Open failed for device:{}", p_cb->link_spec.addrt.bda);
 
   /* open failure in the middle of service discovery, clear all services */
@@ -1750,10 +1751,9 @@ void bta_hh_le_open_fail(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data) {
 void bta_hh_gatt_close(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data) {
   const tBTA_HH_LE_CLOSE* le_close = &p_data->le_close;
 
-  BTM_LogHistory(
-          kBtmLogTag, p_cb->link_spec.addrt.bda, "Closed",
-          base::StringPrintf("%s reason %s", bt_transport_text(p_cb->link_spec.transport).c_str(),
-                             gatt_disconnection_reason_text(le_close->reason).c_str()));
+  BTM_LogHistory(kBtmLogTag, p_cb->link_spec.addrt.bda, "Closed",
+                 std::format("{} reason {}", bt_transport_text(p_cb->link_spec.transport),
+                             gatt_disconnection_reason_text(le_close->reason)));
 
   /* deregister all notification */
   bta_hh_le_deregister_input_notif(p_cb);
@@ -2167,6 +2167,12 @@ void bta_hh_le_get_dscp_act(tBTA_HH_DEV_CB* p_cb) {
  *
  ******************************************************************************/
 static void bta_hh_le_add_dev_bg_conn(tBTA_HH_DEV_CB* p_cb) {
+  if (com::android::bluetooth::flags::hogp_reconnection()) {
+    if (p_cb->in_bg_conn) {
+      return;
+    }
+  }
+
   /* Add device into BG connection to accept remote initiated connection */
   BTA_GATTC_Open(bta_hh_cb.gatt_if, p_cb->link_spec.addrt.bda, BTM_BLE_BKG_CONNECT_ALLOW_LIST,
                  false);
@@ -2397,10 +2403,6 @@ static void bta_hh_process_cache_rpt(tBTA_HH_DEV_CB* p_cb, tBTA_HH_RPT_CACHE_ENT
 
 static bool bta_hh_le_iso_data_callback(const RawAddress& addr, uint16_t /*cis_conn_hdl*/,
                                         uint8_t* data, uint16_t size, uint32_t /*timestamp*/) {
-  if (!com::android::bluetooth::flags::leaudio_dynamic_spatial_audio()) {
-    log::warn("DSA not supported");
-    return false;
-  }
 
   tAclLinkSpec link_spec = {.addrt.bda = addr, .transport = BT_TRANSPORT_LE};
 

@@ -61,17 +61,6 @@ rust_defaults {
     apex_available: ["com.android.btservices"],
 }
 
-rust_library {
-    name: "libbluetooth_core_rs_for_facade",
-    crate_name: "bluetooth_core_rs_for_facade",
-    defaults: ["libbluetooth_core_rs_defaults"],
-    rustlibs: [
-        "libbluetooth_aconfig_flags_rust",
-        "libtokio",
-    ],
-    host_supported: true,
-}
-
 rust_ffi_static {
     name: "libbluetooth_core_rs",
     crate_name: "bluetooth_core",
@@ -116,7 +105,6 @@ cc_library_static {
         "packages/modules/Bluetooth/system/gd",
         "packages/modules/Bluetooth/system/include",
         "packages/modules/Bluetooth/system/stack/include",
-        "packages/modules/Bluetooth/system/types",
     ],
     export_include_dirs: ["."],
     static_libs: [
@@ -128,9 +116,6 @@ cc_library_static {
     generated_headers: [
         "cxx-bridge-header",
         "libbluetooth_core_rs_bridge_codegen_header",
-
-        "BluetoothGeneratedBundlerSchema_h_bfbs",
-        "BluetoothGeneratedDumpsysDataSchema_h",
     ],
     export_generated_headers: [
         "cxx-bridge-header",

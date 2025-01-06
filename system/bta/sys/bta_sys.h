@@ -24,7 +24,6 @@
 #ifndef BTA_SYS_H
 #define BTA_SYS_H
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 
 #include <chrono>
@@ -140,7 +139,7 @@ inline std::string BtaIdSysText(const tBTA_SYS_ID& sys_id) {
     CASE_RETURN_TEXT(BTA_ID_SDP);
     CASE_RETURN_TEXT(BTA_ID_BLUETOOTH_MAX);
     default:
-      return base::StringPrintf("Unknown[%hhu]", sys_id);
+      return std::format("Unknown[{}]", static_cast<uint8_t>(sys_id));
   }
 }
 
@@ -260,11 +259,11 @@ void bta_sys_cust_eir_register(tBTA_SYS_CUST_EIR_CBACK* p_cback);
 void bta_sys_add_cust_uuid(const tBTA_CUSTOM_UUID& curr);
 void bta_sys_remove_cust_uuid(const tBTA_CUSTOM_UUID& curr);
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tBTA_SYS_ID> : enum_formatter<tBTA_SYS_ID> {};
 template <>
 struct formatter<tBTA_SYS_CONN_STATUS> : enum_formatter<tBTA_SYS_CONN_STATUS> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif /* BTA_SYS_H */

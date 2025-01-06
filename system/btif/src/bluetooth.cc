@@ -27,32 +27,23 @@
 
 #define LOG_TAG "bt_btif"
 
-#include <bluetooth/log.h>
-#include <com_android_bluetooth_flags.h>
-#include <hardware/bluetooth.h>
-#include <hardware/bluetooth_headset_interface.h>
-#include <hardware/bt_av.h>
-#include <hardware/bt_csis.h>
-#include <hardware/bt_gatt.h>
-#include <hardware/bt_has.h>
-#include <hardware/bt_hd.h>
-#include <hardware/bt_hearing_aid.h>
-#include <hardware/bt_hf_client.h>
-#include <hardware/bt_hh.h>
-#include <hardware/bt_le_audio.h>
-#include <hardware/bt_pan.h>
-#include <hardware/bt_rc.h>
-#include <hardware/bt_sdp.h>
-#include <hardware/bt_sock.h>
-#include <hardware/bt_vc.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
+#include "hardware/bluetooth.h"
 
-#include "audio_hal_interface/a2dp_encoding.h"
-#include "bta/hh/bta_hh_int.h"  // for HID HACK profile methods
+#include <base/functional/bind.h>
+#include <base/functional/callback.h>
+#include <bluetooth/log.h>
+
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "bta/hh/bta_hh_int.h"
 #include "bta/include/bta_api.h"
 #include "bta/include/bta_ar_api.h"
+#include "bta/include/bta_av_api.h"
 #include "bta/include/bta_csis_api.h"
 #include "bta/include/bta_has_api.h"
 #include "bta/include/bta_hearing_aid_api.h"
@@ -66,6 +57,7 @@
 #include "btif/include/btif_api.h"
 #include "btif/include/btif_av.h"
 #include "btif/include/btif_bqr.h"
+#include "btif/include/btif_common.h"
 #include "btif/include/btif_config.h"
 #include "btif/include/btif_debug_conn.h"
 #include "btif/include/btif_dm.h"
@@ -91,11 +83,22 @@
 #include "device/include/esco_parameters.h"
 #include "device/include/interop.h"
 #include "device/include/interop_config.h"
+#include "hardware/avrcp/avrcp.h"
+#include "hardware/bt_csis.h"
+#include "hardware/bt_gatt.h"
+#include "hardware/bt_has.h"
+#include "hardware/bt_hearing_aid.h"
+#include "hardware/bt_le_audio.h"
+#include "hardware/bt_rc.h"
+#include "hardware/bt_sdp.h"
+#include "hardware/bt_sock.h"
+#include "hardware/bt_vc.h"
 #include "internal_include/bt_target.h"
 #include "main/shim/dumpsys.h"
 #include "os/parameter_provider.h"
 #include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
+#include "osi/include/properties.h"
 #include "osi/include/stack_power_telemetry.h"
 #include "osi/include/wakelock.h"
 #include "stack/btm/btm_dev.h"
@@ -104,9 +107,14 @@
 #include "stack/include/a2dp_api.h"
 #include "stack/include/avct_api.h"
 #include "stack/include/avdt_api.h"
+#include "stack/include/avrc_api.h"
+#include "stack/include/bnep_api.h"
+#include "stack/include/bt_name.h"
+#include "stack/include/bt_octets.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_status.h"
 #include "stack/include/gatt_api.h"
+#include "stack/include/hcidefs.h"
 #include "stack/include/hfp_lc3_decoder.h"
 #include "stack/include/hfp_lc3_encoder.h"
 #include "stack/include/hfp_msbc_decoder.h"
@@ -117,6 +125,7 @@
 #include "stack/include/pan_api.h"
 #include "stack/include/sdp_api.h"
 #include "storage/config_keys.h"
+#include "types/ble_address_with_type.h"
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
 
@@ -125,7 +134,6 @@
 
 using bluetooth::csis::CsisClientInterface;
 using bluetooth::has::HasClientInterface;
-using bluetooth::hearing_aid::HearingAidInterface;
 using bluetooth::le_audio::LeAudioBroadcasterInterface;
 using bluetooth::le_audio::LeAudioClientInterface;
 using bluetooth::vc::VolumeControlInterface;
@@ -341,6 +349,8 @@ struct CoreInterfaceImpl : bluetooth::core::CoreInterface {
   }
 
   void onLinkDown(const RawAddress& bd_addr, tBT_TRANSPORT transport) override {
+    btif_hh_disconnected(bd_addr, transport);
+
     if (transport != BT_TRANSPORT_BR_EDR) {
       return;
     }
@@ -869,7 +879,7 @@ static int set_event_filter_connection_setup_all_devices() {
   return BT_STATUS_SUCCESS;
 }
 
-static void dump(int fd, const char** arguments) {
+static void dump(int fd, const char** /*arguments*/) {
   log::debug("Started bluetooth dumpsys");
   btif_debug_conn_dump(fd);
   btif_debug_bond_event_dump(fd);
@@ -903,7 +913,7 @@ static void dump(int fd, const char** arguments) {
   DumpsysRecord(fd);
   L2CA_Dumpsys(fd);
   DumpsysBtm(fd);
-  bluetooth::shim::Dump(fd, arguments);
+  bluetooth::shim::Dump(fd);
   power_telemetry::GetInstance().Dumpsys(fd);
   log::debug("Finished bluetooth dumpsys");
 }
@@ -1461,13 +1471,16 @@ void invoke_address_consolidate_cb(RawAddress main_bd_addr, RawAddress secondary
           main_bd_addr, secondary_bd_addr));
 }
 
-void invoke_le_address_associate_cb(RawAddress main_bd_addr, RawAddress secondary_bd_addr) {
+void invoke_le_address_associate_cb(RawAddress main_bd_addr, RawAddress secondary_bd_addr,
+                                    uint8_t identity_address_type) {
   do_in_jni_thread(base::BindOnce(
-          [](RawAddress main_bd_addr, RawAddress secondary_bd_addr) {
-            HAL_CBACK(bt_hal_cbacks, le_address_associate_cb, &main_bd_addr, &secondary_bd_addr);
+          [](RawAddress main_bd_addr, RawAddress secondary_bd_addr, uint8_t identity_address_type) {
+            HAL_CBACK(bt_hal_cbacks, le_address_associate_cb, &main_bd_addr, &secondary_bd_addr,
+                      identity_address_type);
           },
-          main_bd_addr, secondary_bd_addr));
+          main_bd_addr, secondary_bd_addr, identity_address_type));
 }
+
 void invoke_acl_state_changed_cb(bt_status_t status, RawAddress bd_addr, bt_acl_state_t state,
                                  int transport_link_type, bt_hci_error_code_t hci_reason,
                                  bt_conn_direction_t direction, uint16_t acl_handle) {

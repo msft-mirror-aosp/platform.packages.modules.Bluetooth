@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.le_audio;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.mockito.Mockito.*;
 
 import android.bluetooth.BluetoothLeAudio;
@@ -68,7 +70,7 @@ public class ContentControlIdKeeperTest {
         Map<ParcelUuid, Pair<Integer, Integer>> uuidToCcidContextPair =
                 ContentControlIdKeeper.getUuidToCcidContextPairMap();
         Assert.assertEquals(expectedListSize, uuidToCcidContextPair.size());
-        Assert.assertTrue(uuidToCcidContextPair.containsKey(uuid));
+        assertThat(uuidToCcidContextPair).containsKey(uuid);
         Assert.assertEquals(ccid, (long) uuidToCcidContextPair.get(uuid).first);
         Assert.assertEquals(context, (long) uuidToCcidContextPair.get(uuid).second);
 
@@ -78,11 +80,11 @@ public class ContentControlIdKeeperTest {
     public void testCcidRelease(ParcelUuid uuid, int ccid, int expectedListSize) {
         Map<ParcelUuid, Pair<Integer, Integer>> uuidToCcidContextPair =
                 ContentControlIdKeeper.getUuidToCcidContextPairMap();
-        Assert.assertTrue(uuidToCcidContextPair.containsKey(uuid));
+        assertThat(uuidToCcidContextPair).containsKey(uuid);
 
         ContentControlIdKeeper.releaseCcid(ccid);
         uuidToCcidContextPair = ContentControlIdKeeper.getUuidToCcidContextPairMap();
-        Assert.assertFalse(uuidToCcidContextPair.containsKey(uuid));
+        assertThat(uuidToCcidContextPair).doesNotContainKey(uuid);
 
         verify(mLeAudioServiceMock).setCcidInformation(eq(uuid), eq(ccid), eq(0));
 

@@ -62,7 +62,6 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
-import android.database.ContentObserver;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
@@ -79,7 +78,6 @@ import android.os.SystemProperties;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.provider.Settings;
-import android.provider.Settings.SettingNotFoundException;
 import android.sysprop.BluetoothProperties;
 import android.util.proto.ProtoOutputStream;
 
@@ -253,13 +251,12 @@ class BluetoothManagerService {
         }
         mName = name;
         Log.v(TAG, "storeName(" + mName + "): Success");
-        mContext.sendBroadcastAsUser(
+        Intent intent =
                 new Intent(BluetoothAdapter.ACTION_LOCAL_NAME_CHANGED)
                         .putExtra(BluetoothAdapter.EXTRA_LOCAL_NAME, name)
-                        .addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT),
-                UserHandle.ALL,
-                BLUETOOTH_CONNECT,
-                getTempAllowlistBroadcastOptions());
+                        .addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
+        mContext.sendBroadcastAsUser(
+                intent, UserHandle.ALL, BLUETOOTH_CONNECT, getTempAllowlistBroadcastOptions());
     }
 
     private void storeAddress(String address) {
@@ -590,11 +587,7 @@ class BluetoothManagerService {
         mHandler = new BluetoothHandler(mLooper);
 
         // Observe BLE scan only mode settings change.
-        if (Flags.respectBleScanSetting()) {
-            BleScanSettingListener.initialize(mLooper, mContentResolver, this::onBleScanDisabled);
-        } else {
-            registerForBleScanModeChange();
-        }
+        BleScanSettingListener.initialize(mLooper, mContentResolver, this::onBleScanDisabled);
 
         // Disable ASHA if BLE is not supported, overriding any system property
         if (!isBleSupported(mContext)) {
@@ -684,11 +677,7 @@ class BluetoothManagerService {
             return Unit.INSTANCE;
         }
         clearBleApps();
-        try {
-            mAdapter.unregAllGattClient(mContext.getAttributionSource());
-        } catch (RemoteException e) {
-            Log.e(TAG, "onBleScanDisabled: unregAllGattClient failed", e);
-        }
+
         if (mState.oneOf(STATE_BLE_ON)) {
             Log.i(TAG, "onBleScanDisabled: Shutting down BLE_ON mode");
             bleOnToOff();
@@ -866,20 +855,10 @@ class BluetoothManagerService {
         if (AirplaneModeListener.isOn() && !mEnable) {
             return false;
         }
-        if (Flags.respectBleScanSetting()) {
-            if (SatelliteModeListener.isOn()) {
-                return false;
-            }
-            return BleScanSettingListener.isScanAllowed();
-        }
-        try {
-            return Settings.Global.getInt(
-                            mContentResolver, BleScanSettingListener.BLE_SCAN_ALWAYS_AVAILABLE)
-                    != 0;
-        } catch (SettingNotFoundException e) {
-            // The settings is considered as false by default.
+        if (SatelliteModeListener.isOn()) {
             return false;
         }
+        return BleScanSettingListener.isScanAllowed();
     }
 
     boolean isHearingAidProfileSupported() {
@@ -895,32 +874,6 @@ class BluetoothManagerService {
             return false;
         }
         return mAdapter.isMediaProfileConnected(mContext.getAttributionSource());
-    }
-
-    // Monitor change of BLE scan only mode settings.
-    private void registerForBleScanModeChange() {
-        ContentObserver contentObserver =
-                new ContentObserver(new Handler(mLooper)) {
-                    @Override
-                    public void onChange(boolean selfChange) {
-                        if (isBleScanAvailable()) {
-                            // Nothing to do
-                            return;
-                        }
-                        // BLE scan is not available.
-                        disableBleScanMode();
-                        clearBleApps();
-                        if (mState.oneOf(STATE_BLE_ON)) {
-                            ActiveLogs.add(ENABLE_DISABLE_REASON_APPLICATION_REQUEST, false);
-                            bleOnToOff();
-                        }
-                    }
-                };
-
-        mContentResolver.registerContentObserver(
-                Settings.Global.getUriFor(BleScanSettingListener.BLE_SCAN_ALWAYS_AVAILABLE),
-                false,
-                contentObserver);
     }
 
     // Disable ble scan only mode.
@@ -977,7 +930,7 @@ class BluetoothManagerService {
             return false;
         }
 
-        if (Flags.respectBleScanSetting() && !BleScanSettingListener.isScanAllowed()) {
+        if (!BleScanSettingListener.isScanAllowed()) {
             Log.d(TAG, "enableBle: not enabling - Scan mode is not allowed.");
             return false;
         }
@@ -1009,12 +962,6 @@ class BluetoothManagerService {
                         + (" mAdapter=" + mAdapter)
                         + (" isBinding=" + isBinding())
                         + (" mState=" + mState));
-
-        // Remove this with flag, preventing a "disable" make no sense, even in satellite mode
-        if (!Flags.respectBleScanSetting() && isSatelliteModeOn()) {
-            Log.d(TAG, "disableBle: not disabling - satellite mode is on.");
-            return false;
-        }
 
         if (mState.oneOf(STATE_OFF)) {
             Log.i(TAG, "disableBle: Already disabled");
@@ -1080,9 +1027,9 @@ class BluetoothManagerService {
             Log.d(TAG, "sendBrEdrDownCallback: mAdapter is null");
             return;
         }
-        boolean scanIsAllowed =
-                !Flags.respectBleScanSetting() || BleScanSettingListener.isScanAllowed();
-        if (!AirplaneModeListener.isOn() && isBleAppPresent() && scanIsAllowed) {
+        if (BleScanSettingListener.isScanAllowed()
+                && !AirplaneModeListener.isOn()
+                && isBleAppPresent()) {
             // Need to stay at BLE ON. Disconnect all Gatt connections
             Log.i(TAG, "sendBrEdrDownCallback: Staying in BLE_ON");
             try {
@@ -1570,23 +1517,15 @@ class BluetoothManagerService {
                         }
                     }
 
-                    // Register callback object
                     try {
                         mAdapter.registerCallback(
                                 mBluetoothCallback, mContext.getAttributionSource());
                     } catch (RemoteException e) {
                         Log.e(TAG, "Unable to register BluetoothCallback", e);
                     }
-                    // Inform BluetoothAdapter instances that service is up
-                    if (!Flags.fastBindToApp()) {
-                        sendBluetoothServiceUpCallback();
-                    }
 
-                    // Do enable request
                     offToBleOn();
-                    if (Flags.fastBindToApp()) {
-                        sendBluetoothServiceUpCallback();
-                    }
+                    sendBluetoothServiceUpCallback();
 
                     if (!mEnable) {
                         waitForState(STATE_ON);
@@ -1892,9 +1831,6 @@ class BluetoothManagerService {
     private void handleEnable() {
         if (mAdapter == null && !isBinding()) {
             bindToAdapter();
-        } else if (!Flags.fastBindToApp() && mAdapter != null) {
-            // Enable bluetooth
-            offToBleOn();
         }
     }
 
@@ -2224,13 +2160,12 @@ class BluetoothManagerService {
         if (mEnable) {
             long onDuration = SystemClock.elapsedRealtime() - mLastEnabledTime;
             String onDurationString =
-                    String.format(
-                            Locale.US,
+                    android.bluetooth.BluetoothUtils.formatSimple(
                             "%02d:%02d:%02d.%03d",
-                            (int) (onDuration / (1000 * 60 * 60)),
-                            (int) ((onDuration / (1000 * 60)) % 60),
-                            (int) ((onDuration / 1000) % 60),
-                            (int) (onDuration % 1000));
+                            onDuration / (1000 * 60 * 60),
+                            (onDuration / (1000 * 60)) % 60,
+                            (onDuration / 1000) % 60,
+                            onDuration % 1000);
             writer.println("  time since enabled: " + onDurationString);
         }
 
@@ -2413,8 +2348,7 @@ class BluetoothManagerService {
                 snoopMode = BluetoothProperties.snoop_log_mode_values.FULL;
                 break;
             default:
-                Log.e(TAG, "setBtHciSnoopLogMode: Not a valid mode:" + mode);
-                return BluetoothStatusCodes.ERROR_BAD_PARAMETERS;
+                throw new IllegalArgumentException("Invalid HCI snoop log mode param value");
         }
         try {
             BluetoothProperties.snoop_log_mode(snoopMode);

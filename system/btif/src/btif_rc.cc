@@ -26,17 +26,19 @@
 
 #include "btif_rc.h"
 
+#include <base/functional/bind.h>
 #include <bluetooth/log.h>
-#include <fcntl.h>
 #include <hardware/bluetooth.h>
 #include <hardware/bt_rc.h>
-#include <pthread.h>
+#include <stdio.h>
 #include <string.h>
 #include <time.h>
-#include <unistd.h>
 
+#include <cstdint>
 #include <cstdio>
 #include <mutex>
+#include <sstream>
+#include <string>
 
 #include "bta/include/bta_av_api.h"
 #include "btif/avrcp/avrcp_service.h"
@@ -48,6 +50,7 @@
 #include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
 #include "osi/include/list.h"
+#include "osi/include/osi.h"
 #include "osi/include/properties.h"
 #include "stack/include/avrc_api.h"
 #include "stack/include/avrc_defs.h"
@@ -1246,7 +1249,7 @@ void btif_rc_handler(tBTA_AV_EVT event, tBTA_AV* p_data) {
 bool btif_rc_is_connected_peer(const RawAddress& peer_addr) {
   for (int idx = 0; idx < BTIF_RC_NUM_CONN; idx++) {
     btif_rc_device_cb_t* p_dev = get_connected_device(idx);
-    if (p_dev != NULL && (p_dev->rc_connected == TRUE) && peer_addr == p_dev->rc_addr) {
+    if (p_dev != NULL && p_dev->rc_connected && peer_addr == p_dev->rc_addr) {
       return true;
     }
   }
@@ -1666,7 +1669,7 @@ static void btif_rc_upstreams_evt(uint16_t event, tAVRC_COMMAND* pavrc_cmd, uint
     case AVRC_PDU_REQUEST_CONTINUATION_RSP: {
       log::verbose("REQUEST CONTINUATION: target_pdu: 0x{:02d}", pavrc_cmd->continu.target_pdu);
       tAVRC_RESPONSE avrc_rsp;
-      if (p_dev->rc_connected == TRUE) {
+      if (p_dev->rc_connected) {
         memset(&(avrc_rsp.continu), 0, sizeof(tAVRC_NEXT_RSP));
         avrc_rsp.continu.opcode = opcode_from_pdu(AVRC_PDU_REQUEST_CONTINUATION_RSP);
         avrc_rsp.continu.pdu = AVRC_PDU_REQUEST_CONTINUATION_RSP;
@@ -1679,7 +1682,7 @@ static void btif_rc_upstreams_evt(uint16_t event, tAVRC_COMMAND* pavrc_cmd, uint
     case AVRC_PDU_ABORT_CONTINUATION_RSP: {
       log::verbose("ABORT CONTINUATION: target_pdu: 0x{:02d}", pavrc_cmd->abort.target_pdu);
       tAVRC_RESPONSE avrc_rsp;
-      if (p_dev->rc_connected == TRUE) {
+      if (p_dev->rc_connected) {
         memset(&(avrc_rsp.abort), 0, sizeof(tAVRC_NEXT_RSP));
         avrc_rsp.abort.opcode = opcode_from_pdu(AVRC_PDU_ABORT_CONTINUATION_RSP);
         avrc_rsp.abort.pdu = AVRC_PDU_ABORT_CONTINUATION_RSP;
@@ -5541,7 +5544,7 @@ void btif_debug_rc_dump(int fd) {
   for (int i = 0; i < BTIF_RC_NUM_CONN; ++i) {
     btif_rc_device_cb_t* p_dev = &btif_rc_cb.rc_multi_cb[i];
     if (p_dev->rc_state != BTRC_CONNECTION_STATE_DISCONNECTED) {
-      dprintf(fd, "    %s:\n", ADDRESS_TO_LOGGABLE_CSTR(p_dev->rc_addr));
+      dprintf(fd, "    %s:\n", p_dev->rc_addr.ToRedactedStringForLogging().c_str());
 
       rc_transaction_set_t* transaction_set = &(p_dev->transaction_set);
       std::unique_lock<std::recursive_mutex> lock(transaction_set->label_lock);

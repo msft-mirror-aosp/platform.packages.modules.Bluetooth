@@ -30,6 +30,7 @@ import static com.google.common.truth.Truth.assertWithMessage;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import android.app.ActivityManager;
 import android.app.AlarmManager;
 import android.app.AppOpsManager;
 import android.app.admin.DevicePolicyManager;
@@ -154,6 +155,7 @@ public class AdapterServiceTest {
     private @Mock AdapterNativeInterface mNativeInterface;
     private @Mock BluetoothKeystoreNativeInterface mKeystoreNativeInterface;
     private @Mock BluetoothQualityReportNativeInterface mQualityNativeInterface;
+    private @Mock BluetoothHciVendorSpecificNativeInterface mHciVendorSpecificNativeInterface;
     private @Mock SdpManagerNativeInterface mSdpNativeInterface;
     private @Mock AdvertiseManagerNativeInterface mAdvertiseNativeInterface;
     private @Mock DistanceMeasurementNativeInterface mDistanceNativeInterface;
@@ -225,6 +227,7 @@ public class AdapterServiceTest {
         AdapterNativeInterface.setInstance(mNativeInterface);
         BluetoothKeystoreNativeInterface.setInstance(mKeystoreNativeInterface);
         BluetoothQualityReportNativeInterface.setInstance(mQualityNativeInterface);
+        BluetoothHciVendorSpecificNativeInterface.setInstance(mHciVendorSpecificNativeInterface);
         SdpManagerNativeInterface.setInstance(mSdpNativeInterface);
         AdvertiseManagerNativeInterface.setInstance(mAdvertiseNativeInterface);
         DistanceMeasurementNativeInterface.setInstance(mDistanceNativeInterface);
@@ -275,6 +278,8 @@ public class AdapterServiceTest {
         mockGetSystemService(Context.ALARM_SERVICE, AlarmManager.class);
         mockGetSystemService(Context.APP_OPS_SERVICE, AppOpsManager.class);
         mockGetSystemService(Context.AUDIO_SERVICE, AudioManager.class);
+        mockGetSystemService(Context.ACTIVITY_SERVICE, ActivityManager.class);
+
         DevicePolicyManager dpm =
                 mockGetSystemService(Context.DEVICE_POLICY_SERVICE, DevicePolicyManager.class);
         doReturn(false).when(dpm).isCommonCriteriaModeEnabled(any());
@@ -351,6 +356,7 @@ public class AdapterServiceTest {
         AdapterNativeInterface.setInstance(null);
         BluetoothKeystoreNativeInterface.setInstance(null);
         BluetoothQualityReportNativeInterface.setInstance(null);
+        BluetoothHciVendorSpecificNativeInterface.setInstance(null);
         SdpManagerNativeInterface.setInstance(null);
         AdvertiseManagerNativeInterface.setInstance(null);
         DistanceMeasurementNativeInterface.setInstance(null);
@@ -410,9 +416,7 @@ public class AdapterServiceTest {
             IBluetoothCallback callback,
             AdapterNativeInterface nativeInterface) {
         adapter.offToBleOn(false);
-        if (Flags.fastBindToApp()) {
-            TestUtils.syncHandler(looper, 0); // when fastBindToApp is enable init need to be run
-        }
+        TestUtils.syncHandler(looper, 0); // `init` need to be run first
         TestUtils.syncHandler(looper, AdapterState.BLE_TURN_ON);
         verifyStateChange(callback, STATE_OFF, STATE_BLE_TURNING_ON);
 
@@ -625,9 +629,7 @@ public class AdapterServiceTest {
         assertThat(mAdapterService.getState()).isEqualTo(STATE_OFF);
 
         mAdapterService.offToBleOn(false);
-        if (Flags.fastBindToApp()) {
-            syncHandler(0); // when fastBindToApp is enable init need to be run
-        }
+        syncHandler(0); // `init` need to be run first
         syncHandler(AdapterState.BLE_TURN_ON);
         verifyStateChange(STATE_OFF, STATE_BLE_TURNING_ON);
         assertThat(mAdapterService.getBluetoothGatt()).isNotNull();
@@ -692,7 +694,6 @@ public class AdapterServiceTest {
         mAdapterService.bringUpBle();
 
         assertThat(mAdapterService.getBluetoothGatt()).isNotNull();
-        assertThat(mAdapterService.getBluetoothScan()).isNull();
 
         dropNextMessage(MESSAGE_PROFILE_SERVICE_REGISTERED);
         dropNextMessage(MESSAGE_PROFILE_SERVICE_STATE_CHANGED);
@@ -977,6 +978,37 @@ public class AdapterServiceTest {
         identityAddress = mAdapterService.getIdentityAddress(TEST_BT_ADDR_1);
         assertThat(identityAddress).isEqualTo(TEST_BT_ADDR_2);
         assertThat(mLooper.nextMessage()).isNull();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_IDENTITY_ADDRESS_TYPE_API)
+    public void testIdentityAddressType() {
+        RemoteDevices remoteDevices = mAdapterService.getRemoteDevices();
+        remoteDevices.addDeviceProperties(Utils.getBytesFromAddress((TEST_BT_ADDR_1)));
+
+        int identityAddressTypePublic = 0x00; // Should map to BluetoothDevice.ADDRESS_TYPE_PUBLIC
+        int identityAddressTypeRandom = 0x01; // Should map to BluetoothDevice.ADDRESS_TYPE_RANDOM
+
+        remoteDevices.leAddressAssociateCallback(
+                Utils.getBytesFromAddress(TEST_BT_ADDR_1),
+                Utils.getBytesFromAddress(TEST_BT_ADDR_2),
+                identityAddressTypePublic);
+
+        BluetoothDevice.BluetoothAddress bluetoothAddress =
+                mAdapterService.getIdentityAddressWithType(TEST_BT_ADDR_1);
+        assertThat(bluetoothAddress.getAddress()).isEqualTo(TEST_BT_ADDR_2);
+        assertThat(bluetoothAddress.getAddressType())
+                .isEqualTo(BluetoothDevice.ADDRESS_TYPE_PUBLIC);
+
+        remoteDevices.leAddressAssociateCallback(
+                Utils.getBytesFromAddress(TEST_BT_ADDR_1),
+                Utils.getBytesFromAddress(TEST_BT_ADDR_2),
+                identityAddressTypeRandom);
+
+        bluetoothAddress = mAdapterService.getIdentityAddressWithType(TEST_BT_ADDR_1);
+        assertThat(bluetoothAddress.getAddress()).isEqualTo(TEST_BT_ADDR_2);
+        assertThat(bluetoothAddress.getAddressType())
+                .isEqualTo(BluetoothDevice.ADDRESS_TYPE_RANDOM);
     }
 
     @Test

@@ -20,7 +20,18 @@
 
 #include <bluetooth/log.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <mutex>
+#include <vector>
+
 #include "bta/include/bta_av_api.h"
+#include "hardware/bt_av.h"
+#include "stack/include/a2dp_codec_api.h"
+#include "stack/include/avdt_api.h"
+#include "stack/include/bt_types.h"
+#include "types/raw_address.h"
 
 using namespace bluetooth;
 

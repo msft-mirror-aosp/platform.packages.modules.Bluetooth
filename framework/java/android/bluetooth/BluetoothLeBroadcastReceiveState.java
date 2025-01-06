@@ -489,14 +489,7 @@ public final class BluetoothLeBroadcastReceiveState implements Parcelable {
         out.writeInt(mBroadcastId);
         out.writeInt(mPaSyncState);
         out.writeInt(mBigEncryptionState);
-
-        if (mBadCode != null) {
-            out.writeInt(mBadCode.length);
-            out.writeByteArray(mBadCode);
-        } else {
-            // -1 indicates that there is no "bad broadcast code"
-            out.writeInt(-1);
-        }
+        out.writeByteArray(mBadCode);
         out.writeInt(mNumSubgroups);
         out.writeList(mBisSyncState);
         out.writeTypedList(mSubgroupMetadata);
@@ -557,15 +550,7 @@ public final class BluetoothLeBroadcastReceiveState implements Parcelable {
                     final int broadcastId = in.readInt();
                     final int paSyncState = in.readInt();
                     final int bigEncryptionState = in.readInt();
-                    final int badCodeLen = in.readInt();
-                    byte[] badCode = null;
-
-                    if (badCodeLen != -1) {
-                        badCode = new byte[badCodeLen];
-                        if (badCodeLen > 0) {
-                            in.readByteArray(badCode);
-                        }
-                    }
+                    final byte[] badCode = in.createByteArray();
                     final byte numSubGroups = in.readByte();
                     final List<Long> bisSyncState =
                             in.readArrayList(Long.class.getClassLoader(), Long.class);

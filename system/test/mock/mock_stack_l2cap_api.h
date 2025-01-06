@@ -457,6 +457,26 @@ struct L2CA_LeCreditThreshold {
 };
 extern struct L2CA_LeCreditThreshold L2CA_LeCreditThreshold;
 
+// Name: L2CA_GetAclHandle
+// Params: uint16_t lcid, uint16_t* acl_handle
+// Returns: bool
+struct L2CA_GetAclHandle {
+  std::function<bool(uint16_t lcid, uint16_t* acl_handle)> body{
+          [](uint16_t /* lcid */, uint16_t* /* acl_handle */) { return false; }};
+  bool operator()(uint16_t lcid, uint16_t* acl_handle) { return body(lcid, acl_handle); }
+};
+extern struct L2CA_GetAclHandle L2CA_GetAclHandle;
+
+// Name: L2CA_GetLocalMtu
+// Params: uint16_t lcid, uint16_t* local_mtu
+// Returns: bool
+struct L2CA_GetLocalMtu {
+  std::function<bool(uint16_t lcid, uint16_t* local_mtu)> body{
+          [](uint16_t /* lcid */, uint16_t* /* local_mtu */) { return false; }};
+  bool operator()(uint16_t lcid, uint16_t* local_mtu) { return body(lcid, local_mtu); }
+};
+extern struct L2CA_GetLocalMtu L2CA_GetLocalMtu;
+
 }  // namespace stack_l2cap_api
 }  // namespace mock
 }  // namespace test

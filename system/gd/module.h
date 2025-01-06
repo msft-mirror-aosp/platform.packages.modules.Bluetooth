@@ -17,7 +17,6 @@
 #pragma once
 
 #include <bluetooth/log.h>
-#include <flatbuffers/flatbuffers.h>
 
 #include <chrono>
 #include <functional>
@@ -33,9 +32,11 @@
 #include "os/thread.h"
 
 namespace bluetooth {
+namespace shim {
+class Stack;
+}  // namespace shim
 
 class Module;
-class ModuleDumper;
 class ModuleRegistry;
 class TestModuleRegistry;
 class FuzzTestModuleRegistry;
@@ -68,11 +69,6 @@ private:
   std::vector<const ModuleFactory*> list_;
 };
 
-struct DumpsysDataBuilder;
-using DumpsysDataFinisher = std::function<void(DumpsysDataBuilder*)>;
-
-extern DumpsysDataFinisher EmptyDumpsysDataFinisher;
-
 // Each leaf node module must have a factory like so:
 //
 // static const ModuleFactory Factory;
@@ -81,7 +77,6 @@ extern DumpsysDataFinisher EmptyDumpsysDataFinisher;
 // The module registry will also use the factory as the identifier
 // for that module.
 class Module {
-  friend ModuleDumper;
   friend ModuleRegistry;
   friend TestModuleRegistry;
 
@@ -120,8 +115,6 @@ protected:
     GetHandler()->CallOn(obj, std::forward<Functor>(functor), std::forward<Args>(args)...);
   }
 
-  virtual DumpsysDataFinisher GetDumpsysData(flatbuffers::FlatBufferBuilder* builder) const;
-
 private:
   Module* GetDependency(const ModuleFactory* module) const;
 
@@ -132,8 +125,7 @@ private:
 
 class ModuleRegistry {
   friend Module;
-  friend ModuleDumper;
-  friend class StackManager;
+  friend shim::Stack;
 
 public:
   template <class T>

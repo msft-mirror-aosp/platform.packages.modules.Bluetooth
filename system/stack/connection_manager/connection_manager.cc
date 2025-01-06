@@ -27,7 +27,9 @@
 #include <memory>
 #include <set>
 
+#include "gd/hci/controller_interface.h"
 #include "main/shim/acl_api.h"
+#include "main/shim/entry.h"
 #include "main/shim/le_scanning_manager.h"
 #include "os/logging/log_adapter.h"
 #include "osi/include/alarm.h"
@@ -41,9 +43,6 @@
 #include "types/raw_address.h"
 
 #define DIRECT_CONNECT_TIMEOUT (30 * 1000) /* 30 seconds */
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 
@@ -62,8 +61,8 @@ static void alarm_closure_cb(void* p) {
 }
 
 // Periodic alarms are not supported, because we clean up data in callback
-void alarm_set_closure(const base::Location& posted_from, alarm_t* alarm, uint64_t interval_ms,
-                       base::OnceClosure user_task) {
+static void alarm_set_closure(const base::Location& posted_from, alarm_t* alarm,
+                              uint64_t interval_ms, base::OnceClosure user_task) {
   closure_data* data = new closure_data;
   data->posted_from = posted_from;
   data->user_task = std::move(user_task);
@@ -108,17 +107,45 @@ bool is_anyone_connecting(const std::map<RawAddress, tAPPS_CONNECTING>::iterator
          !it->second.doing_targeted_announcements_conn.empty();
 }
 
+static bool accept_list_is_full() {
+  uint8_t accept_list_size = shim::GetController()->GetLeFilterAcceptListSize();
+
+  int num_entries = 0;
+  for (const auto& entry : bgconn_dev) {
+    if (entry.second.is_in_accept_list) {
+      num_entries++;
+    }
+  }
+
+  if (num_entries >= accept_list_size) {
+    return true;
+  }
+
+  return false;
+}
+
 }  // namespace
 
-/** background connection device from the list. Returns pointer to the device
- * record, or nullptr if not found */
+/** Return all apps interested in device, or empty set if not found. */
 std::set<tAPP_ID> get_apps_connecting_to(const RawAddress& address) {
   log::debug("address={}", address);
   auto it = bgconn_dev.find(address);
-  return (it != bgconn_dev.end()) ? it->second.doing_bg_conn : std::set<tAPP_ID>();
+  if (it == bgconn_dev.end()) {
+    return std::set<tAPP_ID>();
+  }
+
+  std::set<tAPP_ID> result;
+  result.insert(it->second.doing_bg_conn.begin(), it->second.doing_bg_conn.end());
+  result.insert(it->second.doing_targeted_announcements_conn.begin(),
+                it->second.doing_targeted_announcements_conn.end());
+
+  for (const auto& entry : it->second.doing_direct_conn) {
+    result.insert(entry.first);
+  }
+  return result;
 }
 
-bool IsTargetedAnnouncement(const uint8_t* p_eir, uint16_t eir_len) {
+static bool IsTargetedAnnouncement(const uint8_t* p_eir, uint16_t eir_len) {
   const uint8_t* p_service_data = p_eir;
   uint8_t service_data_len = 0;
 
@@ -186,7 +213,7 @@ static void target_announcement_observe_results_cb(tBTM_INQ_RESULTS* p_inq, cons
   do_in_main_thread(base::BindOnce(schedule_direct_connect_add, app_id, addr));
 }
 
-void target_announcements_filtering_set(bool enable) {
+static void target_announcements_filtering_set(bool enable) {
   log::debug("enable {}", enable);
   BTM_LogHistory(kBtmLogTag, RawAddress::kEmpty, (enable ? "Start filtering" : "Stop filtering"));
 
@@ -276,6 +303,12 @@ bool background_connect_add(uint8_t app_id, const RawAddress& address) {
     if (is_targeted_announcement_enabled) {
       log::debug("Targeted announcement enabled, do not add to AcceptList");
     } else {
+      if (accept_list_is_full()) {
+        log::warn("accept list is full ({}), can't add {}",
+                  shim::GetController()->GetLeFilterAcceptListSize(), address);
+        return false;
+      }
+
       if (!bluetooth::shim::ACL_AcceptLeConnectionFrom(BTM_Sec_GetAddressWithType(address),
                                                        false)) {
         log::warn("Failed to add device {} to accept list for app {}", address,
@@ -431,7 +464,7 @@ void reset(bool after_reset) {
   }
 }
 
-void wl_direct_connect_timeout_cb(uint8_t app_id, const RawAddress& address) {
+static void wl_direct_connect_timeout_cb(uint8_t app_id, const RawAddress& address) {
   log::debug("app_id={}, address={}", static_cast<int>(app_id), address);
   on_connection_timed_out(app_id, address);
 
@@ -458,57 +491,65 @@ static void find_in_device_record(const RawAddress& bd_addr, tBLE_BD_ADDR* addre
   return;
 }
 
-bool create_le_connection(uint8_t /* id */, const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type) {
+bool direct_connect_add(uint8_t app_id, const RawAddress& address, tBLE_ADDR_TYPE addr_type) {
   tBLE_BD_ADDR address_with_type{
           .type = addr_type,
-          .bda = bd_addr,
+          .bda = address,
   };
 
-  find_in_device_record(bd_addr, &address_with_type);
-
-  log::debug("Creating le direct connection to:{} type:{} (initial type: {})", address_with_type,
-             AddressTypeText(address_with_type.type), AddressTypeText(addr_type));
+  find_in_device_record(address, &address_with_type);
 
   if (address_with_type.type == BLE_ADDR_ANONYMOUS) {
-    log::warn(
-            "Creating le direct connection to:{}, address type 'anonymous' is "
-            "invalid",
-            address_with_type);
+    log::warn("Can't use anonymous address for connection: {}", address_with_type);
     return false;
   }
 
-  bluetooth::shim::ACL_AcceptLeConnectionFrom(address_with_type,
-                                              /* is_direct */ true);
-  return true;
-}
+  log::debug("app_id=0x{:x}, address={} (initial type: {})", static_cast<int>(app_id),
+             address_with_type, AddressTypeText(addr_type));
 
-/** Add a device to the direct connection list. Returns true if device
- * added to the list, false otherwise */
-bool direct_connect_add(uint8_t app_id, const RawAddress& address) {
-  log::debug("app_id={}, address={}", static_cast<int>(app_id), address);
   bool in_acceptlist = false;
   auto it = bgconn_dev.find(address);
   if (it != bgconn_dev.end()) {
+    const tAPPS_CONNECTING& info = it->second;
     // app already trying to connect to this particular device
-    if (it->second.doing_direct_conn.count(app_id)) {
-      log::info("direct connect attempt from app_id=0x{:x} already in progress", app_id);
+    if (info.doing_direct_conn.count(app_id)) {
+      log::info("attempt from app_id=0x{:x} to {} already in progress", app_id, address_with_type);
       return false;
     }
 
+    // This is to match existing GD connection manager behavior - if multiple apps try direct
+    // connect at same time, only 1st request is fully processed
+    if (!info.doing_direct_conn.empty()) {
+      log::info("app_id=0x{:x}: attempt from other app already in progress, will merge {}", app_id,
+                address_with_type);
+      return true;
+    }
+
     // are we already in the acceptlist ?
-    if (it->second.is_in_accept_list) {
-      log::warn("Background connection attempt already in progress app_id={:x}", app_id);
+    if (info.is_in_accept_list) {
+      log::warn("background connect attempt already in progress app_id=0x{:x} {}", app_id,
+                address_with_type);
       in_acceptlist = true;
     }
   }
 
   if (!in_acceptlist) {
-    if (!bluetooth::shim::ACL_AcceptLeConnectionFrom(BTM_Sec_GetAddressWithType(address), true)) {
+    if (accept_list_is_full()) {
+      log::warn("accept list is full ({}), can't add {}",
+                shim::GetController()->GetLeFilterAcceptListSize(), address_with_type);
+      return false;
+    }
+
+    if (!bluetooth::shim::ACL_AcceptLeConnectionFrom(address_with_type, true /* is_direct */)) {
       // if we can't add to acceptlist, turn parameters back to slow.
-      log::warn("Unable to add le device to acceptlist");
+      log::warn("unable to add to acceptlist {}", address_with_type);
       return false;
     }
     bgconn_dev[address].is_in_accept_list = true;
+  } else {
+    // if already in accept list, we should just bump parameters up for direct
+    // connection. There is no API for that yet, so use API that's adding to accept list.
+    bluetooth::shim::ACL_AcceptLeConnectionFrom(address_with_type, true /* is_direct */);
   }
 
   // Setup a timer
@@ -517,7 +558,6 @@ bool direct_connect_add(uint8_t app_id, const RawAddress& address) {
                     base::BindOnce(&wl_direct_connect_timeout_cb, app_id, address));
 
   bgconn_dev[address].doing_direct_conn.emplace(app_id, unique_alarm_ptr(timeout, &alarm_free));
-
   return true;
 }
 
@@ -529,13 +569,13 @@ bool direct_connect_remove(uint8_t app_id, const RawAddress& address, bool conne
   log::debug("app_id={}, address={}", static_cast<int>(app_id), address);
   auto it = bgconn_dev.find(address);
   if (it == bgconn_dev.end()) {
-    log::warn("Unable to find background connection to remove peer:{}", address);
+    log::warn("unable to find entry to remove: {}", address);
     return false;
   }
 
   auto app_it = it->second.doing_direct_conn.find(app_id);
   if (app_it == it->second.doing_direct_conn.end()) {
-    log::warn("Unable to find direct connection to remove peer:{}", address);
+    log::warn("unable to find direct connection to remove: {}", address);
     return false;
   }
 
@@ -547,13 +587,12 @@ bool direct_connect_remove(uint8_t app_id, const RawAddress& address, bool conne
 
   if (is_anyone_interested_to_use_accept_list(it)) {
     if (connection_timeout) {
-      /* In such case we need to add device back to allow list because,
-       * when connection timeout out, the lower layer removes device from
-       * the allow list.
+      /* In such case we need to add device back to allow list because, when connection timeout
+       * out, the lower layer removes device from the allow list.
        */
       if (!bluetooth::shim::ACL_AcceptLeConnectionFrom(BTM_Sec_GetAddressWithType(address),
-                                                       false)) {
-        log::warn("Failed to re-add device {} to accept list after connection timeout", address);
+                                                       false /* is_direct */)) {
+        log::warn("Failed to re-add {} to accept list after connection timeout", address);
       }
     }
     return true;
@@ -582,7 +621,7 @@ void dump(int fd) {
   for (const auto& entry : bgconn_dev) {
     // TODO: confirm whether we need to replace this
     dprintf(fd, "\n\t * %s:\t\tin_accept_list: %s\t cap_targeted_announcements: %s",
-            ADDRESS_TO_LOGGABLE_CSTR(entry.first),
+            entry.first.ToRedactedStringForLogging().c_str(),
             entry.second.is_in_accept_list ? "true" : "false",
             entry.second.doing_targeted_announcements_conn.empty() ? "false" : "true");
 

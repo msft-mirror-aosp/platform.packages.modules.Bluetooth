@@ -1,5 +1,5 @@
 package: "com.android.bluetooth.flags"
-container: "com.android.btservices"
+container: "com.android.bt"
 
 flag {
     name: "bond_transport_after_bond_cancel_fix"

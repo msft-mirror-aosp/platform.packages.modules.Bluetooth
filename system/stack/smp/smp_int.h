@@ -105,7 +105,7 @@ inline std::string smp_opcode_text(const tSMP_OPCODE opcode) {
     CASE_RETURN_TEXT(SMP_OPCODE_PAIR_KEYPR_NOTIF);
     CASE_RETURN_TEXT(SMP_OPCODE_PAIR_COMMITM);
     default:
-      return base::StringPrintf("UNKNOWN[%hhu]", opcode);
+      return std::format("UNKNOWN[{}]", static_cast<uint8_t>(opcode));
   }
 }
 
@@ -502,13 +502,13 @@ void smp_save_local_oob_data(tSMP_CB* p_cb);
 void smp_clear_local_oob_data();
 bool smp_has_local_oob_data();
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tSMP_EVENT> : enum_formatter<tSMP_EVENT> {};
 template <>
 struct formatter<tSMP_OPCODE> : enum_formatter<tSMP_OPCODE> {};
 template <>
 struct formatter<tSMP_ASSO_MODEL> : enum_formatter<tSMP_ASSO_MODEL> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif /* SMP_INT_H */

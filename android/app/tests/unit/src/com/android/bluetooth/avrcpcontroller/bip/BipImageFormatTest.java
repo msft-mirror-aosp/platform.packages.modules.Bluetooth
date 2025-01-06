@@ -16,6 +16,10 @@
 
 package com.android.bluetooth.avrcpcontroller;
 
+import static com.google.common.truth.Truth.assertThat;
+
+import android.annotation.SuppressLint;
+
 import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.Assert;
@@ -312,10 +316,11 @@ public class BipImageFormatTest {
                         BipPixel.createFixed(1280, 1024),
                         -1);
 
-        Assert.assertTrue(format.equals(format));
+        assertThat(format).isEqualTo(format);
     }
 
     @Test
+    @SuppressLint("TruthIncompatibleType") // That the point of this test
     public void testEquals_withDifferentClass() {
         BipImageFormat format =
                 BipImageFormat.createNative(
@@ -324,7 +329,7 @@ public class BipImageFormatTest {
                         -1);
         String notFormat = "notFormat";
 
-        Assert.assertFalse(format.equals(notFormat));
+        assertThat(format).isNotEqualTo(notFormat);
     }
 
     @Test
@@ -335,6 +340,6 @@ public class BipImageFormatTest {
         BipImageFormat format = BipImageFormat.createNative(encoding, pixel, -1);
         BipImageFormat formatEqual = BipImageFormat.createNative(encoding, pixel, -1);
 
-        Assert.assertTrue(format.equals(formatEqual));
+        assertThat(format).isEqualTo(formatEqual);
     }
 }

@@ -30,11 +30,21 @@
 #include <bluetooth/log.h>
 #include <string.h>
 
+#include <cstdint>
+#include <mutex>
+#include <sstream>
+#include <string>
+
+#include "a2dp_api.h"
+#include "a2dp_codec_api.h"
+#include "a2dp_constants.h"
+#include "a2dp_sbc_constants.h"
 #include "a2dp_sbc_decoder.h"
 #include "a2dp_sbc_encoder.h"
+#include "avdt_api.h"
 #include "embdrv/sbc/encoder/include/sbc_encoder.h"
+#include "hardware/bt_av.h"
 #include "internal_include/bt_trace.h"
-#include "osi/include/osi.h"
 #include "stack/include/bt_hdr.h"
 
 #define A2DP_SBC_MAX_BITPOOL 53
@@ -55,7 +65,11 @@ typedef struct {
 
 /* SBC Source codec capabilities */
 static const tA2DP_SBC_CIE a2dp_sbc_source_caps = {
-        (A2DP_SBC_IE_SAMP_FREQ_44),                         /* samp_freq */
+#ifdef TARGET_FLOSS
+        (A2DP_SBC_IE_SAMP_FREQ_48 | A2DP_SBC_IE_SAMP_FREQ_44), /* samp_freq */
+#else
+        (A2DP_SBC_IE_SAMP_FREQ_44), /* samp_freq */
+#endif
         (A2DP_SBC_IE_CH_MD_MONO | A2DP_SBC_IE_CH_MD_JOINT), /* ch_mode */
         (A2DP_SBC_IE_BLOCKS_16 | A2DP_SBC_IE_BLOCKS_12 | A2DP_SBC_IE_BLOCKS_8 |
          A2DP_SBC_IE_BLOCKS_4),            /* block_len */
@@ -82,7 +96,11 @@ static const tA2DP_SBC_CIE a2dp_sbc_sink_caps = {
 
 /* Default SBC codec configuration */
 const tA2DP_SBC_CIE a2dp_sbc_default_config = {
-        A2DP_SBC_IE_SAMP_FREQ_44,          /* samp_freq */
+#ifdef TARGET_FLOSS
+        (A2DP_SBC_IE_SAMP_FREQ_48), /* samp_freq */
+#else
+        (A2DP_SBC_IE_SAMP_FREQ_44), /* samp_freq */
+#endif
         A2DP_SBC_IE_CH_MD_JOINT,           /* ch_mode */
         A2DP_SBC_IE_BLOCKS_16,             /* block_len */
         A2DP_SBC_IE_SUBBAND_8,             /* num_subbands */

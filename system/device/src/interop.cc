@@ -55,7 +55,7 @@ using namespace bluetooth;
 #ifdef __ANDROID__
 static const char* INTEROP_DYNAMIC_FILE_PATH = "/data/misc/bluedroid/interop_database_dynamic.conf";
 static const char* INTEROP_STATIC_FILE_PATH =
-        "/apex/com.android.btservices/etc/bluetooth/interop_database.conf";
+        "/apex/com.android.bt/etc/bluetooth/interop_database.conf";
 #elif TARGET_FLOSS
 #include <base/files/file_util.h>
 
@@ -179,13 +179,12 @@ typedef struct {
     interop_lmp_version_t lmp_version_entry;
     interop_addr_range_entry_t addr_range_entry;
   } entry_type;
-
 } interop_db_entry_t;
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<interop_bl_type> : enum_formatter<interop_bl_type> {};
-}  // namespace fmt
+}  // namespace std
 
 static const char* interop_feature_string_(const interop_feature_t feature);
 static void interop_free_entry_(void* data);
@@ -265,7 +264,7 @@ void interop_database_add(const uint16_t feature, const RawAddress* addr, size_t
 
 void interop_database_clear() {
   log::debug("interop_is_initialized: {} interop_list: {}", interop_is_initialized,
-             fmt::ptr(interop_list));
+             std::format_ptr(interop_list));
 
   if (interop_is_initialized && interop_list) {
     for (int feature = BEGINNING_OF_INTEROP_LIST; feature != END_OF_INTEROP_LIST; feature++) {
@@ -394,6 +393,7 @@ static const char* interop_feature_string_(const interop_feature_t feature) {
     CASE_RETURN_STR(INTEROP_HID_PREF_CONN_ZERO_LATENCY);
     CASE_RETURN_STR(INTEROP_HOGP_LONG_REPORT);
     CASE_RETURN_STR(INTEROP_HOGP_FORCE_MTU_EXCHANGE);
+    CASE_RETURN_STR(INTEROP_DISABLE_HF_PROFILE);
   }
   return UNKNOWN_INTEROP_FEATURE;
 }
@@ -826,7 +826,7 @@ static bool get_addr_maxlat(char* str, char* bdaddrstr, uint16_t* max_lat) {
 
   if ((token = strtok_r(str, VENDOR_VALUE_SEPARATOR, &saveptr)) != NULL) {
     trim(token);
-    strlcpy(bdaddrstr, token, KEY_MAX_LENGTH);
+    osi_strlcpy(bdaddrstr, token, KEY_MAX_LENGTH);
   } else {
     return false;
   }
@@ -846,7 +846,7 @@ static bool get_addr_range(char* str, RawAddress* addr_start, RawAddress* addr_e
 
   if ((token = strtok_r(str, VENDOR_VALUE_SEPARATOR, &saveptr)) != NULL) {
     trim(token);
-    strlcpy(addr_start_str, token, 18);
+    osi_strlcpy(addr_start_str, token, 18);
     if (!RawAddress::FromString(addr_start_str, *addr_start)) {
       return false;
     }
@@ -856,7 +856,7 @@ static bool get_addr_range(char* str, RawAddress* addr_start, RawAddress* addr_e
 
   if ((token = strtok_r(NULL, VENDOR_VALUE_SEPARATOR, &saveptr)) != NULL) {
     trim(token);
-    strlcpy(addr_end_str, token, 18);
+    osi_strlcpy(addr_end_str, token, 18);
     if (RawAddress::FromString(addr_end_str, *addr_end)) {
       ret_value = true;
     }
@@ -871,7 +871,7 @@ static bool get_addr_lmp_ver(char* str, char* bdaddrstr, uint8_t* lmp_ver, uint1
 
   if ((token = strtok_r(str, VENDOR_VALUE_SEPARATOR, &saveptr)) != NULL) {
     trim(token);
-    strlcpy(bdaddrstr, token, KEY_MAX_LENGTH);
+    osi_strlcpy(bdaddrstr, token, KEY_MAX_LENGTH);
   } else {
     return false;
   }
@@ -932,7 +932,7 @@ static bool load_to_database(int feature, const char* key, const char* value,
     interop_db_entry_t* entry = (interop_db_entry_t*)osi_calloc(sizeof(interop_db_entry_t));
     entry->bl_type = INTEROP_BL_TYPE_NAME;
     entry->bl_entry_type = entry_type;
-    strlcpy(entry->entry_type.name_entry.name, key, sizeof(entry->entry_type.name_entry.name));
+    osi_strlcpy(entry->entry_type.name_entry.name, key, sizeof(entry->entry_type.name_entry.name));
     entry->entry_type.name_entry.feature = (interop_feature_t)feature;
     entry->entry_type.name_entry.length = strlen(key);
     interop_database_add_(entry, false);
@@ -966,7 +966,7 @@ static bool load_to_database(int feature, const char* key, const char* value,
       return false;
     }
 
-    strlcpy(tmp_key, key, VALID_VNDR_PRDT_LEN + 1);
+    osi_strlcpy(tmp_key, key, VALID_VNDR_PRDT_LEN + 1);
     if (!get_vendor_product_id(tmp_key, &vendor_id, &product_id)) {
       log::warn("Error in parsing vendor/product id {}", key);
       return false;
@@ -989,7 +989,7 @@ static bool load_to_database(int feature, const char* key, const char* value,
       return false;
     }
 
-    strlcpy(tmp_key, key, KEY_MAX_LENGTH);
+    osi_strlcpy(tmp_key, key, KEY_MAX_LENGTH);
     if (!get_addr_maxlat(tmp_key, bdaddr_str, &max_lat)) {
       log::warn("Error in parsing address and max_lat {}", key);
       return false;
@@ -1050,7 +1050,7 @@ static bool load_to_database(int feature, const char* key, const char* value,
       return false;
     }
 
-    strlcpy(tmp_key, key, KEY_MAX_LENGTH);
+    osi_strlcpy(tmp_key, key, KEY_MAX_LENGTH);
     if (!get_addr_lmp_ver(tmp_key, bdaddr_str, &lmp_ver, &lmp_sub_ver)) {
       log::warn("Error in parsing address and lmp_ver {}", key);
       return false;
@@ -1093,7 +1093,7 @@ static bool load_to_database(int feature, const char* key, const char* value,
       return false;
     }
 
-    strlcpy(tmp_key, key, VALID_ADDR_RANGE_LEN + 1);
+    osi_strlcpy(tmp_key, key, VALID_ADDR_RANGE_LEN + 1);
     if (!get_addr_range(tmp_key, &addr_start, &addr_end)) {
       log::warn("key: {} addr_start {} or addr end  {} is added to interop list", key, addr_start,
                 addr_end);
@@ -1179,7 +1179,7 @@ void interop_database_add_name(const uint16_t feature, const char* name) {
   interop_db_entry_t* entry = (interop_db_entry_t*)osi_calloc(sizeof(interop_db_entry_t));
   entry->bl_type = INTEROP_BL_TYPE_NAME;
   entry->bl_entry_type = INTEROP_ENTRY_TYPE_DYNAMIC;
-  strlcpy(entry->entry_type.name_entry.name, name, sizeof(entry->entry_type.name_entry.name));
+  osi_strlcpy(entry->entry_type.name_entry.name, name, sizeof(entry->entry_type.name_entry.name));
   entry->entry_type.name_entry.feature = (interop_feature_t)feature;
   entry->entry_type.name_entry.length = name_length;
   interop_database_add_(entry, true);
@@ -1263,11 +1263,11 @@ bool interop_database_match_name(const interop_feature_t feature, const char* na
   char trim_name[KEY_MAX_LENGTH] = {'\0'};
   log::assert_that(name != nullptr, "assert failed: name != nullptr");
 
-  strlcpy(trim_name, name, KEY_MAX_LENGTH);
+  osi_strlcpy(trim_name, name, KEY_MAX_LENGTH);
   interop_db_entry_t entry;
 
   entry.bl_type = INTEROP_BL_TYPE_NAME;
-  strlcpy(entry.entry_type.name_entry.name, trim(trim_name), KEY_MAX_LENGTH);
+  osi_strlcpy(entry.entry_type.name_entry.name, trim(trim_name), KEY_MAX_LENGTH);
   entry.entry_type.name_entry.feature = (interop_feature_t)feature;
   entry.entry_type.name_entry.length = strlen(entry.entry_type.name_entry.name);
 
@@ -1405,7 +1405,7 @@ bool interop_database_remove_name(const interop_feature_t feature, const char* n
 
   entry.bl_type = INTEROP_BL_TYPE_NAME;
   entry.bl_entry_type = INTEROP_ENTRY_TYPE_DYNAMIC;
-  strlcpy(entry.entry_type.name_entry.name, name, 20);
+  osi_strlcpy(entry.entry_type.name_entry.name, name, 20);
   entry.entry_type.name_entry.feature = (interop_feature_t)feature;
   entry.entry_type.name_entry.length = strlen(entry.entry_type.name_entry.name);
   if (interop_database_remove_(&entry)) {

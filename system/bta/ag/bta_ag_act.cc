@@ -28,14 +28,21 @@
 #include <cstdint>
 #include <cstring>
 
+#include "ag/bta_ag_at.h"
 #include "bta/ag/bta_ag_int.h"
 #include "bta/include/bta_dm_api.h"
 #include "bta/include/bta_hfp_api.h"
+#include "bta_ag_api.h"
 #include "bta_ag_swb_aptx.h"
-#include "internal_include/bt_trace.h"
+#include "bta_api.h"
+#include "bta_sys.h"
+#include "btm_api_types.h"
+#include "device/include/device_iot_conf_defs.h"
+#include "osi/include/alarm.h"
+#include "sdp_status.h"
+#include "types/bt_transport.h"
 
 #ifdef __ANDROID__
-#include "bta/le_audio/devices.h"
 #endif
 
 #include "btif/include/btif_config.h"
@@ -396,6 +403,7 @@ void bta_ag_rfc_close(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& /* data */) {
   int i, num_active_conn = 0;
 
   /* reinitialize stuff */
+  p_scb->clip[0] = 0;
   p_scb->conn_service = 0;
   p_scb->peer_features = 0;
   p_scb->masked_features = p_scb->features;

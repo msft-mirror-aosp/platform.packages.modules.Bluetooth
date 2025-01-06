@@ -382,7 +382,7 @@ public class GattNativeInterface {
             byte[] val,
             int authReq);
 
-    private native void gattSubrateRequestNative(
+    private native int gattSubrateRequestNative(
             int clientIf,
             String address,
             int subrateMin,
@@ -570,7 +570,7 @@ public class GattNativeInterface {
     }
 
     /** Update connection parameter. */
-    public void gattSubrateRequest(
+    public int gattSubrateRequest(
             int clientIf,
             String address,
             int subrateMin,
@@ -578,7 +578,7 @@ public class GattNativeInterface {
             int maxLatency,
             int contNumber,
             int supervisionTimeout) {
-        gattSubrateRequestNative(
+        return gattSubrateRequestNative(
                 clientIf,
                 address,
                 subrateMin,

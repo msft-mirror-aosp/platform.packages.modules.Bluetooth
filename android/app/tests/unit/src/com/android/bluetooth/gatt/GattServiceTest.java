@@ -22,6 +22,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.*;
 import static org.mockito.Mockito.verify;
 
+import android.app.ActivityManager;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
@@ -35,16 +36,19 @@ import android.bluetooth.le.DistanceMeasurementMethod;
 import android.bluetooth.le.DistanceMeasurementParams;
 import android.bluetooth.le.IDistanceMeasurementCallback;
 import android.bluetooth.le.PeriodicAdvertisingParameters;
+import android.companion.CompanionDeviceManager;
 import android.content.AttributionSource;
 import android.content.Context;
 import android.content.res.Resources;
 import android.location.LocationManager;
-import android.platform.test.annotations.DisableFlags;
+import android.os.Bundle;
 import android.platform.test.flag.junit.SetFlagsRule;
+import android.provider.Settings;
+import android.test.mock.MockContentProvider;
+import android.test.mock.MockContentResolver;
 
 import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
-import androidx.test.rule.ServiceTestRule;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestUtils;
@@ -53,7 +57,6 @@ import com.android.bluetooth.btservice.CompanionManager;
 import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.le_scan.ScanManager;
 import com.android.bluetooth.le_scan.ScanObjectsFactory;
-import com.android.bluetooth.le_scan.ScannerMap;
 
 import org.junit.After;
 import org.junit.Before;
@@ -76,72 +79,81 @@ import java.util.UUID;
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class GattServiceTest {
-
-    private static final String REMOTE_DEVICE_ADDRESS = "00:00:00:00:00:00";
-
-    private static final int TIMES_UP_AND_DOWN = 3;
-    private GattService mService;
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     @Mock private ContextMap<IBluetoothGattCallback> mClientMap;
-    @Mock private ScannerMap mScannerMap;
-
     @Mock private ScanManager mScanManager;
     @Mock private Set<String> mReliableQueue;
     @Mock private ContextMap<IBluetoothGattServerCallback> mServerMap;
     @Mock private DistanceMeasurementManager mDistanceMeasurementManager;
     @Mock private AdvertiseManagerNativeInterface mAdvertiseManagerNativeInterface;
-
-    @Rule public final ServiceTestRule mServiceRule = new ServiceTestRule();
-    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
-
-    private BluetoothAdapter mAdapter;
-    private AttributionSource mAttributionSource;
-
     @Mock private Resources mResources;
     @Mock private AdapterService mAdapterService;
     @Mock private GattObjectsFactory mGattObjectsFactory;
     @Mock private ScanObjectsFactory mScanObjectsFactory;
     @Mock private GattNativeInterface mNativeInterface;
+
+    private static final String REMOTE_DEVICE_ADDRESS = "00:00:00:00:00:00";
+    private static final int TIMES_UP_AND_DOWN = 3;
+
+    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
+    private final AttributionSource mAttributionSource = mAdapter.getAttributionSource();
+    private final Context mContext = InstrumentationRegistry.getTargetContext();
+    private final CompanionDeviceManager mCompanionDeviceManager =
+            mContext.getSystemService(CompanionDeviceManager.class);
+
+    private MockContentResolver mMockContentResolver;
+
+    private GattService mService;
     private CompanionManager mBtCompanionManager;
 
     @Before
     public void setUp() throws Exception {
-        TestUtils.setAdapterService(mAdapterService);
+        mMockContentResolver = new MockContentResolver(mContext);
+        mMockContentResolver.addProvider(
+                Settings.AUTHORITY,
+                new MockContentProvider() {
+                    @Override
+                    public Bundle call(String method, String request, Bundle args) {
+                        return Bundle.EMPTY;
+                    }
+                });
 
         GattObjectsFactory.setInstanceForTesting(mGattObjectsFactory);
         ScanObjectsFactory.setInstanceForTesting(mScanObjectsFactory);
+
         doReturn(mNativeInterface).when(mGattObjectsFactory).getNativeInterface();
         doReturn(mDistanceMeasurementManager)
                 .when(mGattObjectsFactory)
                 .createDistanceMeasurementManager(any());
         doReturn(mScanManager)
                 .when(mScanObjectsFactory)
-                .createScanManager(any(), any(), any(), any(), any());
-
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
-        mAttributionSource = mAdapter.getAttributionSource();
-
-        when(mAdapterService.getResources()).thenReturn(mResources);
-        when(mResources.getInteger(anyInt())).thenReturn(0);
-        when(mAdapterService.getSharedPreferences(anyString(), anyInt()))
-                .thenReturn(
-                        InstrumentationRegistry.getTargetContext()
-                                .getSharedPreferences(
-                                        "GattServiceTestPrefs", Context.MODE_PRIVATE));
+                .createScanManager(any(), any(), any(), any());
+        doReturn(mContext.getPackageManager()).when(mAdapterService).getPackageManager();
+        doReturn(mContext.getSharedPreferences("GattServiceTestPrefs", Context.MODE_PRIVATE))
+                .when(mAdapterService)
+                .getSharedPreferences(anyString(), anyInt());
+        doReturn(mResources).when(mAdapterService).getResources();
+        doReturn(mMockContentResolver).when(mAdapterService).getContentResolver();
 
         TestUtils.mockGetSystemService(
                 mAdapterService, Context.LOCATION_SERVICE, LocationManager.class);
+        TestUtils.mockGetSystemService(
+                mAdapterService, Context.ACTIVITY_SERVICE, ActivityManager.class);
+        TestUtils.mockGetSystemService(
+                mAdapterService,
+                Context.COMPANION_DEVICE_SERVICE,
+                CompanionDeviceManager.class,
+                mCompanionDeviceManager);
 
         mBtCompanionManager = new CompanionManager(mAdapterService, null);
         doReturn(mBtCompanionManager).when(mAdapterService).getCompanionManager();
 
         AdvertiseManagerNativeInterface.setInstance(mAdvertiseManagerNativeInterface);
-        mService = new GattService(InstrumentationRegistry.getTargetContext());
-        mService.start();
+        mService = new GattService(mAdapterService);
 
         mService.mClientMap = mClientMap;
-        mService.mTransitionalScanHelper.setScannerMap(mScannerMap);
         mService.mReliableQueue = mReliableQueue;
         mService.mServerMap = mServerMap;
     }
@@ -149,10 +161,8 @@ public class GattServiceTest {
     @After
     public void tearDown() throws Exception {
         mService.stop();
-        mService = null;
         AdvertiseManagerNativeInterface.setInstance(null);
 
-        TestUtils.clearAdapterService(mAdapterService);
         GattObjectsFactory.setInstanceForTesting(null);
         ScanObjectsFactory.setInstanceForTesting(null);
     }
@@ -161,14 +171,7 @@ public class GattServiceTest {
     public void testServiceUpAndDown() throws Exception {
         for (int i = 0; i < TIMES_UP_AND_DOWN; i++) {
             mService.stop();
-            mService = null;
-
-            TestUtils.clearAdapterService(mAdapterService);
-            reset(mAdapterService);
-            TestUtils.setAdapterService(mAdapterService);
-
-            mService = new GattService(InstrumentationRegistry.getTargetContext());
-            mService.start();
+            mService = new GattService(mAdapterService);
         }
     }
 
@@ -653,13 +656,6 @@ public class GattServiceTest {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_SCAN_MANAGER_REFACTOR)
-    public void numHwTrackFiltersAvailable() {
-        mService.getTransitionalScanHelper().numHwTrackFiltersAvailable(mAttributionSource);
-        verify(mScanManager).getCurrentUsedTrackingAdvertisement();
-    }
-
-    @Test
     public void getSupportedDistanceMeasurementMethods() {
         mService.getSupportedDistanceMeasurementMethods();
         verify(mDistanceMeasurementManager).getSupportedDistanceMeasurementMethods();
@@ -694,22 +690,7 @@ public class GattServiceTest {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_SCAN_MANAGER_REFACTOR)
-    public void profileConnectionStateChanged_notifyScanManager() {
-        mService.notifyProfileConnectionStateChange(
-                BluetoothProfile.A2DP,
-                BluetoothProfile.STATE_CONNECTING,
-                BluetoothProfile.STATE_CONNECTED);
-        verify(mScanManager)
-                .handleBluetoothProfileConnectionStateChanged(
-                        BluetoothProfile.A2DP,
-                        BluetoothProfile.STATE_CONNECTING,
-                        BluetoothProfile.STATE_CONNECTED);
-    }
-
-    @Test
     public void restrictedHandles() throws Exception {
-        mSetFlagsRule.enableFlags(Flags.FLAG_GATT_CLEANUP_RESTRICTED_HANDLES);
         int clientIf = 1;
         int connId = 1;
         ArrayList<GattDbElement> db = new ArrayList<>();

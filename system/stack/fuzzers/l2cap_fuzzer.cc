@@ -78,6 +78,9 @@ uint32_t GetSystemPropertyUint32Base(const std::string& /*property*/, uint32_t d
                                      int /*base*/) {
   return default_value;
 }
+uint32_t GetSystemPropertyUint32(const std::string& /*property*/, uint32_t default_value) {
+  return default_value;
+}
 }  // namespace os
 
 namespace hal {
@@ -97,8 +100,8 @@ void SnoopLogger::SetL2capChannelOpen(uint16_t, uint16_t, uint16_t, uint16_t, bo
 }  // namespace bluetooth
 
 namespace connection_manager {
-bool create_le_connection(uint8_t /* id */, const RawAddress& /* bd_addr */,
-                          tBLE_ADDR_TYPE /* addr_type */) {
+bool direct_connect_add(uint8_t /* id */, const RawAddress& /* bd_addr */,
+                        tBLE_ADDR_TYPE /* addr_type */) {
   return true;
 }
 }  // namespace connection_manager

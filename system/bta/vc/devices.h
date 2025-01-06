@@ -25,7 +25,6 @@
 
 #include "bta/include/bta_gatt_api.h"
 #include "bta/vc/types.h"
-#include "common/interfaces/ILoggable.h"
 #include "os/logging/log_adapter.h"
 #include "types/raw_address.h"
 
@@ -33,7 +32,7 @@ namespace bluetooth {
 namespace vc {
 namespace internal {
 
-class VolumeControlDevice : public bluetooth::common::IRedactableLoggable {
+class VolumeControlDevice {
 public:
   RawAddress address;
 
@@ -48,6 +47,7 @@ public:
   uint8_t flags;
 
   tCONN_ID connection_id;
+  uint16_t mtu_ = GATT_DEF_BLE_MTU_SIZE;
 
   /* Volume Control Service */
   uint16_t volume_state_handle;
@@ -81,15 +81,13 @@ public:
 
   ~VolumeControlDevice() = default;
 
-  std::string ToStringForLogging() const override { return address.ToStringForLogging(); }
+  std::string ToStringForLogging() const { return address.ToStringForLogging(); }
 
-  std::string ToRedactedStringForLogging() const override {
-    return address.ToRedactedStringForLogging();
-  }
+  std::string ToRedactedStringForLogging() const { return address.ToRedactedStringForLogging(); }
 
   void DebugDump(int fd) {
     std::stringstream stream;
-    stream << "   == device address: " << ADDRESS_TO_LOGGABLE_STR(address) << " == \n";
+    stream << "   == device address: " << address.ToRedactedStringForLogging() << " == \n";
 
     if (connection_id == GATT_INVALID_CONN_ID) {
       stream << "    Not connected\n";
@@ -99,10 +97,12 @@ public:
 
     stream << "    volume: " << +volume << "\n"
            << "    mute: " << +mute << "\n"
+           << "    change_counter: " << +change_counter << "\n"
            << "    flags: " << +flags << "\n"
-           << "    device read: " << device_ready << "\n"
+           << "    device ready: " << device_ready << "\n"
            << "    connecting_actively: " << connecting_actively << "\n"
-           << "    change_counter: " << +change_counter << "\n";
+           << "    is encrypted: " << IsEncryptionEnabled() << "\n"
+           << "    GATT operations pending: " << handles_pending.size() << "\n";
 
     dprintf(fd, "%s", stream.str().c_str());
     audio_offsets.Dump(fd);
@@ -137,7 +137,7 @@ public:
   void GetExtAudioInGainProps(uint8_t ext_input_id, GATT_READ_OP_CB cb, void* cb_data);
   void GetExtAudioInDescription(uint8_t ext_input_id, GATT_READ_OP_CB cb, void* cb_data);
   void SetExtAudioInDescription(uint8_t ext_input_id, const std::string& descr);
-  void ExtAudioInControlPointOperation(uint8_t ext_input_id, uint8_t opcode,
+  bool ExtAudioInControlPointOperation(uint8_t ext_input_id, uint8_t opcode,
                                        const std::vector<uint8_t>* arg, GATT_WRITE_OP_CB cb,
                                        void* cb_data);
   bool IsEncryptionEnabled();

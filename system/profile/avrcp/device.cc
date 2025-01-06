@@ -44,7 +44,7 @@ extern bool btif_av_both_enable(void);
 extern bool btif_av_src_sink_coexist_enabled(void);
 
 template <>
-struct fmt::formatter<bluetooth::avrcp::PlayState> : enum_formatter<bluetooth::avrcp::PlayState> {};
+struct std::formatter<bluetooth::avrcp::PlayState> : enum_formatter<bluetooth::avrcp::PlayState> {};
 
 namespace bluetooth {
 namespace avrcp {
@@ -154,6 +154,7 @@ void Device::VendorPacketHandler(uint8_t label, std::shared_ptr<VendorPacket> pk
         // TODO (apanicke): Add a retry mechanism if the response has a
         // different volume than the one we set. For now, we don't care
         // about the response to this message.
+        active_labels_.erase(label);
         break;
       default:
         log::warn("{}: Unhandled Response: pdu={}", address_, pkt->GetCommandPdu());
@@ -782,7 +783,6 @@ void Device::GetElementAttributesResponse(uint8_t label,
       }
     }
   } else {  // zero attributes requested which means all attributes requested
-
     if (!com::android::bluetooth::flags::get_all_element_attributes_empty()) {
       for (const auto& attribute : info.attributes) {
         response->AddAttributeEntry(attribute);
@@ -1542,15 +1542,11 @@ void Device::SetBrowsedPlayerResponse(uint8_t label, std::shared_ptr<SetBrowsedP
     return;
   }
 
-  // SetBrowsedPlayer can be called to retrieve the current path
-  // and to verify that the player is still present, so we need to
-  // keep current_path_ as is if the player is already the one browsed.
-  // Otherwise, the current_path in the callback will contain the root id.
-  if (pkt->GetPlayerId() != curr_browsed_player_id_) {
-    curr_browsed_player_id_ = pkt->GetPlayerId();
-    current_path_ = std::stack<std::string>();
-    current_path_.push(current_path);
-  }
+  curr_browsed_player_id_ = pkt->GetPlayerId();
+
+  // Clear the path and push the new root or current path.
+  current_path_ = std::stack<std::string>();
+  current_path_.push(current_path);
 
   auto response = SetBrowsedPlayerResponseBuilder::MakeBuilder(Status::NO_ERROR, 0x0000, num_items,
                                                                0, current_path);

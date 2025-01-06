@@ -19,7 +19,6 @@ cc_defaults {
         "packages/modules/Bluetooth/system/bta/sys",
         "packages/modules/Bluetooth/system/btif/avrcp",
         "packages/modules/Bluetooth/system/btif/co",
-        "packages/modules/Bluetooth/system/device/include",
         "packages/modules/Bluetooth/system/embdrv/sbc/decoder/include",
         "packages/modules/Bluetooth/system/embdrv/sbc/encoder/include",
         "packages/modules/Bluetooth/system/gd",
@@ -66,7 +65,6 @@ cc_defaults {
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
         "libFraunhoferAAC",
-        "libbluetooth-dumpsys",
         "libbluetooth-types",
         "libbluetooth_core_rs",
         "libbluetooth_core_rs_bridge",
@@ -142,9 +140,6 @@ cc_test {
         "libbase",
         "libbinder",
         "server_configurable_flags",
-    ],
-    generated_headers: [
-        "BluetoothGeneratedDumpsysDataSchema_h",
     ],
     target: {
         android: {

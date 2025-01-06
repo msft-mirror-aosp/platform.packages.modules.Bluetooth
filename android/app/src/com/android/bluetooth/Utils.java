@@ -1285,4 +1285,21 @@ public final class Utils {
     public static @NonNull String formatSimple(@NonNull String format, Object... args) {
         return android.bluetooth.BluetoothUtils.formatSimple(format, args);
     }
+
+    public interface TimeProvider {
+        long elapsedRealtime();
+    }
+
+    private static final TimeProvider sSystemClock = new SystemClockTimeProvider();
+
+    public static TimeProvider getSystemClock() {
+        return sSystemClock;
+    }
+
+    private static final class SystemClockTimeProvider implements TimeProvider {
+        @Override
+        public long elapsedRealtime() {
+            return android.os.SystemClock.elapsedRealtime();
+        }
+    }
 }

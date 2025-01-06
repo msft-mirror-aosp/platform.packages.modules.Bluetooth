@@ -26,6 +26,7 @@
 #include <future>
 
 #include "common/bidi_queue.h"
+#include "common/le_conn_params.h"
 #include "hci/acl_manager/le_connection_callbacks.h"
 #include "hci/acl_manager/le_connection_management_callbacks_mock.h"
 #include "hci/address_with_type.h"
@@ -36,6 +37,7 @@
 #include "os/handler.h"
 #include "packet/bit_inserter.h"
 #include "packet/raw_builder.h"
+#include "stack/l2cap/l2c_api.h"
 
 using namespace bluetooth;
 using namespace std::chrono_literals;
@@ -248,8 +250,11 @@ protected:
     round_robin_scheduler_ = new RoundRobinScheduler(handler_, controller_, hci_queue_.GetUpEnd());
     hci_queue_.GetDownEnd()->RegisterDequeue(
             handler_, common::Bind(&LeImplTest::HciDownEndDequeue, common::Unretained(this)));
+
+    classic_impl_ = new classic_impl(hci_layer_, controller_, handler_, round_robin_scheduler_,
+                                     false, nullptr, nullptr);
     le_impl_ = new le_impl(hci_layer_, controller_, handler_, round_robin_scheduler_,
-                           kCrashOnUnknownHandle);
+                           kCrashOnUnknownHandle, classic_impl_);
     le_impl_->handle_register_le_callbacks(&mock_le_connection_callbacks_, handler_);
 
     Address address;
@@ -387,7 +392,6 @@ protected:
 
     CommandView cancel_connection = CommandView::Create(
             PacketView<packet::kLittleEndian>(std::make_shared<std::vector<uint8_t>>()));
-    ;
 
     if (!com::android::bluetooth::flags::
                 improve_create_connection_for_already_connecting_device()) {
@@ -438,6 +442,69 @@ protected:
     ASSERT_EQ(ConnectabilityState::DISARMED, le_impl_->connectability_state_);
   }
 
+  // Need to store the LeAclConnection so it is not immediately dropped => disconnected
+  std::unique_ptr<LeAclConnection> create_enhanced_connection(std::string remote_address_string,
+                                                              int handle) {
+    std::unique_ptr<LeAclConnection> connection;
+
+    hci::Address remote_address;
+    Address::FromString(remote_address_string, remote_address);
+    hci::AddressWithType address_with_type(remote_address, hci::AddressType::PUBLIC_DEVICE_ADDRESS);
+    le_impl_->create_le_connection(address_with_type, true, false);
+    sync_handler();
+
+    hci_layer_->GetCommand(OpCode::LE_ADD_DEVICE_TO_FILTER_ACCEPT_LIST);
+    hci_layer_->IncomingEvent(
+            LeAddDeviceToFilterAcceptListCompleteBuilder::Create(0x01, ErrorCode::SUCCESS));
+    hci_layer_->GetCommand(OpCode::LE_EXTENDED_CREATE_CONNECTION);
+    hci_layer_->IncomingEvent(
+            LeExtendedCreateConnectionStatusBuilder::Create(ErrorCode::SUCCESS, 0x01));
+    sync_handler();
+
+    // Check state is ARMED
+    EXPECT_EQ(ConnectabilityState::ARMED, le_impl_->connectability_state_);
+
+    // we need to capture the LeAclConnection so it is not immediately dropped => disconnected
+    EXPECT_CALL(mock_le_connection_callbacks_, OnLeConnectSuccess(address_with_type, _))
+            .WillOnce([&](AddressWithType, std::unique_ptr<LeAclConnection> conn) {
+              connection = std::move(conn);
+              connection->RegisterCallbacks(&connection_management_callbacks_, handler_);
+            });
+
+    hci_layer_->IncomingLeMetaEvent(LeEnhancedConnectionCompleteBuilder::Create(
+            ErrorCode::SUCCESS, handle, Role::CENTRAL, AddressType::PUBLIC_DEVICE_ADDRESS,
+            remote_address, Address::kEmpty, Address::kEmpty, 0x0024, 0x0000, 0x0011,
+            ClockAccuracy::PPM_30));
+    sync_handler();
+
+    hci_layer_->GetCommand(OpCode::LE_REMOVE_DEVICE_FROM_FILTER_ACCEPT_LIST);
+    hci_layer_->IncomingEvent(
+            LeRemoveDeviceFromFilterAcceptListCompleteBuilder::Create(0x01, ErrorCode::SUCCESS));
+    hci_layer_->AssertNoQueuedCommand();
+    sync_handler();
+    EXPECT_EQ(ConnectabilityState::DISARMED, le_impl_->connectability_state_);
+
+    return connection;
+  }
+
+  LeExtendedCreateConnectionView get_view_from_creating_connection(
+          std::string remote_address_string) {
+    hci::Address remote_address;
+    Address::FromString(remote_address_string, remote_address);
+    hci::AddressWithType address_with_type(remote_address, hci::AddressType::PUBLIC_DEVICE_ADDRESS);
+
+    // Create connection
+    le_impl_->create_le_connection(address_with_type, true, false);
+
+    hci_layer_->GetCommand(OpCode::LE_ADD_DEVICE_TO_FILTER_ACCEPT_LIST);
+    hci_layer_->IncomingEvent(
+            LeAddDeviceToFilterAcceptListCompleteBuilder::Create(0x01, ErrorCode::SUCCESS));
+    sync_handler();
+
+    return CreateLeConnectionManagementCommandView<LeExtendedCreateConnectionView>(
+            hci_layer_->GetCommand(OpCode::LE_EXTENDED_CREATE_CONNECTION));
+  }
+
   void TearDown() override {
     com::android::bluetooth::flags::provider_->reset_flags();
 
@@ -451,6 +518,7 @@ protected:
 
     sync_handler();
     delete le_impl_;
+    delete classic_impl_;
 
     hci_queue_.GetDownEnd()->UnregisterDequeue();
 
@@ -512,6 +580,7 @@ protected:
   Thread* thread_;
   Handler* handler_;
   HciLayerFake* hci_layer_{nullptr};
+  classic_impl* classic_impl_;
   TestController* controller_;
   RoundRobinScheduler* round_robin_scheduler_{nullptr};
 
@@ -745,6 +814,72 @@ TEST_F(LeImplTest, enhanced_connection_complete_with_central_role) {
 
   // Check state is DISARMED
   ASSERT_EQ(ConnectabilityState::DISARMED, le_impl_->connectability_state_);
+}
+
+TEST_F(LeImplTest, aggressive_connection_mode_selected_when_no_ongoing_le_connections_exist) {
+  if (LeConnectionParameters::GetAggressiveConnThreshold() == 0) {
+    GTEST_SKIP() << "Skipping test because the threshold is zero";
+  }
+
+  com::android::bluetooth::flags::provider_->initial_conn_params_p1(true);
+  set_random_device_address_policy();
+  controller_->AddSupported(OpCode::LE_EXTENDED_CREATE_CONNECTION);
+
+  LeExtendedCreateConnectionView view = get_view_from_creating_connection("FF:EE:DD:CC:BB:AA");
+
+  ASSERT_TRUE(view.IsValid());
+  ASSERT_EQ(view.GetPhyScanParameters()[0].conn_interval_min_,
+            LeConnectionParameters::GetMinConnIntervalAggressive());
+  ASSERT_EQ(view.GetPhyScanParameters()[0].conn_interval_max_,
+            LeConnectionParameters::GetMaxConnIntervalAggressive());
+}
+
+TEST_F(LeImplTest, aggressive_connection_mode_selected_when_few_le_connections_exist) {
+  if (LeConnectionParameters::GetAggressiveConnThreshold() == 0) {
+    GTEST_SKIP() << "Skipping test because the threshold is zero";
+  }
+
+  com::android::bluetooth::flags::provider_->initial_conn_params_p1(true);
+  set_random_device_address_policy();
+  controller_->AddSupported(OpCode::LE_EXTENDED_CREATE_CONNECTION);
+
+  std::vector<std::unique_ptr<LeAclConnection>> connections;
+  for (uint32_t i = 0; i < LeConnectionParameters::GetAggressiveConnThreshold() - 1; i++) {
+    std::stringstream addr_string_stream;
+    addr_string_stream << "A0:05:04:03:02:" << std::hex << std::setw(2) << std::setfill('0') << i;
+
+    connections.push_back(create_enhanced_connection(addr_string_stream.str(), i /* handle */));
+  }
+
+  LeExtendedCreateConnectionView view = get_view_from_creating_connection("FF:EE:DD:CC:BB:AA");
+
+  ASSERT_TRUE(view.IsValid());
+  ASSERT_EQ(view.GetPhyScanParameters()[0].conn_interval_min_,
+            LeConnectionParameters::GetMinConnIntervalAggressive());
+  ASSERT_EQ(view.GetPhyScanParameters()[0].conn_interval_max_,
+            LeConnectionParameters::GetMaxConnIntervalAggressive());
+}
+
+TEST_F(LeImplTest, relaxed_connection_mode_selected_when_enough_le_connections_exist) {
+  com::android::bluetooth::flags::provider_->initial_conn_params_p1(true);
+  set_random_device_address_policy();
+  controller_->AddSupported(OpCode::LE_EXTENDED_CREATE_CONNECTION);
+
+  std::vector<std::unique_ptr<LeAclConnection>> connections;
+  for (uint32_t i = 0; i < LeConnectionParameters::GetAggressiveConnThreshold(); i++) {
+    std::stringstream addr_string_stream;
+    addr_string_stream << "A0:05:04:03:02:" << std::hex << std::setw(2) << std::setfill('0') << i;
+
+    connections.push_back(create_enhanced_connection(addr_string_stream.str(), i /* handle */));
+  }
+
+  LeExtendedCreateConnectionView view = get_view_from_creating_connection("FF:EE:DD:CC:BB:AA");
+
+  ASSERT_TRUE(view.IsValid());
+  ASSERT_EQ(view.GetPhyScanParameters()[0].conn_interval_min_,
+            LeConnectionParameters::GetMinConnIntervalRelaxed());
+  ASSERT_EQ(view.GetPhyScanParameters()[0].conn_interval_max_,
+            LeConnectionParameters::GetMaxConnIntervalRelaxed());
 }
 
 // b/260917913
@@ -1604,6 +1739,59 @@ TEST_F(LeImplTest, direct_connection_after_direct_connection_with_improvement) {
   com::android::bluetooth::flags::provider_
           ->improve_create_connection_for_already_connecting_device(true);
   test_direct_connect_after_direct_connect();
+}
+
+TEST_F(LeImplTest, direct_connection_cancel_but_connected) {
+  com::android::bluetooth::flags::provider_->le_impl_ack_pause_disarmed(true);
+
+  set_random_device_address_policy();
+  controller_->AddSupported(OpCode::LE_EXTENDED_CREATE_CONNECTION);
+
+  hci::AddressWithType address({0x21, 0x22, 0x23, 0x24, 0x25, 0x26},
+                               AddressType::PUBLIC_DEVICE_ADDRESS);
+
+  // Create first direct connection
+  le_impl_->create_le_connection(address, true, /* is_direct */ true);
+  hci_layer_->GetCommand(OpCode::LE_ADD_DEVICE_TO_FILTER_ACCEPT_LIST);
+  hci_layer_->IncomingEvent(
+          LeAddDeviceToFilterAcceptListCompleteBuilder::Create(0x01, ErrorCode::SUCCESS));
+  hci_layer_->GetCommand(OpCode::LE_EXTENDED_CREATE_CONNECTION);
+  hci_layer_->IncomingEvent(
+          LeExtendedCreateConnectionStatusBuilder::Create(ErrorCode::SUCCESS, 0x01));
+  sync_handler();
+  ASSERT_EQ(ConnectabilityState::ARMED, le_impl_->connectability_state_);
+
+  // Cancel the connection
+  le_impl_->cancel_connect(address);
+  hci_layer_->GetCommand(OpCode::LE_CREATE_CONNECTION_CANCEL);
+  hci_layer_->IncomingEvent(
+          LeCreateConnectionCancelCompleteBuilder::Create(0x01, ErrorCode::SUCCESS));
+
+  // According to the spec, UNKNOWN_CONNECTION should be reported but some controller could
+  // report SUCCESS when there is a race between cancel and connect.
+  hci_layer_->IncomingLeMetaEvent(LeEnhancedConnectionCompleteBuilder::Create(
+          ErrorCode::SUCCESS, kHciHandle, Role::CENTRAL, AddressType::PUBLIC_DEVICE_ADDRESS,
+          remote_address_, local_rpa_, remote_rpa_, 0x0024, 0x0000, 0x0011, ClockAccuracy::PPM_30));
+  sync_handler();
+  ASSERT_EQ(ConnectabilityState::DISARMED, le_impl_->connectability_state_);
+  ASSERT_TRUE(le_impl_->accept_list.empty());
+
+  // Disconnect and reconnect
+  le_impl_->on_le_disconnect(kHciHandle, ErrorCode::REMOTE_USER_TERMINATED_CONNECTION);
+  sync_handler();
+
+  le_impl_->create_le_connection(address, true, /* is_direct */ true);
+  ASSERT_TRUE(le_impl_->accept_list.contains(address));
+  sync_handler();
+
+  le_impl_->OnPause();
+  hci_layer_->GetCommand(OpCode::LE_ADD_DEVICE_TO_FILTER_ACCEPT_LIST);
+  hci_layer_->IncomingEvent(
+          LeAddDeviceToFilterAcceptListCompleteBuilder::Create(0x01, ErrorCode::SUCCESS));
+  hci_layer_->GetCommand(OpCode::LE_EXTENDED_CREATE_CONNECTION);
+  hci_layer_->IncomingEvent(
+          LeExtendedCreateConnectionStatusBuilder::Create(ErrorCode::SUCCESS, 0x01));
+  sync_handler();
 }
 
 }  // namespace acl_manager

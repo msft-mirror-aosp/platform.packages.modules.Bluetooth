@@ -249,7 +249,7 @@ void ConnectionHandler::InitiatorControlCb(uint8_t handle, uint8_t event, uint16
   DCHECK(!connection_cb_.is_null());
 
   log::info("handle=0x{:x} result=0x{:x} addr={}", handle, result,
-            peer_addr ? ADDRESS_TO_LOGGABLE_STR(*peer_addr) : "none");
+            peer_addr ? peer_addr->ToRedactedStringForLogging() : "none");
 
   switch (event) {
     case AVRC_OPEN_IND_EVT: {
@@ -295,7 +295,6 @@ void ConnectionHandler::InitiatorControlCb(uint8_t handle, uint8_t event, uint16
           instance_->vol_->DeviceConnected(newDevice->GetAddress());
         }
       }
-
     } break;
 
     case AVRC_CLOSE_IND_EVT: {
@@ -340,7 +339,7 @@ void ConnectionHandler::AcceptorControlCb(uint8_t handle, uint8_t event, uint16_
   DCHECK(!connection_cb_.is_null());
 
   log::info("handle=0x{:x} result=0x{:x} addr={}", handle, result,
-            peer_addr ? ADDRESS_TO_LOGGABLE_STR(*peer_addr) : "none");
+            peer_addr ? peer_addr->ToRedactedStringForLogging() : "none");
 
   switch (event) {
     case AVRC_OPEN_IND_EVT: {
@@ -407,10 +406,8 @@ void ConnectionHandler::AcceptorControlCb(uint8_t handle, uint8_t event, uint16_
       // as this one which will be closed when the device is disconnected.
       AvrcpConnect(false, RawAddress::kAny);
 
-      if (com::android::bluetooth::flags::avrcp_connect_a2dp_with_delay()) {
-        // Check peer audio role: src or sink and connect A2DP after 3 seconds
-        SdpLookupAudioRole(handle);
-      }
+      // Check peer audio role: src or sink and connect A2DP after 3 seconds
+      SdpLookupAudioRole(handle);
     } break;
 
     case AVRC_CLOSE_IND_EVT: {
@@ -646,7 +643,7 @@ bool ConnectionHandler::SdpLookupAudioRole(uint16_t handle) {
   log::info(
           "Performing SDP for AUDIO_SINK on connected device: address={}, "
           "handle={}",
-          ADDRESS_TO_LOGGABLE_STR(device->GetAddress()), handle);
+          device->GetAddress(), handle);
 
   return device->find_sink_service(base::Bind(&ConnectionHandler::SdpLookupAudioRoleCb,
                                               weak_ptr_factory_.GetWeakPtr(), handle));
@@ -661,8 +658,8 @@ void ConnectionHandler::SdpLookupAudioRoleCb(uint16_t handle, bool found,
   }
   auto device = device_map_[handle];
 
-  log::debug("SDP callback for address={}, handle={}, AUDIO_SINK {}",
-             ADDRESS_TO_LOGGABLE_STR(device->GetAddress()), handle, found ? "found" : "not found");
+  log::debug("SDP callback for address={}, handle={}, AUDIO_SINK {}", device->GetAddress(), handle,
+             found ? "found" : "not found");
 
   if (found) {
     device->connect_a2dp_sink_delayed(handle);

@@ -29,6 +29,8 @@
 #include <com_android_bluetooth_flags.h>
 #include <string.h>
 
+#include <cstdint>
+
 #include "bta/include/bta_sec_api.h"
 #include "btif/include/btif_av.h"
 #include "internal_include/bt_target.h"
@@ -128,13 +130,8 @@ void avct_bcb_chnl_open(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* /* p_data */) {
 
   /* call l2cap connect req */
   p_bcb->ch_state = AVCT_CH_CONN;
-  if (com::android::bluetooth::flags::use_encrypt_req_for_av()) {
-    p_bcb->ch_lcid = stack::l2cap::get_interface().L2CA_ConnectReqWithSecurity(
-            BT_PSM_AVCTP_BROWSE, p_lcb->peer_addr, BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT);
-  } else {
-    p_bcb->ch_lcid = stack::l2cap::get_interface().L2CA_ConnectReqWithSecurity(
-            BT_PSM_AVCTP_BROWSE, p_lcb->peer_addr, BTA_SEC_AUTHENTICATE);
-  }
+  p_bcb->ch_lcid = stack::l2cap::get_interface().L2CA_ConnectReqWithSecurity(
+    BT_PSM_AVCTP_BROWSE, p_lcb->peer_addr, BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT);
   if (p_bcb->ch_lcid == 0) {
     /* if connect req failed, send ourselves close event */
     tAVCT_LCB_EVT avct_lcb_evt;

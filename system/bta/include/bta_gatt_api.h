@@ -26,7 +26,6 @@
 #define BTA_GATT_API_H
 
 #include <base/functional/callback_forward.h>
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 
 #include <list>
@@ -95,7 +94,7 @@ inline std::string gatt_client_event_text(const tBTA_GATTC_EVT& event) {
     CASE_RETURN_TEXT(BTA_GATTC_CONN_UPDATE_EVT);
     CASE_RETURN_TEXT(BTA_GATTC_SUBRATE_CHG_EVT);
     default:
-      return base::StringPrintf("UNKNOWN[%hhu]", event);
+      return std::format("UNKNOWN[{}]", static_cast<uint8_t>(event));
   }
 }
 
@@ -322,7 +321,7 @@ inline std::string gatt_server_event_text(const tBTA_GATTS_EVT& event) {
     CASE_RETURN_TEXT(BTA_GATTS_CONN_UPDATE_EVT);
     CASE_RETURN_TEXT(BTA_GATTS_SUBRATE_CHG_EVT);
     default:
-      return base::StringPrintf("UNKNOWN[%hhu]", event);
+      return std::format("UNKNOWN[{}]", event);
   }
 }
 
@@ -1044,9 +1043,9 @@ void BTA_GATTS_Close(tCONN_ID conn_id);
 // Adds bonded device for GATT server tracking service changes
 void BTA_GATTS_InitBonded(void);
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tBTA_GATTC_EVT> : enum_formatter<tBTA_GATTC_EVT> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif /* BTA_GATT_API_H */

@@ -1,5 +1,5 @@
 package: "com.android.bluetooth.flags"
-container: "com.android.btservices"
+container: "com.android.bt"
 
 flag {
     name: "encrypted_advertising_data"
@@ -30,20 +30,6 @@ flag {
 }
 
 flag {
-    name: "gatt_fix_device_busy"
-    namespace: "bluetooth"
-    description: "Fix device busy bug in BluetoothGatt"
-    bug: "322580271"
-}
-
-flag {
-    name: "gatt_cleanup_restricted_handles"
-    namespace: "bluetooth"
-    description: "Cleans up restricted handles when disconnected"
-    bug: "323110155"
-}
-
-flag {
     name: "phy_to_native"
     namespace: "bluetooth"
     description: "Expose advertising PHY settings to native layer"
@@ -62,26 +48,6 @@ flag {
     namespace: "bluetooth"
     description: "Fix connection removal logic in ContextMap class"
     bug: "329154715"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "ble_check_data_length_on_legacy_advertising"
-    namespace: "bluetooth"
-    description: "Add data length checks for legacy advertising"
-    bug: "329011868"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "ble_gatt_server_use_address_type_in_connection"
-    namespace: "bluetooth"
-    description: "Use address type when initiating connection from BluetoothGattServer"
-    bug: "331147673"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -108,40 +74,10 @@ flag {
 }
 
 flag {
-    name: "gatt_rediscover_on_canceled"
-    namespace: "bluetooth"
-    description: "Re-initiate discovery if the previous discovery is canceled for multiple GATT clients"
-    bug: "335082571"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "le_scan_use_uid_for_importance"
-    namespace: "bluetooth"
-    description: "Use uid instead of the first package name for fetching the importance of clients"
-    bug: "336965663"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "sec_dont_clear_keys_on_encryption_err"
     namespace: "bluetooth"
     description: "Do not clear security record on encryption error"
     bug: "342521414"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "le_scan_use_address_type"
-    namespace: "bluetooth"
-    description: "Fix an issue that le scanner omits address type for MATCH_FIRST scan"
-    bug: "342127181"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -236,6 +172,19 @@ flag {
     namespace: "bluetooth"
     description: "Support MSFT HCI extension for LE Scanning. go/bt-msft-aosp-dd"
     bug: "365787977"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "le_impl_ack_pause_disarmed"
+    namespace: "bluetooth"
+    description: "Let le_impl AckPause when disarmed to prevent stuck in pausing state"
+    bug: "357024179"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }
 
 flag {
@@ -253,6 +202,81 @@ flag {
     namespace: "bluetooth"
     description: "Remove non-oneway binder calls from BluetoothLeScanner.startScan"
     bug: "375558872"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "initial_conn_params_p1"
+    namespace: "bluetooth"
+    description: "Use aggressive connection parameters when <2 connections exist. go/initial-connection-parameter-optimization"
+    bug: "378595485"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "rpa_offload_to_bt_controller"
+    namespace: "bluetooth"
+    description: "Offload LE RPA rotation to BT controller. go/rpa-offload-to-bt-controller"
+    bug: "378398874"
+}
+
+flag {
+    name: "directed_advertising_api"
+    namespace: "bluetooth"
+    is_exported: true
+    description: "Add new API for directed advertising"
+    bug: "378230500"
+}
+
+flag {
+    name: "gatt_queue_cleanup_connected"
+    namespace: "bluetooth"
+    description: "Cleans up BtaGattQueue when connected"
+    bug: "379007400"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "drop_acl_fragment_on_disconnect"
+    namespace: "bluetooth"
+    description: "Drop pending ACL packet fragments for disconnected connection"
+    bug: "376379859"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "configure_scan_on_resume"
+    namespace: "bluetooth"
+    description: "Configure scan paramters when start scanning from onResume"
+    bug: "383436218"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "unregister_gatt_client_disconnected"
+    namespace: "bluetooth"
+    description: "Unregister gatt client when disconneted to prevent client leaks"
+    bug: "380388092"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "fix_execute_write_no_pending"
+    namespace: "bluetooth"
+    description: "Send ATT_EXECUTE_WRITE_RSP when no pending write requests"
+    bug: "385118069"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

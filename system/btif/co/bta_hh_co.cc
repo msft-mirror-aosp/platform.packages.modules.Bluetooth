@@ -18,29 +18,41 @@
 
 #include "bta_hh_co.h"
 
+#include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 #include <fcntl.h>
+#include <linux/hid.h>
+#include <linux/input.h>
 #include <linux/uhid.h>
 #include <poll.h>
 #include <pthread.h>
-#include <stdint.h>
+#include <sched.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <unistd.h>
 
+#include <array>
 #include <cerrno>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
 
 #include "bta_hh_api.h"
 #include "btif_config.h"
 #include "btif_hh.h"
+#include "hardware/bt_hh.h"
 #include "hci/controller_interface.h"
 #include "main/shim/entry.h"
+#include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
 #include "osi/include/compat.h"
+#include "osi/include/fixed_queue.h"
 #include "osi/include/osi.h"
 #include "osi/include/properties.h"
 #include "storage/config_keys.h"
 #include "types/raw_address.h"
+
 #define BTA_HH_NV_LOAD_MAX 16
 static tBTA_HH_RPT_CACHE_ENTRY sReportCache[BTA_HH_NV_LOAD_MAX];
 #define BTA_HH_CACHE_REPORT_VERSION 1
@@ -541,8 +553,7 @@ static int uhid_fd_poll(btif_hh_uhid_t* p_uhid, struct pollfd* pfds, int nfds) {
   int counter = 0;
 
   do {
-    if (com::android::bluetooth::flags::break_uhid_polling_early() &&
-        !com::android::bluetooth::flags::hid_report_queuing() && !p_uhid->hh_keep_polling) {
+    if (!com::android::bluetooth::flags::hid_report_queuing() && !p_uhid->hh_keep_polling) {
       log::debug("Polling stopped");
       return -1;
     }
@@ -557,13 +568,6 @@ static int uhid_fd_poll(btif_hh_uhid_t* p_uhid, struct pollfd* pfds, int nfds) {
                                     : BTA_HH_UHID_POLL_PERIOD_MS;
     ret = poll(pfds, nfds, uhid_poll_timeout);
   } while (ret == -1 && errno == EINTR);
-
-  if (!com::android::bluetooth::flags::break_uhid_polling_early()) {
-    if (ret == 0) {
-      log::verbose("Polling timed out, attempt to read (old behavior)");
-      return 1;
-    }
-  }
 
   return ret;
 }
@@ -974,7 +978,7 @@ void bta_hh_co_send_hid_info(btif_hh_device_t* p_dev, const char* dev_name, uint
 
   // Create and send hid descriptor to kernel
   ev.type = UHID_CREATE2;
-  strlcpy((char*)ev.u.create2.name, dev_name, sizeof(ev.u.create2.name));
+  osi_strlcpy((char*)ev.u.create2.name, dev_name, sizeof(ev.u.create2.name));
   // TODO (b/258090765) fix: ToString -> ToColonSepHexString
   snprintf((char*)ev.u.create2.uniq, sizeof(ev.u.create2.uniq), "%s",
            p_dev->link_spec.addrt.bda.ToString().c_str());

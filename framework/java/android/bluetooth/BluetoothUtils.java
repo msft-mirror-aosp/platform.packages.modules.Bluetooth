@@ -338,15 +338,12 @@ public final class BluetoothUtils {
      * @hide
      */
     public static void executeFromBinder(@NonNull Executor executor, @NonNull Runnable callback) {
-        executor.execute(
-                () -> {
-                    final long identity = Binder.clearCallingIdentity();
-                    try {
-                        callback.run();
-                    } finally {
-                        Binder.restoreCallingIdentity(identity);
-                    }
-                });
+        final long identity = Binder.clearCallingIdentity();
+        try {
+            executor.execute(() -> callback.run());
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
     }
 
     /** A {@link Consumer} that automatically logs {@link RemoteException} @hide */
@@ -381,6 +378,11 @@ public final class BluetoothUtils {
         }
     }
 
+    public static <S, R> R callService(
+            S service, RemoteExceptionIgnoringFunction<S, R> function, R defaultValue) {
+        return function.apply(service, defaultValue);
+    }
+
     public static <S, R> R callServiceIfEnabled(
             BluetoothAdapter adapter,
             Supplier<S> provider,
@@ -395,7 +397,7 @@ public final class BluetoothUtils {
             Log.d(TAG, "Proxy not attached to service");
             return defaultValue;
         }
-        return function.apply(service, defaultValue);
+        return callService(service, function, defaultValue);
     }
 
     public static <S> void callServiceIfEnabled(

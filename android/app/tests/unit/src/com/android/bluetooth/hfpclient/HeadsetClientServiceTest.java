@@ -21,6 +21,8 @@ import static android.content.pm.PackageManager.FEATURE_WATCH;
 import static com.android.bluetooth.hfpclient.HeadsetClientService.MAX_HFP_SCO_VOICE_CALL_VOLUME;
 import static com.android.bluetooth.hfpclient.HeadsetClientService.MIN_HFP_SCO_VOICE_CALL_VOLUME;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.doReturn;
@@ -68,22 +70,22 @@ import java.util.concurrent.TimeUnit;
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class HeadsetClientServiceTest {
-    private HeadsetClientService mService = null;
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+
+    @Mock private AdapterService mAdapterService;
+    @Mock private HeadsetClientStateMachine mStateMachine;
+    @Mock private NativeInterface mNativeInterface;
+    @Mock private DatabaseManager mDatabaseManager;
+    @Mock private RemoteDevices mRemoteDevices;
+
+    private HeadsetClientService mService;
     private boolean mIsHeadsetClientServiceStarted;
 
     private static final int STANDARD_WAIT_MILLIS = 1000;
     private static final int SERVICE_START_WAIT_MILLIS = 100;
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
-
-    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
-
-    @Mock private AdapterService mAdapterService;
     private AudioManager mMockAudioManager;
-    @Mock private HeadsetClientStateMachine mStateMachine;
-    @Mock private NativeInterface mNativeInterface;
-    @Mock private DatabaseManager mDatabaseManager;
-    @Mock private RemoteDevices mRemoteDevices;
 
     <T> T mockGetSystemService(String serviceName, Class<T> serviceClass) {
         return TestUtils.mockGetSystemService(mAdapterService, serviceName, serviceClass);
@@ -107,7 +109,7 @@ public class HeadsetClientServiceTest {
     @Test
     public void testInitialize() throws Exception {
         startService();
-        Assert.assertNotNull(HeadsetClientService.getHeadsetClientService());
+        assertThat(HeadsetClientService.getHeadsetClientService()).isNotNull();
     }
 
     @Ignore("b/260202548")
@@ -183,7 +185,6 @@ public class HeadsetClientServiceTest {
         doReturn(packageManager).when(mAdapterService).getPackageManager();
 
         HeadsetClientService service = new HeadsetClientService(mAdapterService);
-        service.start();
 
         verify(mAdapterService).startService(any(Intent.class));
 
@@ -198,7 +199,6 @@ public class HeadsetClientServiceTest {
         doReturn(packageManager).when(mAdapterService).getPackageManager();
 
         HeadsetClientService service = new HeadsetClientService(mAdapterService);
-        service.start();
 
         verify(mAdapterService, never()).startService(any(Intent.class));
 
@@ -217,7 +217,7 @@ public class HeadsetClientServiceTest {
         int amMax = 10;
         Map<Integer, Integer> amToHfMap = new HashMap<>();
 
-        Assert.assertTrue(amMax < MAX_HFP_SCO_VOICE_CALL_VOLUME);
+        assertThat(amMax).isLessThan(MAX_HFP_SCO_VOICE_CALL_VOLUME);
 
         doReturn(amMax).when(mMockAudioManager).getStreamMaxVolume(anyInt());
         doReturn(amMin).when(mMockAudioManager).getStreamMinVolume(anyInt());
@@ -247,7 +247,7 @@ public class HeadsetClientServiceTest {
         int amMax = 20;
         Map<Integer, Integer> hfToAmMap = new HashMap<>();
 
-        Assert.assertTrue(amMax > MAX_HFP_SCO_VOICE_CALL_VOLUME);
+        assertThat(amMax).isGreaterThan(MAX_HFP_SCO_VOICE_CALL_VOLUME);
 
         doReturn(amMax).when(mMockAudioManager).getStreamMaxVolume(anyInt());
         doReturn(amMin).when(mMockAudioManager).getStreamMinVolume(anyInt());
@@ -267,7 +267,6 @@ public class HeadsetClientServiceTest {
 
     private void startService() throws Exception {
         mService = new HeadsetClientService(mAdapterService);
-        mService.start();
         mService.setAvailable(true);
         mIsHeadsetClientServiceStarted = true;
     }
@@ -275,7 +274,7 @@ public class HeadsetClientServiceTest {
     private void stopServiceIfStarted() throws Exception {
         if (mIsHeadsetClientServiceStarted) {
             mService.stop();
-            Assert.assertNull(HeadsetClientService.getHeadsetClientService());
+            assertThat(HeadsetClientService.getHeadsetClientService()).isNull();
         }
     }
 }

@@ -23,7 +23,7 @@
 
 #include "include/hardware/bluetooth.h"
 #include "osi/include/list.h"
-#include "raw_address.h"
+#include "types/raw_address.h"
 
 static const char INTEROP_MODULE[] = "interop_module";
 
@@ -31,7 +31,6 @@ static const char INTEROP_MODULE[] = "interop_module";
 // Only add values at the end of this enum and before END_OF_INTEROP_LIST
 // do NOT delete values as they may be used in dynamic device configuration.
 typedef enum {
-
   BEGINNING_OF_INTEROP_LIST = 0,
   // Disable secure connections
   // This is for pre BT 4.1/2 devices that do not handle secure mode
@@ -362,6 +361,9 @@ typedef enum {
 
   // Some HOGP devices requires MTU exchange be part of the initial setup to function.
   INTEROP_HOGP_FORCE_MTU_EXCHANGE,
+
+  // Some devices claim to support HFP in EIR but does not actually support it.
+  INTEROP_DISABLE_HF_PROFILE,
 
   END_OF_INTEROP_LIST
 } interop_feature_t;

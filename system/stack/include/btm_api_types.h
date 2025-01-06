@@ -19,8 +19,6 @@
 #ifndef BTM_API_TYPES_H
 #define BTM_API_TYPES_H
 
-#include <base/strings/stringprintf.h>
-
 #include <cstdint>
 #include <string>
 
@@ -197,7 +195,7 @@ inline std::string bta_ag_uuid_codec_text(const tBTA_AG_UUID_CODEC result) {
     CASE_RETURN_TEXT(tBTA_AG_UUID_CODEC::UUID_CODEC_MSBC);
     CASE_RETURN_TEXT(tBTA_AG_UUID_CODEC::UUID_CODEC_LC3);
     default:
-      return fmt::format("UNKNOWN Codec with id {}",
+      return std::format("UNKNOWN Codec with id {}",
                          static_cast<std::underlying_type_t<tBTA_AG_UUID_CODEC>>(result));
   }
 }

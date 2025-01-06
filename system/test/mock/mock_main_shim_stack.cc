@@ -37,17 +37,9 @@ void Stack::Stop() {}
 
 bool Stack::IsRunning() { return stack_thread_ != nullptr; }
 
-StackManager* Stack::GetStackManager() { return nullptr; }
-
-const StackManager* Stack::GetStackManager() const { return nullptr; }
-
 Acl* Stack::GetAcl() { return testing::acl_; }
 
 os::Handler* Stack::GetHandler() { return stack_handler_; }
-
-bool Stack::IsDumpsysModuleStarted() const { return false; }
-
-bool Stack::LockForDumpsys(std::function<void()> /* dumpsys_callback */) { return false; }
 
 }  // namespace shim
 }  // namespace bluetooth

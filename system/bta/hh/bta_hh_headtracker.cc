@@ -19,11 +19,17 @@
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
+#include <cstdint>
+
 #include "bta/hh/bta_hh_int.h"
+#include "bta_hh_api.h"
 #include "btif/include/btif_storage.h"
-#include "stack/include/bt_types.h"
-#include "stack/include/bt_uuid16.h"
+#include "gatt/database.h"
+#include "gatt_api.h"
+#include "gattdefs.h"
+#include "hardware/bluetooth.h"
 #include "types/bluetooth/uuid.h"
+#include "types/raw_address.h"
 
 using bluetooth::Uuid;
 using namespace bluetooth;
@@ -132,10 +138,6 @@ void bta_hh_headtracker_parse_service(tBTA_HH_DEV_CB* p_dev_cb, const gatt::Serv
  *
  ******************************************************************************/
 bool bta_hh_headtracker_supported(tBTA_HH_DEV_CB* p_dev_cb) {
-  if (!com::android::bluetooth::flags::android_headtracker_service()) {
-    return false;
-  }
-
   if (p_dev_cb->hid_srvc.headtracker_support == BTA_HH_UNKNOWN) {
     bluetooth::Uuid remote_uuids[BT_MAX_NUM_UUIDS] = {};
     bt_property_t remote_properties = {BT_PROPERTY_UUIDS, sizeof(remote_uuids), &remote_uuids};

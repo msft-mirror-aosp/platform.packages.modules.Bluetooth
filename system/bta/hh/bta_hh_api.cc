@@ -24,16 +24,22 @@
 
 #define LOG_TAG "bt_bta_hh"
 
+#include "bta_hh_api.h"
+
 #include <bluetooth/log.h>
 
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
 
 #include "bta/hh/bta_hh_int.h"
 #include "bta/sys/bta_sys.h"
+#include "hiddefs.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/main_thread.h"
-#include "types/raw_address.h"
+#include "types/ble_address_with_type.h"
+#include "types/bluetooth/uuid.h"
 
 using namespace bluetooth;
 
@@ -121,7 +127,7 @@ void BTA_HhClose(uint8_t dev_handle) {
  * Returns          void
  *
  ******************************************************************************/
-void BTA_HhOpen(const tAclLinkSpec& link_spec) {
+void BTA_HhOpen(const tAclLinkSpec& link_spec, bool direct) {
   tBTA_HH_API_CONN* p_buf = (tBTA_HH_API_CONN*)osi_calloc(sizeof(tBTA_HH_API_CONN));
   tBTA_HH_PROTO_MODE mode = BTA_HH_PROTO_RPT_MODE;
 
@@ -129,6 +135,7 @@ void BTA_HhOpen(const tAclLinkSpec& link_spec) {
   p_buf->hdr.layer_specific = BTA_HH_INVALID_HANDLE;
   p_buf->mode = mode;
   p_buf->link_spec = link_spec;
+  p_buf->direct = direct;
 
   bta_sys_sendmsg((void*)p_buf);
 }

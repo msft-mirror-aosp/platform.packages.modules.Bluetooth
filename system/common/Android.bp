@@ -20,6 +20,7 @@ cc_library_static {
     ],
     srcs: [
         "address_obfuscator.cc",
+        "le_conn_params.cc",
         "message_loop_thread.cc",
         "metric_id_allocator.cc",
         "os_utils.cc",
@@ -140,6 +141,7 @@ cc_test {
         "libbluetooth_log",
         "libbt-common",
         "libchrome",
+        "libcom.android.sysprop.bluetooth.wrapped",
         "libevent",
         "libgmock",
         "libosi",
@@ -168,6 +170,7 @@ cc_benchmark {
         "libbluetooth_log",
         "libbt-common",
         "libchrome",
+        "libcom.android.sysprop.bluetooth.wrapped",
         "libevent",
         "libosi",
     ],

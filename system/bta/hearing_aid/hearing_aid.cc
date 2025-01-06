@@ -23,25 +23,50 @@
 #include <base/strings/string_number_conversions.h>  // HexEncode
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
 
+#include <algorithm>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <ctime>
+#include <deque>
+#include <functional>
+#include <list>
+#include <memory>
 #include <mutex>
+#include <ostream>
+#include <sstream>
+#include <utility>
 #include <vector>
 
 #include "audio/asrc/asrc_resampler.h"
 #include "bta/include/bta_gatt_api.h"
 #include "bta/include/bta_gatt_queue.h"
 #include "bta/include/bta_hearing_aid_api.h"
+#include "btm_api_types.h"
+#include "btm_ble_api_types.h"
 #include "btm_iso_api.h"
+#include "btm_sec_api_types.h"
 #include "embdrv/g722/g722_enc_dec.h"
-#include "hal/link_clocker.h"
+#include "gap_api.h"
+#include "gatt/database.h"
+#include "gatt_api.h"
+#include "gattdefs.h"
 #include "hardware/bt_gatt_types.h"
+#include "hardware/bt_hearing_aid.h"
 #include "hci/controller_interface.h"
 #include "internal_include/bt_trace.h"
+#include "l2cap_types.h"
 #include "main/shim/entry.h"
+#include "os/logging/log_adapter.h"
 #include "osi/include/allocator.h"
 #include "osi/include/properties.h"
+#include "profiles_api.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/include/acl_api_types.h"  // tBTM_RSSI_RESULT
 #include "stack/include/bt_hdr.h"
@@ -498,6 +523,10 @@ public:
     }
 
     hearingDevice->conn_id = conn_id;
+
+    if (com::android::bluetooth::flags::gatt_queue_cleanup_connected()) {
+      BtaGattQueue::Clean(conn_id);
+    }
 
     uint64_t hi_sync_id = hearingDevice->hi_sync_id;
 
@@ -1041,9 +1070,7 @@ public:
             /// The L2CAP will automatically reconnect the LE-ACL link on
             /// disconnection when there is a pending channel request,
             /// which invalidates all encryption checks performed here.
-            com::android::bluetooth::flags::asha_encrypted_l2c_coc()
-                    ? BTM_SEC_IN_ENCRYPT | BTM_SEC_OUT_ENCRYPT
-                    : BTM_SEC_NONE,
+            BTM_SEC_IN_ENCRYPT | BTM_SEC_OUT_ENCRYPT,
             HearingAidImpl::GapCallbackStatic, BT_TRANSPORT_LE);
 
     if (gap_handle == GAP_INVALID_HANDLE) {
@@ -1663,10 +1690,11 @@ public:
     const struct AudioStats* stats = &device.audio_stats;
 
     if (stats->rssi_history.size() <= 0) {
-      dprintf(fd, "  No RSSI history for %s:\n", ADDRESS_TO_LOGGABLE_CSTR(device.address));
+      dprintf(fd, "  No RSSI history for %s:\n",
+              device.address.ToRedactedStringForLogging().c_str());
       return;
     }
-    dprintf(fd, "  RSSI history for %s:\n", ADDRESS_TO_LOGGABLE_CSTR(device.address));
+    dprintf(fd, "  RSSI history for %s:\n", device.address.ToRedactedStringForLogging().c_str());
 
     dprintf(fd, "    Time of RSSI    0.0  0.1  0.2  0.3  0.4  0.5  0.6  0.7  0.8  0.9\n");
     for (auto& rssi_logs : stats->rssi_history) {
@@ -1680,7 +1708,7 @@ public:
       if (!strftime(temptime, sizeof(temptime), "%H:%M:%S", tstamp)) {
         log::error("strftime fails. tm_sec={}, tm_min={}, tm_hour={}", tstamp->tm_sec,
                    tstamp->tm_min, tstamp->tm_hour);
-        strlcpy(temptime, "UNKNOWN TIME", sizeof(temptime));
+        osi_strlcpy(temptime, "UNKNOWN TIME", sizeof(temptime));
       }
       snprintf(eventtime, sizeof(eventtime), "%s.%03ld", temptime,
                rssi_logs.timestamp.tv_nsec / 1000000);

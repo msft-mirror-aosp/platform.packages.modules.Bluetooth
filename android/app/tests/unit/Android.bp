@@ -22,6 +22,7 @@ java_defaults {
 
     static_libs: [
         "PlatformProperties",
+        "android.media.audio-aconfig-exported-java",
         "androidx.media_media",
         "androidx.room_room-migration",
         "androidx.room_room-runtime",
@@ -30,6 +31,7 @@ java_defaults {
         "androidx.test.ext.truth",
         "androidx.test.rules",
         "androidx.test.uiautomator_uiautomator",
+        "bluetooth_flags_java_lib",
         "com.android.sysprop.bluetooth",
         "flag-junit",
         "framework-bluetooth-pre-jarjar",
@@ -53,9 +55,10 @@ java_defaults {
     platform_apis: true,
 
     test_suites: [
-        "automotive-tests",
+        "automotive-general-tests",
         "general-tests",
         "mts-bluetooth",
+        "mts-bt",
     ],
 
     instrumentation_for: "Bluetooth",

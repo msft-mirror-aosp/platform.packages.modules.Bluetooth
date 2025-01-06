@@ -15,6 +15,8 @@
  */
 package com.android.bluetooth.hid;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.mockito.Mockito.*;
 
 import android.bluetooth.BluetoothAdapter;
@@ -28,6 +30,7 @@ import androidx.test.runner.AndroidJUnit4;
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
+import com.android.bluetooth.flags.Flags;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -76,12 +79,12 @@ public class HidHostServiceTest {
         mService.cleanup();
         HidHostNativeInterface.setInstance(null);
         mService = HidHostService.getHidHostService();
-        Assert.assertNull(mService);
+        assertThat(mService).isNull();
     }
 
     @Test
     public void testInitialize() {
-        Assert.assertNotNull(HidHostService.getHidHostService());
+        assertThat(HidHostService.getHidHostService()).isNotNull();
     }
 
     /** Test okToConnect method using various test cases */
@@ -93,7 +96,7 @@ public class HidHostServiceTest {
                 mTestDevice,
                 BluetoothDevice.BOND_NONE,
                 BluetoothProfile.CONNECTION_POLICY_UNKNOWN,
-                false);
+                Flags.donotValidateBondStateFromProfiles());
         testOkToConnectCase(
                 mTestDevice,
                 BluetoothDevice.BOND_NONE,
@@ -103,13 +106,13 @@ public class HidHostServiceTest {
                 mTestDevice,
                 BluetoothDevice.BOND_NONE,
                 BluetoothProfile.CONNECTION_POLICY_ALLOWED,
-                false);
+                Flags.donotValidateBondStateFromProfiles());
         testOkToConnectCase(mTestDevice, BluetoothDevice.BOND_NONE, badPriorityValue, false);
         testOkToConnectCase(
                 mTestDevice,
                 BluetoothDevice.BOND_BONDING,
                 BluetoothProfile.CONNECTION_POLICY_UNKNOWN,
-                false);
+                Flags.donotValidateBondStateFromProfiles());
         testOkToConnectCase(
                 mTestDevice,
                 BluetoothDevice.BOND_BONDING,
@@ -119,7 +122,7 @@ public class HidHostServiceTest {
                 mTestDevice,
                 BluetoothDevice.BOND_BONDING,
                 BluetoothProfile.CONNECTION_POLICY_ALLOWED,
-                false);
+                Flags.donotValidateBondStateFromProfiles());
         testOkToConnectCase(mTestDevice, BluetoothDevice.BOND_BONDING, badPriorityValue, false);
         testOkToConnectCase(
                 mTestDevice,
@@ -138,11 +141,17 @@ public class HidHostServiceTest {
                 true);
         testOkToConnectCase(mTestDevice, BluetoothDevice.BOND_BONDED, badPriorityValue, false);
         testOkToConnectCase(
-                mTestDevice, badBondState, BluetoothProfile.CONNECTION_POLICY_UNKNOWN, false);
+                mTestDevice,
+                badBondState,
+                BluetoothProfile.CONNECTION_POLICY_UNKNOWN,
+                Flags.donotValidateBondStateFromProfiles());
         testOkToConnectCase(
                 mTestDevice, badBondState, BluetoothProfile.CONNECTION_POLICY_FORBIDDEN, false);
         testOkToConnectCase(
-                mTestDevice, badBondState, BluetoothProfile.CONNECTION_POLICY_ALLOWED, false);
+                mTestDevice,
+                badBondState,
+                BluetoothProfile.CONNECTION_POLICY_ALLOWED,
+                Flags.donotValidateBondStateFromProfiles());
         testOkToConnectCase(mTestDevice, badBondState, badPriorityValue, false);
     }
 

@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.le_scan;
 
+import static java.util.Objects.requireNonNull;
+
 import android.app.PendingIntent;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.IBluetoothScan;
@@ -25,7 +27,6 @@ import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanResult;
 import android.bluetooth.le.ScanSettings;
 import android.content.AttributionSource;
-import android.content.Context;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
@@ -35,6 +36,10 @@ import android.os.WorkSource;
 import android.text.format.DateUtils;
 import android.util.Log;
 
+import com.android.bluetooth.BluetoothMetricsProto;
+import com.android.bluetooth.btservice.AdapterService;
+import com.android.bluetooth.btservice.ProfileService;
+
 import libcore.util.HexEncoding;
 
 import java.util.List;
@@ -43,6 +48,7 @@ public class ScanController {
     private static final String TAG = ScanController.class.getSimpleName();
 
     public final TransitionalScanHelper mTransitionalScanHelper;
+    public final HandlerThread mScanThread;
 
     private final BluetoothScanBinder mBinder;
 
@@ -63,20 +69,22 @@ public class ScanController {
                 "0201061AFF4C000215426C7565436861726D426561636F6E730EFE1355C509168020691E0EFE13551109426C7565436861726D5F31363936383500000000",
             };
 
-    public ScanController(Context ctx) {
-        mTransitionalScanHelper = new TransitionalScanHelper(ctx, () -> mTestModeEnabled);
-        mMainLooper = ctx.getMainLooper();
+    public ScanController(AdapterService adapterService) {
+        mTransitionalScanHelper =
+                new TransitionalScanHelper(requireNonNull(adapterService), () -> mTestModeEnabled);
+        mMainLooper = adapterService.getMainLooper();
         mBinder = new BluetoothScanBinder(this);
         mIsAvailable = true;
-        HandlerThread thread = new HandlerThread("BluetoothScanManager");
-        thread.start();
-        mTransitionalScanHelper.start(thread.getLooper());
+        mScanThread = new HandlerThread("BluetoothScanManager");
+        mScanThread.start();
+        mTransitionalScanHelper.start(mScanThread.getLooper());
     }
 
     public void stop() {
         Log.d(TAG, "stop()");
         mIsAvailable = false;
         mBinder.clearScanController();
+        mScanThread.quitSafely();
         mTransitionalScanHelper.stop();
         mTransitionalScanHelper.cleanup();
     }
@@ -131,6 +139,20 @@ public class ScanController {
             mTestModeHandler.sendEmptyMessageDelayed(
                     0, enableTestMode ? DateUtils.SECOND_IN_MILLIS : 0);
         }
+    }
+
+    public void dumpRegisterId(StringBuilder sb) {
+        sb.append("  Scanner:\n");
+        mTransitionalScanHelper.getScannerMap().dumpApps(sb, ProfileService::println);
+    }
+
+    public void dump(StringBuilder sb) {
+        sb.append("GATT Scanner Map\n");
+        mTransitionalScanHelper.getScannerMap().dump(sb);
+    }
+
+    public void dumpProto(BluetoothMetricsProto.BluetoothLog.Builder builder) {
+        mTransitionalScanHelper.dumpProto(builder);
     }
 
     static class BluetoothScanBinder extends IBluetoothScan.Stub {
