@@ -926,12 +926,6 @@ void bta_hh_maint_dev_act(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data) {
       /* initialize callback data */
       if (p_cb->hid_handle == BTA_HH_INVALID_HANDLE) {
         tBT_TRANSPORT transport = p_data->api_maintdev.link_spec.transport;
-        if (!com::android::bluetooth::flags::allow_switching_hid_and_hogp()) {
-          transport = get_btm_client_interface().ble.BTM_UseLeLink(
-                              p_data->api_maintdev.link_spec.addrt.bda)
-                              ? BT_TRANSPORT_LE
-                              : BT_TRANSPORT_BR_EDR;
-        }
         if (transport == BT_TRANSPORT_LE) {
           p_cb->link_spec.transport = BT_TRANSPORT_LE;
           dev_info.handle = bta_hh_le_add_device(p_cb, p_dev_info);
