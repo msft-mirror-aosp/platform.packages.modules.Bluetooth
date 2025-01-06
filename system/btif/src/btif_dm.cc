@@ -1546,8 +1546,7 @@ static void btif_dm_search_devices_evt(tBTA_DM_SEARCH_EVT event, tBTA_DM_SEARCH*
 static bool btif_is_interesting_le_service(bluetooth::Uuid uuid) {
   return uuid.As16Bit() == UUID_SERVCLASS_LE_HID || uuid == UUID_HEARING_AID || uuid == UUID_VC ||
          uuid == UUID_CSIS || uuid == UUID_LE_AUDIO || uuid == UUID_LE_MIDI || uuid == UUID_HAS ||
-         uuid == UUID_BASS || uuid == UUID_BATTERY ||
-         uuid == ANDROID_HEADTRACKER_SERVICE_UUID;
+         uuid == UUID_BASS || uuid == UUID_BATTERY || uuid == ANDROID_HEADTRACKER_SERVICE_UUID;
 }
 
 static bt_status_t btif_get_existing_uuids(RawAddress* bd_addr, Uuid* existing_uuids) {
