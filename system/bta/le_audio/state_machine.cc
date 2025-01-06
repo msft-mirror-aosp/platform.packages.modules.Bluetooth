@@ -48,7 +48,6 @@
 #include "le_audio_health_status.h"
 #include "le_audio_log_history.h"
 #include "le_audio_types.h"
-#include "os/logging/log_adapter.h"
 #include "osi/include/alarm.h"
 #include "osi/include/osi.h"
 #include "osi/include/properties.h"

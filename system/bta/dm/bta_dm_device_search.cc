@@ -33,7 +33,6 @@
 #include "common/strings.h"
 #include "device/include/interop.h"
 #include "main/shim/dumpsys.h"
-#include "os/logging/log_adapter.h"
 #include "stack/btm/neighbor_inquiry.h"
 #include "stack/include/bt_dev_class.h"
 #include "stack/include/bt_name.h"

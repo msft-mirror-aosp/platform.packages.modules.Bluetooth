@@ -74,7 +74,6 @@
 #include "main/shim/le_advertising_manager.h"
 #include "main_thread.h"
 #include "metrics/bluetooth_event.h"
-#include "os/logging/log_adapter.h"
 #include "osi/include/properties.h"
 #include "osi/include/stack_power_telemetry.h"
 #include "stack/btm/btm_dev.h"

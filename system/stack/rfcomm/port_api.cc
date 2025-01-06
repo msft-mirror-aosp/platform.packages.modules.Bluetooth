@@ -32,7 +32,6 @@
 #include <cstdint>
 
 #include "internal_include/bt_trace.h"
-#include "os/logging/log_adapter.h"
 #include "osi/include/allocator.h"
 #include "osi/include/mutex.h"
 #include "stack/include/bt_hdr.h"

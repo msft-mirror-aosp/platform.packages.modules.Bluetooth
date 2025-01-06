@@ -28,7 +28,6 @@
 #include <vector>
 
 #include "has_preset.h"
-#include "os/logging/log_adapter.h"
 #include "stack/include/bt_types.h"
 #include "types/raw_address.h"
 

@@ -53,7 +53,6 @@
 #include "le_audio_log_history.h"
 #include "le_audio_utils.h"
 #include "main/shim/entry.h"
-#include "os/logging/log_adapter.h"
 #include "osi/include/alarm.h"
 #include "osi/include/properties.h"
 #include "stack/include/btm_client_interface.h"

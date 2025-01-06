@@ -32,7 +32,6 @@
 #include "bta_hfp_api.h"
 #include "bta_sys.h"
 #include "btm_api_types.h"
-#include "os/logging/log_adapter.h"
 #include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
 #include "osi/include/compat.h"

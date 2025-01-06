@@ -31,7 +31,6 @@
 #include "main/shim/acl_api.h"
 #include "main/shim/entry.h"
 #include "main/shim/le_scanning_manager.h"
-#include "os/logging/log_adapter.h"
 #include "osi/include/alarm.h"
 #include "stack/btm/btm_dev.h"
 #include "stack/include/advertise_data_parser.h"
