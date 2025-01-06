@@ -547,7 +547,9 @@ public final class BluetoothLeBroadcastMetadata implements Parcelable {
             mAudioConfigQuality = original.getAudioConfigQuality();
             mRssi = original.getRssi();
             mPublicBroadcastMetadata = original.getPublicBroadcastMetadata();
-            mSubgroups = original.getSubgroups();
+            for (BluetoothLeBroadcastSubgroup subgroup : original.getSubgroups()) {
+                mSubgroups.add(new BluetoothLeBroadcastSubgroup.Builder(subgroup).build());
+            }
         }
 
         /**
