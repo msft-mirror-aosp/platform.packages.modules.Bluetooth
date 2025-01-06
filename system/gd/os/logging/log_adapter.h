@@ -19,8 +19,3 @@
 #pragma once
 
 #include <string>
-
-#define PRIVATE_CELL(number)                                        \
-  (number.replace(0, (number.size() > 2) ? number.size() - 2 : 0,   \
-                  (number.size() > 2) ? number.size() - 2 : 0, '*') \
-           .c_str())

@@ -41,6 +41,11 @@
 #include "stack/include/acl_api.h"
 #include "stack/include/port_api.h"
 
+#define PRIVATE_CELL(number)                                        \
+  (number.replace(0, (number.size() > 2) ? number.size() - 2 : 0,   \
+                  (number.size() > 2) ? number.size() - 2 : 0, '*') \
+           .c_str())
+
 /* Uncomment to enable AT traffic dumping */
 /* #define BTA_HF_CLIENT_AT_DUMP 1 */
 
