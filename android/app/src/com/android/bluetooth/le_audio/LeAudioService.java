@@ -2036,7 +2036,6 @@ public class LeAudioService extends ProfileService {
             }
             mAdapterService
                     .getBluetoothScanController()
-                    .getTransitionalScanHelper()
                     .registerScannerInternal(this, getAttributionSource(), null);
         }
 
@@ -2047,12 +2046,10 @@ public class LeAudioService extends ProfileService {
             }
             mAdapterService
                     .getBluetoothScanController()
-                    .getTransitionalScanHelper()
                     .stopScanInternal(mScannerId);
 
             mAdapterService
                     .getBluetoothScanController()
-                    .getTransitionalScanHelper()
                     .unregisterScannerInternal(mScannerId);
             mScannerId = 0;
         }
@@ -2079,7 +2076,6 @@ public class LeAudioService extends ProfileService {
 
             mAdapterService
                     .getBluetoothScanController()
-                    .getTransitionalScanHelper()
                     .startScanInternal(scannerId, settings, List.of(filter));
         }
 

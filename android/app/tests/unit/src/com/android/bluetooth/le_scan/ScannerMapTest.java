@@ -61,7 +61,7 @@ public class ScannerMapTest {
 
     @Mock private AdapterService mAdapterService;
     @Mock private PackageManager mMockPackageManager;
-    @Mock private TransitionalScanHelper mMockTransitionalScanHelper;
+    @Mock private ScanController mMockScanController;
     @Mock private IScannerCallback mMockScannerCallback;
     private final AttributionSource mAttributionSource =
             InstrumentationRegistry.getTargetContext().getAttributionSource();
@@ -85,8 +85,7 @@ public class ScannerMapTest {
     @Test
     public void getByMethodsWithPii() {
         ScannerMap scannerMap = new ScannerMap();
-        TransitionalScanHelper.PendingIntentInfo info =
-                new TransitionalScanHelper.PendingIntentInfo();
+        ScanController.PendingIntentInfo info = new ScanController.PendingIntentInfo();
         info.callingUid = UID;
         info.callingPackage = APP_NAME;
         info.intent =
@@ -98,11 +97,7 @@ public class ScannerMapTest {
         UUID uuid = UUID.randomUUID();
         ScannerMap.ScannerApp app =
                 scannerMap.add(
-                        uuid,
-                        mAttributionSource,
-                        info,
-                        mAdapterService,
-                        mMockTransitionalScanHelper);
+                        uuid, mAttributionSource, info, mAdapterService, mMockScanController);
         app.mId = SCANNER_ID;
 
         ScannerMap.ScannerApp scannerMapById = scannerMap.getById(SCANNER_ID);
@@ -132,7 +127,7 @@ public class ScannerMapTest {
                         null,
                         mMockScannerCallback,
                         mAdapterService,
-                        mMockTransitionalScanHelper);
+                        mMockScanController);
         int appUid = Binder.getCallingUid();
         app.mId = SCANNER_ID;
 
@@ -161,7 +156,7 @@ public class ScannerMapTest {
                         null,
                         mMockScannerCallback,
                         mAdapterService,
-                        mMockTransitionalScanHelper);
+                        mMockScanController);
         app.mId = SCANNER_ID;
 
         ScannerMap.ScannerApp scannerMapById = scannerMap.getById(SCANNER_ID);
@@ -181,7 +176,7 @@ public class ScannerMapTest {
                 null,
                 mMockScannerCallback,
                 mAdapterService,
-                mMockTransitionalScanHelper);
+                mMockScanController);
         scannerMap.dump(sb);
         scannerMap.dumpApps(sb, ProfileService::println);
     }

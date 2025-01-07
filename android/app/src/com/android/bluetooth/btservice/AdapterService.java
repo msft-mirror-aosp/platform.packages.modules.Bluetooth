@@ -6227,10 +6227,9 @@ public class AdapterService extends Service {
             Log.w(TAG, "GATT Service is not running!");
             return;
         }
-        if (Flags.scanManagerRefactor()) {
-            mScanController.notifyProfileConnectionStateChange(profile, fromState, toState);
-        } else {
-            mGattService.notifyProfileConnectionStateChange(profile, fromState, toState);
+        ScanController controller = getBluetoothScanController();
+        if (controller != null) {
+            controller.notifyProfileConnectionStateChange(profile, fromState, toState);
         }
     }
 

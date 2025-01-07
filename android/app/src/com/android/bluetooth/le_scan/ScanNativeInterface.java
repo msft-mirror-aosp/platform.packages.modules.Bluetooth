@@ -33,7 +33,7 @@ public class ScanNativeInterface {
     private static ScanNativeInterface sInterface;
 
     private CountDownLatch mLatch = new CountDownLatch(1);
-    @Nullable private TransitionalScanHelper mScanHelper;
+    @Nullable private ScanController mScanController;
 
     private ScanNativeInterface() {}
 
@@ -59,8 +59,8 @@ public class ScanNativeInterface {
         }
     }
 
-    void init(TransitionalScanHelper scanHelper) {
-        mScanHelper = scanHelper;
+    void init(ScanController scanController) {
+        mScanController = scanController;
         initializeNative();
     }
 
@@ -202,7 +202,7 @@ public class ScanNativeInterface {
 
     /** Remove a MSFT Advertisement Monitor */
     public void gattClientMsftAdvMonitorRemove(int filter_index) {
-        int monitor_handle = mScanHelper.msftMonitorHandleFromFilterIndex(filter_index);
+        int monitor_handle = mScanController.msftMonitorHandleFromFilterIndex(filter_index);
         if (monitor_handle < 0) return;
         gattClientMsftAdvMonitorRemoveNative(filter_index, monitor_handle);
     }
@@ -278,11 +278,11 @@ public class ScanNativeInterface {
             int periodicAdvInt,
             byte[] advData,
             String originalAddress) {
-        if (mScanHelper == null) {
+        if (mScanController == null) {
             Log.e(TAG, "Scan helper is null!");
             return;
         }
-        mScanHelper.onScanResult(
+        mScanController.onScanResult(
                 eventType,
                 addressType,
                 address,
@@ -298,70 +298,70 @@ public class ScanNativeInterface {
 
     void onScannerRegistered(int status, int scannerId, long uuidLsb, long uuidMsb)
             throws RemoteException {
-        if (mScanHelper == null) {
+        if (mScanController == null) {
             Log.e(TAG, "Scan helper is null!");
             return;
         }
-        mScanHelper.onScannerRegistered(status, scannerId, uuidLsb, uuidMsb);
+        mScanController.onScannerRegistered(status, scannerId, uuidLsb, uuidMsb);
     }
 
     void onScanFilterEnableDisabled(int action, int status, int clientIf) {
-        if (mScanHelper == null) {
+        if (mScanController == null) {
             Log.e(TAG, "Scan helper is null!");
             return;
         }
-        mScanHelper.onScanFilterEnableDisabled(action, status, clientIf);
+        mScanController.onScanFilterEnableDisabled(action, status, clientIf);
     }
 
     void onScanFilterParamsConfigured(int action, int status, int clientIf, int availableSpace) {
-        if (mScanHelper == null) {
+        if (mScanController == null) {
             Log.e(TAG, "Scan helper is null!");
             return;
         }
-        mScanHelper.onScanFilterParamsConfigured(action, status, clientIf, availableSpace);
+        mScanController.onScanFilterParamsConfigured(action, status, clientIf, availableSpace);
     }
 
     void onScanFilterConfig(
             int action, int status, int clientIf, int filterType, int availableSpace) {
-        if (mScanHelper == null) {
+        if (mScanController == null) {
             Log.e(TAG, "Scan helper is null!");
             return;
         }
-        mScanHelper.onScanFilterConfig(action, status, clientIf, filterType, availableSpace);
+        mScanController.onScanFilterConfig(action, status, clientIf, filterType, availableSpace);
     }
 
     void onBatchScanStorageConfigured(int status, int clientIf) {
-        if (mScanHelper == null) {
+        if (mScanController == null) {
             Log.e(TAG, "Scan helper is null!");
             return;
         }
-        mScanHelper.onBatchScanStorageConfigured(status, clientIf);
+        mScanController.onBatchScanStorageConfigured(status, clientIf);
     }
 
     void onBatchScanStartStopped(int startStopAction, int status, int clientIf) {
-        if (mScanHelper == null) {
+        if (mScanController == null) {
             Log.e(TAG, "Scan helper is null!");
             return;
         }
-        mScanHelper.onBatchScanStartStopped(startStopAction, status, clientIf);
+        mScanController.onBatchScanStartStopped(startStopAction, status, clientIf);
     }
 
     void onBatchScanReports(
             int status, int scannerId, int reportType, int numRecords, byte[] recordData)
             throws RemoteException {
-        if (mScanHelper == null) {
+        if (mScanController == null) {
             Log.e(TAG, "Scan helper is null!");
             return;
         }
-        mScanHelper.onBatchScanReports(status, scannerId, reportType, numRecords, recordData);
+        mScanController.onBatchScanReports(status, scannerId, reportType, numRecords, recordData);
     }
 
     void onBatchScanThresholdCrossed(int clientIf) {
-        if (mScanHelper == null) {
+        if (mScanController == null) {
             Log.e(TAG, "Scan helper is null!");
             return;
         }
-        mScanHelper.onBatchScanThresholdCrossed(clientIf);
+        mScanController.onBatchScanThresholdCrossed(clientIf);
     }
 
     @Nullable
@@ -379,11 +379,11 @@ public class ScanNativeInterface {
             int txPower,
             int rssiValue,
             int timeStamp) {
-        if (mScanHelper == null) {
+        if (mScanController == null) {
             Log.e(TAG, "Scan helper is null!");
             return null;
         }
-        return mScanHelper.createOnTrackAdvFoundLostObject(
+        return mScanController.createOnTrackAdvFoundLostObject(
                 clientIf,
                 advPktLen,
                 advPkt,
@@ -400,42 +400,42 @@ public class ScanNativeInterface {
     }
 
     void onTrackAdvFoundLost(AdvtFilterOnFoundOnLostInfo trackingInfo) throws RemoteException {
-        if (mScanHelper == null) {
+        if (mScanController == null) {
             Log.e(TAG, "Scan helper is null!");
             return;
         }
-        mScanHelper.onTrackAdvFoundLost(trackingInfo);
+        mScanController.onTrackAdvFoundLost(trackingInfo);
     }
 
     void onScanParamSetupCompleted(int status, int scannerId) throws RemoteException {
-        if (mScanHelper == null) {
+        if (mScanController == null) {
             Log.e(TAG, "Scan helper is null!");
             return;
         }
-        mScanHelper.onScanParamSetupCompleted(status, scannerId);
+        mScanController.onScanParamSetupCompleted(status, scannerId);
     }
 
     void onMsftAdvMonitorAdd(int filter_index, int monitor_handle, int status) {
-        if (mScanHelper == null) {
+        if (mScanController == null) {
             Log.e(TAG, "Scan helper is null!");
             return;
         }
-        mScanHelper.onMsftAdvMonitorAdd(filter_index, monitor_handle, status);
+        mScanController.onMsftAdvMonitorAdd(filter_index, monitor_handle, status);
     }
 
     void onMsftAdvMonitorRemove(int filter_index, int status) {
-        if (mScanHelper == null) {
+        if (mScanController == null) {
             Log.e(TAG, "Scan helper is null!");
             return;
         }
-        mScanHelper.onMsftAdvMonitorRemove(filter_index, status);
+        mScanController.onMsftAdvMonitorRemove(filter_index, status);
     }
 
     void onMsftAdvMonitorEnable(int status) {
-        if (mScanHelper == null) {
+        if (mScanController == null) {
             Log.e(TAG, "Scan helper is null!");
             return;
         }
-        mScanHelper.onMsftAdvMonitorEnable(status);
+        mScanController.onMsftAdvMonitorEnable(status);
     }
 }
