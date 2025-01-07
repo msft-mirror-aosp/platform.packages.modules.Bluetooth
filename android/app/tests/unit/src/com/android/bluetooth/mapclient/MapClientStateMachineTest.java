@@ -36,9 +36,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.database.Cursor;
 import android.net.Uri;
-import android.os.Handler;
-import android.os.Looper;
-import android.os.Message;
+import android.os.test.TestLooper;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.FlagsParameterization;
 import android.platform.test.flag.junit.SetFlagsRule;
@@ -92,13 +90,11 @@ import java.util.concurrent.TimeUnit;
 @MediumTest
 @RunWith(ParameterizedAndroidJunit4.class)
 public class MapClientStateMachineTest {
-
-    private static final String TAG = "MapStateMachineTest";
+    private static final String TAG = "MapClientStateMachineTest";
 
     @Rule public final SetFlagsRule mSetFlagsRule;
-
-    private static final int ASYNC_CALL_TIMEOUT_MILLIS = 100;
-    private static final int DISCONNECT_TIMEOUT = 3000;
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final ServiceTestRule mServiceRule = new ServiceTestRule();
 
     private static final long PENDING_INTENT_TIMEOUT_MS = 3_000;
 
@@ -123,14 +119,12 @@ public class MapClientStateMachineTest {
 
     private VCardEntry mOriginator;
 
-    @Rule public final ServiceTestRule mServiceRule = new ServiceTestRule();
-    private BluetoothAdapter mAdapter;
-    private MceStateMachine mMceStateMachine = null;
-    private BluetoothDevice mTestDevice;
-    private Context mTargetContext;
-    private Handler mHandler;
+    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
+    private final BluetoothDevice mTestDevice = mAdapter.getRemoteDevice("00:01:02:03:04:05");
+    private final Context mTargetContext = InstrumentationRegistry.getTargetContext();
+
+    private MceStateMachine mMceStateMachine;
     private ArgumentCaptor<Intent> mIntentArgument = ArgumentCaptor.forClass(Intent.class);
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
     @Mock private AdapterService mAdapterService;
     @Mock private DatabaseManager mDatabaseManager;
@@ -164,6 +158,8 @@ public class MapClientStateMachineTest {
             "com.android.bluetooth.mapclient.MapClientStateMachineTest.action.MESSAGE_DELIVERED";
 
     private SentDeliveryReceiver mSentDeliveryReceiver;
+
+    private TestLooper mLooper;
 
     private static class SentDeliveryReceiver extends BroadcastReceiver {
         private CountDownLatch mActionReceivedLatch;
@@ -207,7 +203,8 @@ public class MapClientStateMachineTest {
 
     @Before
     public void setUp() throws Exception {
-        mTargetContext = InstrumentationRegistry.getTargetContext();
+        mLooper = new TestLooper();
+
         TestUtils.setAdapterService(mAdapterService);
         mIsAdapterServiceSet = true;
         mMockContentProvider = new MockSmsContentProvider();
@@ -226,23 +223,19 @@ public class MapClientStateMachineTest {
 
         doReturn(mTargetContext.getResources()).when(mMockMapClientService).getResources();
 
-        // This line must be called to make sure relevant objects are initialized properly
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
-        // Get a device for testing
-        mTestDevice = mAdapter.getRemoteDevice("00:01:02:03:04:05");
 
         when(mMockMasClient.makeRequest(any(Request.class))).thenReturn(true);
         mMceStateMachine =
                 new MceStateMachine(
-                        mMockMapClientService, mTestDevice, mMockMasClient, mMockDatabase);
-        TestUtils.waitForLooperToFinishScheduledTask(mMceStateMachine.getHandler().getLooper());
-        Assert.assertNotNull(mMceStateMachine);
+                        mMockMapClientService,
+                        mTestDevice,
+                        mMockMasClient,
+                        mMockDatabase,
+                        mLooper.getLooper());
+        mLooper.dispatchAll();
+
         int initialExpectedState = BluetoothProfile.STATE_CONNECTING;
         assertThat(mMceStateMachine.getState()).isEqualTo(initialExpectedState);
-        if (Looper.myLooper() == null) {
-            Looper.prepare();
-        }
-        mHandler = new Handler();
 
         when(mMockRequestOwnNumberCompletedWithNumber.isSearchCompleted()).thenReturn(true);
         when(mMockRequestOwnNumberCompletedWithNumber.getOwnNumber())
@@ -293,13 +286,12 @@ public class MapClientStateMachineTest {
     @Test
     public void testStateTransitionFromConnectingToDisconnected() {
         setupSdpRecordReceipt();
-        Message msg = Message.obtain(mHandler, MceStateMachine.MSG_MAS_DISCONNECTED);
-        mMceStateMachine.sendMessage(msg);
+        sendAndDispatchMessage(MceStateMachine.MSG_MAS_DISCONNECTED);
 
         // Wait until the message is processed and a broadcast request is sent to
         // to MapClientService to change
         // state from STATE_CONNECTING to STATE_DISCONNECTED
-        verify(mMockMapClientService, timeout(ASYNC_CALL_TIMEOUT_MILLIS).times(2))
+        verify(mMockMapClientService, times(2))
                 .sendBroadcastMultiplePermissions(
                         mIntentArgument.capture(),
                         any(String[].class),
@@ -314,8 +306,8 @@ public class MapClientStateMachineTest {
 
         int expectedFromState = BluetoothProfile.STATE_CONNECTING;
         int expectedToState = BluetoothProfile.STATE_CONNECTED;
-        Message msg = Message.obtain(mHandler, MceStateMachine.MSG_MAS_CONNECTED);
-        initiateAndVerifyStateTransitionAndIntent(expectedFromState, expectedToState, msg);
+        sendAndDispatchMessage(MceStateMachine.MSG_MAS_CONNECTED);
+        verifyStateTransitionAndIntent(expectedFromState, expectedToState);
     }
 
     /**
@@ -331,25 +323,21 @@ public class MapClientStateMachineTest {
 
         int expectedFromState = BluetoothProfile.STATE_DISCONNECTING;
         int expectedToState = BluetoothProfile.STATE_DISCONNECTED;
-        Message msg = Message.obtain(mHandler, MceStateMachine.MSG_MAS_DISCONNECTED);
-        initiateAndVerifyStateTransitionAndIntent(expectedFromState, expectedToState, msg);
+        sendAndDispatchMessage(MceStateMachine.MSG_MAS_DISCONNECTED);
+        verifyStateTransitionAndIntent(expectedFromState, expectedToState);
     }
 
     /** Test receiving an empty event report */
     @Test
     public void testReceiveEmptyEvent() {
         setupSdpRecordReceipt();
-        Message msg = Message.obtain(mHandler, MceStateMachine.MSG_MAS_CONNECTED);
-        mMceStateMachine.sendMessage(msg);
+        sendAndDispatchMessage(MceStateMachine.MSG_MAS_CONNECTED);
 
-        // Wait until the message is processed and a broadcast request is sent to
-        // to MapClientService to change
-        // state from STATE_CONNECTING to STATE_CONNECTED
-        assertCurrentStateAfterScheduledTask(BluetoothProfile.STATE_CONNECTED);
+        // broadcast request is sent to change state from STATE_CONNECTING to STATE_CONNECTED
+        assertThat(mMceStateMachine.getState()).isEqualTo(BluetoothProfile.STATE_CONNECTED);
 
         // Send an empty notification event, verify the mMceStateMachine is still connected
-        Message notification = Message.obtain(mHandler, MceStateMachine.MSG_NOTIFICATION);
-        mMceStateMachine.getCurrentState().processMessage(notification);
+        sendAndDispatchMessage(MceStateMachine.MSG_NOTIFICATION);
         assertThat(mMceStateMachine.getState()).isEqualTo(BluetoothProfile.STATE_CONNECTED);
     }
 
@@ -357,13 +345,10 @@ public class MapClientStateMachineTest {
     @Test
     public void testSetMessageStatus() {
         setupSdpRecordReceipt();
-        Message msg = Message.obtain(mHandler, MceStateMachine.MSG_MAS_CONNECTED);
-        mMceStateMachine.sendMessage(msg);
+        sendAndDispatchMessage(MceStateMachine.MSG_MAS_CONNECTED);
 
-        // Wait until the message is processed and a broadcast request is sent to
-        // to MapClientService to change
-        // state from STATE_CONNECTING to STATE_CONNECTED
-        assertCurrentStateAfterScheduledTask(BluetoothProfile.STATE_CONNECTED);
+        // broadcast request is sent to change state from STATE_CONNECTING to STATE_CONNECTED
+        assertThat(mMceStateMachine.getState()).isEqualTo(BluetoothProfile.STATE_CONNECTED);
         assertThat(mMceStateMachine.setMessageStatus("123456789AB", BluetoothMapClient.READ))
                 .isTrue();
     }
@@ -379,17 +364,15 @@ public class MapClientStateMachineTest {
                         })
                 .when(mMockMasClient)
                 .shutdown();
-        Message msg = Message.obtain(mHandler, MceStateMachine.MSG_MAS_CONNECTED);
-        mMceStateMachine.sendMessage(msg);
+        sendAndDispatchMessage(MceStateMachine.MSG_MAS_CONNECTED);
 
-        // Wait until the message is processed and a broadcast request is sent to
-        // to MapClientService to change
-        // state from STATE_CONNECTING to STATE_CONNECTED
-        assertCurrentStateAfterScheduledTask(BluetoothProfile.STATE_CONNECTED);
+        // broadcast request is sent to change state from STATE_CONNECTING to STATE_CONNECTED
+        assertThat(mMceStateMachine.getState()).isEqualTo(BluetoothProfile.STATE_CONNECTED);
 
         mMceStateMachine.disconnect();
+        mLooper.dispatchAll();
 
-        verify(mMockMapClientService, timeout(ASYNC_CALL_TIMEOUT_MILLIS).times(4))
+        verify(mMockMapClientService, times(4))
                 .sendBroadcastMultiplePermissions(
                         mIntentArgument.capture(),
                         any(String[].class),
@@ -402,23 +385,23 @@ public class MapClientStateMachineTest {
     @Test
     public void testDisconnectTimeout() {
         setupSdpRecordReceipt();
-        Message msg = Message.obtain(mHandler, MceStateMachine.MSG_MAS_CONNECTED);
-        mMceStateMachine.sendMessage(msg);
+        sendAndDispatchMessage(MceStateMachine.MSG_MAS_CONNECTED);
 
-        // Wait until the message is processed and a broadcast request is sent to
-        // to MapClientService to change
-        // state from STATE_CONNECTING to STATE_CONNECTED
-        assertCurrentStateAfterScheduledTask(BluetoothProfile.STATE_CONNECTED);
+        // broadcast request is sent to change state from STATE_CONNECTING to STATE_CONNECTED
+        assertThat(mMceStateMachine.getState()).isEqualTo(BluetoothProfile.STATE_CONNECTED);
 
         mMceStateMachine.disconnect();
-        verify(mMockMapClientService, after(DISCONNECT_TIMEOUT / 2).times(3))
+        mLooper.dispatchAll();
+        verify(mMockMapClientService, times(3))
                 .sendBroadcastMultiplePermissions(
                         mIntentArgument.capture(),
                         any(String[].class),
                         any(BroadcastOptions.class));
         assertThat(mMceStateMachine.getState()).isEqualTo(BluetoothProfile.STATE_DISCONNECTING);
 
-        verify(mMockMapClientService, timeout(DISCONNECT_TIMEOUT).times(4))
+        mLooper.moveTimeForward(MceStateMachine.DISCONNECT_TIMEOUT.toMillis());
+        mLooper.dispatchAll();
+        verify(mMockMapClientService, times(4))
                 .sendBroadcastMultiplePermissions(
                         mIntentArgument.capture(),
                         any(String[].class),
@@ -430,55 +413,45 @@ public class MapClientStateMachineTest {
     @Test
     public void testSendSMSMessageToPhone() {
         setupSdpRecordReceipt();
-        Message msg = Message.obtain(mHandler, MceStateMachine.MSG_MAS_CONNECTED);
-        mMceStateMachine.sendMessage(msg);
-        assertCurrentStateAfterScheduledTask(BluetoothProfile.STATE_CONNECTED);
+        sendAndDispatchMessage(MceStateMachine.MSG_MAS_CONNECTED);
+        assertThat(mMceStateMachine.getState()).isEqualTo(BluetoothProfile.STATE_CONNECTED);
 
         String testMessage = "Hello World!";
         Uri[] contacts = new Uri[] {Uri.parse("tel://5551212")};
 
         verify(mMockMasClient, times(0)).makeRequest(any(RequestPushMessage.class));
         mMceStateMachine.sendMapMessage(contacts, testMessage, null, null);
-        verify(mMockMasClient, timeout(ASYNC_CALL_TIMEOUT_MILLIS).times(1))
-                .makeRequest(any(RequestPushMessage.class));
+        mLooper.dispatchAll();
+        verify(mMockMasClient, times(1)).makeRequest(any(RequestPushMessage.class));
     }
 
     /** Test sending a message to an email */
     @Test
     public void testSendSMSMessageToEmail() {
         setupSdpRecordReceipt();
-        Message msg = Message.obtain(mHandler, MceStateMachine.MSG_MAS_CONNECTED);
-        mMceStateMachine.sendMessage(msg);
-        assertCurrentStateAfterScheduledTask(BluetoothProfile.STATE_CONNECTED);
+        sendAndDispatchMessage(MceStateMachine.MSG_MAS_CONNECTED);
+        assertThat(mMceStateMachine.getState()).isEqualTo(BluetoothProfile.STATE_CONNECTED);
 
         String testMessage = "Hello World!";
         Uri[] contacts = new Uri[] {Uri.parse("mailto://sms-test@google.com")};
 
-        verify(mMockMasClient, times(0)).makeRequest(any(RequestPushMessage.class));
+        verify(mMockMasClient, never()).makeRequest(any(RequestPushMessage.class));
         mMceStateMachine.sendMapMessage(contacts, testMessage, null, null);
-        verify(mMockMasClient, timeout(ASYNC_CALL_TIMEOUT_MILLIS).times(1))
-                .makeRequest(any(RequestPushMessage.class));
+        mLooper.dispatchAll();
+        verify(mMockMasClient).makeRequest(any(RequestPushMessage.class));
     }
 
     /** Test message sent successfully */
     @Test
     public void testSMSMessageSent() {
         setupSdpRecordReceipt();
-        Message msg = Message.obtain(mHandler, MceStateMachine.MSG_MAS_CONNECTED);
-        mMceStateMachine.sendMessage(msg);
-        assertCurrentStateAfterScheduledTask(BluetoothProfile.STATE_CONNECTED);
+        sendAndDispatchMessage(MceStateMachine.MSG_MAS_CONNECTED);
+        assertThat(mMceStateMachine.getState()).isEqualTo(BluetoothProfile.STATE_CONNECTED);
 
         when(mMockRequestPushMessage.getMsgHandle()).thenReturn(mTestMessageSmsHandle);
         when(mMockRequestPushMessage.getBMsg()).thenReturn(mTestIncomingSmsBmessage);
-        Message msgSent =
-                Message.obtain(
-                        mHandler,
-                        MceStateMachine.MSG_MAS_REQUEST_COMPLETED,
-                        mMockRequestPushMessage);
+        sendAndDispatchMessage(MceStateMachine.MSG_MAS_REQUEST_COMPLETED, mMockRequestPushMessage);
 
-        mMceStateMachine.sendMessage(msgSent);
-
-        TestUtils.waitForLooperToFinishScheduledTask(mMceStateMachine.getHandler().getLooper());
         verify(mMockDatabase)
                 .storeMessage(
                         eq(mTestIncomingSmsBmessage),
@@ -495,8 +468,7 @@ public class MapClientStateMachineTest {
      */
     private void testGetOwnNumber_setup() {
         testStateTransitionFromConnectingToConnected();
-        verify(mMockMasClient, after(ASYNC_CALL_TIMEOUT_MILLIS).never())
-                .makeRequest(any(RequestSetNotificationRegistration.class));
+        verify(mMockMasClient, never()).makeRequest(any(RequestSetNotificationRegistration.class));
         verify(mMockMasClient, never()).makeRequest(any(RequestGetMessagesListing.class));
         assertThat(
                         mMceStateMachine
@@ -550,15 +522,11 @@ public class MapClientStateMachineTest {
     public void testGetOwnNumberCompleted() {
         testGetOwnNumber_setup();
 
-        Message requestCompletedMsg =
-                Message.obtain(
-                        mHandler,
-                        MceStateMachine.MSG_MAS_REQUEST_COMPLETED,
-                        mMockRequestOwnNumberCompletedWithNumber);
-        mMceStateMachine.sendMessage(requestCompletedMsg);
+        sendAndDispatchMessage(
+                MceStateMachine.MSG_MAS_REQUEST_COMPLETED,
+                mMockRequestOwnNumberCompletedWithNumber);
 
-        verify(mMockMasClient, after(ASYNC_CALL_TIMEOUT_MILLIS).never())
-                .makeRequest(eq(mMockRequestOwnNumberCompletedWithNumber));
+        verify(mMockMasClient, never()).makeRequest(eq(mMockRequestOwnNumberCompletedWithNumber));
         assertThat(
                         mMceStateMachine
                                 .getHandler()
@@ -583,15 +551,11 @@ public class MapClientStateMachineTest {
     public void testGetOwnNumberTimedOut() {
         testGetOwnNumber_setup();
 
-        Message timeoutMsg =
-                Message.obtain(
-                        mHandler,
-                        MceStateMachine.MSG_SEARCH_OWN_NUMBER_TIMEOUT,
-                        mMockRequestOwnNumberIncompleteSearch);
-        mMceStateMachine.sendMessage(timeoutMsg);
+        sendAndDispatchMessage(
+                MceStateMachine.MSG_SEARCH_OWN_NUMBER_TIMEOUT,
+                mMockRequestOwnNumberIncompleteSearch);
 
-        verify(mMockMasClient, after(ASYNC_CALL_TIMEOUT_MILLIS))
-                .abortRequest(mMockRequestOwnNumberIncompleteSearch);
+        verify(mMockMasClient).abortRequest(mMockRequestOwnNumberIncompleteSearch);
         assertThat(
                         mMceStateMachine
                                 .getHandler()
@@ -616,15 +580,10 @@ public class MapClientStateMachineTest {
     public void testGetOwnNumberIncomplete() {
         testGetOwnNumber_setup();
 
-        Message requestIncompleteMsg =
-                Message.obtain(
-                        mHandler,
-                        MceStateMachine.MSG_MAS_REQUEST_COMPLETED,
-                        mMockRequestOwnNumberIncompleteSearch);
-        mMceStateMachine.sendMessage(requestIncompleteMsg);
+        sendAndDispatchMessage(
+                MceStateMachine.MSG_MAS_REQUEST_COMPLETED, mMockRequestOwnNumberIncompleteSearch);
 
-        verify(mMockMasClient, after(ASYNC_CALL_TIMEOUT_MILLIS))
-                .makeRequest(eq(mMockRequestOwnNumberIncompleteSearch));
+        verify(mMockMasClient).makeRequest(eq(mMockRequestOwnNumberIncompleteSearch));
         assertThat(
                         mMceStateMachine
                                 .getHandler()
@@ -637,11 +596,8 @@ public class MapClientStateMachineTest {
     @Test
     public void testReceivedNewSms_messageStoredAsUnseen() {
         setupSdpRecordReceipt();
-        Message msg = Message.obtain(mHandler, MceStateMachine.MSG_MAS_CONNECTED);
-        mMceStateMachine.sendMessage(msg);
-
-        // verifying that state machine is in the Connected state
-        assertCurrentStateAfterScheduledTask(BluetoothProfile.STATE_CONNECTED);
+        sendAndDispatchMessage(MceStateMachine.MSG_MAS_CONNECTED);
+        assertThat(mMceStateMachine.getState()).isEqualTo(BluetoothProfile.STATE_CONNECTED);
 
         String dateTime = new ObexTime(Instant.now()).toString();
         EventReport event =
@@ -653,19 +609,12 @@ public class MapClientStateMachineTest {
                         null,
                         "SMS_GSM");
 
-        mMceStateMachine.receiveEvent(event);
+        sendAndDispatchEvent(event);
 
-        TestUtils.waitForLooperToBeIdle(mMceStateMachine.getHandler().getLooper());
         verify(mMockMasClient).makeRequest(any(RequestGetMessage.class));
 
-        msg =
-                Message.obtain(
-                        mHandler,
-                        MceStateMachine.MSG_MAS_REQUEST_COMPLETED,
-                        mMockRequestGetMessage);
-        mMceStateMachine.sendMessage(msg);
+        sendAndDispatchMessage(MceStateMachine.MSG_MAS_REQUEST_COMPLETED, mMockRequestGetMessage);
 
-        TestUtils.waitForLooperToBeIdle(mMceStateMachine.getHandler().getLooper());
         verify(mMockDatabase)
                 .storeMessage(
                         eq(mTestIncomingSmsBmessage),
@@ -678,11 +627,8 @@ public class MapClientStateMachineTest {
     @Test
     public void testReceivedNewMms_messageStoredAsUnseen() {
         setupSdpRecordReceipt();
-        Message msg = Message.obtain(mHandler, MceStateMachine.MSG_MAS_CONNECTED);
-        mMceStateMachine.sendMessage(msg);
-
-        // verifying that state machine is in the Connected state
-        assertCurrentStateAfterScheduledTask(BluetoothProfile.STATE_CONNECTED);
+        sendAndDispatchMessage(MceStateMachine.MSG_MAS_CONNECTED);
+        assertThat(mMceStateMachine.getState()).isEqualTo(BluetoothProfile.STATE_CONNECTED);
 
         String dateTime = new ObexTime(Instant.now()).toString();
         EventReport event =
@@ -697,19 +643,12 @@ public class MapClientStateMachineTest {
         when(mMockRequestGetMessage.getMessage()).thenReturn(mTestIncomingMmsBmessage);
         when(mMockRequestGetMessage.getHandle()).thenReturn(mTestMessageMmsHandle);
 
-        mMceStateMachine.receiveEvent(event);
+        sendAndDispatchEvent(event);
 
-        TestUtils.waitForLooperToBeIdle(mMceStateMachine.getHandler().getLooper());
         verify(mMockMasClient).makeRequest(any(RequestGetMessage.class));
 
-        msg =
-                Message.obtain(
-                        mHandler,
-                        MceStateMachine.MSG_MAS_REQUEST_COMPLETED,
-                        mMockRequestGetMessage);
-        mMceStateMachine.sendMessage(msg);
+        sendAndDispatchMessage(MceStateMachine.MSG_MAS_REQUEST_COMPLETED, mMockRequestGetMessage);
 
-        TestUtils.waitForLooperToBeIdle(mMceStateMachine.getHandler().getLooper());
         verify(mMockDatabase)
                 .storeMessage(
                         eq(mTestIncomingMmsBmessage),
@@ -721,11 +660,8 @@ public class MapClientStateMachineTest {
     @Test
     public void testReceiveNewMessage_handleNotRecognized_messageDropped() {
         setupSdpRecordReceipt();
-        Message msg = Message.obtain(mHandler, MceStateMachine.MSG_MAS_CONNECTED);
-        mMceStateMachine.sendMessage(msg);
-
-        // verifying that state machine is in the Connected state
-        assertCurrentStateAfterScheduledTask(BluetoothProfile.STATE_CONNECTED);
+        sendAndDispatchMessage(MceStateMachine.MSG_MAS_CONNECTED);
+        assertThat(mMceStateMachine.getState()).isEqualTo(BluetoothProfile.STATE_CONNECTED);
 
         // Send new message event with handle A
         String dateTime = new ObexTime(Instant.now()).toString();
@@ -742,20 +678,13 @@ public class MapClientStateMachineTest {
         when(mMockRequestGetMessage.getHandle()).thenReturn(mTestMessageUnknownHandle);
         when(mMockRequestGetMessage.getMessage()).thenReturn(mTestIncomingMmsBmessage);
 
-        mMceStateMachine.receiveEvent(event);
+        sendAndDispatchEvent(event);
 
-        TestUtils.waitForLooperToBeIdle(mMceStateMachine.getHandler().getLooper());
         verify(mMockMasClient).makeRequest(any(RequestGetMessage.class));
 
-        msg =
-                Message.obtain(
-                        mHandler,
-                        MceStateMachine.MSG_MAS_REQUEST_COMPLETED,
-                        mMockRequestGetMessage);
-        mMceStateMachine.sendMessage(msg);
+        sendAndDispatchMessage(MceStateMachine.MSG_MAS_REQUEST_COMPLETED, mMockRequestGetMessage);
 
         // We should drop the message and not store it, as it's not one we requested
-        TestUtils.waitForLooperToBeIdle(mMceStateMachine.getHandler().getLooper());
         verify(mMockDatabase, never())
                 .storeMessage(any(Bmessage.class), anyString(), anyLong(), anyBoolean());
     }
@@ -764,10 +693,8 @@ public class MapClientStateMachineTest {
     @Test
     public void testDownloadExistingSms_messageStoredAsSeen() {
         setupSdpRecordReceipt();
-        Message msg = Message.obtain(mHandler, MceStateMachine.MSG_MAS_CONNECTED);
-        mMceStateMachine.sendMessage(msg);
-
-        assertCurrentStateAfterScheduledTask(BluetoothProfile.STATE_CONNECTED);
+        sendAndDispatchMessage(MceStateMachine.MSG_MAS_CONNECTED);
+        assertThat(mMceStateMachine.getState()).isEqualTo(BluetoothProfile.STATE_CONNECTED);
 
         com.android.bluetooth.mapclient.Message testMessageListingSms =
                 createNewMessage("SMS_GSM", mTestMessageSmsHandle);
@@ -775,34 +702,18 @@ public class MapClientStateMachineTest {
         messageListSms.add(testMessageListingSms);
         when(mMockRequestGetMessagesListing.getList()).thenReturn(messageListSms);
 
-        msg =
-                Message.obtain(
-                        mHandler,
-                        MceStateMachine.MSG_GET_MESSAGE_LISTING,
-                        MceStateMachine.FOLDER_INBOX);
-        mMceStateMachine.sendMessage(msg);
+        sendAndDispatchMessage(
+                MceStateMachine.MSG_GET_MESSAGE_LISTING, MceStateMachine.FOLDER_INBOX);
 
-        TestUtils.waitForLooperToBeIdle(mMceStateMachine.getHandler().getLooper());
         verify(mMockMasClient).makeRequest(any(RequestGetMessagesListing.class));
 
-        msg =
-                Message.obtain(
-                        mHandler,
-                        MceStateMachine.MSG_MAS_REQUEST_COMPLETED,
-                        mMockRequestGetMessagesListing);
-        mMceStateMachine.sendMessage(msg);
+        sendAndDispatchMessage(
+                MceStateMachine.MSG_MAS_REQUEST_COMPLETED, mMockRequestGetMessagesListing);
 
-        TestUtils.waitForLooperToBeIdle(mMceStateMachine.getHandler().getLooper());
         verify(mMockMasClient).makeRequest(any(RequestGetMessage.class));
 
-        msg =
-                Message.obtain(
-                        mHandler,
-                        MceStateMachine.MSG_MAS_REQUEST_COMPLETED,
-                        mMockRequestGetMessage);
-        mMceStateMachine.sendMessage(msg);
+        sendAndDispatchMessage(MceStateMachine.MSG_MAS_REQUEST_COMPLETED, mMockRequestGetMessage);
 
-        TestUtils.waitForLooperToBeIdle(mMceStateMachine.getHandler().getLooper());
         verify(mMockDatabase).storeMessage(any(), any(), any(), eq(MESSAGE_SEEN));
     }
 
@@ -810,10 +721,8 @@ public class MapClientStateMachineTest {
     @Test
     public void testDownloadExistingMms_messageStoredAsSeen() {
         setupSdpRecordReceipt();
-        Message msg = Message.obtain(mHandler, MceStateMachine.MSG_MAS_CONNECTED);
-        mMceStateMachine.sendMessage(msg);
-
-        assertCurrentStateAfterScheduledTask(BluetoothProfile.STATE_CONNECTED);
+        sendAndDispatchMessage(MceStateMachine.MSG_MAS_CONNECTED);
+        assertThat(mMceStateMachine.getState()).isEqualTo(BluetoothProfile.STATE_CONNECTED);
 
         com.android.bluetooth.mapclient.Message testMessageListingMms =
                 createNewMessage("MMS", mTestMessageMmsHandle);
@@ -824,34 +733,18 @@ public class MapClientStateMachineTest {
         when(mMockRequestGetMessage.getHandle()).thenReturn(mTestMessageMmsHandle);
         when(mMockRequestGetMessagesListing.getList()).thenReturn(messageListMms);
 
-        msg =
-                Message.obtain(
-                        mHandler,
-                        MceStateMachine.MSG_GET_MESSAGE_LISTING,
-                        MceStateMachine.FOLDER_INBOX);
-        mMceStateMachine.sendMessage(msg);
+        sendAndDispatchMessage(
+                MceStateMachine.MSG_GET_MESSAGE_LISTING, MceStateMachine.FOLDER_INBOX);
 
-        TestUtils.waitForLooperToBeIdle(mMceStateMachine.getHandler().getLooper());
         verify(mMockMasClient).makeRequest(any(RequestGetMessagesListing.class));
 
-        msg =
-                Message.obtain(
-                        mHandler,
-                        MceStateMachine.MSG_MAS_REQUEST_COMPLETED,
-                        mMockRequestGetMessagesListing);
-        mMceStateMachine.sendMessage(msg);
+        sendAndDispatchMessage(
+                MceStateMachine.MSG_MAS_REQUEST_COMPLETED, mMockRequestGetMessagesListing);
 
-        TestUtils.waitForLooperToBeIdle(mMceStateMachine.getHandler().getLooper());
         verify(mMockMasClient).makeRequest(any(RequestGetMessage.class));
 
-        msg =
-                Message.obtain(
-                        mHandler,
-                        MceStateMachine.MSG_MAS_REQUEST_COMPLETED,
-                        mMockRequestGetMessage);
-        mMceStateMachine.sendMessage(msg);
+        sendAndDispatchMessage(MceStateMachine.MSG_MAS_REQUEST_COMPLETED, mMockRequestGetMessage);
 
-        TestUtils.waitForLooperToBeIdle(mMceStateMachine.getHandler().getLooper());
         verify(mMockDatabase).storeMessage(any(), any(), any(), eq(MESSAGE_SEEN));
     }
 
@@ -859,10 +752,8 @@ public class MapClientStateMachineTest {
     @Test
     public void testReceiveNewMessageNotification() {
         setupSdpRecordReceipt();
-        Message msg = Message.obtain(mHandler, MceStateMachine.MSG_MAS_CONNECTED);
-        mMceStateMachine.sendMessage(msg);
-
-        assertCurrentStateAfterScheduledTask(BluetoothProfile.STATE_CONNECTED);
+        sendAndDispatchMessage(MceStateMachine.MSG_MAS_CONNECTED);
+        assertThat(mMceStateMachine.getState()).isEqualTo(BluetoothProfile.STATE_CONNECTED);
 
         // Receive a new message notification.
         String dateTime = new ObexTime(Instant.now()).toString();
@@ -875,13 +766,9 @@ public class MapClientStateMachineTest {
                         null,
                         "SMS_GSM");
 
-        Message notificationMessage =
-                Message.obtain(mHandler, MceStateMachine.MSG_NOTIFICATION, (Object) event);
+        sendAndDispatchEvent(event);
 
-        mMceStateMachine.getCurrentState().processMessage(notificationMessage);
-
-        verify(mMockMasClient, timeout(ASYNC_CALL_TIMEOUT_MILLIS).times(1))
-                .makeRequest(any(RequestGetMessage.class));
+        verify(mMockMasClient).makeRequest(any(RequestGetMessage.class));
 
         MceStateMachine.MessageMetadata messageMetadata =
                 mMceStateMachine.mMessages.get(mTestMessageSmsHandle);
@@ -900,22 +787,15 @@ public class MapClientStateMachineTest {
         setupSdpRecordReceipt();
         clearInvocations(mMockMasClient);
         byte expectedFilter = MessagesFilter.MESSAGE_TYPE_EMAIL | MessagesFilter.MESSAGE_TYPE_IM;
-        Message msg = Message.obtain(mHandler, MceStateMachine.MSG_MAS_CONNECTED);
-        mMceStateMachine.sendMessage(msg);
+        sendAndDispatchMessage(MceStateMachine.MSG_MAS_CONNECTED);
+        assertThat(mMceStateMachine.getState()).isEqualTo(BluetoothProfile.STATE_CONNECTED);
 
-        assertCurrentStateAfterScheduledTask(BluetoothProfile.STATE_CONNECTED);
-
-        msg =
-                Message.obtain(
-                        mHandler,
-                        MceStateMachine.MSG_GET_MESSAGE_LISTING,
-                        MceStateMachine.FOLDER_INBOX);
-        mMceStateMachine.sendMessage(msg);
+        sendAndDispatchMessage(
+                MceStateMachine.MSG_GET_MESSAGE_LISTING, MceStateMachine.FOLDER_INBOX);
 
         // using Request class as captor grabs all Request sub-classes even if
         // RequestGetMessagesListing is specifically requested
         ArgumentCaptor<Request> requestCaptor = ArgumentCaptor.forClass(Request.class);
-        TestUtils.waitForLooperToBeIdle(mMceStateMachine.getHandler().getLooper());
         verify(mMockMasClient, atLeastOnce()).makeRequest(requestCaptor.capture());
         List<Request> requests = requestCaptor.getAllValues();
 
@@ -937,11 +817,8 @@ public class MapClientStateMachineTest {
     @Test
     public void testReceivedNewMmsNoSMSDefaultPackage_broadcastToSMSReplyPackage() {
         setupSdpRecordReceipt();
-        Message msg = Message.obtain(mHandler, MceStateMachine.MSG_MAS_CONNECTED);
-        mMceStateMachine.sendMessage(msg);
-
-        // verifying that state machine is in the Connected state
-        assertCurrentStateAfterScheduledTask(BluetoothProfile.STATE_CONNECTED);
+        sendAndDispatchMessage(MceStateMachine.MSG_MAS_CONNECTED);
+        assertThat(mMceStateMachine.getState()).isEqualTo(BluetoothProfile.STATE_CONNECTED);
 
         String dateTime = new ObexTime(Instant.now()).toString();
         EventReport event =
@@ -953,20 +830,13 @@ public class MapClientStateMachineTest {
                         null,
                         "SMS_GSM");
 
-        mMceStateMachine.receiveEvent(event);
+        sendAndDispatchEvent(event);
 
-        TestUtils.waitForLooperToBeIdle(mMceStateMachine.getHandler().getLooper());
         verify(mMockMasClient).makeRequest(any(RequestGetMessage.class));
 
-        msg =
-                Message.obtain(
-                        mHandler,
-                        MceStateMachine.MSG_MAS_REQUEST_COMPLETED,
-                        mMockRequestGetMessage);
-        mMceStateMachine.sendMessage(msg);
+        sendAndDispatchMessage(MceStateMachine.MSG_MAS_REQUEST_COMPLETED, mMockRequestGetMessage);
 
-        TestUtils.waitForLooperToBeIdle(mMceStateMachine.getHandler().getLooper());
-        verify(mMockMapClientService, timeout(ASYNC_CALL_TIMEOUT_MILLIS).times(1))
+        verify(mMockMapClientService, times(1))
                 .sendBroadcast(
                         mIntentArgument.capture(), eq(android.Manifest.permission.RECEIVE_SMS));
         assertThat(mIntentArgument.getValue().getPackage()).isNull();
@@ -983,11 +853,8 @@ public class MapClientStateMachineTest {
         // Send successful SDP record, then send MAS Client connected
         SdpMasRecord record = new SdpMasRecord(1, 1, 1, 1, 1, 1, "MasRecord");
         mMceStateMachine.sendSdpResult(MceStateMachine.SDP_SUCCESS, record);
-        Message msg = Message.obtain(mHandler, MceStateMachine.MSG_MAS_CONNECTED);
-        mMceStateMachine.sendMessage(msg);
-
-        // Verify we move into the connected state
-        assertCurrentStateAfterScheduledTask(BluetoothProfile.STATE_CONNECTED);
+        sendAndDispatchMessage(MceStateMachine.MSG_MAS_CONNECTED);
+        assertThat(mMceStateMachine.getState()).isEqualTo(BluetoothProfile.STATE_CONNECTED);
     }
 
     @Test
@@ -999,17 +866,16 @@ public class MapClientStateMachineTest {
         mMceStateMachine.sendSdpResult(MceStateMachine.SDP_BUSY, null);
 
         // Timeout waiting for record
-        Message msg = Message.obtain(mHandler, MceStateMachine.MSG_CONNECTING_TIMEOUT);
-        mMceStateMachine.sendMessage(msg);
+        sendAndDispatchMessage(MceStateMachine.MSG_CONNECTING_TIMEOUT);
 
         // Verify we move into the disconnecting state
-        verify(mMockMapClientService, timeout(ASYNC_CALL_TIMEOUT_MILLIS).times(2))
+        verify(mMockMapClientService, times(2))
                 .sendBroadcastMultiplePermissions(
                         mIntentArgument.capture(),
                         any(String[].class),
                         any(BroadcastOptions.class));
 
-        assertCurrentStateAfterScheduledTask(BluetoothProfile.STATE_DISCONNECTING);
+        assertThat(mMceStateMachine.getState()).isEqualTo(BluetoothProfile.STATE_DISCONNECTING);
 
         // Send successful SDP record, then send MAS Client connected
         SdpMasRecord record = new SdpMasRecord(1, 1, 1, 1, 1, 1, "MasRecord");
@@ -1137,8 +1003,8 @@ public class MapClientStateMachineTest {
     private void testSendMapMessagePendingIntents_base(String action, EventReport.Type type) {
         int expectedFromState = BluetoothProfile.STATE_CONNECTING;
         int expectedToState = BluetoothProfile.STATE_CONNECTED;
-        Message msg = Message.obtain(mHandler, MceStateMachine.MSG_MAS_CONNECTED);
-        initiateAndVerifyStateTransitionAndIntent(expectedFromState, expectedToState, msg);
+        sendAndDispatchMessage(MceStateMachine.MSG_MAS_CONNECTED);
+        verifyStateTransitionAndIntent(expectedFromState, expectedToState);
 
         PendingIntent pendingIntentSent;
         PendingIntent pendingIntentDelivered;
@@ -1155,7 +1021,14 @@ public class MapClientStateMachineTest {
         sendMapMessageWithPendingIntents(
                 pendingIntentSent, pendingIntentDelivered, TEST_MESSAGE_HANDLE);
 
-        receiveSentDeliveryEvent(type, TEST_MESSAGE_HANDLE);
+        sendAndDispatchEvent(
+                createNewEventReport(
+                        type.toString(),
+                        TEST_DATETIME,
+                        TEST_MESSAGE_HANDLE,
+                        SENT_PATH,
+                        null,
+                        Bmessage.Type.SMS_GSM.toString()));
     }
 
     private PendingIntent createPendingIntent(String action) {
@@ -1170,7 +1043,7 @@ public class MapClientStateMachineTest {
         mMceStateMachine.sendMapMessage(
                 TEST_CONTACTS_ONE_PHONENUM, TEST_MESSAGE,
                 pendingIntentSent, pendingIntentDelivered);
-        TestUtils.waitForLooperToFinishScheduledTask(mMceStateMachine.getHandler().getLooper());
+        mLooper.dispatchAll();
 
         // {@link sendMapMessage} leads to a new {@link RequestPushMessage}, which contains
         // a {@link Bmessage} object that is used as a key to a map to retrieve the corresponding
@@ -1187,23 +1060,7 @@ public class MapClientStateMachineTest {
         RequestPushMessage spyRequestPushMessage = spy(requestCaptor.getValue());
         when(spyRequestPushMessage.getMsgHandle()).thenReturn(messageHandle);
 
-        Message msgSent =
-                Message.obtain(
-                        mHandler, MceStateMachine.MSG_MAS_REQUEST_COMPLETED, spyRequestPushMessage);
-
-        mMceStateMachine.sendMessage(msgSent);
-        TestUtils.waitForLooperToFinishScheduledTask(mMceStateMachine.getHandler().getLooper());
-    }
-
-    private void receiveSentDeliveryEvent(EventReport.Type type, String messageHandle) {
-        mMceStateMachine.receiveEvent(
-                createNewEventReport(
-                        type.toString(),
-                        TEST_DATETIME,
-                        messageHandle,
-                        SENT_PATH,
-                        null,
-                        Bmessage.Type.SMS_GSM.toString()));
+        sendAndDispatchMessage(MceStateMachine.MSG_MAS_REQUEST_COMPLETED, spyRequestPushMessage);
     }
 
     private void setupSdpRecordReceipt() {
@@ -1215,17 +1072,12 @@ public class MapClientStateMachineTest {
     }
 
     private void assertCurrentStateAfterScheduledTask(int expectedState) {
-        Handler handler = mMceStateMachine.getHandler();
-        if (handler != null) {
-            TestUtils.waitForLooperToFinishScheduledTask(handler.getLooper());
-        }
+        mLooper.dispatchAll();
         assertThat(mMceStateMachine.getState()).isEqualTo(expectedState);
     }
 
-    private void initiateAndVerifyStateTransitionAndIntent(
-            int expectedFromState, int expectedToState, Message msg) {
-        mMceStateMachine.sendMessage(msg);
-        assertCurrentStateAfterScheduledTask(expectedToState);
+    private void verifyStateTransitionAndIntent(int expectedFromState, int expectedToState) {
+        assertThat(mMceStateMachine.getState()).isEqualTo(expectedToState);
         verify(mMockMapClientService, atLeastOnce())
                 .sendBroadcastMultiplePermissions(
                         mIntentArgument.capture(),
@@ -1346,5 +1198,18 @@ public class MapClientStateMachineTest {
         mTestIncomingMmsBmessage.setFolder("telecom/msg/inbox");
         mTestIncomingMmsBmessage.addOriginator(mOriginator);
         mTestIncomingMmsBmessage.addRecipient(mOriginator);
+    }
+
+    private void sendAndDispatchEvent(EventReport ev) {
+        sendAndDispatchMessage(MceStateMachine.MSG_NOTIFICATION, ev);
+    }
+
+    private void sendAndDispatchMessage(int what) {
+        sendAndDispatchMessage(what, null);
+    }
+
+    private void sendAndDispatchMessage(int what, Object obj) {
+        mMceStateMachine.sendMessage(what, obj);
+        mLooper.dispatchAll();
     }
 }
