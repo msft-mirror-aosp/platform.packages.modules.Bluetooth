@@ -4441,27 +4441,36 @@ public class BassClientServiceTest {
     }
 
     @Test
-    public void testIsAnyReceiverReceivingBroadcast() {
+    public void testIsAnyReceiverActive() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
         onScanResult(mSourceDevice, TEST_BROADCAST_ID);
         onSyncEstablished(mSourceDevice, TEST_SYNC_HANDLE);
         BluetoothLeBroadcastMetadata meta = createBroadcastMetadata(TEST_BROADCAST_ID);
         verifyAddSourceForGroup(meta);
-        prepareRemoteSourceState(meta, true, false);
+        prepareRemoteSourceState(meta, false, false);
 
         List<BluetoothDevice> devices = mBassClientService.getConnectedDevices();
-        // Verify isAnyReceiverReceivingBroadcast returns false if no BIS synced
-        assertThat(mBassClientService.isAnyReceiverReceivingBroadcast(devices)).isFalse();
+        // Verify isAnyReceiverActive returns false if no PA and no BIS synced
+        assertThat(mBassClientService.isAnyReceiverActive(devices)).isFalse();
 
-        // Update receiver state with BIS sync
-        injectRemoteSourceStateChanged(meta, true, true);
+        // Update receiver state with PA sync
+        injectRemoteSourceStateChanged(meta, true, false);
         BluetoothDevice invalidDevice = TestUtils.getTestDevice(mBluetoothAdapter, 2);
-        // Verify isAnyReceiverReceivingBroadcast returns false if invalid device
-        expect.that(mBassClientService.isAnyReceiverReceivingBroadcast(List.of(invalidDevice)))
-                .isFalse();
-        // Verify isAnyReceiverReceivingBroadcast returns true if BIS synced
-        expect.that(mBassClientService.isAnyReceiverReceivingBroadcast(devices)).isTrue();
+        // Verify isAnyReceiverActive returns false if invalid device
+        expect.that(mBassClientService.isAnyReceiverActive(List.of(invalidDevice))).isFalse();
+        // Verify isAnyReceiverActive returns true if PA synced
+        expect.that(mBassClientService.isAnyReceiverActive(devices)).isTrue();
+
+        // Update receiver state with PA and BIS sync
+        injectRemoteSourceStateChanged(meta, true, true);
+        // Verify isAnyReceiverActive returns true if PA and BIS synced
+        expect.that(mBassClientService.isAnyReceiverActive(devices)).isTrue();
+
+        // Update receiver state with BIS only sync
+        injectRemoteSourceStateChanged(meta, false, true);
+        // Verify isAnyReceiverActive returns true if BIS only synced
+        expect.that(mBassClientService.isAnyReceiverActive(devices)).isTrue();
     }
 
     @Test

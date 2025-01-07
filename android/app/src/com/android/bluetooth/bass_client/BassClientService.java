@@ -4054,13 +4054,11 @@ public class BassClientService extends ProfileService {
     }
 
     /** Check if any sink receivers are receiving broadcast stream */
-    public boolean isAnyReceiverReceivingBroadcast(List<BluetoothDevice> devices) {
+    public boolean isAnyReceiverActive(List<BluetoothDevice> devices) {
         for (BluetoothDevice device : devices) {
             for (BluetoothLeBroadcastReceiveState receiveState : getAllSources(device)) {
-                for (int i = 0; i < receiveState.getNumSubgroups(); i++) {
-                    if (isSyncedToBroadcastStream(receiveState.getBisSyncState().get(i))) {
-                        return true;
-                    }
+                if (isReceiverActive(receiveState)) {
+                    return true;
                 }
             }
         }
