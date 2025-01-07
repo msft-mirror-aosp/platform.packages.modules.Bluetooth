@@ -53,7 +53,6 @@
 #include "btif/include/btif_config.h"
 #include "hardware/bt_av.h"
 #include "internal_include/bt_target.h"
-#include "os/logging/log_adapter.h"
 #include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
 #include "osi/include/list.h"

@@ -74,7 +74,6 @@
 #include "main/shim/le_advertising_manager.h"
 #include "main_thread.h"
 #include "metrics/bluetooth_event.h"
-#include "os/logging/log_adapter.h"
 #include "osi/include/properties.h"
 #include "osi/include/stack_power_telemetry.h"
 #include "stack/btm/btm_dev.h"
@@ -970,9 +969,8 @@ static void btif_dm_pin_req_evt(tBTA_DM_PIN_REQ* p_pin_req) {
     }
   }
   BTM_LogHistory(kBtmLogTagCallback, bd_addr, "Pin request",
-                 std::format("name:\"{}\" min16:{:c}",
-                             PRIVATE_NAME(reinterpret_cast<char const*>(bd_name.name)),
-                             (p_pin_req->min_16_digit) ? 'T' : 'F'));
+                 std::format("name:\"{}\" min16:{:c}", reinterpret_cast<char const*>(bd_name.name),
+                             p_pin_req->min_16_digit ? 'T' : 'F'));
   GetInterfaceToProfiles()->events->invoke_pin_request_cb(bd_addr, bd_name, cod,
                                                           p_pin_req->min_16_digit);
 }
@@ -1882,7 +1880,7 @@ static void btif_on_name_read(RawAddress bd_addr, tHCI_ERROR_CODE hci_status, co
   GetInterfaceToProfiles()->events->invoke_remote_device_properties_cb(
           status, bd_addr, properties.size(), properties.data());
   log::info("Callback for read name event addr:{} name:{}", bd_addr,
-            PRIVATE_NAME(reinterpret_cast<char const*>(bd_name)));
+            reinterpret_cast<char const*>(bd_name));
 
   if (!during_device_search) {
     return;
@@ -1896,7 +1894,7 @@ static void btif_on_name_read(RawAddress bd_addr, tHCI_ERROR_CODE hci_status, co
     GetInterfaceToProfiles()->events->invoke_device_found_cb(properties.size(), properties.data());
   } else {
     log::info("Skipping device found callback because cod is zero addr:{} name:{}", bd_addr,
-              PRIVATE_NAME(reinterpret_cast<char const*>(bd_name)));
+              reinterpret_cast<char const*>(bd_name));
   }
 }
 
@@ -3586,9 +3584,8 @@ static void btif_dm_ble_passkey_req_evt(tBTA_DM_PIN_REQ* p_pin_req) {
 
   cod = COD_UNCLASSIFIED;
 
-  BTM_LogHistory(
-          kBtmLogTagCallback, bd_addr, "PIN request",
-          std::format("name:'{}'", PRIVATE_NAME(reinterpret_cast<char const*>(bd_name.name))));
+  BTM_LogHistory(kBtmLogTagCallback, bd_addr, "PIN request",
+                 std::format("name:'{}'", reinterpret_cast<char const*>(bd_name.name)));
 
   GetInterfaceToProfiles()->events->invoke_pin_request_cb(bd_addr, bd_name, cod, false);
 }

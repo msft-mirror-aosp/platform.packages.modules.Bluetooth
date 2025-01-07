@@ -53,7 +53,6 @@
 #include "le_audio_utils.h"
 #include "main/shim/entry.h"
 #include "metrics_collector.h"
-#include "os/logging/log_adapter.h"
 #include "stack/include/btm_client_interface.h"
 #include "types/bt_transport.h"
 

@@ -25,7 +25,6 @@
 
 #include "internal_include/bt_target.h"
 #include "macros.h"
-#include "os/logging/log_adapter.h"
 #include "stack/include/bt_device_type.h"
 #include "stack/include/bt_name.h"
 #include "stack/include/bt_octets.h"
@@ -330,7 +329,7 @@ public:
             "name:\"{}\" sec_prop:{}",
             bd_addr, DeviceTypeText(device_type), dev_class_text(dev_class),
             remote_version_info.ToString(), sm4, remote_supports_secure_connections ? 'T' : 'F',
-            PRIVATE_NAME(reinterpret_cast<char const*>(sec_bd_name)), sec_rec.ToString());
+            reinterpret_cast<char const*>(sec_bd_name), sec_rec.ToString());
   }
 
 public:
