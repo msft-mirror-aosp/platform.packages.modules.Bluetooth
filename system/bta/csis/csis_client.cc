@@ -59,7 +59,6 @@
 #include "internal_include/bt_trace.h"
 #include "main/shim/le_scanning_manager.h"
 #include "neighbor_inquiry.h"
-#include "os/logging/log_adapter.h"
 #include "osi/include/osi.h"
 #include "osi/include/stack_power_telemetry.h"
 #include "stack/btm/btm_sec.h"

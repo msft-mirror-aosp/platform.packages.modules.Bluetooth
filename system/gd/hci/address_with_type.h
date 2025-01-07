@@ -26,7 +26,6 @@
 #include "hci/address.h"
 #include "hci/hci_packets.h"
 #include "hci/octets.h"
-#include "os/logging/log_adapter.h"
 
 namespace bluetooth {
 namespace hci {

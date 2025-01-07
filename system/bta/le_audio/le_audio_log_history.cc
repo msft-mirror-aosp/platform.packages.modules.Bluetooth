@@ -28,7 +28,6 @@
 #include "common/circular_buffer.h"
 #include "common/strings.h"
 #include "main/shim/dumpsys.h"
-#include "os/logging/log_adapter.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth;
