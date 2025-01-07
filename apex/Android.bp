@@ -26,6 +26,7 @@ linker_config {
 // This is kept for soong purposes but this apex doesn't do anything anymore
 // TODO b/383863941 delete
 apex {
+    enabled: false,
     name: "com.android.btservices",
     defaults: ["t-launched-apex-module"],
     manifest: "apex_manifest.json",
@@ -46,15 +47,6 @@ apex_key {
 android_app_certificate {
     name: "com.android.btservices.certificate",
     certificate: "com.android.btservices",
-}
-
-sdk {
-    name: "btservices-module-sdk",
-    apexes: [
-        // Adds exportable dependencies of the APEX to the sdk,
-        // e.g. *classpath_fragments.
-        "com.android.btservices",
-    ],
 }
 
 // Mainline bluetooth apex module.
