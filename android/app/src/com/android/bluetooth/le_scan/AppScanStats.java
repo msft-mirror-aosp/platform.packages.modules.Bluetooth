@@ -65,8 +65,8 @@ public class AppScanStats {
     // ScannerMap here is needed to grab Apps
     ScannerMap mScannerMap;
 
-    // TransitionalScanHelper is needed to add scan event protos to be dumped later
-    final TransitionalScanHelper mScanHelper;
+    // ScanController is needed to add scan event protos to be dumped later
+    final ScanController mScanController;
 
     // Battery stats is used to keep track of scans and result stats
     BatteryStatsManager mBatteryStatsManager;
@@ -173,13 +173,13 @@ public class AppScanStats {
             WorkSource source,
             ScannerMap map,
             AdapterService adapterService,
-            TransitionalScanHelper scanHelper,
+            ScanController scanController,
             TimeProvider timeProvider) {
         mAdapterService = requireNonNull(adapterService);
         mTimeProvider = requireNonNull(timeProvider);
         mAppName = name;
         mScannerMap = map;
-        mScanHelper = scanHelper;
+        mScanController = scanController;
         mBatteryStatsManager = adapterService.getSystemService(BatteryStatsManager.class);
 
         if (source == null) {
@@ -310,7 +310,7 @@ public class AppScanStats {
                         .setEventTimeMillis(System.currentTimeMillis())
                         .setInitiator(truncateAppName(mAppName))
                         .build();
-        mScanHelper.addScanEvent(scanEvent);
+        mScanController.addScanEvent(scanEvent);
 
         if (!isScanning()) {
             mScanStartTime = startTime;
@@ -362,7 +362,7 @@ public class AppScanStats {
                         .setInitiator(truncateAppName(mAppName))
                         .setNumberResults(scan.results)
                         .build();
-        mScanHelper.addScanEvent(scanEvent);
+        mScanController.addScanEvent(scanEvent);
 
         mTotalScanTime += scanDuration;
         long activeDuration = scanDuration - scan.suspendDuration;

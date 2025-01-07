@@ -284,13 +284,6 @@ public class GattService extends ProfileService {
         return restrictedHandles != null && restrictedHandles.contains(handle);
     }
 
-    /** Notify Scan manager of bluetooth profile connection state changes */
-    public void notifyProfileConnectionStateChange(int profile, int fromState, int toState) {
-        if (mScanController != null) {
-            mScanController.notifyProfileConnectionStateChange(profile, fromState, toState);
-        }
-    }
-
     class ServerDeathRecipient implements IBinder.DeathRecipient {
         int mAppIf;
         private String mPackageName;
