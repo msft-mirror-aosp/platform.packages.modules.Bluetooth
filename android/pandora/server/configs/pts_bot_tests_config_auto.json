@@ -375,7 +375,14 @@
     "SPP": {},
     "VCP": {}
   },
-  "flags": {},
+  "flags": {
+    "flags": [
+      "avdt_accept_open_timeout_ms"
+    ],
+    "tests": [
+      "A2DP/SNK/SYN/BV-01-C"
+    ]
+  },
   "system_properties": [
     {
       "system_properties": {
@@ -420,6 +427,14 @@
       },
       "tests": [
         "HFP/AG"
+      ]
+    },
+    {
+      "system_properties": {
+        "bluetooth.a2dp.avdt_accept_open_timeout_ms": "15000"
+      },
+      "tests": [
+        "A2DP/SNK/SYN/BV-01-C"
       ]
     }
   ]
