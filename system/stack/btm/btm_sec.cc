@@ -4632,7 +4632,9 @@ static void btm_sec_wait_and_start_authentication(tBTM_SEC_DEV_REC* p_dev_rec) {
 
   /* Overwrite the system-wide authentication delay if device-specific
    * interoperability delay is needed. */
-  if (interop_match_addr(INTEROP_DELAY_AUTH, addr)) {
+  if (interop_match_addr(INTEROP_DELAY_AUTH, addr) ||
+      interop_match_name(INTEROP_DELAY_AUTH,
+                         reinterpret_cast<char const*>(p_dev_rec->sec_bd_name))) {
     delay_auth = BTM_SEC_START_AUTH_DELAY;
   }
 
