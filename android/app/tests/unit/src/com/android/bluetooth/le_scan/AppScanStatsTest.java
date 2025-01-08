@@ -55,7 +55,7 @@ public class AppScanStatsTest {
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
     @Mock private ScannerMap map;
-    @Mock private TransitionalScanHelper mMockScanHelper;
+    @Mock private ScanController mMockScanController;
     @Mock private AdapterService mAdapterService;
 
     // BatteryStatsManager is final and cannot be mocked with regular mockito, so just mock the
@@ -79,10 +79,10 @@ public class AppScanStatsTest {
 
         AppScanStats appScanStats =
                 new AppScanStats(
-                        name, source, map, mAdapterService, mMockScanHelper, getSystemClock());
+                        name, source, map, mAdapterService, mMockScanController, getSystemClock());
 
         assertThat(appScanStats.mScannerMap).isEqualTo(map);
-        assertThat(appScanStats.mScanHelper).isEqualTo(mMockScanHelper);
+        assertThat(appScanStats.mScanController).isEqualTo(mMockScanController);
 
         assertThat(appScanStats.isScanning()).isEqualTo(false);
     }
@@ -94,7 +94,7 @@ public class AppScanStatsTest {
 
         AppScanStats appScanStats =
                 new AppScanStats(
-                        name, source, map, mAdapterService, mMockScanHelper, getSystemClock());
+                        name, source, map, mAdapterService, mMockScanController, getSystemClock());
 
         ScanSettings settings = new ScanSettings.Builder().build();
         List<ScanFilter> filters = new ArrayList<>();

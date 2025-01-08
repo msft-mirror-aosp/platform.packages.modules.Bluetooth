@@ -63,7 +63,6 @@
 #include "internal_include/bt_trace.h"
 #include "l2cap_types.h"
 #include "main/shim/entry.h"
-#include "os/logging/log_adapter.h"
 #include "osi/include/allocator.h"
 #include "osi/include/properties.h"
 #include "profiles_api.h"

@@ -37,7 +37,6 @@ import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.MediumTest;
 import androidx.test.runner.AndroidJUnit4;
 
-import com.android.bluetooth.BluetoothMethodProxy;
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
@@ -92,7 +91,6 @@ public class MapClientServiceTest {
         mService = MapClientService.getMapClientService();
         assertThat(mService).isNull();
         TestUtils.clearAdapterService(mAdapterService);
-        BluetoothMethodProxy.setInstanceForTesting(null);
         mTestLooper.dispatchAll();
     }
 
@@ -256,31 +254,19 @@ public class MapClientServiceTest {
     }
 
     @Test
-    public void disconnect_doesNotCleanUpNewStateMachineOfSameDevice() {
-        int connectionPolicy = BluetoothProfile.CONNECTION_POLICY_ALLOWED;
-        when(mDatabaseManager.getProfileConnectionPolicy(
-                        mRemoteDevice, BluetoothProfile.MAP_CLIENT))
-                .thenReturn(connectionPolicy);
+    public void cleanUpDevice_deviceExistsWithDifferentStateMachine_doesNotCleanUpDevice() {
+        MceStateMachine sm1 = mock(MceStateMachine.class);
+        MceStateMachine sm2 = mock(MceStateMachine.class);
 
-        mService.connect(mRemoteDevice);
-        MceStateMachine connectedSm = mService.getInstanceMap().get(mRemoteDevice);
-        assertThat(connectedSm).isNotNull();
+        // Add device as state machine 1
+        mService.getInstanceMap().put(mRemoteDevice, sm1);
 
-        connectedSm.sendMessage(MceStateMachine.MSG_MAS_SDP_DONE, mock(SdpMasRecord.class));
-        connectedSm.sendMessage(MceStateMachine.MSG_MAS_CONNECTED);
-        // Stay it connected
-        while (mTestLooper.isIdle() && connectedSm.getState() != BluetoothProfile.STATE_CONNECTED) {
-            mTestLooper.dispatchNext();
-        }
+        // Remove device as state machine 2
+        mService.cleanupDevice(mRemoteDevice, sm2);
 
-        MceStateMachine sm = mock(MceStateMachine.class);
-        mService.getInstanceMap().put(mRemoteDevice, sm);
-
-        connectedSm.disconnect();
-        mTestLooper.dispatchAll();
-        assertThat(connectedSm.getState()).isEqualTo(BluetoothProfile.STATE_DISCONNECTED);
-
+        // Device and state machine1 should still be there
         assertThat(mService.getInstanceMap()).containsKey(mRemoteDevice);
+        assertThat(mService.getInstanceMap().get(mRemoteDevice)).isEqualTo(sm1);
     }
 
     @Test

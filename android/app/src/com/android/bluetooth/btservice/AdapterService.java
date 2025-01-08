@@ -1717,9 +1717,8 @@ public class AdapterService extends Service {
         if (profile == BluetoothProfile.HID_HOST) {
             return Utils.arrayContains(remoteDeviceUuids, BluetoothUuid.HID)
                     || Utils.arrayContains(remoteDeviceUuids, BluetoothUuid.HOGP)
-                    || (Flags.androidHeadtrackerService()
-                            && Utils.arrayContains(
-                                    remoteDeviceUuids, HidHostService.ANDROID_HEADTRACKER_UUID));
+                    || Utils.arrayContains(
+                            remoteDeviceUuids, HidHostService.ANDROID_HEADTRACKER_UUID);
         }
         if (profile == BluetoothProfile.HID_DEVICE) {
             return mHidDeviceService.getConnectionState(device)
@@ -6227,10 +6226,9 @@ public class AdapterService extends Service {
             Log.w(TAG, "GATT Service is not running!");
             return;
         }
-        if (Flags.scanManagerRefactor()) {
-            mScanController.notifyProfileConnectionStateChange(profile, fromState, toState);
-        } else {
-            mGattService.notifyProfileConnectionStateChange(profile, fromState, toState);
+        ScanController controller = getBluetoothScanController();
+        if (controller != null) {
+            controller.notifyProfileConnectionStateChange(profile, fromState, toState);
         }
     }
 

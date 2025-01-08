@@ -53,7 +53,6 @@
 #include "le_audio_utils.h"
 #include "main/shim/entry.h"
 #include "metrics_collector.h"
-#include "os/logging/log_adapter.h"
 #include "stack/include/btm_client_interface.h"
 #include "types/bt_transport.h"
 
@@ -786,8 +785,8 @@ bool LeAudioDeviceGroup::GetPresentationDelay(uint32_t* delay, uint8_t direction
     } while ((ase = leAudioDevice->GetNextActiveAseWithSameDirection(ase)));
   } while ((leAudioDevice = GetNextActiveDevice(leAudioDevice)));
 
-  if (preferred_delay_min <= preferred_delay_max && preferred_delay_min > delay_min &&
-      preferred_delay_min < delay_max) {
+  if (preferred_delay_min <= preferred_delay_max && preferred_delay_min >= delay_min &&
+      preferred_delay_min <= delay_max) {
     *delay = preferred_delay_min;
   } else {
     *delay = delay_min;

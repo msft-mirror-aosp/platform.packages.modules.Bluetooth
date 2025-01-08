@@ -32,7 +32,6 @@
 #include "bta_hfp_api.h"
 #include "bta_sys.h"
 #include "btm_api_types.h"
-#include "os/logging/log_adapter.h"
 #include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
 #include "osi/include/compat.h"
@@ -40,6 +39,11 @@
 #include "power_mode.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/port_api.h"
+
+#define PRIVATE_CELL(number)                                        \
+  (number.replace(0, (number.size() > 2) ? number.size() - 2 : 0,   \
+                  (number.size() > 2) ? number.size() - 2 : 0, '*') \
+           .c_str())
 
 /* Uncomment to enable AT traffic dumping */
 /* #define BTA_HF_CLIENT_AT_DUMP 1 */

@@ -343,6 +343,7 @@ public class BassClientService extends ProfileService {
             return handler.hasMessages(msg);
         }
 
+        @SuppressLint("NewApi") // Api is protected by flag check and the lint is wrong
         private boolean hasAnyMessagesOrCallbacks(Handler handler) {
             if (android.os.Flags.mainlineVcnPlatformApi()) {
                 return handler.hasMessagesOrCallbacks();
@@ -2053,9 +2054,19 @@ public class BassClientService extends ProfileService {
                 for (int syncedBroadcast : syncedBroadcasts) {
                     addSelectSourceRequest(syncedBroadcast, true);
                 }
+                // when starting scan, clear the previously cached broadcast scan results
+                mCachedBroadcasts
+                        .keySet()
+                        .removeIf(
+                                key ->
+                                        !mPausedBroadcastIds.containsKey(key)
+                                                || !mPausedBroadcastIds
+                                                        .get(key)
+                                                        .equals(PauseType.SINK_UNINTENTIONAL));
+            } else {
+                // when starting scan, clear the previously cached broadcast scan results
+                mCachedBroadcasts.clear();
             }
-            // when starting scan, clear the previously cached broadcast scan results
-            mCachedBroadcasts.clear();
             // clear previous sources notify flag before scanning new result
             // this is to make sure the active sources are notified even if already synced
             if (mPeriodicAdvertisementResultMap != null) {
@@ -4043,13 +4054,11 @@ public class BassClientService extends ProfileService {
     }
 
     /** Check if any sink receivers are receiving broadcast stream */
-    public boolean isAnyReceiverReceivingBroadcast(List<BluetoothDevice> devices) {
+    public boolean isAnyReceiverActive(List<BluetoothDevice> devices) {
         for (BluetoothDevice device : devices) {
             for (BluetoothLeBroadcastReceiveState receiveState : getAllSources(device)) {
-                for (int i = 0; i < receiveState.getNumSubgroups(); i++) {
-                    if (isSyncedToBroadcastStream(receiveState.getBisSyncState().get(i))) {
-                        return true;
-                    }
+                if (isReceiverActive(receiveState)) {
+                    return true;
                 }
             }
         }

@@ -321,9 +321,7 @@ public class PhonePolicy implements AdapterService.BluetoothStateCallback {
         if ((hidService != null)
                 && (Utils.arrayContains(uuids, BluetoothUuid.HID)
                         || Utils.arrayContains(uuids, BluetoothUuid.HOGP)
-                        || (Flags.androidHeadtrackerService()
-                                && Utils.arrayContains(
-                                        uuids, HidHostService.ANDROID_HEADTRACKER_UUID)))
+                        || Utils.arrayContains(uuids, HidHostService.ANDROID_HEADTRACKER_UUID))
                 && (hidService.getConnectionPolicy(device) == CONNECTION_POLICY_UNKNOWN)) {
             if (mAutoConnectProfilesSupported) {
                 hidService.setConnectionPolicy(device, CONNECTION_POLICY_ALLOWED);

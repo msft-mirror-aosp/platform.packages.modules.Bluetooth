@@ -26,6 +26,7 @@
 #include <utility>
 
 #include "common/bind.h"
+#include "metrics/counter_metrics.h"
 #include "os/alarm.h"
 #include "os/files.h"
 #include "os/handler.h"
@@ -143,7 +144,9 @@ void StorageModule::Clear() {
   pimpl_->cache_.Clear();
 }
 
-void StorageModule::ListDependencies(ModuleList* /*list*/) const {}
+void StorageModule::ListDependencies(ModuleList* list) const {
+  list->add<metrics::CounterMetrics>();
+}
 
 void StorageModule::Start() {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
