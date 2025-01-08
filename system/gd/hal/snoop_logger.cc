@@ -725,21 +725,30 @@ uint32_t SnoopLogger::PayloadStrip(profile_type_t current_profile, uint8_t* pack
 
 uint32_t SnoopLogger::FilterProfilesHandleHfp(uint8_t* packet, uint32_t length, uint32_t totlen,
                                               uint32_t offset) {
-  if ((totlen - offset) > cpbr_pat_len) {
-    if (memcmp(&packet[offset], cpbr_pattern, cpbr_pat_len) == 0) {
-      length = offset + cpbr_pat_len + 1;
-      packet[L2CAP_PDU_LENGTH_OFFSET] = offset + cpbr_pat_len - BASIC_L2CAP_HEADER_LENGTH;
-      packet[L2CAP_PDU_LENGTH_OFFSET] =
-              offset + cpbr_pat_len - (ACL_HEADER_LENGTH + BASIC_L2CAP_HEADER_LENGTH);
-      return length;
-    }
+  // CPBR packet
+  if ((totlen - offset) > cpbr_pat_len &&
+      memcmp(&packet[offset], cpbr_pattern, cpbr_pat_len) == 0) {
+    length = offset + cpbr_pat_len + 1;
+    packet[ACL_LENGTH_OFFSET] = offset + cpbr_pat_len - BASIC_L2CAP_HEADER_LENGTH;
+    packet[ACL_LENGTH_OFFSET + 1] = (offset + cpbr_pat_len - BASIC_L2CAP_HEADER_LENGTH) >> 8;
 
-    if (memcmp(&packet[offset], clcc_pattern, clcc_pat_len) == 0) {
-      length = offset + cpbr_pat_len + 1;
-      packet[L2CAP_PDU_LENGTH_OFFSET] = offset + clcc_pat_len - BASIC_L2CAP_HEADER_LENGTH;
-      packet[L2CAP_PDU_LENGTH_OFFSET] =
-              offset + clcc_pat_len - (ACL_HEADER_LENGTH + BASIC_L2CAP_HEADER_LENGTH);
-    }
+    packet[L2CAP_PDU_LENGTH_OFFSET] =
+            offset + cpbr_pat_len - (ACL_HEADER_LENGTH + BASIC_L2CAP_HEADER_LENGTH);
+    packet[L2CAP_PDU_LENGTH_OFFSET + 1] =
+            (offset + cpbr_pat_len - (ACL_HEADER_LENGTH + BASIC_L2CAP_HEADER_LENGTH)) >> 8;
+    return length;
+  }
+  // CLCC packet
+  if ((totlen - offset) > clcc_pat_len &&
+      memcmp(&packet[offset], clcc_pattern, clcc_pat_len) == 0) {
+    length = offset + cpbr_pat_len + 1;
+    packet[ACL_LENGTH_OFFSET] = offset + clcc_pat_len - BASIC_L2CAP_HEADER_LENGTH;
+    packet[ACL_LENGTH_OFFSET + 1] = (offset + clcc_pat_len - BASIC_L2CAP_HEADER_LENGTH) >> 8;
+
+    packet[L2CAP_PDU_LENGTH_OFFSET] =
+            offset + clcc_pat_len - (ACL_HEADER_LENGTH + BASIC_L2CAP_HEADER_LENGTH);
+    packet[L2CAP_PDU_LENGTH_OFFSET + 1] =
+            (offset + clcc_pat_len - (ACL_HEADER_LENGTH + BASIC_L2CAP_HEADER_LENGTH)) >> 8;
   }
 
   return length;
