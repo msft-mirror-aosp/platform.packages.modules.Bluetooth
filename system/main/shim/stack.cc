@@ -104,7 +104,28 @@ void Stack::StartEverything() {
   modules.add<hci::DistanceMeasurementManager>();
 
   stack_thread_ = new os::Thread("gd_stack_thread", os::Thread::Priority::REAL_TIME);
-  StartUp(&modules, stack_thread_);
+
+  management_thread_ = new Thread("management_thread", Thread::Priority::NORMAL);
+  management_handler_ = new Handler(management_thread_);
+
+  WakelockManager::Get().Acquire();
+
+  std::promise<void> promise;
+  auto future = promise.get_future();
+  management_handler_->Post(common::BindOnce(&Stack::handle_start_up, common::Unretained(this),
+                                             &modules, std::move(promise)));
+
+  auto init_status = future.wait_for(
+          std::chrono::milliseconds(get_gd_stack_timeout_ms(/* is_start = */ true)));
+
+  WakelockManager::Get().Release();
+
+  log::info("init_status == {}", int(init_status));
+
+  log::assert_that(init_status == std::future_status::ready, "Can't start stack, last instance: {}",
+                   registry_.last_instance_);
+
+  log::info("init complete");
 
   stack_handler_ = new os::Handler(stack_thread_);
 
@@ -125,19 +146,6 @@ void Stack::StartEverything() {
   bluetooth::shim::init_advertising_manager();
   bluetooth::shim::init_scanning_manager();
   bluetooth::shim::init_distance_measurement_manager();
-}
-
-void Stack::StartModuleStack(const ModuleList* modules, const os::Thread* thread) {
-  std::lock_guard<std::recursive_mutex> lock(mutex_);
-  log::assert_that(!is_running_, "Gd stack already running");
-  stack_thread_ = const_cast<os::Thread*>(thread);
-  log::info("Starting Gd stack");
-
-  StartUp(const_cast<ModuleList*>(modules), stack_thread_);
-  stack_handler_ = new os::Handler(stack_thread_);
-
-  num_modules_ = modules->NumModules();
-  is_running_ = true;
 }
 
 void Stack::Stop() {
@@ -222,32 +230,8 @@ void Stack::Dump(int fd, std::promise<void> promise) const {
   }
 }
 
-void Stack::StartUp(ModuleList* modules, Thread* stack_thread) {
-  management_thread_ = new Thread("management_thread", Thread::Priority::NORMAL);
-  management_handler_ = new Handler(management_thread_);
-
-  WakelockManager::Get().Acquire();
-
-  std::promise<void> promise;
-  auto future = promise.get_future();
-  management_handler_->Post(common::BindOnce(&Stack::handle_start_up, common::Unretained(this),
-                                             modules, stack_thread, std::move(promise)));
-
-  auto init_status = future.wait_for(
-          std::chrono::milliseconds(get_gd_stack_timeout_ms(/* is_start = */ true)));
-
-  WakelockManager::Get().Release();
-
-  log::info("init_status == {}", int(init_status));
-
-  log::assert_that(init_status == std::future_status::ready, "Can't start stack, last instance: {}",
-                   registry_.last_instance_);
-
-  log::info("init complete");
-}
-
-void Stack::handle_start_up(ModuleList* modules, Thread* stack_thread, std::promise<void> promise) {
-  registry_.Start(modules, stack_thread);
+void Stack::handle_start_up(ModuleList* modules, std::promise<void> promise) {
+  registry_.Start(modules, stack_thread_);
   promise.set_value();
 }
 
