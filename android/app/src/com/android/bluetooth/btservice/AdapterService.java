@@ -4180,7 +4180,7 @@ public class AdapterService extends Service {
             Set<Integer> eventCodesSet =
                     Arrays.stream(eventCodes).boxed().collect(Collectors.toSet());
             if (eventCodesSet.stream()
-                    .anyMatch((n) -> (n < 0) || (n >= 0x50 && n < 0x60) || (n > 0xff))) {
+                    .anyMatch((n) -> (n < 0) || (n >= 0x52 && n < 0x60) || (n > 0xff))) {
                 throw new IllegalArgumentException("invalid vendor-specific event code");
             }
 
