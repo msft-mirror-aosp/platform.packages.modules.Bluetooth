@@ -110,7 +110,6 @@ import com.google.common.primitives.Bytes;
 
 import org.hamcrest.Matcher;
 import org.hamcrest.core.AllOf;
-import org.hamcrest.core.IsInstanceOf;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -262,9 +261,8 @@ public class BassClientStateMachineTest {
                 .sendBroadcast(any(Intent.class), anyString());
 
         // Check that we are in Disconnected state
-        Assert.assertThat(
-                mBassClientStateMachine.getCurrentState(),
-                IsInstanceOf.instanceOf(BassClientStateMachine.Disconnected.class));
+        assertThat(mBassClientStateMachine.getCurrentState())
+                .isInstanceOf(BassClientStateMachine.Disconnected.class);
     }
 
     @Test
@@ -280,9 +278,8 @@ public class BassClientStateMachineTest {
                 .sendBroadcast(any(Intent.class), anyString());
 
         // Check that we are in Disconnected state
-        Assert.assertThat(
-                mBassClientStateMachine.getCurrentState(),
-                IsInstanceOf.instanceOf(BassClientStateMachine.Disconnected.class));
+        assertThat(mBassClientStateMachine.getCurrentState())
+                .isInstanceOf(BassClientStateMachine.Disconnected.class);
         assertThat(mBassClientStateMachine.mBluetoothGatt).isNull();
     }
 
@@ -304,9 +301,8 @@ public class BassClientStateMachineTest {
         assertThat(intentArgument1.getValue().getIntExtra(BluetoothProfile.EXTRA_STATE, -1))
                 .isEqualTo(BluetoothProfile.STATE_CONNECTING);
 
-        Assert.assertThat(
-                mBassClientStateMachine.getCurrentState(),
-                IsInstanceOf.instanceOf(BassClientStateMachine.Connecting.class));
+        assertThat(mBassClientStateMachine.getCurrentState())
+                .isInstanceOf(BassClientStateMachine.Connecting.class);
 
         assertThat(mBassClientStateMachine.mGattCallback).isNotNull();
         mBassClientStateMachine.notifyConnectionStateChanged(
@@ -321,9 +317,8 @@ public class BassClientStateMachineTest {
                         any(String[].class),
                         any(BroadcastOptions.class));
 
-        Assert.assertThat(
-                mBassClientStateMachine.getCurrentState(),
-                IsInstanceOf.instanceOf(BassClientStateMachine.Connected.class));
+        assertThat(mBassClientStateMachine.getCurrentState())
+                .isInstanceOf(BassClientStateMachine.Connected.class);
     }
 
     @Test
@@ -344,9 +339,8 @@ public class BassClientStateMachineTest {
         assertThat(intentArgument1.getValue().getIntExtra(BluetoothProfile.EXTRA_STATE, -1))
                 .isEqualTo(BluetoothProfile.STATE_CONNECTING);
 
-        Assert.assertThat(
-                mBassClientStateMachine.getCurrentState(),
-                IsInstanceOf.instanceOf(BassClientStateMachine.Connecting.class));
+        assertThat(mBassClientStateMachine.getCurrentState())
+                .isInstanceOf(BassClientStateMachine.Connecting.class);
 
         // Verify that one connection state broadcast is executed
         ArgumentCaptor<Intent> intentArgument2 = ArgumentCaptor.forClass(Intent.class);
@@ -358,9 +352,8 @@ public class BassClientStateMachineTest {
         assertThat(intentArgument2.getValue().getIntExtra(BluetoothProfile.EXTRA_STATE, -1))
                 .isEqualTo(BluetoothProfile.STATE_DISCONNECTED);
 
-        Assert.assertThat(
-                mBassClientStateMachine.getCurrentState(),
-                IsInstanceOf.instanceOf(BassClientStateMachine.Disconnected.class));
+        assertThat(mBassClientStateMachine.getCurrentState())
+                .isInstanceOf(BassClientStateMachine.Disconnected.class);
     }
 
     @Test
@@ -3335,7 +3328,7 @@ public class BassClientStateMachineTest {
                             Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT
                                     | Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND));
         }
-        Assert.assertThat(mBassClientStateMachine.getCurrentState(), IsInstanceOf.instanceOf(type));
+        assertThat(mBassClientStateMachine.getCurrentState()).isInstanceOf(type);
     }
 
     private BluetoothLeBroadcastMetadata createBroadcastMetadata() {

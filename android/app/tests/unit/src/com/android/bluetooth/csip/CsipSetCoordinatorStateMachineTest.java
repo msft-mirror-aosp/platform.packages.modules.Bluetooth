@@ -43,7 +43,6 @@ import androidx.test.runner.AndroidJUnit4;
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 
-import org.hamcrest.core.IsInstanceOf;
 import org.junit.*;
 import org.junit.Rule;
 import org.junit.runner.RunWith;
@@ -140,9 +139,8 @@ public class CsipSetCoordinatorStateMachineTest {
         // Verify that no connection state broadcast is executed
         verify(mService, after(TIMEOUT_MS).never()).sendBroadcast(any(Intent.class), anyString());
         // Check that we are in Disconnected state
-        Assert.assertThat(
-                mStateMachine.getCurrentState(),
-                IsInstanceOf.instanceOf(CsipSetCoordinatorStateMachine.Disconnected.class));
+        assertThat(mStateMachine.getCurrentState())
+                .isInstanceOf(CsipSetCoordinatorStateMachine.Disconnected.class);
     }
 
     /** Test that an incoming connection with policy allowing connection is accepted */
@@ -165,10 +163,8 @@ public class CsipSetCoordinatorStateMachineTest {
         assertThat(intentArgument1.getValue().getIntExtra(BluetoothProfile.EXTRA_STATE, -1))
                 .isEqualTo(STATE_CONNECTING);
 
-        // Check that we are in Connecting state
-        Assert.assertThat(
-                mStateMachine.getCurrentState(),
-                IsInstanceOf.instanceOf(CsipSetCoordinatorStateMachine.Connecting.class));
+        assertThat(mStateMachine.getCurrentState())
+                .isInstanceOf(CsipSetCoordinatorStateMachine.Connecting.class);
 
         // Send a message to trigger connection completed
         CsipSetCoordinatorStackEvent connCompletedEvent =
@@ -184,10 +180,9 @@ public class CsipSetCoordinatorStateMachineTest {
         ArgumentCaptor<Intent> intentArgument2 = ArgumentCaptor.forClass(Intent.class);
         verify(mService, timeout(TIMEOUT_MS).times(2))
                 .sendBroadcast(intentArgument2.capture(), anyString());
-        // Check that we are in Connected state
-        Assert.assertThat(
-                mStateMachine.getCurrentState(),
-                IsInstanceOf.instanceOf(CsipSetCoordinatorStateMachine.Connected.class));
+
+        assertThat(mStateMachine.getCurrentState())
+                .isInstanceOf(CsipSetCoordinatorStateMachine.Connected.class);
     }
 
     /** Test that an outgoing connection times out */
@@ -207,10 +202,8 @@ public class CsipSetCoordinatorStateMachineTest {
         assertThat(intentArgument1.getValue().getIntExtra(BluetoothProfile.EXTRA_STATE, -1))
                 .isEqualTo(STATE_CONNECTING);
 
-        // Check that we are in Connecting state
-        Assert.assertThat(
-                mStateMachine.getCurrentState(),
-                IsInstanceOf.instanceOf(CsipSetCoordinatorStateMachine.Connecting.class));
+        assertThat(mStateMachine.getCurrentState())
+                .isInstanceOf(CsipSetCoordinatorStateMachine.Connecting.class);
 
         // Verify that one connection state broadcast is executed
         ArgumentCaptor<Intent> intentArgument2 = ArgumentCaptor.forClass(Intent.class);
@@ -219,10 +212,8 @@ public class CsipSetCoordinatorStateMachineTest {
         assertThat(intentArgument2.getValue().getIntExtra(BluetoothProfile.EXTRA_STATE, -1))
                 .isEqualTo(STATE_DISCONNECTED);
 
-        // Check that we are in Disconnected state
-        Assert.assertThat(
-                mStateMachine.getCurrentState(),
-                IsInstanceOf.instanceOf(CsipSetCoordinatorStateMachine.Disconnected.class));
+        assertThat(mStateMachine.getCurrentState())
+                .isInstanceOf(CsipSetCoordinatorStateMachine.Disconnected.class);
         verify(mNativeInterface).disconnect(eq(mTestDevice));
     }
 
@@ -248,10 +239,8 @@ public class CsipSetCoordinatorStateMachineTest {
         assertThat(intentArgument1.getValue().getIntExtra(BluetoothProfile.EXTRA_STATE, -1))
                 .isEqualTo(STATE_CONNECTING);
 
-        // Check that we are in Connecting state
-        Assert.assertThat(
-                mStateMachine.getCurrentState(),
-                IsInstanceOf.instanceOf(CsipSetCoordinatorStateMachine.Connecting.class));
+        assertThat(mStateMachine.getCurrentState())
+                .isInstanceOf(CsipSetCoordinatorStateMachine.Connecting.class);
 
         // Verify that one connection state broadcast is executed
         ArgumentCaptor<Intent> intentArgument2 = ArgumentCaptor.forClass(Intent.class);
@@ -260,10 +249,8 @@ public class CsipSetCoordinatorStateMachineTest {
         assertThat(intentArgument2.getValue().getIntExtra(BluetoothProfile.EXTRA_STATE, -1))
                 .isEqualTo(STATE_DISCONNECTED);
 
-        // Check that we are in Disconnected state
-        Assert.assertThat(
-                mStateMachine.getCurrentState(),
-                IsInstanceOf.instanceOf(CsipSetCoordinatorStateMachine.Disconnected.class));
+        assertThat(mStateMachine.getCurrentState())
+                .isInstanceOf(CsipSetCoordinatorStateMachine.Disconnected.class);
         verify(mNativeInterface).disconnect(eq(mTestDevice));
     }
 
@@ -701,7 +688,7 @@ public class CsipSetCoordinatorStateMachineTest {
         mStateMachine.sendMessage(msg);
         // Verify that one connection state broadcast is executed
         verify(mService, timeout(TIMEOUT_MS)).sendBroadcast(any(Intent.class), anyString());
-        Assert.assertThat(mStateMachine.getCurrentState(), IsInstanceOf.instanceOf(type));
+        assertThat(mStateMachine.getCurrentState()).isInstanceOf(type);
     }
 
     public static class CsipSetCoordinatorStateMachineWrapper

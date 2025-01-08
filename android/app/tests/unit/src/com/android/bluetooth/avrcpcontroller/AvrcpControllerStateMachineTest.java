@@ -50,9 +50,7 @@ import com.android.bluetooth.a2dpsink.A2dpSinkService;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.flags.Flags;
 
-import org.hamcrest.core.IsInstanceOf;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -203,18 +201,16 @@ public class AvrcpControllerStateMachineTest {
      */
     private int setUpConnectedState(boolean control, boolean browsing) {
 
-        Assert.assertThat(
-                mAvrcpStateMachine.getCurrentState(),
-                IsInstanceOf.instanceOf(AvrcpControllerStateMachine.Disconnected.class));
+        assertThat(mAvrcpStateMachine.getCurrentState())
+                .isInstanceOf(AvrcpControllerStateMachine.Disconnected.class);
 
         mAvrcpStateMachine.connect(StackEvent.connectionStateChanged(control, browsing));
 
         TestUtils.waitForLooperToFinishScheduledTask(mAvrcpStateMachine.getHandler().getLooper());
         verify(mAvrcpControllerService, timeout(ASYNC_CALL_TIMEOUT_MILLIS).times(2))
                 .sendBroadcast(mIntentArgument.capture(), eq(BLUETOOTH_CONNECT), any(Bundle.class));
-        Assert.assertThat(
-                mAvrcpStateMachine.getCurrentState(),
-                IsInstanceOf.instanceOf(AvrcpControllerStateMachine.Connected.class));
+        assertThat(mAvrcpStateMachine.getCurrentState())
+                .isInstanceOf(AvrcpControllerStateMachine.Connected.class);
         assertThat(mAvrcpStateMachine.getState()).isEqualTo(BluetoothProfile.STATE_CONNECTED);
 
         return BluetoothProfile.STATE_CONNECTED;
@@ -369,9 +365,8 @@ public class AvrcpControllerStateMachineTest {
                 .isEqualTo(BluetoothAvrcpController.ACTION_CONNECTION_STATE_CHANGED);
         assertThat(mIntentArgument.getValue().getIntExtra(BluetoothProfile.EXTRA_STATE, -1))
                 .isEqualTo(BluetoothProfile.STATE_DISCONNECTED);
-        Assert.assertThat(
-                mAvrcpStateMachine.getCurrentState(),
-                IsInstanceOf.instanceOf(AvrcpControllerStateMachine.Disconnected.class));
+        assertThat(mAvrcpStateMachine.getCurrentState())
+                .isInstanceOf(AvrcpControllerStateMachine.Disconnected.class);
         assertThat(mAvrcpStateMachine.getState()).isEqualTo(BluetoothProfile.STATE_DISCONNECTED);
         verify(mAvrcpControllerService).removeStateMachine(eq(mAvrcpStateMachine));
     }
@@ -399,9 +394,8 @@ public class AvrcpControllerStateMachineTest {
                 .isEqualTo(BluetoothAvrcpController.ACTION_CONNECTION_STATE_CHANGED);
         assertThat(mIntentArgument.getValue().getIntExtra(BluetoothProfile.EXTRA_STATE, -1))
                 .isEqualTo(BluetoothProfile.STATE_DISCONNECTED);
-        Assert.assertThat(
-                mAvrcpStateMachine.getCurrentState(),
-                IsInstanceOf.instanceOf(AvrcpControllerStateMachine.Disconnected.class));
+        assertThat(mAvrcpStateMachine.getCurrentState())
+                .isInstanceOf(AvrcpControllerStateMachine.Disconnected.class);
         assertThat(mAvrcpStateMachine.getState()).isEqualTo(BluetoothProfile.STATE_DISCONNECTED);
         verify(mAvrcpControllerService).removeStateMachine(eq(mAvrcpStateMachine));
     }
@@ -429,9 +423,8 @@ public class AvrcpControllerStateMachineTest {
                 .isEqualTo(BluetoothAvrcpController.ACTION_CONNECTION_STATE_CHANGED);
         assertThat(mIntentArgument.getValue().getIntExtra(BluetoothProfile.EXTRA_STATE, -1))
                 .isEqualTo(BluetoothProfile.STATE_DISCONNECTED);
-        Assert.assertThat(
-                mAvrcpStateMachine.getCurrentState(),
-                IsInstanceOf.instanceOf(AvrcpControllerStateMachine.Disconnected.class));
+        assertThat(mAvrcpStateMachine.getCurrentState())
+                .isInstanceOf(AvrcpControllerStateMachine.Disconnected.class);
         assertThat(mAvrcpStateMachine.getState()).isEqualTo(BluetoothProfile.STATE_DISCONNECTED);
         verify(mAvrcpControllerService).removeStateMachine(eq(mAvrcpStateMachine));
     }
