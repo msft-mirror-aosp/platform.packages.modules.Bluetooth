@@ -41,7 +41,6 @@ import com.android.bluetooth.audio_util.Metadata;
 import com.android.bluetooth.btservice.AdapterService;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -212,9 +211,8 @@ public class MediaControlProfileTest {
         mMockMediaData.state = bob.build();
         doReturn(mMockMediaData.state).when(mMockMediaPlayerWrapper).getPlaybackState();
 
-        Assert.assertNotEquals(
-                mMcpServiceCallbacks.onGetCurrentTrackPosition(),
-                MediaControlGattServiceInterface.TRACK_POSITION_UNAVAILABLE);
+        assertThat(mMcpServiceCallbacks.onGetCurrentTrackPosition())
+                .isNotEqualTo(MediaControlGattServiceInterface.TRACK_POSITION_UNAVAILABLE);
     }
 
     @Test
