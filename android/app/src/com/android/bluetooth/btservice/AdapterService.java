@@ -4410,6 +4410,12 @@ public class AdapterService extends Service {
             service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
             return service.isRfcommSocketOffloadSupported();
         }
+
+        @Override
+        public IBinder getBluetoothAdvertise() {
+            AdapterService service = getService();
+            return service == null ? null : service.getBluetoothAdvertise();
+        }
     }
 
     /**
@@ -6145,6 +6151,11 @@ public class AdapterService extends Service {
         } else {
             return mGattService == null ? null : mGattService.getScanController();
         }
+    }
+
+    @Nullable
+    IBinder getBluetoothAdvertise() {
+        return mGattService == null ? null : mGattService.getBluetoothAdvertise();
     }
 
     @RequiresPermission(BLUETOOTH_CONNECT)
