@@ -81,9 +81,12 @@ class Module {
   friend TestModuleRegistry;
 
 public:
+  Module() = default;
   virtual ~Module() = default;
 
 protected:
+  Module(os::Handler* handler) : handler_(handler) {}
+
   // Populate the provided list with modules that must start before yours
   virtual void ListDependencies(ModuleList* list) const = 0;
 
