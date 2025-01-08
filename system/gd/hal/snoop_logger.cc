@@ -547,21 +547,17 @@ void SnoopLogger::OpenNextSnoopLogFile() {
   file_creation_time = fake_timerfd_get_clock();
 #endif
   if (!btsnoop_ostream_.good()) {
-    log::error("Unable to open snoop log at \"{}\", error: \"{}\"", snoop_log_path_,
+    log::fatal("Unable to open snoop log at \"{}\", error: \"{}\"", snoop_log_path_,
                strerror(errno));
-    return;
   }
   umask(prevmask);
   if (!btsnoop_ostream_.write(reinterpret_cast<const char*>(&SnoopLoggerCommon::kBtSnoopFileHeader),
                               sizeof(SnoopLoggerCommon::FileHeaderType))) {
-    log::error("Unable to write file header to \"{}\", error: \"{}\"", snoop_log_path_,
+    log::fatal("Unable to write file header to \"{}\", error: \"{}\"", snoop_log_path_,
                strerror(errno));
-    btsnoop_ostream_.close();
-    return;
   }
   if (!btsnoop_ostream_.flush()) {
     log::error("Failed to flush, error: \"{}\"", strerror(errno));
-    return;
   }
 }
 
@@ -1202,9 +1198,6 @@ void SnoopLogger::Capture(const HciPacket& immutable_packet, Direction direction
     packet_counter_++;
     if (packet_counter_ > max_packets_per_file_) {
       OpenNextSnoopLogFile();
-    }
-    if (!btsnoop_ostream_.is_open() || !btsnoop_ostream_.good()) {
-      return;
     }
     if (!btsnoop_ostream_.write(reinterpret_cast<const char*>(&header), sizeof(PacketHeaderType))) {
       log::error("Failed to write packet header for btsnoop, error: \"{}\"", strerror(errno));
