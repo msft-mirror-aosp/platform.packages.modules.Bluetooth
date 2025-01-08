@@ -4191,8 +4191,8 @@ public class BassClientService extends ProfileService {
     }
 
     private boolean isSyncedToBroadcastStream(Long syncState) {
-        return syncState != BassConstants.BIS_SYNC_NOT_SYNC_TO_BIS
-                && syncState != BassConstants.BIS_SYNC_FAILED_SYNC_TO_BIG;
+        return syncState != BassConstants.BCAST_RCVR_STATE_BIS_SYNC_NOT_SYNC_TO_BIS
+                && syncState != BassConstants.BCAST_RCVR_STATE_BIS_SYNC_FAILED_SYNC_TO_BIG;
     }
 
     /** Handle broadcast state changed */
