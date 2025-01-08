@@ -42,6 +42,8 @@ import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static android.Manifest.permission.RECEIVE_SMS;
 
+import static java.util.Objects.requireNonNull;
+
 import android.app.Activity;
 import android.app.PendingIntent;
 import android.bluetooth.BluetoothDevice;
@@ -112,11 +114,11 @@ class MceStateMachine extends StateMachine {
     // messaging app takes that responsibility.
     private static final Boolean SAVE_OUTBOUND_MESSAGES = true;
     @VisibleForTesting static final Duration DISCONNECT_TIMEOUT = Duration.ofSeconds(3);
-    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(10);
+    @VisibleForTesting static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(10);
     private static final int MAX_MESSAGES = 20;
     private static final int MSG_CONNECT = 1;
     private static final int MSG_DISCONNECT = 2;
-    static final int MSG_CONNECTING_TIMEOUT = 3;
+    private static final int MSG_CONNECTING_TIMEOUT = 3;
     private static final int MSG_DISCONNECTING_TIMEOUT = 4;
 
     // Constants for SDP. Note that these values come from the native stack, but no centralized
@@ -147,22 +149,26 @@ class MceStateMachine extends StateMachine {
     private static final String SEND_MESSAGE_TYPE =
             "persist.bluetooth.pts.mapclient.sendmessagetype";
 
+    private final State mDisconnected = new Disconnected();
+    private final State mConnecting = new Connecting();
+    private final State mConnected = new Connected();
+    private final State mDisconnecting = new Disconnecting();
+
+    private final HashMap<String, Bmessage> mSentMessageLog = new HashMap<>(MAX_MESSAGES);
+    private final HashMap<Bmessage, PendingIntent> mSentReceiptRequested =
+            new HashMap<>(MAX_MESSAGES);
+    private final HashMap<Bmessage, PendingIntent> mDeliveryReceiptRequested =
+            new HashMap<>(MAX_MESSAGES);
+
+    private final BluetoothDevice mDevice;
+    private final MapClientService mService;
+    private final AdapterService mAdapterService;
+
     // Connectivity States
     private int mPreviousState = BluetoothProfile.STATE_DISCONNECTED;
     private int mMostRecentState = BluetoothProfile.STATE_DISCONNECTED;
-    private State mDisconnected;
-    private State mConnecting;
-    private State mConnected;
-    private State mDisconnecting;
-
-    private final BluetoothDevice mDevice;
-    private MapClientService mService;
     private MasClient mMasClient;
     private MapClientContent mDatabase;
-    private HashMap<String, Bmessage> mSentMessageLog = new HashMap<>(MAX_MESSAGES);
-    private HashMap<Bmessage, PendingIntent> mSentReceiptRequested = new HashMap<>(MAX_MESSAGES);
-    private HashMap<Bmessage, PendingIntent> mDeliveryReceiptRequested =
-            new HashMap<>(MAX_MESSAGES);
 
     private final Object mLock = new Object();
 
@@ -225,25 +231,33 @@ class MceStateMachine extends StateMachine {
     ConcurrentHashMap<String, MessageMetadata> mMessages =
             new ConcurrentHashMap<String, MessageMetadata>();
 
-    MceStateMachine(MapClientService service, BluetoothDevice device) {
+    MceStateMachine(
+            MapClientService service, BluetoothDevice device, AdapterService adapterService) {
         super(TAG); // Create a state machine with its own separate thread
+        mAdapterService = requireNonNull(adapterService);
         mService = service;
         mDevice = device;
         initStateMachine();
     }
 
-    MceStateMachine(MapClientService service, BluetoothDevice device, Looper looper) {
-        this(service, device, null, null, looper);
+    MceStateMachine(
+            MapClientService service,
+            BluetoothDevice device,
+            AdapterService adapterService,
+            Looper looper) {
+        this(service, device, adapterService, looper, null, null);
     }
 
     @VisibleForTesting
     MceStateMachine(
             MapClientService service,
             BluetoothDevice device,
+            AdapterService adapterService,
+            Looper looper,
             MasClient masClient,
-            MapClientContent database,
-            Looper looper) {
-        super(TAG, looper);
+            MapClientContent database) {
+        super(TAG, requireNonNull(looper));
+        mAdapterService = requireNonNull(adapterService);
         mService = service;
         mMasClient = masClient;
         mDevice = device;
@@ -254,10 +268,6 @@ class MceStateMachine extends StateMachine {
     private void initStateMachine() {
         mPreviousState = BluetoothProfile.STATE_DISCONNECTED;
 
-        mDisconnected = new Disconnected();
-        mConnecting = new Connecting();
-        mDisconnecting = new Disconnecting();
-        mConnected = new Connected();
 
         addState(mDisconnected);
         addState(mConnecting);
@@ -302,11 +312,8 @@ class MceStateMachine extends StateMachine {
         }
         setState(state);
 
-        AdapterService adapterService = AdapterService.getAdapterService();
-        if (adapterService != null) {
-            adapterService.updateProfileConnectionAdapterProperties(
-                    mDevice, BluetoothProfile.MAP_CLIENT, state, prevState);
-        }
+        mAdapterService.updateProfileConnectionAdapterProperties(
+                mDevice, BluetoothProfile.MAP_CLIENT, state, prevState);
 
         Intent intent = new Intent(BluetoothMapClient.ACTION_CONNECTION_STATE_CHANGED);
         intent.putExtra(BluetoothProfile.EXTRA_PREVIOUS_STATE, prevState);
