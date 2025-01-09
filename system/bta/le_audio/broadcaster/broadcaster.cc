@@ -949,6 +949,17 @@ public:
           log::info("Start queued broadcast.");
           StartAudioBroadcast(broadcast_id);
         }
+      } else {
+        // If audio resumes before ISO release, trigger broadcast start
+        if (audio_state_ == AudioState::ACTIVE) {
+          cancelBroadcastTimers();
+          UpdateAudioActiveStateInPublicAnnouncement();
+
+          for (auto& broadcast_pair : broadcasts_) {
+            auto& broadcast = broadcast_pair.second;
+            broadcast->ProcessMessage(BroadcastStateMachine::Message::START, nullptr);
+          }
+        }
       }
 
       if (queued_create_broadcast_request_) {
@@ -1394,10 +1405,19 @@ private:
           return;
         }
 
+        /* If there is ongoing ISO traffic, it might be not torn down unicast stream. Resume of
+         * broadcast stream would be triggered from IsoTrafficEventCb context, once ISO would be
+         * released.
+         */
+        if (instance->is_iso_running_) {
+          log::debug("iso is busy, skip resume request");
+          return;
+        }
+
         instance->cancelBroadcastTimers();
         instance->UpdateAudioActiveStateInPublicAnnouncement();
 
-        /* In case of double call of resume when broadcast are already in streaming states */
+        /* In case of double call of resume when broadcasts are already in streaming states */
         if (IsAnyoneStreaming()) {
           log::debug("broadcasts are already streaming");
           instance->le_audio_source_hal_client_->ConfirmStreamingRequest();
