@@ -32,9 +32,6 @@
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using namespace bluetooth;
 
 static const uint16_t dis_attr_uuid[] = {
@@ -120,7 +117,7 @@ static void dis_gatt_c_read_dis_value_cmpl(tCONN_ID conn_id) {
  * Returns          void
  *
  ******************************************************************************/
-bool dis_gatt_c_read_dis_req(tCONN_ID conn_id) {
+static bool dis_gatt_c_read_dis_req(tCONN_ID conn_id) {
   tGATT_READ_PARAM param;
 
   memset(&param, 0, sizeof(tGATT_READ_PARAM));

@@ -271,8 +271,8 @@ public:
                          double packet_loss_ratio, uint64_t begin_ts, uint64_t end_ts,
                          const char* pkt_status_in_hex, const char* pkt_status_in_binary) override {
     log::warn("DebugDumpCallback {} {} {} {:f} {} {} {} {}", active, codec_id,
-              total_num_decoded_frames, packet_loss_ratio, (unsigned long long)begin_ts,
-              (unsigned long long)end_ts, pkt_status_in_hex, pkt_status_in_binary);
+              total_num_decoded_frames, packet_loss_ratio, begin_ts, end_ts, pkt_status_in_hex,
+              pkt_status_in_binary);
     topshim::rust::internal::debug_dump_cb(active, codec_id, total_num_decoded_frames,
                                            packet_loss_ratio, begin_ts, end_ts, pkt_status_in_hex,
                                            pkt_status_in_binary);
@@ -381,6 +381,10 @@ std::unique_ptr<HfpIntf> GetHfpProfile(const unsigned char* btif) {
 
 bool interop_insert_call_when_sco_start(RawAddress addr) {
   return interop_match_addr(interop_feature_t::INTEROP_INSERT_CALL_WHEN_SCO_START, &addr);
+}
+
+bool interop_disable_hf_profile(const char* name) {
+  return interop_match_name(interop_feature_t::INTEROP_DISABLE_HF_PROFILE, name);
 }
 
 }  // namespace rust

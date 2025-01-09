@@ -53,7 +53,6 @@
 #include "le_audio_utils.h"
 #include "main/shim/entry.h"
 #include "metrics_collector.h"
-#include "os/logging/log_adapter.h"
 #include "stack/include/btm_client_interface.h"
 #include "types/bt_transport.h"
 
@@ -786,8 +785,8 @@ bool LeAudioDeviceGroup::GetPresentationDelay(uint32_t* delay, uint8_t direction
     } while ((ase = leAudioDevice->GetNextActiveAseWithSameDirection(ase)));
   } while ((leAudioDevice = GetNextActiveDevice(leAudioDevice)));
 
-  if (preferred_delay_min <= preferred_delay_max && preferred_delay_min > delay_min &&
-      preferred_delay_min < delay_max) {
+  if (preferred_delay_min <= preferred_delay_max && preferred_delay_min >= delay_min &&
+      preferred_delay_min <= delay_max) {
     *delay = preferred_delay_min;
   } else {
     *delay = delay_min;
@@ -1136,6 +1135,10 @@ bool LeAudioDeviceGroup::IsReleasingOrIdle(void) const {
          ((current_state_ == AseState::BTA_LE_AUDIO_ASE_STATE_IDLE ||
            current_state_ == AseState::BTA_LE_AUDIO_ASE_STATE_CODEC_CONFIGURED) &&
           !in_transition_);
+}
+
+bool LeAudioDeviceGroup::IsReleasing(void) const {
+  return (target_state_ == AseState::BTA_LE_AUDIO_ASE_STATE_IDLE) && in_transition_;
 }
 
 bool LeAudioDeviceGroup::IsGroupStreamReady(void) const {
@@ -2259,7 +2262,7 @@ void LeAudioDeviceGroup::Dump(std::stringstream& stream, int active_group_id) co
       stream << "\n\t cis id: " << static_cast<int>(cis.id)
              << ",\ttype: " << static_cast<int>(cis.type)
              << ",\tconn_handle: " << static_cast<int>(cis.conn_handle)
-             << ",\taddr: " << ADDRESS_TO_LOGGABLE_STR(cis.addr);
+             << ",\taddr: " << cis.addr.ToRedactedStringForLogging();
     }
   }
   stream << "\n";

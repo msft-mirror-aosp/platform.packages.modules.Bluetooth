@@ -19,7 +19,6 @@
 #include "bta/dm/bta_dm_disc.h"
 
 #include <base/functional/bind.h>
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
@@ -37,7 +36,6 @@
 #include "device/include/interop.h"
 #include "internal_include/bt_target.h"
 #include "main/shim/dumpsys.h"
-#include "os/logging/log_adapter.h"
 #include "osi/include/allocator.h"
 #include "stack/btm/btm_dev.h"
 #include "stack/include/bt_name.h"
@@ -399,7 +397,7 @@ static void bta_dm_discover_services(tBTA_DM_API_DISCOVER& discover) {
   }
 
   BTM_LogHistory(kBtmLogTag, bd_addr, "Discovery started ",
-                 base::StringPrintf("Transport:%s", bt_transport_text(transport).c_str()));
+                 std::format("Transport:{}", bt_transport_text(transport)));
 
   if (transport == BT_TRANSPORT_LE) {
     if (bta_dm_discovery_cb.transports & BT_TRANSPORT_LE) {
@@ -730,13 +728,12 @@ namespace {
 constexpr char kTimeFormatString[] = "%Y-%m-%d %H:%M:%S";
 
 constexpr unsigned MillisPerSecond = 1000;
-std::string EpochMillisToString(long long time_ms) {
+std::string EpochMillisToString(uint64_t time_ms) {
   time_t time_sec = time_ms / MillisPerSecond;
   struct tm tm;
   localtime_r(&time_sec, &tm);
   std::string s = bluetooth::common::StringFormatTime(kTimeFormatString, tm);
-  return base::StringPrintf("%s.%03u", s.c_str(),
-                            static_cast<unsigned int>(time_ms % MillisPerSecond));
+  return std::format("{}.{:03}", s, time_ms % MillisPerSecond);
 }
 
 }  // namespace
@@ -745,8 +742,7 @@ struct tDISCOVERY_STATE_HISTORY {
   const tBTA_DM_SERVICE_DISCOVERY_STATE state;
   const tBTA_DM_DISC_EVT event;
   std::string ToString() const {
-    return base::StringPrintf("state:%25s event:%s", bta_dm_state_text(state).c_str(),
-                              bta_dm_event_text(event).c_str());
+    return std::format("state:{:25s} event:{}", bta_dm_state_text(state), bta_dm_event_text(event));
   }
 };
 

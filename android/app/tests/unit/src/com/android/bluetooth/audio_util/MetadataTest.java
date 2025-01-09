@@ -42,7 +42,6 @@ import com.android.bluetooth.R;
 import com.android.bluetooth.TestUtils;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -261,7 +260,7 @@ public class MetadataTest {
         assertThat(metadata.numTracks).isEqualTo(numTracks);
         assertThat(metadata.genre).isEqualTo(genre);
         assertThat(metadata.duration).isEqualTo(duration);
-        Assert.assertTrue(Image.sameAs(metadata.image, image));
+        assertThat(Image.sameAs(metadata.image, image)).isTrue();
     }
 
     /** Make sure the media ID we set is transferred to Metadata object we build */

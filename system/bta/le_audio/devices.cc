@@ -53,7 +53,6 @@
 #include "le_audio_log_history.h"
 #include "le_audio_utils.h"
 #include "main/shim/entry.h"
-#include "os/logging/log_adapter.h"
 #include "osi/include/alarm.h"
 #include "osi/include/properties.h"
 #include "stack/include/btm_client_interface.h"
@@ -472,10 +471,6 @@ LeAudioDevice::~LeAudioDevice(void) {
 }
 
 void LeAudioDevice::ParseHeadtrackingCodec(const struct types::acs_ac_record& pac) {
-  if (!com::android::bluetooth::flags::leaudio_dynamic_spatial_audio()) {
-    return;
-  }
-
   if (pac.codec_id == types::kLeAudioCodecHeadtracking) {
     log::info("Headtracking supported");
 
@@ -485,10 +480,6 @@ void LeAudioDevice::ParseHeadtrackingCodec(const struct types::acs_ac_record& pa
             DsaMode::ISO_SW,
             DsaMode::ISO_HW,
     };
-
-    if (!com::android::bluetooth::flags::headtracker_codec_capability()) {
-      return;
-    }
 
     /*
      * Android Headtracker Codec Metadata description
@@ -1033,7 +1024,7 @@ void LeAudioDevice::DumpPacsDebugState(std::stringstream& stream,
 }
 
 void LeAudioDevice::DumpPacsDebugState(std::stringstream& stream) {
-  stream << "      ● Device PACS, address: " << ADDRESS_TO_LOGGABLE_STR(address_) << "\n";
+  stream << "      ● Device PACS, address: " << address_.ToRedactedStringForLogging() << "\n";
   stream << "\t  == Sink PACs:\n";
   DumpPacsDebugState(stream, snk_pacs_);
   stream << "\t  == Source PACs:\n";
@@ -1060,7 +1051,7 @@ void LeAudioDevice::Dump(std::stringstream& stream) {
   std::string snk_location = locationToString(snk_audio_locations_.to_ulong());
   std::string src_location = locationToString(src_audio_locations_.to_ulong());
 
-  stream << "      ● Device address: " << ADDRESS_TO_LOGGABLE_STR(address_) << ", "
+  stream << "      ● Device address: " << address_.ToRedactedStringForLogging() << ", "
          << connection_state_
          << ", conn_id: " << (conn_id_ == GATT_INVALID_CONN_ID ? "-1" : std::to_string(conn_id_))
          << ", acl_handle: " << std::to_string(acl_handle) << ", snk_location: " << snk_location
@@ -1387,9 +1378,14 @@ void LeAudioDevices::Cleanup(tGATT_IF client_if) {
       continue;
     }
 
-    if (connection_state == DeviceConnectState::CONNECTING_AUTOCONNECT) {
-      BTA_GATTC_CancelOpen(client_if, device->address_, false);
-    } else {
+    // For connecting or connected device always remove background connect
+    BTA_GATTC_CancelOpen(client_if, device->address_, false);
+
+    if (connection_state == DeviceConnectState::CONNECTING_BY_USER) {
+      // When connecting by user, remove direct connect
+      BTA_GATTC_CancelOpen(client_if, device->address_, true);
+    } else if (connection_state != DeviceConnectState::CONNECTING_AUTOCONNECT) {
+      // If connected, close the connection
       BtaGattQueue::Clean(device->conn_id_);
       BTA_GATTC_Close(device->conn_id_);
       device->DisconnectAcl();

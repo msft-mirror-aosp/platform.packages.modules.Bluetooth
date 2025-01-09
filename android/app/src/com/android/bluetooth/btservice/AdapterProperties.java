@@ -134,6 +134,9 @@ class AdapterProperties {
     private boolean mIsLeIsochronousBroadcasterSupported;
     private boolean mIsLeChannelSoundingSupported;
 
+    private int mNumberOfSupportedOffloadedLeCocSockets;
+    private int mNumberOfSupportedOffloadedRfcommSockets;
+
     // Lock for all getters and setters.
     // If finer grained locking is needer, more locks
     // can be added here.
@@ -908,6 +911,10 @@ class AdapterProperties {
                         updateDynamicAudioBufferSupport(val);
                         break;
 
+                    case AbstractionLayer.BT_PROPERTY_LPP_OFFLOAD_FEATURES:
+                        updateLppOffloadFeatureSupport(val);
+                        break;
+
                     default:
                         Log.e(TAG, "Property change not handled in Java land:" + type);
                 }
@@ -1020,6 +1027,37 @@ class AdapterProperties {
         }
 
         mBufferConstraintList.complete(bufferConstraintList);
+    }
+
+    /**
+     * @return the mNumberOfSupportedOffloadedLeCocSockets
+     */
+    int getNumberOfSupportedOffloadedLeCocSockets() {
+        return mNumberOfSupportedOffloadedLeCocSockets;
+    }
+
+    /**
+     * @return the mNumberOfSupportedOffloadedRfcommSockets
+     */
+    int getNumberOfSupportedOffloadedRfcommSockets() {
+        return mNumberOfSupportedOffloadedRfcommSockets;
+    }
+
+    private void updateLppOffloadFeatureSupport(byte[] val) {
+        if (val == null || val.length < 2) {
+            Log.e(TAG, "BT_PROPERTY_LPP_OFFLOAD_FEATURES: invalid value length");
+            return;
+        }
+        mNumberOfSupportedOffloadedLeCocSockets = (0xFF & ((int) val[0]));
+        mNumberOfSupportedOffloadedRfcommSockets = (0xFF & ((int) val[1]));
+
+        Log.d(
+                TAG,
+                "BT_PROPERTY_LPP_OFFLOAD_FEATURES: update from Offload HAL"
+                        + " mNumberOfSupportedOffloadedLeCocSockets = "
+                        + mNumberOfSupportedOffloadedLeCocSockets
+                        + " mNumberOfSupportedOffloadedRfcommSockets = "
+                        + mNumberOfSupportedOffloadedRfcommSockets);
     }
 
     void onBluetoothReady() {

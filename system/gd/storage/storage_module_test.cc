@@ -53,8 +53,8 @@ class TestStorageModule : public StorageModule {
 public:
   TestStorageModule(std::string config_file_path, std::chrono::milliseconds config_save_delay,
                     bool is_restricted_mode, bool is_single_user_mode)
-      : StorageModule(std::move(config_file_path), config_save_delay, kTestTempDevicesCapacity,
-                      is_restricted_mode, is_single_user_mode) {}
+      : StorageModule(nullptr, std::move(config_file_path), config_save_delay,
+                      kTestTempDevicesCapacity, is_restricted_mode, is_single_user_mode) {}
 
   ConfigCache* GetMemoryOnlyConfigCachePublic() {
     return StorageModule::GetMemoryOnlyConfigCache();
@@ -168,6 +168,7 @@ static const std::string kReadTestConfig =
         "[01:02:03:ab:cd:ea]\n"
         "Name = hello world\n"
         "LinkKey = fedcba0987654321fedcba0987654328\n"
+        "DevType = 1\n"
         "\n";
 
 TEST_F(StorageModuleTest, read_existing_config_test) {

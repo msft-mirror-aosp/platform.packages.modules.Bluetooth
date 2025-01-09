@@ -220,7 +220,10 @@ class VolumeControlInputDescriptor {
         Descriptor desc = mVolumeInputs[id];
 
         if (gainSetting > desc.mGainSettingsMax || gainSetting < desc.mGainSettingsMin) {
-            throw new IllegalArgumentException("Illegal gainSetting argument: " + gainSetting);
+
+            throw new IllegalArgumentException(
+                    ("gainSetting=" + gainSetting + " is not in correct range")
+                            + (" [" + desc.mGainSettingsMin + "-" + desc.mGainSettingsMax + "]"));
         }
 
         if (desc.mGainMode == bluetooth.constants.aics.GainMode.AUTOMATIC

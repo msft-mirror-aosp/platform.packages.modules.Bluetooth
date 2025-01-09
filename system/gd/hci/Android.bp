@@ -72,19 +72,6 @@ filegroup {
 }
 
 filegroup {
-    name: "BluetoothFacade_hci_layer",
-    srcs: [
-        "facade/acl_manager_facade.cc",
-        "facade/controller_facade.cc",
-        "facade/facade.cc",
-        "facade/le_acl_manager_facade.cc",
-        "facade/le_advertising_manager_facade.cc",
-        "facade/le_initiator_address_facade.cc",
-        "facade/le_scanning_manager_facade.cc",
-    ],
-}
-
-filegroup {
     name: "BluetoothHciFuzzTestSources",
     srcs: [
         "hci_packets_fuzz_test.cc",

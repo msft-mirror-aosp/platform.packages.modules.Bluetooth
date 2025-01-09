@@ -162,6 +162,13 @@ static void build_read_multi_rsp(tGATT_SR_CMD* p_cmd, uint16_t mtu) {
   uint8_t* p;
   bool is_overflow = false;
 
+  // We need at least one extra byte for the opcode
+  if (mtu == 0) {
+    log::error("Invalid MTU");
+    p_cmd->status = GATT_ILLEGAL_PARAMETER;
+    return;
+  }
+
   len = sizeof(BT_HDR) + L2CAP_MIN_OFFSET + mtu;
   BT_HDR* p_buf = (BT_HDR*)osi_calloc(len);
   p_buf->offset = L2CAP_MIN_OFFSET;
@@ -423,8 +430,19 @@ static void gatt_process_exec_write_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op
       }
     }
   } else { /* nothing needs to be executed , send response now */
-    log::error("gatt_process_exec_write_req: no prepare write pending");
-    gatt_send_error_rsp(tcb, cid, GATT_ERROR, GATT_REQ_EXEC_WRITE, 0, false);
+    log::warn("gatt_process_exec_write_req: no prepare write pending");
+    if (com::android::bluetooth::flags::fix_execute_write_no_pending()) {
+      uint16_t payload_size = gatt_tcb_get_payload_size(tcb, cid);
+      BT_HDR* p_buf =
+              attp_build_sr_msg(tcb, GATT_RSP_EXEC_WRITE, (tGATT_SR_MSG*)NULL, payload_size);
+      if (p_buf != NULL) {
+        attp_send_sr_msg(tcb, cid, p_buf);
+      } else {
+        gatt_send_error_rsp(tcb, cid, GATT_ERROR, GATT_REQ_EXEC_WRITE, 0, false);
+      }
+    } else {
+      gatt_send_error_rsp(tcb, cid, GATT_ERROR, GATT_REQ_EXEC_WRITE, 0, false);
+    }
   }
 }
 
@@ -761,6 +779,11 @@ static void gatts_process_primary_service_req(tGATT_TCB& tcb, uint16_t cid, uint
 
   uint16_t payload_size = gatt_tcb_get_payload_size(tcb, cid);
 
+  // This can happen if the channel is already closed.
+  if (payload_size == 0) {
+    return;
+  }
+
   uint16_t msg_len = (uint16_t)(sizeof(BT_HDR) + payload_size + L2CAP_MIN_OFFSET);
   BT_HDR* p_msg = (BT_HDR*)osi_calloc(msg_len);
   reason = gatt_build_primary_service_rsp(p_msg, tcb, cid, op_code, s_hdl, e_hdl, p_data, value);
@@ -793,6 +816,12 @@ static void gatts_process_find_info(tGATT_TCB& tcb, uint16_t cid, uint8_t op_cod
   }
 
   uint16_t payload_size = gatt_tcb_get_payload_size(tcb, cid);
+
+  // This can happen if the channel is already closed.
+  if (payload_size == 0) {
+    return;
+  }
+
   uint16_t buf_len = (uint16_t)(sizeof(BT_HDR) + payload_size + L2CAP_MIN_OFFSET);
 
   BT_HDR* p_msg = (BT_HDR*)osi_calloc(buf_len);
@@ -937,6 +966,11 @@ static void gatts_process_read_by_type_req(tGATT_TCB& tcb, uint16_t cid, uint8_t
   }
 
   uint16_t payload_size = gatt_tcb_get_payload_size(tcb, cid);
+
+  // This can happen if the channel is already closed.
+  if (payload_size == 0) {
+    return;
+  }
 
   size_t msg_len = sizeof(BT_HDR) + payload_size + L2CAP_MIN_OFFSET;
   BT_HDR* p_msg = (BT_HDR*)osi_calloc(msg_len);
@@ -1084,6 +1118,11 @@ static void gatts_process_read_req(tGATT_TCB& tcb, uint16_t cid, tGATT_SRV_LIST_
                                    uint8_t op_code, uint16_t handle, uint16_t len,
                                    uint8_t* p_data) {
   uint16_t payload_size = gatt_tcb_get_payload_size(tcb, cid);
+
+  // This can happen if the channel is already closed.
+  if (payload_size == 0) {
+    return;
+  }
 
   size_t buf_len = sizeof(BT_HDR) + payload_size + L2CAP_MIN_OFFSET;
   uint16_t offset = 0;

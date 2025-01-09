@@ -149,7 +149,8 @@ void smp_send_app_cback(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
         break;
 
       case SMP_LE_ADDR_ASSOC_EVT:
-        cb_data.id_addr = p_cb->id_addr;
+        cb_data.id_addr_with_type.bda = p_cb->id_addr;
+        cb_data.id_addr_with_type.type = p_cb->id_addr_type;
         break;
 
       default:
@@ -268,7 +269,7 @@ void smp_send_pair_fail(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
   if (p_cb->status <= SMP_MAX_FAIL_RSN_PER_SPEC && p_cb->status != SMP_SUCCESS) {
     log::error("Pairing failed smp_status:{}", smp_status_text(p_cb->status));
     BTM_LogHistory(kBtmLogTag, p_cb->pairing_bda, "Pairing failed",
-                   base::StringPrintf("smp_status:%s", smp_status_text(p_cb->status).c_str()));
+                   std::format("smp_status:{}", smp_status_text(p_cb->status)));
     smp_send_cmd(SMP_OPCODE_PAIRING_FAILED, p_cb);
     p_cb->wait_for_authorization_complete = true;
   }
@@ -1219,8 +1220,8 @@ void smp_sirk_verify(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
     smp_int_data.status = SMP_SIRK_DEVICE_INVALID;
 
     BTM_LogHistory(kBtmLogTag, p_cb->pairing_bda, "SIRK verification",
-                   base::StringPrintf("Verification failed, smp_status:%s",
-                                      smp_status_text(smp_int_data.status).c_str()));
+                   std::format("Verification failed, smp_status:{}",
+                               smp_status_text(smp_int_data.status)));
 
     smp_sm_event(p_cb, SMP_SIRK_DEVICE_VALID_EVT, &smp_int_data);
 
@@ -1234,7 +1235,7 @@ void smp_sirk_verify(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
     /* There is no member validator callback - device is by default valid */
     if (callback_rc == tBTM_STATUS::BTM_SUCCESS_NO_SECURITY) {
       BTM_LogHistory(kBtmLogTag, p_cb->pairing_bda, "SIRK verification",
-                     base::StringPrintf("Device validated due to no security"));
+                     std::format("Device validated due to no security"));
 
       tSMP_INT_DATA smp_int_data;
       smp_int_data.status = SMP_SUCCESS;
@@ -1518,7 +1519,7 @@ void smp_process_io_response(tSMP_CB* p_cb, tSMP_INT_DATA* /* p_data */) {
         case SMP_OOB_NONE:
           log::info("SMP_MODEL_SEC_CONN_OOB with SMP_OOB_NONE");
           if (!com::android::bluetooth::flags::remove_dup_pairing_response_in_oob_pairing()) {
-              smp_send_pair_rsp(p_cb, NULL);
+            smp_send_pair_rsp(p_cb, NULL);
           }
           break;
         case SMP_OOB_PRESENT:

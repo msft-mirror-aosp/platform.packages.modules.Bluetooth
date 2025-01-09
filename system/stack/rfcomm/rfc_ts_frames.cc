@@ -28,15 +28,11 @@
 
 #include <cstdint>
 
-#include "os/logging/log_adapter.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/rfcdefs.h"
 #include "stack/rfcomm/port_int.h"
 #include "stack/rfcomm/rfc_int.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 
@@ -378,7 +374,7 @@ void rfc_send_rls(tRFC_MCB* p_mcb, uint8_t dlci, bool is_command, uint8_t status
  * Description      This function sends Non Supported Command Response.
  *
  ******************************************************************************/
-void rfc_send_nsc(tRFC_MCB* p_mcb) {
+static void rfc_send_nsc(tRFC_MCB* p_mcb) {
   uint8_t* p_data;
   BT_HDR* p_buf = (BT_HDR*)osi_malloc(RFCOMM_CMD_BUF_SIZE);
 

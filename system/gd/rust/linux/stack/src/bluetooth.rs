@@ -17,7 +17,7 @@ use bt_topshim::{
     },
     profiles::sdp::{BtSdpRecord, Sdp, SdpCallbacks, SdpCallbacksDispatcher},
     profiles::ProfileConnectionState,
-    topstack,
+    sysprop, topstack,
 };
 
 use bt_utils::array_utils;
@@ -995,6 +995,11 @@ impl Bluetooth {
         )
     }
 
+    // TODO(b/328675014): Add BtAddrType and BtTransport parameters
+    pub(crate) fn send_hid_virtual_unplug_internal(&mut self, mut addr: RawAddress) -> BtStatus {
+        self.hh.as_mut().unwrap().virtual_unplug(&mut addr, BtAddrType::Public, BtTransport::Auto)
+    }
+
     /// Returns all bonded and connected devices.
     pub(crate) fn get_bonded_and_connected_devices(&mut self) -> Vec<BluetoothDevice> {
         self.remote_devices
@@ -1695,6 +1700,18 @@ impl BtifBluetoothCallbacks for Bluetooth {
                 tokio::spawn(async move {
                     let _ = api_txl.send(APIMessage::IsReady(BluetoothAPI::Adapter)).await;
                 });
+                // Log LL privacy states.
+                // LL privacy is set according to feature flag when initializing chrome. When the
+                // sysprop override file is updated, the adapter is powered off/on to read the new
+                // settings. As a result, log the LL privacy state at adapter on.
+                // Multiple users may have different LL privacy settings, and the user setting is
+                // applied at user login.
+                let llp_state =
+                    u32::from(sysprop::get_bool(sysprop::PropertyBool::LePrivacyEnabled));
+                let rpa_state = u32::from(sysprop::get_bool(
+                    sysprop::PropertyBool::LePrivacyOwnAddressTypeEnabled,
+                ));
+                metrics::ll_privacy_state(llp_state, rpa_state);
             }
         }
     }

@@ -27,7 +27,6 @@
 #include "stack/l2cap/l2c_api.h"
 
 #include <base/location.h>
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
@@ -1729,6 +1728,65 @@ bool L2CA_isMediaChannel(uint16_t handle, uint16_t channel_id, bool is_local_cid
   }
 
   return ret;
+}
+
+/*******************************************************************************
+ *
+ *  Function        L2CA_GetAclHandle
+ *
+ *  Description     Given a local channel identifier, |lcid|, this function
+ *                  returns the bound ACL handle, |acl_handle|. If |acl_handle|
+ *                  is not known or is invalid, this function returns false and
+ *                  does not modify the value pointed at by |acl_handle|.
+ *
+ *  Parameters:     lcid: Local CID
+ *                  rcid: Pointer to ACL handle must NOT be nullptr
+ *
+ *  Return value:   true if acl_handle lookup was successful
+ *
+ ******************************************************************************/
+bool L2CA_GetAclHandle(uint16_t lcid, uint16_t* acl_handle) {
+  log::assert_that(acl_handle != nullptr, "assert failed: acl_handle != nullptr");
+
+  tL2C_CCB* p_ccb = l2cu_find_ccb_by_cid(nullptr, lcid);
+  if (p_ccb == nullptr) {
+    log::error("No CCB for CID:0x{:04x}", lcid);
+    return false;
+  }
+  uint16_t handle = p_ccb->p_lcb->Handle();
+  if (handle == HCI_INVALID_HANDLE) {
+    log::error("Invalid ACL handle");
+    return false;
+  }
+  *acl_handle = handle;
+  return true;
+}
+
+/*******************************************************************************
+ **
+ ** Function         L2CA_GetLocalMtu
+ **
+ ** Description      Given a local channel identifier, |lcid|, this function
+ **                  returns the L2CAP local mtu, |local_mtu|. If
+ **                  |lcid| is not known or is invalid, this function returns false and does not
+ **                  modify the value pointed at by |local_mtu|.
+ **
+ ** Parameters:      lcid: Local CID
+ **                  local_mtu: Pointer to L2CAP local mtu must NOT be nullptr
+ **
+ ** Returns          true if local_mtu lookup was successful
+ **
+ ******************************************************************************/
+bool L2CA_GetLocalMtu(uint16_t lcid, uint16_t* local_mtu) {
+  log::assert_that(local_mtu != nullptr, "assert failed: local_mtu != nullptr");
+
+  tL2C_CCB* p_ccb = l2cu_find_ccb_by_cid(nullptr, lcid);
+  if (p_ccb == nullptr) {
+    log::error("No CCB for CID:0x{:04x}", lcid);
+    return false;
+  }
+  *local_mtu = p_ccb->p_rcb->my_mtu;
+  return true;
 }
 
 using namespace bluetooth;

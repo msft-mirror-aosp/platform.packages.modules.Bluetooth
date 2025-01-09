@@ -106,13 +106,13 @@ Reactor::Reactor() : epoll_fd_(0), control_fd_(0), is_running_(false) {
   epoll_event control_epoll_event = {EPOLLIN, {.ptr = nullptr}};
   int result;
   RUN_NO_INTR(result = epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, control_fd_, &control_epoll_event));
-  log::assert_that(result != -1, "assert failed: result != -1");
+  log::assert_that(result != -1, "epoll_ctl fail: result={} errno={}", result, strerror(errno));
 }
 
 Reactor::~Reactor() {
   int result;
   RUN_NO_INTR(result = epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, control_fd_, nullptr));
-  log::assert_that(result != -1, "assert failed: result != -1");
+  log::assert_that(result != -1, "epoll_ctl fail: result={} errno={}", result, strerror(errno));
 
   RUN_NO_INTR(result = close(control_fd_));
   log::assert_that(result != -1, "assert failed: result != -1");
@@ -225,7 +225,8 @@ Reactor::Reactable* Reactor::Register(int fd, Closure on_read_ready, Closure on_
   };
   int register_fd;
   RUN_NO_INTR(register_fd = epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, fd, &event));
-  log::assert_that(register_fd != -1, "assert failed: register_fd != -1");
+  log::assert_that(register_fd != -1, "epoll_ctl fail: register_fd={} errno={}", register_fd,
+                   strerror(errno));
   return reactable;
 }
 
@@ -306,7 +307,8 @@ void Reactor::ModifyRegistration(Reactor::Reactable* reactable, ReactOn react_on
   };
   int modify_fd;
   RUN_NO_INTR(modify_fd = epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, reactable->fd_, &event));
-  log::assert_that(modify_fd != -1, "assert failed: modify_fd != -1");
+  log::assert_that(modify_fd != -1, "epoll_ctl fail: modify_fd={} errno={}", modify_fd,
+                   strerror(errno));
 }
 
 }  // namespace os

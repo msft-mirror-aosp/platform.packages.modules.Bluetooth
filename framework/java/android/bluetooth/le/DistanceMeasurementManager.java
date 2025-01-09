@@ -166,7 +166,8 @@ public final class DistanceMeasurementManager {
      * Get the maximum supported security level of channel sounding between the local device and a
      * specific remote device.
      *
-     * <p>See: https://bluetooth.com/specifications/specs/channel-sounding-cr-pr/
+     * <p>See: Vol 3 Part C, Chapter 10.11.1 of
+     * https://bluetooth.com/specifications/specs/core60-html/
      *
      * @param remoteDevice remote device of channel sounding
      * @return max supported security level, {@link ChannelSoundingParams#CS_SECURITY_LEVEL_UNKNOWN}
@@ -200,7 +201,8 @@ public final class DistanceMeasurementManager {
     /**
      * Get the maximum supported security level of channel sounding of the local device.
      *
-     * <p>See: https://bluetooth.com/specifications/specs/channel-sounding-cr-pr/
+     * <p>See: Vol 3 Part C, Chapter 10.11.1 of
+     * https://bluetooth.com/specifications/specs/core60-html/
      *
      * @return max supported security level, {@link ChannelSoundingParams#CS_SECURITY_LEVEL_UNKNOWN}
      *     when Channel Sounding is not supported or encounters an internal error.
@@ -230,10 +232,13 @@ public final class DistanceMeasurementManager {
     /**
      * Get the set of supported security levels of channel sounding.
      *
-     * <p>See: https://bluetooth.com/specifications/specs/core60-html/
+     * <p>See: Vol 3 Part C, Chapter 10.11.1 of
+     * https://bluetooth.com/specifications/specs/core60-html/
      *
-     * @return the set of supported security levels, empty when Channel Sounding is not supported or
-     *     encounters an internal error.
+     * @return the set of supported security levels, empty when encounters an internal error.
+     * @throws UnsupportedOperationException if the {@link
+     *     android.content.pm.PackageManager#FEATURE_BLUETOOTH_LE_CHANNEL_SOUNDING} is not
+     *     supported.
      * @hide
      */
     @FlaggedApi(Flags.FLAG_CHANNEL_SOUNDING_25Q2_APIS)

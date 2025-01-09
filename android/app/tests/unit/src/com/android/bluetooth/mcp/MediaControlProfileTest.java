@@ -18,6 +18,8 @@ package com.android.bluetooth.mcp;
 
 import static androidx.test.platform.app.InstrumentationRegistry.getInstrumentation;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.mockito.Mockito.*;
 
 import android.bluetooth.BluetoothAdapter;
@@ -251,18 +253,18 @@ public class MediaControlProfileTest {
         verify(mMockGMcsService, timeout(100).times(2)).updatePlayerState(stateMapCaptor.capture());
         stateMap = stateMapCaptor.getValue();
 
-        Assert.assertTrue(stateMap.containsKey(PlayerStateField.PLAYER_NAME));
+        assertThat(stateMap).containsKey(PlayerStateField.PLAYER_NAME);
 
         // state changed
-        Assert.assertTrue(stateMap.containsKey(PlayerStateField.PLAYBACK_STATE));
-        Assert.assertTrue(stateMap.containsKey(PlayerStateField.OPCODES_SUPPORTED));
-        Assert.assertTrue(stateMap.containsKey(PlayerStateField.SEEKING_SPEED));
-        Assert.assertTrue(stateMap.containsKey(PlayerStateField.PLAYBACK_SPEED));
-        Assert.assertTrue(stateMap.containsKey(PlayerStateField.TRACK_POSITION));
+        assertThat(stateMap).containsKey(PlayerStateField.PLAYBACK_STATE);
+        assertThat(stateMap).containsKey(PlayerStateField.OPCODES_SUPPORTED);
+        assertThat(stateMap).containsKey(PlayerStateField.SEEKING_SPEED);
+        assertThat(stateMap).containsKey(PlayerStateField.PLAYBACK_SPEED);
+        assertThat(stateMap).containsKey(PlayerStateField.TRACK_POSITION);
 
         // metadata changed
-        Assert.assertTrue(stateMap.containsKey(PlayerStateField.TRACK_DURATION));
-        Assert.assertTrue(stateMap.containsKey(PlayerStateField.TRACK_TITLE));
+        assertThat(stateMap).containsKey(PlayerStateField.TRACK_DURATION);
+        assertThat(stateMap).containsKey(PlayerStateField.TRACK_TITLE);
     }
 
     private void testHandleTrackPositionSetRequest(long position, long duration, int times) {
@@ -464,15 +466,15 @@ public class MediaControlProfileTest {
         verify(mMockGMcsService, timeout(100).times(2)).updatePlayerState(stateMapCaptor.capture());
         stateMap = stateMapCaptor.getValue();
 
-        Assert.assertTrue(stateMap.containsKey(PlayerStateField.PLAYBACK_STATE));
-        Assert.assertTrue(stateMap.containsKey(PlayerStateField.TRACK_DURATION));
-        Assert.assertTrue(stateMap.containsKey(PlayerStateField.PLAYBACK_SPEED));
-        Assert.assertTrue(stateMap.containsKey(PlayerStateField.SEEKING_SPEED));
-        Assert.assertTrue(stateMap.containsKey(PlayerStateField.PLAYING_ORDER));
-        Assert.assertTrue(stateMap.containsKey(PlayerStateField.TRACK_POSITION));
-        Assert.assertTrue(stateMap.containsKey(PlayerStateField.PLAYER_NAME));
-        Assert.assertTrue(stateMap.containsKey(PlayerStateField.PLAYING_ORDER_SUPPORTED));
-        Assert.assertTrue(stateMap.containsKey(PlayerStateField.OPCODES_SUPPORTED));
+        assertThat(stateMap).containsKey(PlayerStateField.PLAYBACK_STATE);
+        assertThat(stateMap).containsKey(PlayerStateField.TRACK_DURATION);
+        assertThat(stateMap).containsKey(PlayerStateField.PLAYBACK_SPEED);
+        assertThat(stateMap).containsKey(PlayerStateField.SEEKING_SPEED);
+        assertThat(stateMap).containsKey(PlayerStateField.PLAYING_ORDER);
+        assertThat(stateMap).containsKey(PlayerStateField.TRACK_POSITION);
+        assertThat(stateMap).containsKey(PlayerStateField.PLAYER_NAME);
+        assertThat(stateMap).containsKey(PlayerStateField.PLAYING_ORDER_SUPPORTED);
+        assertThat(stateMap).containsKey(PlayerStateField.OPCODES_SUPPORTED);
     }
 
     private void testGetCurrentPlayerPlayingOrder(
@@ -526,8 +528,8 @@ public class MediaControlProfileTest {
         // BluetoothDevice class is not mockable
         BluetoothDevice bluetoothDevice = TestUtils.getTestDevice(mAdapter, 0);
         mMediaControlProfile.setNotificationSubscription(ccid1, bluetoothDevice, charUuid1, true);
-        Assert.assertNotNull(
-                mMediaControlProfile.getNotificationSubscriptions(ccid1, bluetoothDevice));
+        assertThat(mMediaControlProfile.getNotificationSubscriptions(ccid1, bluetoothDevice))
+                .isNotNull();
     }
 
     @Test

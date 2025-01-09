@@ -120,8 +120,6 @@ public:
 
   std::string ToString() const override { return std::string("TestSnoopLoggerModule"); }
 
-  void CallGetDumpsysData(flatbuffers::FlatBufferBuilder* builder) { GetDumpsysData(builder); }
-
   SnoopLoggerSocketThread* GetSocketThread() { return snoop_logger_socket_thread_.get(); }
 
   static uint32_t GetL2capHeaderSize() { return L2CAP_HEADER_SIZE; }
@@ -131,7 +129,6 @@ public:
 
 class SnoopLoggerModuleTest : public Test {
 public:
-  flatbuffers::FlatBufferBuilder* builder_;
   TestModuleRegistry* test_registry;
 
 protected:
@@ -151,7 +148,6 @@ protected:
             temp_dir_ / (std::string(test_info->name()) + "_btsnoop_hci.log.filtered");
     temp_snoop_log_filtered_last =
             temp_dir_ / (std::string(test_info->name()) + "_btsnoop_hci.log.filtered.last");
-    builder_ = new flatbuffers::FlatBufferBuilder();
 
     DeleteSnoopLogFiles();
     ASSERT_FALSE(std::filesystem::exists(temp_snoop_log_));
@@ -166,7 +162,6 @@ protected:
 
   void TearDown() override {
     DeleteSnoopLogFiles();
-    delete builder_;
     fake_timerfd_reset();
     test_registry->StopAll();
     delete test_registry;
@@ -264,7 +259,7 @@ TEST_F(SnoopLoggerModuleTest, capture_hci_cmd_btsnooz_test) {
 
   snoop_logger->Capture(kInformationRequest, SnoopLogger::Direction::OUTGOING,
                         SnoopLogger::PacketType::CMD);
-  snoop_logger->CallGetDumpsysData(builder_);
+  snoop_logger->DumpSnoozLogToFile();
 
   ASSERT_TRUE(std::filesystem::exists(temp_snooz_log_));
   ASSERT_EQ(std::filesystem::file_size(temp_snooz_log_),
@@ -288,7 +283,7 @@ TEST_F(SnoopLoggerModuleTest, capture_l2cap_signal_packet_btsnooz_test) {
 
   snoop_logger->Capture(kSdpConnectionRequest, SnoopLogger::Direction::OUTGOING,
                         SnoopLogger::PacketType::ACL);
-  snoop_logger->CallGetDumpsysData(builder_);
+  snoop_logger->DumpSnoozLogToFile();
 
   ASSERT_TRUE(std::filesystem::exists(temp_snooz_log_));
   ASSERT_EQ(std::filesystem::file_size(temp_snooz_log_),
@@ -312,7 +307,7 @@ TEST_F(SnoopLoggerModuleTest, capture_l2cap_short_data_packet_btsnooz_test) {
 
   snoop_logger->Capture(kAvdtpSuspend, SnoopLogger::Direction::OUTGOING,
                         SnoopLogger::PacketType::ACL);
-  snoop_logger->CallGetDumpsysData(builder_);
+  snoop_logger->DumpSnoozLogToFile();
 
   ASSERT_TRUE(std::filesystem::exists(temp_snooz_log_));
   ASSERT_EQ(std::filesystem::file_size(temp_snooz_log_),
@@ -336,7 +331,7 @@ TEST_F(SnoopLoggerModuleTest, capture_l2cap_long_data_packet_btsnooz_test) {
 
   snoop_logger->Capture(kHfpAtNrec0, SnoopLogger::Direction::OUTGOING,
                         SnoopLogger::PacketType::ACL);
-  snoop_logger->CallGetDumpsysData(builder_);
+  snoop_logger->DumpSnoozLogToFile();
 
   ASSERT_TRUE(std::filesystem::exists(temp_snooz_log_));
   ASSERT_EQ(std::filesystem::file_size(temp_snooz_log_),
@@ -359,7 +354,7 @@ TEST_F(SnoopLoggerModuleTest, snoop_log_persists) {
 
   snoop_logger->Capture(kHfpAtNrec0, SnoopLogger::Direction::OUTGOING,
                         SnoopLogger::PacketType::ACL);
-  snoop_logger->CallGetDumpsysData(builder_);
+  snoop_logger->DumpSnoozLogToFile();
 
   ASSERT_TRUE(std::filesystem::exists(temp_snooz_log_));
   ASSERT_EQ(std::filesystem::file_size(temp_snooz_log_),
@@ -477,7 +472,7 @@ TEST_F(SnoopLoggerModuleTest, qualcomm_debug_log_test) {
   test_registry->InjectTestModule(&SnoopLogger::Factory, snoop_logger);
   snoop_logger->Capture(kQualcommConnectionRequest, SnoopLogger::Direction::OUTGOING,
                         SnoopLogger::PacketType::ACL);
-  snoop_logger->CallGetDumpsysData(builder_);
+  snoop_logger->DumpSnoozLogToFile();
 
   ASSERT_TRUE(std::filesystem::exists(temp_snooz_log_));
   ASSERT_EQ(std::filesystem::file_size(temp_snooz_log_),
@@ -500,7 +495,7 @@ TEST_F(SnoopLoggerModuleTest, qualcomm_debug_log_regression_test) {
     test_registry->InjectTestModule(&SnoopLogger::Factory, snoop_logger);
     snoop_logger->Capture(kHfpAtNrec0, SnoopLogger::Direction::OUTGOING,
                           SnoopLogger::PacketType::ACL);
-    snoop_logger->CallGetDumpsysData(builder_);
+    snoop_logger->DumpSnoozLogToFile();
 
     ASSERT_TRUE(std::filesystem::exists(temp_snooz_log_));
     ASSERT_EQ(
@@ -521,7 +516,7 @@ TEST_F(SnoopLoggerModuleTest, qualcomm_debug_log_regression_test) {
     test_registry->InjectTestModule(&SnoopLogger::Factory, snoop_logger);
     snoop_logger->Capture(kQualcommConnectionRequest, SnoopLogger::Direction::OUTGOING,
                           SnoopLogger::PacketType::ACL);
-    snoop_logger->CallGetDumpsysData(builder_);
+    snoop_logger->DumpSnoozLogToFile();
 
     ASSERT_TRUE(std::filesystem::exists(temp_snooz_log_));
     ASSERT_EQ(
@@ -1397,7 +1392,7 @@ TEST_F(SnoopLoggerModuleTest, custom_socket_profiles_filtered_hfp_hf_test) {
   uint16_t conn_handle = 0x000b;
   uint16_t local_cid = 0x0043;
   uint16_t remote_cid = 0x3040;
-  uint8_t dlci = 0x06;
+  uint8_t dlci = 0x02;
   uint16_t psm = 0x0003;
   uint16_t profile_uuid_hfp_hf = 0x111f;
   bool flow = true;
@@ -1405,18 +1400,22 @@ TEST_F(SnoopLoggerModuleTest, custom_socket_profiles_filtered_hfp_hf_test) {
   const uint16_t HEADER_SIZE = 12;
   size_t expected_data_size = HEADER_SIZE + strlen(clcc_pattern.c_str());
   std::vector<uint8_t> kPhoneNumber = {
-          0x0b, 0x00, 0x30, 0x00, 0x2c, 0x00, 0x40, 0x30, 0x19, 0xff, 0x4f, 0x01, 0x0d,
-          0x0a, 0x2b, 0x43, 0x4c, 0x43, 0x43, 0x3a, 0x20, 0x31, 0x2c, 0x31, 0x2c, 0x34,
-          0x2c, 0x30, 0x2c, 0x30, 0x2c, 0x22, 0x2b, 0x39, 0x39, 0x31, 0x32, 0x33, 0x34,
-          0x35, 0x36, 0x37, 0x38, 0x39, 0x22, 0x2c, 0x31, 0x34, 0x35, 0x0d, 0x0a, 0x49,
+          0x0b, 0x00, 0x30, 0x00,  // ACL Header (Handle: 0x000b, PB flag: 0x00, Length: 48)
+          0x2c, 0x00, 0x40, 0x30,  // L2CAP Header (Length: 44, CID: 0x3040)
+          0x0b, 0xff, 0x4f, 0x01,  // RFCOMM
+          // "\r\n+CLCC: 1,1,4,0,0,"+99123456789",145\r\n"
+          0x0d, 0x0a, 0x2b, 0x43, 0x4c, 0x43, 0x43, 0x3a, 0x20, 0x31, 0x2c, 0x31, 0x2c, 0x34, 0x2c,
+          0x30, 0x2c, 0x30, 0x2c, 0x22, 0x2b, 0x39, 0x39, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+          0x38, 0x39, 0x22, 0x2c, 0x31, 0x34, 0x35, 0x0d, 0x0a,
+          0x86  // RFCOMM
   };
 
   std::vector<uint8_t> kExpectedPhoneNumber = {
-          0x0b, 0x00, 0x30, 0x00, 0x0c, 0x00, 0x40, 0x30, 0x19, 0xff, 0x4f, 0x01, 0x0d,
-          0x0a, 0x2b, 0x43, 0x4c, 0x43, 0x43, 0x3a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  };
+          0x0b, 0x00, 0x10, 0x00,  // ACL Header (Handle: 0x000b, PB flag: 0x00, Length: 16)
+          0x0c, 0x00, 0x40, 0x30,  // L2CAP Header (Length: 12, CID: 0x3040)
+          0x0b, 0xff, 0x4f, 0x01,  // RFCOMM
+          // "\r\n+CLCC:"
+          0x0d, 0x0a, 0x2b, 0x43, 0x4c, 0x43, 0x43, 0x3a};
 
   // Set pbap and map filtering modes
   ASSERT_TRUE(

@@ -37,7 +37,7 @@ class Acl : public hci::acl_manager::ConnectionCallbacks,
             public hci::acl_manager::LeConnectionCallbacks,
             public LinkConnectionInterface {
 public:
-  Acl(os::Handler* handler, const acl_interface_t& acl_interface, uint8_t max_acceptlist_size,
+  Acl(os::Handler* handler, const acl_interface_t& acl_interface,
       uint8_t max_address_resolution_size);
 
   Acl(const Acl&) = delete;

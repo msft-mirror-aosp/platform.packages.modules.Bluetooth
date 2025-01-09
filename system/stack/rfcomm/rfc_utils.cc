@@ -29,7 +29,6 @@
 #include <cstdint>
 
 #include "internal_include/bt_target.h"
-#include "os/logging/log_adapter.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/port_ext.h"
@@ -320,8 +319,8 @@ void rfc_sec_check_complete(RawAddress /* bd_addr */, tBT_TRANSPORT /* transport
   tPORT* p_port = (tPORT*)p_ref_data;
 
   /* Verify that PORT is still waiting for Security to complete */
-  if (!p_port->in_use || ((p_port->rfc.state != RFC_STATE_ORIG_WAIT_SEC_CHECK) &&
-                          (p_port->rfc.state != RFC_STATE_TERM_WAIT_SEC_CHECK))) {
+  if (!p_port->in_use || ((p_port->rfc.sm_cb.state != RFC_STATE_ORIG_WAIT_SEC_CHECK) &&
+                          (p_port->rfc.sm_cb.state != RFC_STATE_TERM_WAIT_SEC_CHECK))) {
     return;
   }
 
@@ -342,7 +341,7 @@ void rfc_sec_check_complete(RawAddress /* bd_addr */, tBT_TRANSPORT /* transport
 void rfc_port_closed(tPORT* p_port) {
   tRFC_MCB* p_mcb = p_port->rfc.p_mcb;
   rfc_port_timer_stop(p_port);
-  p_port->rfc.state = RFC_STATE_CLOSED;
+  p_port->rfc.sm_cb.state = RFC_STATE_CLOSED;
 
   /* If multiplexer channel was up mark it as down */
   if (p_mcb) {

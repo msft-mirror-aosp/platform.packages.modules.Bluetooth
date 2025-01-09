@@ -140,7 +140,7 @@ public class BassClientServiceTest {
     // German language code in ISO 639-3
     private static final String TEST_LANGUAGE = "deu";
     private static final int TEST_SOURCE_ID = 10;
-    private static final int TEST_NUM_SOURCES = 2;
+    private static final int TEST_NUM_SOURCES = 1;
 
     private final HashMap<BluetoothDevice, BassClientStateMachine> mStateMachines = new HashMap<>();
     private HashMap<BluetoothDevice, LinkedBlockingQueue<Intent>> mIntentQueue;
@@ -559,6 +559,9 @@ public class BassClientServiceTest {
                 injectRemoteSourceStateRemoval(sm, TEST_SOURCE_ID + 1);
             }
         }
+
+        doReturn(true).when(mLeAudioService).isPrimaryDevice(mCurrentDevice);
+        doReturn(true).when(mLeAudioService).isPrimaryDevice(mCurrentDevice1);
     }
 
     private void startSearchingForSources() {
@@ -1576,6 +1579,9 @@ public class BassClientServiceTest {
                 .getCallbacks()
                 .notifySourceAdded(
                         sm.getDevice(), recvState, BluetoothStatusCodes.REASON_LOCAL_APP_REQUEST);
+        mBassClientService
+                .getCallbacks()
+                .notifyReceiveStateChanged(sm.getDevice(), recvState.getSourceId(), recvState);
         TestUtils.waitForLooperToFinishScheduledTask(mBassClientService.getCallbacks().getLooper());
 
         return recvState;
@@ -1945,7 +1951,6 @@ public class BassClientServiceTest {
                             : BluetoothLeBroadcastReceiveState.BIG_ENCRYPTION_STATE_NOT_ENCRYPTED,
                     null,
                     (long) 0x00000001);
-            verify(mLeAudioService).activeBroadcastAssistantNotification(eq(true));
         }
 
         // Remove broadcast source
@@ -1971,6 +1976,8 @@ public class BassClientServiceTest {
         for (BassClientStateMachine sm : mStateMachines.values()) {
             injectRemoteSourceStateRemoval(sm, TEST_SOURCE_ID);
         }
+
+        verify(mLeAudioService).activeBroadcastAssistantNotification(eq(false));
     }
 
     private void verifyRemoveMessageAndInjectSourceRemoval() {
@@ -2174,6 +2181,29 @@ public class BassClientServiceTest {
                 throw new AssertionError("Unexpected device");
             }
         }
+    }
+
+    @Test
+    public void testSecondAddSourceWithCapacityGreaterThanOne() {
+        prepareConnectedDeviceGroup();
+
+        // Set maximum source capacity to 2
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            doReturn(2).when(sm).getMaximumSourceCapacity();
+        }
+
+        startSearchingForSources();
+        onScanResult(mSourceDevice, TEST_BROADCAST_ID);
+        onSyncEstablished(mSourceDevice, TEST_SYNC_HANDLE);
+        BluetoothLeBroadcastMetadata meta = createBroadcastMetadata(TEST_BROADCAST_ID);
+        verifyAddSourceForGroup(meta);
+        prepareRemoteSourceState(meta, true, true);
+
+        // Add another new broadcast source
+        onScanResult(mSourceDevice2, TEST_BROADCAST_ID + 1);
+        onSyncEstablished(mSourceDevice2, TEST_SYNC_HANDLE + 1);
+        BluetoothLeBroadcastMetadata newMeta = createBroadcastMetadata(TEST_BROADCAST_ID + 1);
+        verifyAddSourceForGroup(newMeta);
     }
 
     /**
@@ -4411,27 +4441,36 @@ public class BassClientServiceTest {
     }
 
     @Test
-    public void testIsAnyReceiverReceivingBroadcast() {
+    public void testIsAnyReceiverActive() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
         onScanResult(mSourceDevice, TEST_BROADCAST_ID);
         onSyncEstablished(mSourceDevice, TEST_SYNC_HANDLE);
         BluetoothLeBroadcastMetadata meta = createBroadcastMetadata(TEST_BROADCAST_ID);
         verifyAddSourceForGroup(meta);
-        prepareRemoteSourceState(meta, true, false);
+        prepareRemoteSourceState(meta, false, false);
 
         List<BluetoothDevice> devices = mBassClientService.getConnectedDevices();
-        // Verify isAnyReceiverReceivingBroadcast returns false if no BIS synced
-        assertThat(mBassClientService.isAnyReceiverReceivingBroadcast(devices)).isFalse();
+        // Verify isAnyReceiverActive returns false if no PA and no BIS synced
+        assertThat(mBassClientService.isAnyReceiverActive(devices)).isFalse();
 
-        // Update receiver state with BIS sync
-        injectRemoteSourceStateChanged(meta, true, true);
+        // Update receiver state with PA sync
+        injectRemoteSourceStateChanged(meta, true, false);
         BluetoothDevice invalidDevice = TestUtils.getTestDevice(mBluetoothAdapter, 2);
-        // Verify isAnyReceiverReceivingBroadcast returns false if invalid device
-        expect.that(mBassClientService.isAnyReceiverReceivingBroadcast(List.of(invalidDevice)))
-                .isFalse();
-        // Verify isAnyReceiverReceivingBroadcast returns true if BIS synced
-        expect.that(mBassClientService.isAnyReceiverReceivingBroadcast(devices)).isTrue();
+        // Verify isAnyReceiverActive returns false if invalid device
+        expect.that(mBassClientService.isAnyReceiverActive(List.of(invalidDevice))).isFalse();
+        // Verify isAnyReceiverActive returns true if PA synced
+        expect.that(mBassClientService.isAnyReceiverActive(devices)).isTrue();
+
+        // Update receiver state with PA and BIS sync
+        injectRemoteSourceStateChanged(meta, true, true);
+        // Verify isAnyReceiverActive returns true if PA and BIS synced
+        expect.that(mBassClientService.isAnyReceiverActive(devices)).isTrue();
+
+        // Update receiver state with BIS only sync
+        injectRemoteSourceStateChanged(meta, false, true);
+        // Verify isAnyReceiverActive returns true if BIS only synced
+        expect.that(mBassClientService.isAnyReceiverActive(devices)).isTrue();
     }
 
     @Test
@@ -6250,7 +6289,9 @@ public class BassClientServiceTest {
 
         checkAndDispatchTimeout(
                 TEST_BROADCAST_ID, BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
-        verifyStopBigMonitoringWithUnsync();
+        mInOrderMethodProxy
+                .verify(mMethodProxy)
+                .periodicAdvertisingManagerUnregisterSync(any(), any());
         verifyRemoveMessageAndInjectSourceRemoval();
         checkNoResumeSynchronizationByBig();
     }
@@ -6280,7 +6321,9 @@ public class BassClientServiceTest {
 
         checkAndDispatchTimeout(
                 TEST_BROADCAST_ID, BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
-        verifyStopBigMonitoringWithoutUnsync();
+        mInOrderMethodProxy
+                .verify(mMethodProxy, never())
+                .periodicAdvertisingManagerUnregisterSync(any(), any());
         verifyRemoveMessageAndInjectSourceRemoval();
         checkNoResumeSynchronizationByBig();
     }
@@ -6294,7 +6337,9 @@ public class BassClientServiceTest {
         sinkUnintentionalWithoutScanning();
 
         checkAndDispatchTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT);
-        verifyStopBigMonitoringWithUnsync();
+        mInOrderMethodProxy
+                .verify(mMethodProxy)
+                .periodicAdvertisingManagerUnregisterSync(any(), any());
         verifyRemoveMessageAndInjectSourceRemoval();
         checkNoResumeSynchronizationByBig();
     }
@@ -6308,7 +6353,9 @@ public class BassClientServiceTest {
         sinkUnintentionalDuringScanning();
 
         checkAndDispatchTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT);
-        verifyStopBigMonitoringWithoutUnsync();
+        mInOrderMethodProxy
+                .verify(mMethodProxy, never())
+                .periodicAdvertisingManagerUnregisterSync(any(), any());
         verifyRemoveMessageAndInjectSourceRemoval();
         checkNoResumeSynchronizationByBig();
     }
@@ -6681,7 +6728,9 @@ public class BassClientServiceTest {
 
         checkAndDispatchTimeout(
                 TEST_BROADCAST_ID, BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
-        verifyStopBigMonitoringWithUnsync();
+        mInOrderMethodProxy
+                .verify(mMethodProxy)
+                .periodicAdvertisingManagerUnregisterSync(any(), any());
     }
 
     @Test
@@ -6717,6 +6766,44 @@ public class BassClientServiceTest {
 
         onSyncEstablished(mSourceDevice, TEST_SYNC_HANDLE);
         checkNoTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
+    }
+
+    @Test
+    @EnableFlags({
+        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
+        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
+    })
+    public void outOfRange_syncEstablishedFailed_restartSearching() {
+        prepareSynchronizedPairAndStopSearching();
+
+        // Bis and PA unsynced, SINK_UNINTENTIONAL
+        BluetoothLeBroadcastMetadata meta = createBroadcastMetadata(TEST_BROADCAST_ID);
+        injectRemoteSourceStateChanged(meta, false, false);
+        mInOrderMethodProxy
+                .verify(mMethodProxy)
+                .periodicAdvertisingManagerRegisterSync(
+                        any(), any(), anyInt(), anyInt(), any(), any());
+        checkTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT);
+        checkNoTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
+
+        onSyncEstablishedFailed(mSourceDevice, TEST_SYNC_HANDLE);
+        checkTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BROADCAST_MONITOR_TIMEOUT);
+        mInOrderMethodProxy
+                .verify(mMethodProxy)
+                .periodicAdvertisingManagerRegisterSync(
+                        any(), any(), anyInt(), anyInt(), any(), any());
+
+        // Start searching again should not removed cache for SINK_UNINTENTIONAL
+        // which allow to register sync again after onSyncEstablishedFailed
+        startSearchingForSources();
+
+        checkTimeout(TEST_BROADCAST_ID, BassClientService.MESSAGE_BIG_MONITOR_TIMEOUT);
+
+        onSyncEstablishedFailed(mSourceDevice, TEST_SYNC_HANDLE);
+        mInOrderMethodProxy
+                .verify(mMethodProxy)
+                .periodicAdvertisingManagerRegisterSync(
+                        any(), any(), anyInt(), anyInt(), any(), any());
     }
 
     @Test

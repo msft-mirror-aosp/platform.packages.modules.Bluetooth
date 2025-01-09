@@ -32,14 +32,12 @@
 #include "stack/include/acl_hci_link_interface.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/l2cap/l2c_int.h"
+#include "stack/rnr/remote_name_request.h"
 #include "stack/test/btm/btm_test_fixtures.h"
 #include "test/common/mock_functions.h"
 #include "test/mock/mock_legacy_hci_interface.h"
 #include "test/mock/mock_main_shim_entry.h"
 #include "types/raw_address.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using ::testing::_;
 using ::testing::Each;
@@ -50,10 +48,10 @@ extern tBTM_CB btm_cb;
 
 tL2C_CB l2cb;
 
-void btm_inq_remote_name_timer_timeout(void*) {}
-
 const std::string kSmpOptions("mock smp options");
 const std::string kBroadcastAudioConfigOptions("mock broadcast audio config options");
+
+void btm_inq_remote_name_timer_timeout(void*) {}
 
 namespace {
 

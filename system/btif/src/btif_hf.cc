@@ -63,12 +63,16 @@
 #include "include/hardware/bluetooth_headset_interface.h"
 #include "include/hardware/bt_hf.h"
 #include "internal_include/bt_target.h"
-#include "os/logging/log_adapter.h"
 #include "stack/btm/btm_sco_hfp_hal.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_log_history.h"
 #include "types/raw_address.h"
+
+#define PRIVATE_CELL(number)                                        \
+  (number.replace(0, (number.size() > 2) ? number.size() - 2 : 0,   \
+                  (number.size() > 2) ? number.size() - 2 : 0, '*') \
+           .c_str())
 
 namespace {
 constexpr char kBtmLogTag[] = "HFP";
@@ -1416,9 +1420,8 @@ bt_status_t HeadsetInterface::PhoneStateChange(int num_active, int num_held,
         {
           std::string cell_number(number);
           BTM_LogHistory(kBtmLogTag, raw_address, "Call Incoming",
-                         base::StringPrintf("number:%s", PRIVATE_CELL(cell_number)));
+                         std::format("number:{}", PRIVATE_CELL(cell_number)));
         }
-        // base::StringPrintf("number:%s", PRIVATE_CELL(number)));
         break;
       case BTHF_CALL_STATE_DIALING:
         if (!(num_active + num_held) && is_active_device(*bd_addr)) {

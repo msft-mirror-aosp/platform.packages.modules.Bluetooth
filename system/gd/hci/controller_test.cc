@@ -29,7 +29,6 @@
 #include "common/bind.h"
 #include "hci/address.h"
 #include "hci/hci_layer_fake.h"
-#include "module_dumper.h"
 #include "os/thread.h"
 #include "packet/raw_builder.h"
 

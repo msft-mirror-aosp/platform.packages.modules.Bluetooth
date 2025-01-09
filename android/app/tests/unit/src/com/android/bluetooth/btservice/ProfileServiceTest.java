@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.btservice;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -32,12 +34,10 @@ import androidx.test.filters.MediumTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestUtils;
-import com.android.bluetooth.a2dp.A2dpNativeInterface;
 import com.android.bluetooth.a2dpsink.A2dpSinkNativeInterface;
 import com.android.bluetooth.avrcp.AvrcpNativeInterface;
 import com.android.bluetooth.avrcpcontroller.AvrcpControllerNativeInterface;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
-import com.android.bluetooth.csip.CsipSetCoordinatorNativeInterface;
 import com.android.bluetooth.hearingaid.HearingAidNativeInterface;
 import com.android.bluetooth.hfp.HeadsetNativeInterface;
 import com.android.bluetooth.hfpclient.NativeInterface;
@@ -81,7 +81,6 @@ public class ProfileServiceTest {
 
     private int[] mProfiles;
 
-    @Mock private A2dpNativeInterface mA2dpNativeInterface;
     @Mock private A2dpSinkNativeInterface mA2dpSinkNativeInterface;
     @Mock private AvrcpNativeInterface mAvrcpNativeInterface;
     @Mock private AvrcpControllerNativeInterface mAvrcpControllerNativeInterface;
@@ -91,7 +90,6 @@ public class ProfileServiceTest {
     @Mock private HidDeviceNativeInterface mHidDeviceNativeInterface;
     @Mock private HidHostNativeInterface mHidHostNativeInterface;
     @Mock private PanNativeInterface mPanNativeInterface;
-    @Mock private CsipSetCoordinatorNativeInterface mCsipSetCoordinatorInterface;
     @Mock private LeAudioNativeInterface mLeAudioInterface;
 
     private void setProfileState(int profile, int state) {
@@ -134,7 +132,6 @@ public class ProfileServiceTest {
         if (Looper.myLooper() == null) {
             Looper.prepare();
         }
-        Assert.assertNotNull(Looper.myLooper());
 
         doReturn(mDatabaseManager).when(mAdapterService).getDatabase();
         doNothing().when(mAdapterService).addProfile(any());
@@ -156,13 +153,14 @@ public class ProfileServiceTest {
                                 profile ->
                                         profile != BluetoothProfile.HAP_CLIENT
                                                 && profile != BluetoothProfile.VOLUME_CONTROL
-                                                && profile != BluetoothProfile.GATT)
+                                                && profile != BluetoothProfile.CSIP_SET_COORDINATOR
+                                                && profile != BluetoothProfile.GATT
+                                                && profile != BluetoothProfile.A2DP)
                         .toArray();
         TestUtils.setAdapterService(mAdapterService);
 
-        Assert.assertNotNull(AdapterService.getAdapterService());
+        assertThat(AdapterService.getAdapterService()).isNotNull();
 
-        A2dpNativeInterface.setInstance(mA2dpNativeInterface);
         A2dpSinkNativeInterface.setInstance(mA2dpSinkNativeInterface);
         AvrcpNativeInterface.setInstance(mAvrcpNativeInterface);
         AvrcpControllerNativeInterface.setInstance(mAvrcpControllerNativeInterface);
@@ -172,7 +170,6 @@ public class ProfileServiceTest {
         HidDeviceNativeInterface.setInstance(mHidDeviceNativeInterface);
         HidHostNativeInterface.setInstance(mHidHostNativeInterface);
         PanNativeInterface.setInstance(mPanNativeInterface);
-        CsipSetCoordinatorNativeInterface.setInstance(mCsipSetCoordinatorInterface);
         LeAudioNativeInterface.setInstance(mLeAudioInterface);
     }
 
@@ -182,7 +179,6 @@ public class ProfileServiceTest {
         TestUtils.clearAdapterService(mAdapterService);
         mAdapterService = null;
         mProfiles = null;
-        A2dpNativeInterface.setInstance(null);
         A2dpSinkNativeInterface.setInstance(null);
         AvrcpNativeInterface.setInstance(null);
         AvrcpControllerNativeInterface.setInstance(null);
@@ -192,7 +188,6 @@ public class ProfileServiceTest {
         HidDeviceNativeInterface.setInstance(null);
         HidHostNativeInterface.setInstance(null);
         PanNativeInterface.setInstance(null);
-        CsipSetCoordinatorNativeInterface.setInstance(null);
         LeAudioNativeInterface.setInstance(null);
     }
 
@@ -243,9 +238,9 @@ public class ProfileServiceTest {
         List<ProfileService> stoppedArguments = stops.getAllValues();
         Assert.assertEquals(startedArguments.size(), stoppedArguments.size());
         for (ProfileService service : startedArguments) {
-            Assert.assertTrue(stoppedArguments.contains(service));
+            assertThat(stoppedArguments).contains(service);
             stoppedArguments.remove(service);
-            Assert.assertFalse(stoppedArguments.contains(service));
+            assertThat(stoppedArguments).doesNotContain(service);
         }
     }
 

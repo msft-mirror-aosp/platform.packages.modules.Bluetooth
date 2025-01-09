@@ -349,6 +349,7 @@ enum OpCode : 16 {
   LE_READ_LOCAL_RESOLVABLE_ADDRESS = 0x202C,
   LE_SET_ADDRESS_RESOLUTION_ENABLE = 0x202D,
   LE_SET_RESOLVABLE_PRIVATE_ADDRESS_TIMEOUT = 0x202E,
+  LE_SET_RESOLVABLE_PRIVATE_ADDRESS_TIMEOUT_V2 = 0x209E,
   LE_READ_MAXIMUM_DATA_LENGTH = 0x202F,
   LE_READ_PHY = 0x2030,
   LE_SET_DEFAULT_PHY = 0x2031,
@@ -783,6 +784,7 @@ enum OpCodeIndex : 16 {
   SET_MIN_ENCRYPTION_KEY_SIZE = 457,
   LE_SET_DEFAULT_SUBRATE = 460,
   LE_SUBRATE_REQUEST = 461,
+  LE_SET_RESOLVABLE_PRIVATE_ADDRESS_TIMEOUT_V2 = 482,
 }
 
 packet Command {
@@ -3808,6 +3810,15 @@ packet LeSetResolvablePrivateAddressTimeoutComplete : CommandComplete (command_o
   status : ErrorCode,
 }
 
+packet LeSetResolvablePrivateAddressTimeoutV2 : LeSecurityCommand (op_code = LE_SET_RESOLVABLE_PRIVATE_ADDRESS_TIMEOUT_V2) {
+  rpa_timeout_min : 16, // Minimum RPA_Timeout measured in seconds 0x0001 to 0x0E10 1s to 1 hour, default 0x01E0 (480 s or 8 minutes)
+  rpa_timeout_max : 16, // Maximum RPA_Timeout measured in seconds 0x0001 to 0x0E10 1s to 1 hour, default 0x0384 (900 s or 15 minutes)
+}
+
+packet LeSetResolvablePrivateAddressTimeoutV2Complete : CommandComplete (command_op_code = LE_SET_RESOLVABLE_PRIVATE_ADDRESS_TIMEOUT_V2) {
+  status : ErrorCode,
+}
+
 packet LeReadMaximumDataLength : Command (op_code = LE_READ_MAXIMUM_DATA_LENGTH) {
 }
 
@@ -4906,7 +4917,6 @@ packet LeSubrateRequestStatus : CommandStatus (command_op_code = LE_SUBRATE_REQU
 }
 
 packet LeCsReadLocalSupportedCapabilities : DistanceMeasurementCommand (op_code = LE_CS_READ_LOCAL_SUPPORTED_CAPABILITIES) {
-
 }
 
 struct CsRoleSupported {
@@ -4943,7 +4953,7 @@ struct CsOptionalCsSyncPhysSupported {
 }
 
 struct CsOptionalSubfeaturesSupported {
-  companion_signal : 1,
+  _reserved_ : 1,
   frequency_actuation_error : 1,
   channel_selection_algorithm : 1,
   phase_based_ranging : 1,
@@ -5129,7 +5139,7 @@ enum CsRole : 8 {
 }
 
 enum CsConfigRttType : 8 {
-  RTT_AA_COARSE = 0x00,
+  RTT_AA_ONLY = 0x00,
   RTT_WITH_32_BIT_SOUNDING_SEQUENCE = 0x01,
   RTT_WITH_96_BIT_SOUNDING_SEQUENCE = 0x02,
   RTT_WITH_32_BIT_RANDOM_SEQUENCE = 0x03,
@@ -5282,7 +5292,7 @@ packet LeCsTest : DistanceMeasurementCommand (op_code = LE_CS_TEST) {
   snr_control_reflector: CsSnrControl,
   drbg_nonce : 16,
   channel_map_repetition : 8,
-  override_config : 8,
+  override_config : 16,
   override_parameters_length : 8,
   override_parameters_data : 8[],
 }
@@ -6879,6 +6889,7 @@ packet LeCsProcedureEnableComplete : LeMetaEvent (subevent_code = LE_CS_PROCEDUR
   event_interval : 16,
   procedure_interval : 16,
   procedure_count : 16,
+  max_procedure_len : 16,
 }
 
 struct LeCsMode0InitatorData {
@@ -6964,8 +6975,8 @@ struct LeCsMode3InitatorData {
   packet_quality : 8,
   packet_nadm : CsPacketNadm,
   packet_rssi : 8,
-  packet_antenna : 8,
   toa_tod_initiator : 16,
+  packet_antenna : 8,
   antenna_permutation_index : 8,
   tone_data : LeCsToneDataWithQuality[],
 }
@@ -6975,10 +6986,10 @@ struct LeCsMode3InitatorDataWithPacketPct {
   packet_quality : 8,
   packet_nadm : CsPacketNadm,
   packet_rssi : 8,
+  toa_tod_initiator : 16,
   packet_antenna : 8,
   packet_pct1 : LeCsToneData,
   packet_pct2 : LeCsToneData,
-  toa_tod_initiator : 16,
   antenna_permutation_index : 8,
   tone_data : LeCsToneDataWithQuality[],
 }
@@ -6988,8 +6999,8 @@ struct LeCsMode3ReflectorData {
   packet_quality : 8,
   packet_nadm : CsPacketNadm,
   packet_rssi : 8,
-  packet_antenna : 8,
   tod_toa_reflector : 16,
+  packet_antenna : 8,
   antenna_permutation_index : 8,
   tone_data : LeCsToneDataWithQuality[],
 }
@@ -6999,10 +7010,10 @@ struct LeCsMode3ReflectorDataWithPacketPct {
   packet_quality : 8,
   packet_nadm : CsPacketNadm,
   packet_rssi : 8,
+  tod_toa_reflector : 16,
   packet_antenna : 8,
   packet_pct1 : LeCsToneData,
   packet_pct2 : LeCsToneData,
-  tod_toa_reflector : 16,
   antenna_permutation_index : 8,
   tone_data : LeCsToneDataWithQuality[],
 }

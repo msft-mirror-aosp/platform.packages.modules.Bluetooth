@@ -81,7 +81,7 @@ static void btm_log_history(const std::string& tag, const char* addr, const std:
 
 void BTM_LogHistory(const std::string& tag, const RawAddress& bd_addr, const std::string& msg,
                     const std::string& extra) {
-  btm_log_history(tag, ADDRESS_TO_LOGGABLE_CSTR(bd_addr), msg, extra);
+  btm_log_history(tag, bd_addr.ToRedactedStringForLogging().c_str(), msg, extra);
 }
 
 void BTM_LogHistory(const std::string& tag, const RawAddress& bd_addr, const std::string& msg) {
@@ -90,7 +90,7 @@ void BTM_LogHistory(const std::string& tag, const RawAddress& bd_addr, const std
 
 void BTM_LogHistory(const std::string& tag, const tBLE_BD_ADDR& ble_bd_addr, const std::string& msg,
                     const std::string& extra) {
-  btm_log_history(tag, ADDRESS_TO_LOGGABLE_CSTR(ble_bd_addr), msg, extra);
+  btm_log_history(tag, ble_bd_addr.ToRedactedStringForLogging().c_str(), msg, extra);
 }
 
 void BTM_LogHistory(const std::string& tag, const tBLE_BD_ADDR& ble_bd_addr,

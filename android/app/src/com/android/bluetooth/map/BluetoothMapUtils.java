@@ -578,59 +578,54 @@ public class BluetoothMapUtils {
          * */
         for (in = 0, out = 0; in < stopCnt; in++) {
             byte b0 = input[in];
-            if (b0 == '=') {
-                byte b1 = input[++in];
-                byte b2 = input[++in];
-                if (b1 == '\r' && b2 == '\n') {
-                    continue; // soft line break, remove all tree;
-                }
-                if (((b1 >= '0' && b1 <= '9')
-                                || (b1 >= 'A' && b1 <= 'F')
-                                || (b1 >= 'a' && b1 <= 'f'))
-                        && ((b2 >= '0' && b2 <= '9')
-                                || (b2 >= 'A' && b2 <= 'F')
-                                || (b2 >= 'a' && b2 <= 'f'))) {
-                    Log.v(TAG, "Found hex number: " + formatSimple("%c%c", b1, b2));
-                    if (b1 <= '9') {
-                        b1 = (byte) (b1 - '0');
-                    } else if (b1 <= 'F') {
-                        b1 = (byte) (b1 - 'A' + 10);
-                    } else if (b1 <= 'f') {
-                        b1 = (byte) (b1 - 'a' + 10);
-                    }
-
-                    if (b2 <= '9') {
-                        b2 = (byte) (b2 - '0');
-                    } else if (b2 <= 'F') {
-                        b2 = (byte) (b2 - 'A' + 10);
-                    } else if (b2 <= 'f') {
-                        b2 = (byte) (b2 - 'a' + 10);
-                    }
-
-                    Log.v(TAG, "Resulting nibble values: " + formatSimple("b1=%x b2=%x", b1, b2));
-
-                    output[out++] = (byte) (b1 << 4 | b2); // valid hex char, append
-                    Log.v(TAG, "Resulting value: " + formatSimple("0x%2x", output[out - 1]));
-                    continue;
-                }
-                Log.w(
-                        TAG,
-                        "Received wrongly quoted printable encoded text. "
-                                + "Continuing at best effort...");
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.MAP,
-                        BluetoothProtoEnums.BLUETOOTH_MAP_UTILS,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
-                        6);
-                /* If we get a '=' without either a hex value or CRLF following, just add it and
-                 * rewind the in counter. */
-                output[out++] = b0;
-                in -= 2;
-                continue;
-            } else {
+            if (b0 != '=') {
                 output[out++] = b0;
                 continue;
             }
+            byte b1 = input[++in];
+            byte b2 = input[++in];
+            if (b1 == '\r' && b2 == '\n') {
+                continue; // soft line break, remove all tree;
+            }
+            if (((b1 >= '0' && b1 <= '9') || (b1 >= 'A' && b1 <= 'F') || (b1 >= 'a' && b1 <= 'f'))
+                    && ((b2 >= '0' && b2 <= '9')
+                            || (b2 >= 'A' && b2 <= 'F')
+                            || (b2 >= 'a' && b2 <= 'f'))) {
+                Log.v(TAG, "Found hex number: " + formatSimple("%c%c", b1, b2));
+                if (b1 <= '9') {
+                    b1 = (byte) (b1 - '0');
+                } else if (b1 <= 'F') {
+                    b1 = (byte) (b1 - 'A' + 10);
+                } else if (b1 <= 'f') {
+                    b1 = (byte) (b1 - 'a' + 10);
+                }
+
+                if (b2 <= '9') {
+                    b2 = (byte) (b2 - '0');
+                } else if (b2 <= 'F') {
+                    b2 = (byte) (b2 - 'A' + 10);
+                } else if (b2 <= 'f') {
+                    b2 = (byte) (b2 - 'a' + 10);
+                }
+
+                Log.v(TAG, "Resulting nibble values: " + formatSimple("b1=%x b2=%x", b1, b2));
+
+                output[out++] = (byte) (b1 << 4 | b2); // valid hex char, append
+                Log.v(TAG, "Resulting value: " + formatSimple("0x%2x", output[out - 1]));
+                continue;
+            }
+            Log.w(
+                    TAG,
+                    "Received wrongly quoted printable encoded text. Continuing at best effort...");
+            ContentProfileErrorReportUtils.report(
+                    BluetoothProfile.MAP,
+                    BluetoothProtoEnums.BLUETOOTH_MAP_UTILS,
+                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
+                    6);
+            /* If we get a '=' without either a hex value or CRLF following, just add it and
+             * rewind the in counter. */
+            output[out++] = b0;
+            in -= 2;
         }
 
         // Just add any remaining characters. If they contain any encoding, it is invalid,
@@ -753,23 +748,6 @@ public class BluetoothMapUtils {
                         + " time:"
                         + format.format(cal.getTime()));
         return format.format(cal.getTime());
-    }
-
-    static boolean isDateTimeOlderThanOneYear(long timestamp) {
-        Calendar cal = Calendar.getInstance();
-        cal.setTimeInMillis(timestamp);
-        Calendar oneYearAgo = Calendar.getInstance();
-        oneYearAgo.add(Calendar.YEAR, -1);
-        if (cal.before(oneYearAgo)) {
-            Log.v(
-                    TAG,
-                    "isDateTimeOlderThanOneYear "
-                            + cal.getTimeInMillis()
-                            + " oneYearAgo: "
-                            + oneYearAgo.getTimeInMillis());
-            return true;
-        }
-        return false;
     }
 
     static boolean isDateTimeOlderThanDuration(long timestamp, Duration duration) {

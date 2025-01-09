@@ -43,6 +43,7 @@ import android.media.BluetoothProfileConnectionInfo;
 import android.os.Looper;
 import android.os.ParcelUuid;
 import android.os.test.TestLooper;
+import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.FlagsParameterization;
 import android.platform.test.flag.junit.SetFlagsRule;
@@ -110,7 +111,6 @@ public class A2dpServiceTest {
     @Parameters(name = "{0}")
     public static List<FlagsParameterization> getParams() {
         return FlagsParameterization.allCombinationsOf(
-                Flags.FLAG_A2DP_SERVICE_LOOPER,
                 Flags.FLAG_A2DP_BROADCAST_CONNECTION_STATE_WHEN_TURNED_OFF);
     }
 
@@ -155,19 +155,11 @@ public class A2dpServiceTest {
         doReturn(new ParcelUuid[] {BluetoothUuid.A2DP_SINK})
                 .when(mAdapterService)
                 .getRemoteUuids(any(BluetoothDevice.class));
-
-        if (!Flags.a2dpServiceLooper()) {
-            mLooper.startAutoDispatch();
-        }
     }
 
     @After
     public void tearDown() {
-        if (Flags.a2dpServiceLooper()) {
-            assertThat(mLooper.dispatchAll()).isEqualTo(0);
-        } else {
-            mLooper.stopAutoDispatchAndIgnoreExceptions();
-        }
+        assertThat(mLooper.dispatchAll()).isEqualTo(0);
         mA2dpService.stop();
     }
 
@@ -333,7 +325,6 @@ public class A2dpServiceTest {
 
     /** Test that an outgoing connection times out */
     @Test
-    @EnableFlags(Flags.FLAG_A2DP_SERVICE_LOOPER)
     public void testOutgoingConnectTimeout() {
         // Update the device priority so okToConnect() returns true
         when(mDatabaseManager.getProfileConnectionPolicy(sTestDevice, BluetoothProfile.A2DP))
@@ -605,7 +596,8 @@ public class A2dpServiceTest {
      * Test that a state machine in DISCONNECTED state is removed only after the device is unbond.
      */
     @Test
-    public void testDeleteStateMachineUnbondEvents() {
+    @DisableFlags(Flags.FLAG_A2DP_CLEANUP_ON_REMOVE_DEVICE)
+    public void testDeleteDisconnectedStateMachineUnbondEvents() {
         // Update the device priority so okToConnect() returns true
         when(mDatabaseManager.getProfileConnectionPolicy(sTestDevice, BluetoothProfile.A2DP))
                 .thenReturn(BluetoothProfile.CONNECTION_POLICY_ALLOWED);
@@ -649,12 +641,79 @@ public class A2dpServiceTest {
         assertThat(mA2dpService.getDevices()).doesNotContain(sTestDevice);
     }
 
+    /** Test that a state machine is removed after the device is unbond. */
+    @Test
+    @EnableFlags(Flags.FLAG_A2DP_CLEANUP_ON_REMOVE_DEVICE)
+    public void testDeleteStateMachineUnbondEvents() {
+        // Update the device priority so okToConnect() returns true
+        when(mDatabaseManager.getProfileConnectionPolicy(sTestDevice, BluetoothProfile.A2DP))
+                .thenReturn(BluetoothProfile.CONNECTION_POLICY_ALLOWED);
+        doReturn(true).when(mMockNativeInterface).connectA2dp(any(BluetoothDevice.class));
+        doReturn(true).when(mMockNativeInterface).disconnectA2dp(any(BluetoothDevice.class));
+
+        // A2DP stack event: CONNECTION_STATE_CONNECTING - state machine should be created
+        generateConnectionMessageFromNative(sTestDevice, STATE_CONNECTING, STATE_DISCONNECTED);
+        assertThat(mA2dpService.getConnectionState(sTestDevice)).isEqualTo(STATE_CONNECTING);
+        assertThat(mA2dpService.getDevices()).contains(sTestDevice);
+        // Device unbond - state machine is not removed
+        mA2dpService.bondStateChanged(sTestDevice, BluetoothDevice.BOND_NONE);
+        if (Flags.a2dpBroadcastConnectionStateWhenTurnedOff()) {
+            // Verify that the intent CONNECTION_STATE_CHANGED is generated
+            // for the existing connections.
+            verifyConnectionStateIntent(sTestDevice, STATE_DISCONNECTED, STATE_CONNECTING);
+        }
+        assertThat(mA2dpService.getDevices()).doesNotContain(sTestDevice);
+
+        // A2DP stack event: CONNECTION_STATE_CONNECTED - state machine is not removed
+        mA2dpService.bondStateChanged(sTestDevice, BluetoothDevice.BOND_BONDED);
+        generateConnectionMessageFromNative(sTestDevice, STATE_CONNECTING, STATE_DISCONNECTED);
+        generateConnectionMessageFromNative(sTestDevice, STATE_CONNECTED, STATE_CONNECTING);
+        assertThat(mA2dpService.getConnectionState(sTestDevice)).isEqualTo(STATE_CONNECTED);
+        assertThat(mA2dpService.getDevices()).contains(sTestDevice);
+        // Device unbond - state machine is not removed
+        mA2dpService.bondStateChanged(sTestDevice, BluetoothDevice.BOND_NONE);
+        if (Flags.a2dpBroadcastConnectionStateWhenTurnedOff()) {
+            // Verify that the intent CONNECTION_STATE_CHANGED is generated
+            // for the existing connections.
+            verifyConnectionStateIntent(sTestDevice, STATE_DISCONNECTED, STATE_CONNECTED);
+        }
+        assertThat(mA2dpService.getDevices()).doesNotContain(sTestDevice);
+
+        // A2DP stack event: CONNECTION_STATE_DISCONNECTING - state machine is not removed
+        mA2dpService.bondStateChanged(sTestDevice, BluetoothDevice.BOND_BONDED);
+        generateConnectionMessageFromNative(sTestDevice, STATE_CONNECTING, STATE_DISCONNECTED);
+        generateConnectionMessageFromNative(sTestDevice, STATE_CONNECTED, STATE_CONNECTING);
+        generateConnectionMessageFromNative(sTestDevice, STATE_DISCONNECTING, STATE_CONNECTED);
+        assertThat(mA2dpService.getConnectionState(sTestDevice)).isEqualTo(STATE_DISCONNECTING);
+        assertThat(mA2dpService.getDevices()).contains(sTestDevice);
+        // Device unbond - state machine is not removed
+        mA2dpService.bondStateChanged(sTestDevice, BluetoothDevice.BOND_NONE);
+        if (Flags.a2dpBroadcastConnectionStateWhenTurnedOff()) {
+            // Verify that the intent CONNECTION_STATE_CHANGED is generated
+            // for the existing connections.
+            verifyConnectionStateIntent(sTestDevice, STATE_DISCONNECTED, STATE_DISCONNECTING);
+        }
+        assertThat(mA2dpService.getDevices()).doesNotContain(sTestDevice);
+
+        // A2DP stack event: CONNECTION_STATE_DISCONNECTED - state machine is not removed
+        mA2dpService.bondStateChanged(sTestDevice, BluetoothDevice.BOND_BONDED);
+        generateConnectionMessageFromNative(sTestDevice, STATE_CONNECTING, STATE_DISCONNECTED);
+        generateConnectionMessageFromNative(sTestDevice, STATE_CONNECTED, STATE_CONNECTING);
+        generateConnectionMessageFromNative(sTestDevice, STATE_DISCONNECTING, STATE_CONNECTED);
+        generateConnectionMessageFromNative(sTestDevice, STATE_DISCONNECTED, STATE_DISCONNECTING);
+        assertThat(mA2dpService.getConnectionState(sTestDevice)).isEqualTo(STATE_DISCONNECTED);
+        assertThat(mA2dpService.getDevices()).contains(sTestDevice);
+        // Device unbond - state machine is removed
+        mA2dpService.bondStateChanged(sTestDevice, BluetoothDevice.BOND_NONE);
+        dispatchAtLeastOneMessage();
+        assertThat(mA2dpService.getDevices()).doesNotContain(sTestDevice);
+    }
+
     /**
      * Test that a CONNECTION_STATE_DISCONNECTED A2DP stack event will remove the state machine only
      * if the device is unbond.
      */
     @Test
-    @EnableFlags(Flags.FLAG_A2DP_SERVICE_LOOPER)
     public void testDeleteStateMachineDisconnectEvents() {
         // Update the device priority so okToConnect() returns true
         when(mDatabaseManager.getProfileConnectionPolicy(sTestDevice, BluetoothProfile.A2DP))
@@ -1255,21 +1314,15 @@ public class A2dpServiceTest {
     // Dispatch messages for the A2dpService looper, and validate
     // that at least one message was handled.
     private void dispatchAtLeastOneMessage() {
-        if (Flags.a2dpServiceLooper()) {
-            assertThat(mLooper.dispatchAll()).isGreaterThan(0);
-        }
+        assertThat(mLooper.dispatchAll()).isGreaterThan(0);
     }
 
     // Validate that no messages are pending on the A2dpService looper.
     private void dispatchNoMessages() {
-        if (Flags.a2dpServiceLooper()) {
-            assertThat(mLooper.dispatchAll()).isEqualTo(0);
-        }
+        assertThat(mLooper.dispatchAll()).isEqualTo(0);
     }
 
     private void moveTimeForward(long millis) {
-        if (Flags.a2dpServiceLooper()) {
-            mLooper.moveTimeForward(millis);
-        }
+        mLooper.moveTimeForward(millis);
     }
 }

@@ -9,13 +9,6 @@ flag {
 }
 
 flag {
-    name: "bt_system_context_report"
-    namespace: "bluetooth"
-    description: "Report Bluetooth system context through bta_ble_energy_info_cmpl"
-    bug: "323083457"
-}
-
-flag {
     name: "bta_dm_discover_both"
     namespace: "bluetooth"
     description: "perform both LE and Classic service discovery simulteanously on capable devices"
@@ -37,6 +30,16 @@ flag {
     namespace: "bluetooth"
     description: "Fix LE service discovery cancelling SDP discovery"
     bug: "360936118"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "extend_and_randomize_role_switch_delay"
+    namespace: "bluetooth"
+    description: "Fix the possible conflicts between role switch and authentication"
+    bug: "388459732"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

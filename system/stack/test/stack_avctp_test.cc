@@ -52,9 +52,9 @@ protected:
   void SetUp() override {
     StackAvctpWithMocksTest::SetUp();
     EXPECT_CALL(mock_stack_l2cap_interface_, L2CA_RegisterWithSecurity(_, _, _, _, _, _, _))
-            .WillRepeatedly([this](unsigned short psm, const tL2CAP_APPL_INFO& cb, bool /* c */,
-                                   tL2CAP_ERTM_INFO* /*d*/, unsigned short /* e */,
-                                   unsigned short /* f */, unsigned short /* g */) {
+            .WillRepeatedly([this](uint16_t psm, const tL2CAP_APPL_INFO& cb, bool /* c */,
+                                   tL2CAP_ERTM_INFO* /*d*/, uint16_t /* e */, uint16_t /* f */,
+                                   uint16_t /* g */) {
               this->callback_map_.insert(std::make_tuple(psm, cb));
               return psm;
             });
@@ -81,7 +81,7 @@ TEST_F(StackAvctpTest, AVCT_Dumpsys) { AVCT_Dumpsys(fd_); }
 
 TEST_F(StackAvctpTest, AVCT_CreateConn) {
   EXPECT_CALL(mock_stack_l2cap_interface_, L2CA_ConnectReqWithSecurity(_, _, _))
-          .WillRepeatedly([](unsigned short /* psm */, const RawAddress /* bd_addr */,
+          .WillRepeatedly([](uint16_t /* psm */, const RawAddress /* bd_addr */,
                              uint16_t /* sec_level */) { return 0x1234; });
 
   uint8_t handle;
@@ -100,7 +100,7 @@ TEST_F(StackAvctpTest, AVCT_CreateConn) {
 
 TEST_F(StackAvctpTest, AVCT_CreateBrowse) {
   EXPECT_CALL(mock_stack_l2cap_interface_, L2CA_ConnectReqWithSecurity(_, _, _))
-          .WillRepeatedly([](unsigned short /* psm */, const RawAddress /* bd_addr */,
+          .WillRepeatedly([](uint16_t /* psm */, const RawAddress /* bd_addr */,
                              uint16_t /* sec_level */) { return 0x1234; });
 
   uint8_t handle;
@@ -143,10 +143,9 @@ TEST_F(StackAvctpWithMocksTest, AVCT_Lifecycle) {
   // Register the AVCT profile and capture the l2cap callbacks
   std::map<uint16_t, tL2CAP_APPL_INFO> callback_map;
   EXPECT_CALL(mock_stack_l2cap_interface_, L2CA_RegisterWithSecurity(_, _, _, _, _, _, _))
-          .WillRepeatedly([&callback_map](unsigned short psm, const tL2CAP_APPL_INFO& cb,
-                                          bool /* c */, tL2CAP_ERTM_INFO* /*d*/,
-                                          unsigned short /* e */, unsigned short /* f */,
-                                          unsigned short /* g */) {
+          .WillRepeatedly([&callback_map](uint16_t psm, const tL2CAP_APPL_INFO& cb, bool /* c */,
+                                          tL2CAP_ERTM_INFO* /*d*/, uint16_t /* e */,
+                                          uint16_t /* f */, uint16_t /* g */) {
             callback_map.insert(std::make_tuple(psm, cb));
             return psm;
           });
@@ -155,7 +154,7 @@ TEST_F(StackAvctpWithMocksTest, AVCT_Lifecycle) {
   // Return well known l2cap channel IDs for each of the two PSMs
   EXPECT_CALL(mock_stack_l2cap_interface_, L2CA_ConnectReqWithSecurity(_, _, _))
           .WillRepeatedly(
-                  [](unsigned short psm, const RawAddress /* bd_addr */, uint16_t /* sec_level */) {
+                  [](uint16_t psm, const RawAddress /* bd_addr */, uint16_t /* sec_level */) {
                     return (psm == BT_PSM_AVCTP) ? kRemoteCid : kRemoteBrowseCid;
                   });
 

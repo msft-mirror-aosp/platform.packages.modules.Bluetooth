@@ -57,7 +57,6 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.ParcelUuid;
 import android.os.Parcelable;
-import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.util.Log;
@@ -84,6 +83,9 @@ import org.mockito.MockitoAnnotations;
 import org.mockito.hamcrest.MockitoHamcrest;
 import org.mockito.stubbing.Answer;
 
+import pandora.HIDGrpc;
+import pandora.HidProto.HidServiceType;
+import pandora.HidProto.ServiceRequest;
 import pandora.HostProto.AdvertiseRequest;
 import pandora.HostProto.OwnAddressType;
 
@@ -108,6 +110,7 @@ public class HidHostDualModeTest {
             InstrumentationRegistry.getInstrumentation().getTargetContext();
     private final BluetoothAdapter mAdapter =
             mContext.getSystemService(BluetoothManager.class).getAdapter();
+    private HIDGrpc.HIDBlockingStub mHidBlockingStub;
 
     @Rule(order = 0)
     public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
@@ -275,6 +278,11 @@ public class HidHostDualModeTest {
         BluetoothHeadset hfpService =
                 (BluetoothHeadset) verifyProfileServiceConnected(BluetoothProfile.HEADSET);
 
+        mHidBlockingStub = mBumble.hidBlocking();
+        mHidBlockingStub.registerService(
+                ServiceRequest.newBuilder()
+                        .setServiceType(HidServiceType.SERVICE_TYPE_BOTH)
+                        .build());
         AdvertiseRequest request =
                 AdvertiseRequest.newBuilder()
                         .setLegacy(true)
@@ -383,10 +391,6 @@ public class HidHostDualModeTest {
      * </ol>
      */
     @Test
-    @RequiresFlagsEnabled({
-        Flags.FLAG_ALLOW_SWITCHING_HID_AND_HOGP,
-        Flags.FLAG_SAVE_INITIAL_HID_CONNECTION_POLICY
-    })
     public void setPreferredTransportTest() {
         // BR/EDR transport
         mHidService.setPreferredTransport(mDevice, TRANSPORT_BREDR);
@@ -404,10 +408,6 @@ public class HidHostDualModeTest {
      * </ol>
      */
     @Test
-    @RequiresFlagsEnabled({
-        Flags.FLAG_ALLOW_SWITCHING_HID_AND_HOGP,
-        Flags.FLAG_SAVE_INITIAL_HID_CONNECTION_POLICY
-    })
     public void hogpGetReportTest() throws Exception {
         // Keyboard report
         mReportData = new byte[0];
@@ -441,10 +441,6 @@ public class HidHostDualModeTest {
      * </ol>
      */
     @Test
-    @RequiresFlagsEnabled({
-        Flags.FLAG_ALLOW_SWITCHING_HID_AND_HOGP,
-        Flags.FLAG_SAVE_INITIAL_HID_CONNECTION_POLICY
-    })
     public void hogpGetProtocolModeTest() {
         mHidService.getProtocolMode(mDevice);
         verifyIntentReceived(
@@ -463,10 +459,6 @@ public class HidHostDualModeTest {
      * </ol>
      */
     @Test
-    @RequiresFlagsEnabled({
-        Flags.FLAG_ALLOW_SWITCHING_HID_AND_HOGP,
-        Flags.FLAG_SAVE_INITIAL_HID_CONNECTION_POLICY
-    })
     public void hogpSetProtocolModeTest() throws Exception {
         mHidService.setProtocolMode(mDevice, BluetoothHidHost.PROTOCOL_BOOT_MODE);
         // Must cast ERROR_RSP_SUCCESS, otherwise, it won't match with the int extra
@@ -485,10 +477,6 @@ public class HidHostDualModeTest {
      * </ol>
      */
     @Test
-    @RequiresFlagsEnabled({
-        Flags.FLAG_ALLOW_SWITCHING_HID_AND_HOGP,
-        Flags.FLAG_SAVE_INITIAL_HID_CONNECTION_POLICY
-    })
     public void hogpSetReportTest() throws Exception {
         // Keyboard report
         mHidService.setReport(mDevice, BluetoothHidHost.REPORT_TYPE_INPUT, "010203040506070809");
@@ -515,10 +503,6 @@ public class HidHostDualModeTest {
      * </ol>
      */
     @Test
-    @RequiresFlagsEnabled({
-        Flags.FLAG_ALLOW_SWITCHING_HID_AND_HOGP,
-        Flags.FLAG_SAVE_INITIAL_HID_CONNECTION_POLICY
-    })
     public void hogpVirtualUnplugFromHidHostTest() throws Exception {
         mHidService.virtualUnplug(mDevice);
         verifyIntentReceived(

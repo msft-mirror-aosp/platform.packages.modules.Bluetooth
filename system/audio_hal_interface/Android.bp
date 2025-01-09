@@ -228,7 +228,6 @@ cc_defaults {
         "android.hardware.common.fmq-V1-ndk",
         "libFraunhoferAAC",
         "libbase",
-        "libbluetooth-dumpsys",
         "libbluetooth-protos",
         "libbluetooth-types",
         "libbluetooth_core_rs",
@@ -292,6 +291,7 @@ cc_test {
         "aidl/le_audio_utils_unittest.cc",
     ],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "libbase",
         "libbinder",
         "libbinder_ndk",

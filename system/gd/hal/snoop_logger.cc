@@ -35,7 +35,6 @@
 #include "common/strings.h"
 #include "hal/snoop_logger_common.h"
 #include "hci/hci_packets.h"
-#include "module_dumper_flatbuffer.h"
 #include "os/files.h"
 #include "os/parameter_provider.h"
 #include "os/system_properties.h"
@@ -548,17 +547,21 @@ void SnoopLogger::OpenNextSnoopLogFile() {
   file_creation_time = fake_timerfd_get_clock();
 #endif
   if (!btsnoop_ostream_.good()) {
-    log::fatal("Unable to open snoop log at \"{}\", error: \"{}\"", snoop_log_path_,
+    log::error("Unable to open snoop log at \"{}\", error: \"{}\"", snoop_log_path_,
                strerror(errno));
+    return;
   }
   umask(prevmask);
   if (!btsnoop_ostream_.write(reinterpret_cast<const char*>(&SnoopLoggerCommon::kBtSnoopFileHeader),
                               sizeof(SnoopLoggerCommon::FileHeaderType))) {
-    log::fatal("Unable to write file header to \"{}\", error: \"{}\"", snoop_log_path_,
+    log::error("Unable to write file header to \"{}\", error: \"{}\"", snoop_log_path_,
                strerror(errno));
+    btsnoop_ostream_.close();
+    return;
   }
   if (!btsnoop_ostream_.flush()) {
     log::error("Failed to flush, error: \"{}\"", strerror(errno));
+    return;
   }
 }
 
@@ -722,21 +725,30 @@ uint32_t SnoopLogger::PayloadStrip(profile_type_t current_profile, uint8_t* pack
 
 uint32_t SnoopLogger::FilterProfilesHandleHfp(uint8_t* packet, uint32_t length, uint32_t totlen,
                                               uint32_t offset) {
-  if ((totlen - offset) > cpbr_pat_len) {
-    if (memcmp(&packet[offset], cpbr_pattern, cpbr_pat_len) == 0) {
-      length = offset + cpbr_pat_len + 1;
-      packet[L2CAP_PDU_LENGTH_OFFSET] = offset + cpbr_pat_len - BASIC_L2CAP_HEADER_LENGTH;
-      packet[L2CAP_PDU_LENGTH_OFFSET] =
-              offset + cpbr_pat_len - (ACL_HEADER_LENGTH + BASIC_L2CAP_HEADER_LENGTH);
-      return length;
-    }
+  // CPBR packet
+  if ((totlen - offset) > cpbr_pat_len &&
+      memcmp(&packet[offset], cpbr_pattern, cpbr_pat_len) == 0) {
+    length = offset + cpbr_pat_len + 1;
+    packet[ACL_LENGTH_OFFSET] = offset + cpbr_pat_len - BASIC_L2CAP_HEADER_LENGTH;
+    packet[ACL_LENGTH_OFFSET + 1] = (offset + cpbr_pat_len - BASIC_L2CAP_HEADER_LENGTH) >> 8;
 
-    if (memcmp(&packet[offset], clcc_pattern, clcc_pat_len) == 0) {
-      length = offset + cpbr_pat_len + 1;
-      packet[L2CAP_PDU_LENGTH_OFFSET] = offset + clcc_pat_len - BASIC_L2CAP_HEADER_LENGTH;
-      packet[L2CAP_PDU_LENGTH_OFFSET] =
-              offset + clcc_pat_len - (ACL_HEADER_LENGTH + BASIC_L2CAP_HEADER_LENGTH);
-    }
+    packet[L2CAP_PDU_LENGTH_OFFSET] =
+            offset + cpbr_pat_len - (ACL_HEADER_LENGTH + BASIC_L2CAP_HEADER_LENGTH);
+    packet[L2CAP_PDU_LENGTH_OFFSET + 1] =
+            (offset + cpbr_pat_len - (ACL_HEADER_LENGTH + BASIC_L2CAP_HEADER_LENGTH)) >> 8;
+    return length;
+  }
+  // CLCC packet
+  if ((totlen - offset) > clcc_pat_len &&
+      memcmp(&packet[offset], clcc_pattern, clcc_pat_len) == 0) {
+    length = offset + cpbr_pat_len + 1;
+    packet[ACL_LENGTH_OFFSET] = offset + clcc_pat_len - BASIC_L2CAP_HEADER_LENGTH;
+    packet[ACL_LENGTH_OFFSET + 1] = (offset + clcc_pat_len - BASIC_L2CAP_HEADER_LENGTH) >> 8;
+
+    packet[L2CAP_PDU_LENGTH_OFFSET] =
+            offset + clcc_pat_len - (ACL_HEADER_LENGTH + BASIC_L2CAP_HEADER_LENGTH);
+    packet[L2CAP_PDU_LENGTH_OFFSET + 1] =
+            (offset + clcc_pat_len - (ACL_HEADER_LENGTH + BASIC_L2CAP_HEADER_LENGTH)) >> 8;
   }
 
   return length;
@@ -1191,6 +1203,9 @@ void SnoopLogger::Capture(const HciPacket& immutable_packet, Direction direction
     if (packet_counter_ > max_packets_per_file_) {
       OpenNextSnoopLogFile();
     }
+    if (!btsnoop_ostream_.is_open() || !btsnoop_ostream_.good()) {
+      return;
+    }
     if (!btsnoop_ostream_.write(reinterpret_cast<const char*>(&header), sizeof(PacketHeaderType))) {
       log::error("Failed to write packet header for btsnoop, error: \"{}\"", strerror(errno));
     }
@@ -1214,8 +1229,10 @@ void SnoopLogger::Capture(const HciPacket& immutable_packet, Direction direction
   }
 }
 
-void SnoopLogger::DumpSnoozLogToFile(const std::vector<std::string>& data) const {
+void SnoopLogger::DumpSnoozLogToFile() {
   std::lock_guard<std::recursive_mutex> lock(file_mutex_);
+  std::vector<std::string> data = btsnooz_buffer_.Pull();
+
   if (btsnoop_mode_ != kBtSnoopLogModeDisabled) {
     log::debug("btsnoop log is enabled, skip dumping btsnooz log");
     return;
@@ -1310,12 +1327,6 @@ void SnoopLogger::Stop() {
   if (!snoop_log_persists) {
     delete_btsnoop_files(snooz_log_path_);
   }
-}
-
-DumpsysDataFinisher SnoopLogger::GetDumpsysData(
-        flatbuffers::FlatBufferBuilder* /* builder */) const {
-  DumpSnoozLogToFile(btsnooz_buffer_.Pull());
-  return EmptyDumpsysDataFinisher;
 }
 
 size_t SnoopLogger::GetMaxPacketsPerFile() {

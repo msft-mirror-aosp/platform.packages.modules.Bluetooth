@@ -15,19 +15,32 @@
  * limitations under the License.
  */
 
-/**
- * Bluetooth LeAudio StateMachine. There is one instance per remote device's ASE. - "Disconnected"
- * and "Connected" are steady states. - "Connecting" and "Disconnecting" are transient states until
- * the connection / disconnection is completed.
- *
- * <p>(Disconnected) | ^ CONNECT | | DISCONNECTED V | (Connecting)<--->(Disconnecting) | ^ CONNECTED
- * | | DISCONNECT V | (Connected) NOTES: - If state machine is in "Connecting" state and the remote
- * device sends DISCONNECT request, the state machine transitions to "Disconnecting" state. -
- * Similarly, if the state machine is in "Disconnecting" state and the remote device sends CONNECT
- * request, the state machine transitions to "Connecting" state.
- *
- * <p>DISCONNECT (Connecting) ---------------> (Disconnecting) <--------------- CONNECT
- */
+//  Bluetooth LeAudio StateMachine. There is one instance per remote device's ASE.
+//   - "Disconnected" and "Connected" are steady states.
+//   - "Connecting" and "Disconnecting" are transient states until the
+//      connection / disconnection is completed.
+//
+//
+//                         (Disconnected)
+//                            |       ^
+//                    CONNECT |       | DISCONNECTED
+//                            V       |
+//                  (Connecting)<--->(Disconnecting)
+//                            |       ^
+//                  CONNECTED |       | DISCONNECT
+//                            V       |
+//                           (Connected)
+//  NOTES:
+//   - If state machine is in "Connecting" state and the remote device sends
+//     DISCONNECT request, the state machine transitions to "Disconnecting" state.
+//   - Similarly, if the state machine is in "Disconnecting" state and the remote device
+//     sends CONNECT request, the state machine transitions to "Connecting" state.
+//
+//                     DISCONNECT
+//     (Connecting) ---------------> (Disconnecting)
+//                  <---------------
+//                       CONNECT
+
 package com.android.bluetooth.le_audio;
 
 import android.bluetooth.BluetoothDevice;
@@ -131,9 +144,6 @@ final class LeAudioStateMachine extends StateMachine {
             if (mLastConnectionState != -1) {
                 // Don't broadcast during startup
                 broadcastConnectionState(BluetoothProfile.STATE_DISCONNECTED, mLastConnectionState);
-                if (Flags.audioRoutingCentralization()) {
-                    mService.deviceDisconnected(mDevice, false);
-                }
             }
         }
 
@@ -267,7 +277,12 @@ final class LeAudioStateMachine extends StateMachine {
 
             switch (message.what) {
                 case CONNECT:
-                    deferMessage(message);
+                    if (Flags.leaudioSmIgnoreConnectEventsInConnectingState()
+                            && !hasDeferredMessages(DISCONNECT)) {
+                        Log.w(TAG, "Connecting: CONNECT ignored: " + mDevice);
+                    } else {
+                        deferMessage(message);
+                    }
                     break;
                 case CONNECT_TIMEOUT:
                     Log.w(TAG, "Connecting connection timeout: " + mDevice);
@@ -450,9 +465,6 @@ final class LeAudioStateMachine extends StateMachine {
                             + messageWhatToString(getCurrentMessage().what));
             mConnectionState = BluetoothProfile.STATE_CONNECTED;
             removeDeferredMessages(CONNECT);
-            if (Flags.audioRoutingCentralization()) {
-                mService.deviceConnected(mDevice);
-            }
             broadcastConnectionState(BluetoothProfile.STATE_CONNECTED, mLastConnectionState);
         }
 

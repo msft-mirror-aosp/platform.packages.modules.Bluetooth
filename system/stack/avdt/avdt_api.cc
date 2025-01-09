@@ -39,7 +39,6 @@
 #include "avdtc_api.h"
 #include "bta/include/bta_sec_api.h"
 #include "internal_include/bt_target.h"
-#include "os/logging/log_adapter.h"
 #include "osi/include/alarm.h"
 #include "stack/include/a2dp_codec_api.h"
 #include "stack/include/bt_hdr.h"
@@ -104,9 +103,6 @@ void avdt_scb_transport_channel_timer_timeout(void* data) {
  ******************************************************************************/
 void AVDT_Register(AvdtpRcb* p_reg, tAVDT_CTRL_CBACK* p_cback) {
   uint16_t sec = BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT;
-  if (!com::android::bluetooth::flags::use_encrypt_req_for_av()) {
-    sec = BTA_SEC_AUTHENTICATE;
-  }
   /* register PSM with L2CAP */
   if (!stack::l2cap::get_interface().L2CA_RegisterWithSecurity(
               AVDT_PSM, avdt_l2c_appl, true /* enable_snoop */, nullptr, kAvdtpMtu, 0, sec)) {
@@ -981,7 +977,7 @@ void stack_debug_avdtp_api_dump(int fd) {
       continue;
     }
     dprintf(fd, "\n  Channel control block: %zu peer: %s\n", i,
-            ADDRESS_TO_LOGGABLE_CSTR(ccb.peer_addr));
+            ccb.peer_addr.ToRedactedStringForLogging().c_str());
     dprintf(fd, "    Allocated: %s\n", ccb.allocated ? "true" : "false");
     dprintf(fd, "    State: %d\n", ccb.state);
     dprintf(fd, "    Link-layer opened: %s\n", ccb.ll_opened ? "true" : "false");
@@ -1010,7 +1006,8 @@ void stack_debug_avdtp_api_dump(int fd) {
       dprintf(fd, "      Transport channel connect timer: %s\n",
               alarm_is_scheduled(scb.transport_channel_timer) ? "Scheduled" : "Not scheduled");
       dprintf(fd, "      Channel control block peer: %s\n",
-              (scb.p_ccb != nullptr) ? ADDRESS_TO_LOGGABLE_CSTR(scb.p_ccb->peer_addr) : "null");
+              (scb.p_ccb != nullptr) ? scb.p_ccb->peer_addr.ToRedactedStringForLogging().c_str()
+                                     : "null");
       dprintf(fd, "      Allocated: %s\n", scb.allocated ? "true" : "false");
       dprintf(fd, "      In use: %s\n", scb.in_use ? "true" : "false");
       dprintf(fd, "      Role: 0x%x\n", scb.role);

@@ -452,7 +452,6 @@ static bt_status_t btif_in_fetch_bonded_devices(btif_bonded_devices_t* p_bonded_
   memset(p_bonded_devices, 0, sizeof(btif_bonded_devices_t));
 
   bool bt_linkkey_file_found = false;
-  int device_type;
 
   for (const auto& bd_addr : btif_config_get_paired_devices()) {
     auto name = bd_addr.ToString();
@@ -473,6 +472,7 @@ static bt_status_t btif_in_fetch_bonded_devices(btif_bonded_devices_t* p_bonded_
           btif_config_get_int(name, BTIF_STORAGE_KEY_PIN_LENGTH, &pin_length);
           BTA_DmAddDevice(bd_addr, dev_class, link_key, (uint8_t)linkkey_type, pin_length);
 
+          int device_type = BT_DEVICE_TYPE_UNKNOWN;
           if (btif_config_get_int(name, BTIF_STORAGE_KEY_DEV_TYPE, &device_type) &&
               (device_type == BT_DEVICE_TYPE_DUMO)) {
             btif_gatts_add_bonded_dev_from_nv(bd_addr);
@@ -861,7 +861,7 @@ static void remove_devices_with_sample_ltk() {
  *                  It also invokes invoke_address_consolidate_cb
  *                  to consolidate each Dual Mode device and
  *                  invoke_le_address_associate_cb to associate each LE-only
- *                  device between its RPA and identity address.
+ *                  device between its RPA, identity address, and identity address type.
  *
  ******************************************************************************/
 void btif_storage_load_le_devices(void) {
@@ -872,7 +872,7 @@ void btif_storage_load_le_devices(void) {
     bonded_addresses.insert(bonded_devices.devices[i]);
   }
 
-  std::vector<std::pair<RawAddress, RawAddress>> consolidated_devices;
+  std::vector<std::tuple<RawAddress, RawAddress, tBLE_ADDR_TYPE>> consolidated_devices;
   for (uint16_t i = 0; i < bonded_devices.num_devices; i++) {
     // RawAddress* p_remote_addr;
     tBTA_LE_KEY_VALUE key = {};
@@ -886,7 +886,8 @@ void btif_storage_load_le_devices(void) {
         if (bonded_devices.devices[i].IsEmpty() || key.pid_key.identity_addr.IsEmpty()) {
           log::warn("Address is empty! Skip");
         } else {
-          consolidated_devices.emplace_back(bonded_devices.devices[i], key.pid_key.identity_addr);
+          consolidated_devices.emplace_back(bonded_devices.devices[i], key.pid_key.identity_addr,
+                                            key.pid_key.identity_addr_type);
         }
       }
     }
@@ -901,18 +902,20 @@ void btif_storage_load_le_devices(void) {
     adapter_prop.len = consolidated_devices.size() * sizeof(RawAddress);
     adapter_prop.val = devices_list.get();
     for (uint16_t i = 0; i < consolidated_devices.size(); i++) {
-      devices_list[i] = consolidated_devices[i].first;
+      devices_list[i] = std::get<0>(consolidated_devices[i]);
     }
     btif_adapter_properties_evt(BT_STATUS_SUCCESS, /* num_props */ 1, &adapter_prop);
   }
 
   for (const auto& device : consolidated_devices) {
-    if (bonded_addresses.find(device.second) != bonded_addresses.end()) {
+    if (bonded_addresses.find(std::get<1>(device)) != bonded_addresses.end()) {
       // Invokes address consolidation for DuMo devices
-      GetInterfaceToProfiles()->events->invoke_address_consolidate_cb(device.first, device.second);
+      GetInterfaceToProfiles()->events->invoke_address_consolidate_cb(std::get<0>(device),
+                                                                      std::get<1>(device));
     } else {
       // Associates RPA & identity address for LE-only devices
-      GetInterfaceToProfiles()->events->invoke_le_address_associate_cb(device.first, device.second);
+      GetInterfaceToProfiles()->events->invoke_le_address_associate_cb(
+              std::get<0>(device), std::get<1>(device), std::get<2>(device));
     }
   }
 }
@@ -1187,7 +1190,7 @@ bt_status_t btif_storage_get_ble_local_key(uint8_t key_type, Octet16* key_value)
 
 bt_status_t btif_in_fetch_bonded_ble_device(const std::string& remote_bd_addr, int add,
                                             btif_bonded_devices_t* p_bonded_devices) {
-  int device_type;
+  int device_type = BT_DEVICE_TYPE_UNKNOWN;
   tBLE_ADDR_TYPE addr_type;
   bool device_added = false;
   bool key_found = false;
@@ -1269,7 +1272,7 @@ bool btif_has_ble_keys(const std::string& bdstr) {
  ******************************************************************************/
 bt_status_t btif_storage_get_remote_addr_type(const RawAddress* remote_bd_addr,
                                               tBLE_ADDR_TYPE* addr_type) {
-  int val;
+  int val = BLE_ADDR_ANONYMOUS;
   bool ret = btif_config_get_int(remote_bd_addr->ToString(), BTIF_STORAGE_KEY_ADDR_TYPE, &val);
   *addr_type = static_cast<tBLE_ADDR_TYPE>(val);
   return ret ? BT_STATUS_SUCCESS : BT_STATUS_FAIL;
@@ -1440,7 +1443,7 @@ void btif_debug_linkkey_type_dump(int fd) {
   for (const auto& bd_addr : btif_config_get_paired_devices()) {
     auto bdstr = bd_addr.ToString();
     int linkkey_type;
-    dprintf(fd, "  %s\n", ADDRESS_TO_LOGGABLE_CSTR(bd_addr));
+    dprintf(fd, "  %s\n", bd_addr.ToRedactedStringForLogging().c_str());
 
     dprintf(fd, "    BR: ");
     if (btif_config_get_int(bdstr, BTIF_STORAGE_KEY_LINK_KEY_TYPE, &linkkey_type)) {

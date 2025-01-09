@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.le_scan;
 
+import static com.android.bluetooth.Utils.getSystemClock;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.mock;
@@ -34,7 +36,6 @@ import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.internal.app.IBatteryStats;
 
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -50,15 +51,11 @@ import java.util.List;
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class AppScanStatsTest {
-
     @Rule public final ServiceTestRule mServiceRule = new ServiceTestRule();
-
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
     @Mock private ScannerMap map;
-
-    @Mock private Context mMockContext;
-    @Mock private TransitionalScanHelper mMockScanHelper;
+    @Mock private ScanController mMockScanController;
     @Mock private AdapterService mAdapterService;
 
     // BatteryStatsManager is final and cannot be mocked with regular mockito, so just mock the
@@ -68,19 +65,11 @@ public class AppScanStatsTest {
 
     @Before
     public void setUp() throws Exception {
-
-        TestUtils.setAdapterService(mAdapterService);
-
         TestUtils.mockGetSystemService(
-                mMockContext,
+                mAdapterService,
                 Context.BATTERY_STATS_SERVICE,
                 BatteryStatsManager.class,
                 mBatteryStatsManager);
-    }
-
-    @After
-    public void tearDown() throws Exception {
-        TestUtils.clearAdapterService(mAdapterService);
     }
 
     @Test
@@ -89,10 +78,11 @@ public class AppScanStatsTest {
         WorkSource source = null;
 
         AppScanStats appScanStats =
-                new AppScanStats(name, source, map, mMockContext, mMockScanHelper);
+                new AppScanStats(
+                        name, source, map, mAdapterService, mMockScanController, getSystemClock());
 
         assertThat(appScanStats.mScannerMap).isEqualTo(map);
-        assertThat(appScanStats.mScanHelper).isEqualTo(mMockScanHelper);
+        assertThat(appScanStats.mScanController).isEqualTo(mMockScanController);
 
         assertThat(appScanStats.isScanning()).isEqualTo(false);
     }
@@ -103,7 +93,8 @@ public class AppScanStatsTest {
         WorkSource source = null;
 
         AppScanStats appScanStats =
-                new AppScanStats(name, source, map, mMockContext, mMockScanHelper);
+                new AppScanStats(
+                        name, source, map, mAdapterService, mMockScanController, getSystemClock());
 
         ScanSettings settings = new ScanSettings.Builder().build();
         List<ScanFilter> filters = new ArrayList<>();

@@ -226,7 +226,7 @@ TEST_F(StackBtmSecTest, btm_oob_data_text) {
   for (const auto& data : datas) {
     ASSERT_STREQ(data.second.c_str(), btm_oob_data_text(data.first).c_str());
   }
-  auto unknown = base::StringPrintf("UNKNOWN[%hhu]", std::numeric_limits<std::uint8_t>::max());
+  auto unknown = std::format("UNKNOWN[{}]", std::numeric_limits<std::uint8_t>::max());
   ASSERT_STREQ(
           unknown.c_str(),
           btm_oob_data_text(static_cast<tBTM_OOB_DATA>(std::numeric_limits<std::uint8_t>::max()))
@@ -242,7 +242,7 @@ TEST_F(StackBtmSecTest, bond_type_text) {
   for (const auto& data : datas) {
     ASSERT_STREQ(data.second.c_str(), bond_type_text(data.first).c_str());
   }
-  auto unknown = base::StringPrintf("UNKNOWN[%hhu]", std::numeric_limits<std::uint8_t>::max());
+  auto unknown = std::format("UNKNOWN[{}]", std::numeric_limits<std::uint8_t>::max());
   ASSERT_STREQ(unknown.c_str(),
                bond_type_text(static_cast<tBTM_BOND_TYPE>(std::numeric_limits<std::uint8_t>::max()))
                        .c_str());

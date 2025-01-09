@@ -172,8 +172,11 @@ public class MapClientService extends ProfileService {
         // When creating a new statemachine, its state is set to CONNECTING - which will trigger
         // connect.
         MceStateMachine mapStateMachine;
-        if (mSmLooper != null) mapStateMachine = new MceStateMachine(this, device, mSmLooper);
-        else mapStateMachine = new MceStateMachine(this, device);
+        if (mSmLooper != null) {
+            mapStateMachine = new MceStateMachine(this, device, mAdapterService, mSmLooper);
+        } else {
+            mapStateMachine = new MceStateMachine(this, device, mAdapterService);
+        }
         mMapInstanceMap.put(device, mapStateMachine);
     }
 
