@@ -291,6 +291,7 @@ public class BassClientServiceTest {
                             doReturn((BluetoothDevice) invocation.getArgument(0))
                                     .when(stateMachine)
                                     .getDevice();
+                            doReturn(true).when(stateMachine).isBassStateReady();
                             mStateMachines.put(
                                     (BluetoothDevice) invocation.getArgument(0), stateMachine);
                             return stateMachine;
@@ -6872,6 +6873,83 @@ public class BassClientServiceTest {
                 clearInvocations(sm);
             } else {
                 throw new AssertionError("Unexpected device");
+            }
+        }
+    }
+
+    /** Test add pending source when BASS state get ready */
+    @Test
+    @EnableFlags({
+        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
+        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
+    })
+    public void sinkBassStateReady_addPendingSource() {
+        prepareConnectedDeviceGroup();
+        BluetoothLeBroadcastMetadata meta = createBroadcastMetadata(TEST_BROADCAST_ID);
+        // Verify adding source when Bass state not ready
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            doReturn(false).when(sm).isBassStateReady();
+        }
+        doReturn(true).when(mLeAudioService).isPlaying(TEST_BROADCAST_ID);
+        doReturn(new ArrayList<BluetoothLeBroadcastMetadata>(Arrays.asList(meta)))
+                .when(mLeAudioService)
+                .getAllBroadcastMetadata();
+        // Add broadcast source and got queued due to BASS not ready
+        mBassClientService.addSource(mCurrentDevice, meta, false);
+
+        mBassClientService.getCallbacks().notifyBassStateSetupFailed(mCurrentDevice);
+        TestUtils.waitForLooperToFinishScheduledTask(mBassClientService.getCallbacks().getLooper());
+
+        // Verify adding source callback is triggered if BASS state initiate failed
+        try {
+            verify(mCallback, timeout(TIMEOUT_MS).atLeastOnce())
+                    .onSourceAddFailed(
+                            eq(mCurrentDevice),
+                            eq(meta),
+                            eq(BluetoothStatusCodes.ERROR_REMOTE_NOT_ENOUGH_RESOURCES));
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+
+        // Verify not getting ADD_BCAST_SOURCE message if no pending source to add
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            doReturn(true).when(sm).isBassStateReady();
+        }
+        mBassClientService.getCallbacks().notifyBassStateReady(mCurrentDevice);
+        TestUtils.waitForLooperToFinishScheduledTask(mBassClientService.getCallbacks().getLooper());
+
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            if (sm.getDevice().equals(mCurrentDevice)) {
+                verify(sm, never()).sendMessage(any());
+                clearInvocations(sm);
+            }
+        }
+
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            doReturn(false).when(sm).isBassStateReady();
+        }
+        // Add broadcast source and got queued due to BASS not ready
+        mBassClientService.addSource(mCurrentDevice, meta, false);
+
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            doReturn(true).when(sm).isBassStateReady();
+        }
+        mBassClientService.getCallbacks().notifyBassStateReady(mCurrentDevice);
+        TestUtils.waitForLooperToFinishScheduledTask(mBassClientService.getCallbacks().getLooper());
+
+        // Verify adding source is resumed once BASS state ready
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            if (sm.getDevice().equals(mCurrentDevice)) {
+                ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+                verify(sm, atLeast(1)).sendMessage(messageCaptor.capture());
+
+                Message msg =
+                        messageCaptor.getAllValues().stream()
+                                .filter(m -> (m.what == BassClientStateMachine.ADD_BCAST_SOURCE))
+                                .findFirst()
+                                .orElse(null);
+                assertThat(msg).isNotNull();
+                clearInvocations(sm);
             }
         }
     }
