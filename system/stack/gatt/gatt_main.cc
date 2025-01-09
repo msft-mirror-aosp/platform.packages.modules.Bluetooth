@@ -290,29 +290,34 @@ bool gatt_disconnect(tGATT_TCB* p_tcb) {
     return true;
   }
 
-  if (p_tcb->att_lcid == L2CAP_ATT_CID) {
-    if (ch_state == GATT_CH_OPEN) {
-      if (com::android::bluetooth::flags::gatt_disconnect_fix() && p_tcb->eatt) {
-        /* ATT is fixed channel and it is expected to drop ACL.
-         * Make sure all EATT channels are disconnected before doing that.
-         */
-        EattExtension::GetInstance()->Disconnect(p_tcb->peer_bda);
-      }
-      if (!stack::l2cap::get_interface().L2CA_RemoveFixedChnl(L2CAP_ATT_CID, p_tcb->peer_bda)) {
-        log::warn("Unable to remove L2CAP ATT fixed channel peer:{}", p_tcb->peer_bda);
-      }
-      gatt_set_ch_state(p_tcb, GATT_CH_CLOSING);
-    } else {
-      gatt_cancel_connect(p_tcb->peer_bda, p_tcb->transport);
-    }
-  } else {
+  if (p_tcb->att_lcid != L2CAP_ATT_CID) {
     if ((ch_state == GATT_CH_OPEN) || (ch_state == GATT_CH_CFG)) {
       gatt_l2cif_disconnect(p_tcb->att_lcid);
     } else {
       log::verbose("gatt_disconnect channel not opened");
     }
+    return true;
   }
 
+  /* att_lcid == L2CAP_ATT_CID */
+
+  if (ch_state != GATT_CH_OPEN) {
+    gatt_cancel_connect(p_tcb->peer_bda, p_tcb->transport);
+    return true;
+  }
+
+  if (com::android::bluetooth::flags::gatt_disconnect_fix() && p_tcb->eatt) {
+    /* ATT is fixed channel and it is expected to drop ACL.
+     * Make sure all EATT channels are disconnected before doing that.
+     */
+    EattExtension::GetInstance()->Disconnect(p_tcb->peer_bda);
+  }
+
+  if (!stack::l2cap::get_interface().L2CA_RemoveFixedChnl(L2CAP_ATT_CID, p_tcb->peer_bda)) {
+    log::warn("Unable to remove L2CAP ATT fixed channel peer:{}", p_tcb->peer_bda);
+  }
+
+  gatt_set_ch_state(p_tcb, GATT_CH_CLOSING);
   return true;
 }
 
