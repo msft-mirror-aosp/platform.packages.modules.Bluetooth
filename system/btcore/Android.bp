@@ -24,9 +24,7 @@ cc_defaults {
     ],
     header_libs: ["libbluetooth_headers"],
     host_supported: true,
-    apex_available: [
-        "com.android.btservices",
-    ],
+    apex_available: ["com.android.bt"],
     target: {
         host_linux: {
             cflags: ["-D_GNU_SOURCE"],
@@ -47,9 +45,7 @@ cc_library_static {
     ],
     header_libs: ["libbluetooth_headers"],
     host_supported: true,
-    apex_available: [
-        "com.android.btservices",
-    ],
+    apex_available: ["com.android.bt"],
     target: {
         host_linux: {
             cflags: ["-D_GNU_SOURCE"],
@@ -80,7 +76,7 @@ cc_library_headers {
     host_supported: true,
     apex_available: [
         "//apex_available:platform",
-        "com.android.btservices",
+        "com.android.bt",
     ],
     min_sdk_version: "30",
 }
