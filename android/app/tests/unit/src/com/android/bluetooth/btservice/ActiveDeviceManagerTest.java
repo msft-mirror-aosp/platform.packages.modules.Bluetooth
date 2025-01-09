@@ -589,7 +589,6 @@ public class ActiveDeviceManagerTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ADM_ALWAYS_FALLBACK_TO_AVAILABLE_DEVICE)
     public void a2dpHeadsetActivated_checkFallbackMeachanismOneA2dpOneHeadset() {
         // Active call
         when(mAudioManager.getMode()).thenReturn(AudioManager.MODE_IN_CALL);
@@ -1721,7 +1720,6 @@ public class ActiveDeviceManagerTest {
 
     /** A wired audio device is disconnected. Check if falls back to connected A2DP. */
     @Test
-    @EnableFlags(Flags.FLAG_ADM_FALLBACK_WHEN_WIRED_AUDIO_DISCONNECTED)
     public void wiredAudioDeviceDisconnected_setFallbackDevice() throws Exception {
         AudioDeviceInfo[] testDevices = createAudioDeviceInfoTestDevices();
 
