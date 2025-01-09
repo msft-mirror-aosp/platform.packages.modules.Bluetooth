@@ -570,6 +570,30 @@ bool PORT_IsCollisionDetected(RawAddress bd_addr) {
 
 /*******************************************************************************
  *
+ * Function         PORT_SetAppUid
+ *
+ * Description      This function configures connection according to the
+ *                  specifications in the tPORT_STATE structure.
+ *
+ * Parameters:      handle     - Handle returned in the RFCOMM_CreateConnection
+ *                  app_uid    - Uid of app that requested the socket
+ *
+ ******************************************************************************/
+int PORT_SetAppUid(uint16_t handle, uint32_t app_uid) {
+  tPORT* p_port = get_port_from_handle(handle);
+
+  if (p_port == nullptr) {
+    log::error("Unable to get RFCOMM port control block bad handle:{}", handle);
+    return PORT_BAD_HANDLE;
+  }
+
+  p_port->app_uid = app_uid;
+
+  return PORT_SUCCESS;
+}
+
+/*******************************************************************************
+ *
  * Function         PORT_SetSettings
  *
  * Description      This function configures connection according to the
