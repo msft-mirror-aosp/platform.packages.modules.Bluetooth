@@ -240,32 +240,6 @@ static bool gatt_connect(const RawAddress& rem_bda, tBLE_ADDR_TYPE addr_type, tG
 
 /*******************************************************************************
  *
- * Function         gatt_cancel_connect
- *
- * Description      This will remove device from allow list and cancel connection
- *
- * Parameter        bd_addr: peer device address.
- *                  transport: transport
- *
- *
- ******************************************************************************/
-void gatt_cancel_connect(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
-  /* This shall be call only when device is not connected */
-  log::debug("{}, transport {}", bd_addr, transport);
-
-  if (!connection_manager::direct_connect_remove(CONN_MGR_ID_L2CAP, bd_addr)) {
-    bluetooth::shim::ACL_IgnoreLeConnectionFrom(BTM_Sec_GetAddressWithType(bd_addr));
-    log::info(
-            "GATT connection manager has no record but removed filter "
-            "acceptlist gatt_if:{} peer:{}",
-            static_cast<uint8_t>(CONN_MGR_ID_L2CAP), bd_addr);
-  }
-
-  gatt_cleanup_upon_disc(bd_addr, GATT_CONN_TERMINATE_LOCAL_HOST, transport);
-}
-
-/*******************************************************************************
- *
  * Function         gatt_disconnect
  *
  * Description      This function is called to disconnect to an ATT device.
@@ -302,7 +276,15 @@ bool gatt_disconnect(tGATT_TCB* p_tcb) {
   /* att_lcid == L2CAP_ATT_CID */
 
   if (ch_state != GATT_CH_OPEN) {
-    gatt_cancel_connect(p_tcb->peer_bda, p_tcb->transport);
+    if (!connection_manager::direct_connect_remove(CONN_MGR_ID_L2CAP, p_tcb->peer_bda)) {
+      bluetooth::shim::ACL_IgnoreLeConnectionFrom(BTM_Sec_GetAddressWithType(p_tcb->peer_bda));
+      log::info(
+              "GATT connection manager has no record but removed filter "
+              "acceptlist gatt_if:{} peer:{}",
+              static_cast<uint8_t>(CONN_MGR_ID_L2CAP), p_tcb->peer_bda);
+    }
+
+    gatt_cleanup_upon_disc(p_tcb->peer_bda, GATT_CONN_TERMINATE_LOCAL_HOST, p_tcb->transport);
     return true;
   }
 
