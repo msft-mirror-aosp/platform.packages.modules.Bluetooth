@@ -29,6 +29,7 @@
 #include <algorithm>
 #include <bitset>
 #include <chrono>
+#include <filesystem>
 #include <sstream>
 
 #include "common/circular_buffer.h"
@@ -322,6 +323,21 @@ std::string get_btsnoop_log_path(std::string log_dir, bool filtered) {
 
 std::string get_last_log_path(std::string log_file_path) { return log_file_path.append(".last"); }
 
+#ifdef __ANDROID__
+static bool create_log_directories() {
+  std::filesystem::path default_path = os::ParameterProvider::SnoopLogFilePath();
+  std::filesystem::path default_dir_path = default_path.parent_path();
+
+  if (std::filesystem::exists(default_dir_path)) {
+    log::info("Directory {} already exists", default_dir_path.string());
+    return true;
+  }
+
+  log::info("Creating directory: {}", default_dir_path.string());
+  return std::filesystem::create_directories(default_dir_path);
+}
+#endif  // __ANDROID__
+
 void delete_btsnoop_files(const std::string& log_path) {
   log::info("Deleting logs if they exist");
   if (os::FileExists(log_path)) {
@@ -531,6 +547,13 @@ void SnoopLogger::OpenNextSnoopLogFile() {
 
   auto last_file_path = get_last_log_path(snoop_log_path_);
 
+#ifdef __ANDROID__
+  if (com::android::bluetooth::flags::snoop_logger_recreate_logs_directory() &&
+      !create_log_directories()) {
+    log::error("Could not recreate log directory");
+  }
+#endif  // __ANDROID__
+
   if (os::FileExists(snoop_log_path_)) {
     if (!os::RenameFile(snoop_log_path_, last_file_path)) {
       log::error("Unabled to rename existing snoop log from \"{}\" to \"{}\"", snoop_log_path_,
@@ -547,21 +570,17 @@ void SnoopLogger::OpenNextSnoopLogFile() {
   file_creation_time = fake_timerfd_get_clock();
 #endif
   if (!btsnoop_ostream_.good()) {
-    log::error("Unable to open snoop log at \"{}\", error: \"{}\"", snoop_log_path_,
+    log::fatal("Unable to open snoop log at \"{}\", error: \"{}\"", snoop_log_path_,
                strerror(errno));
-    return;
   }
   umask(prevmask);
   if (!btsnoop_ostream_.write(reinterpret_cast<const char*>(&SnoopLoggerCommon::kBtSnoopFileHeader),
                               sizeof(SnoopLoggerCommon::FileHeaderType))) {
-    log::error("Unable to write file header to \"{}\", error: \"{}\"", snoop_log_path_,
+    log::fatal("Unable to write file header to \"{}\", error: \"{}\"", snoop_log_path_,
                strerror(errno));
-    btsnoop_ostream_.close();
-    return;
   }
   if (!btsnoop_ostream_.flush()) {
     log::error("Failed to flush, error: \"{}\"", strerror(errno));
-    return;
   }
 }
 
@@ -1202,9 +1221,6 @@ void SnoopLogger::Capture(const HciPacket& immutable_packet, Direction direction
     packet_counter_++;
     if (packet_counter_ > max_packets_per_file_) {
       OpenNextSnoopLogFile();
-    }
-    if (!btsnoop_ostream_.is_open() || !btsnoop_ostream_.good()) {
-      return;
     }
     if (!btsnoop_ostream_.write(reinterpret_cast<const char*>(&header), sizeof(PacketHeaderType))) {
       log::error("Failed to write packet header for btsnoop, error: \"{}\"", strerror(errno));
