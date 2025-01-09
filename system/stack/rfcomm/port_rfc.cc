@@ -180,7 +180,7 @@ void port_start_close(tPORT* p_port) {
   }
 
   /* Check if RFCOMM side has been closed while the message was queued */
-  if ((p_mcb == NULL) || (p_port->rfc.state == RFC_STATE_CLOSED)) {
+  if ((p_mcb == NULL) || (p_port->rfc.sm_cb.state == RFC_STATE_CLOSED)) {
     /* Call management callback function before calling port_release_port() to
      * clear tPort */
     if (p_port->p_mgmt_callback) {
@@ -899,7 +899,7 @@ void PORT_FlowInd(tRFC_MCB* p_mcb, uint8_t dlci, bool enable_data) {
     if (dlci == 0) {
       p_port = &rfc_cb.port.port[i];
       if (!p_port->in_use || (p_port->rfc.p_mcb != p_mcb) ||
-          (p_port->rfc.state != RFC_STATE_OPENED)) {
+          (p_port->rfc.sm_cb.state != RFC_STATE_OPENED)) {
         continue;
       }
     }
@@ -991,7 +991,7 @@ void port_rfc_closed(tPORT* p_port, uint8_t res) {
     log::warn("port_rfc_closed in OPENING state ignored");
 
     rfc_port_timer_stop(p_port);
-    p_port->rfc.state = RFC_STATE_CLOSED;
+    p_port->rfc.sm_cb.state = RFC_STATE_CLOSED;
 
     if (p_mcb) {
       p_mcb->port_handles[p_port->dlci] = 0;
@@ -1049,7 +1049,7 @@ void port_rfc_closed(tPORT* p_port, uint8_t res) {
     p_port->p_mgmt_callback(static_cast<tPORT_RESULT>(res2), p_port->handle);
   }
 
-  p_port->rfc.state = RFC_STATE_CLOSED;
+  p_port->rfc.sm_cb.state = RFC_STATE_CLOSED;
 
   log::info(
           "RFCOMM connection closed, index={}, state={}, reason={}[{}], "
