@@ -4022,11 +4022,6 @@ public class LeAudioService extends ProfileService {
                 return;
             }
 
-            if (descriptor.mGroupId != LE_AUDIO_GROUP_ID_INVALID) {
-                /* In case device is still in the group, let's remove it */
-                mNativeInterface.groupRemoveNode(descriptor.mGroupId, device);
-            }
-
             descriptor.mGroupId = LE_AUDIO_GROUP_ID_INVALID;
             descriptor.mSinkAudioLocation = BluetoothLeAudio.AUDIO_LOCATION_INVALID;
             descriptor.mDirection = AUDIO_DIRECTION_NONE;
