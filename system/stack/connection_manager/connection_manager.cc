@@ -367,7 +367,7 @@ bool background_connect_remove(uint8_t app_id, const RawAddress& address) {
   }
 
   if (is_anyone_connecting(it)) {
-    log::debug("some device is still connecting, app_id={}, address={}", static_cast<int>(app_id),
+    log::debug("some app is still connecting, app_id={}, address={}", static_cast<int>(app_id),
                address);
     /* Check which method should be used now.*/
     if (!accept_list_enabled) {
