@@ -65,10 +65,8 @@ class LeHostTestFiltered(avatar.cases.le_host_test.LeHostTest):
         current_test = f"test_extended_scan('{connectable_scannable}','{directed}',{data_len},{primary_phy})"
         logging.info(f"current test: {current_test}")
         if current_test not in self.skipped_tests:
-            if current_test in avatar.cases.le_host_test.LeHostTest.__dict__:
-                avatar.cases.le_host_test.LeHostTest.__dict__[current_test](self)
-            else:
-                logging.info(f"TEST: {current_test} NOT FOUND")
+            assert current_test in avatar.cases.le_host_test.LeHostTest.__dict__
+            avatar.cases.le_host_test.LeHostTest.__dict__[current_test](self)
 
 
 _TEST_CLASSES_LIST = [
