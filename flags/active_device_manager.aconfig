@@ -12,16 +12,6 @@ flag {
 }
 
 flag {
-    name: "adm_always_fallback_to_available_device"
-    namespace: "bluetooth"
-    description: "Fix audio path and always fallback to available device"
-    bug: "351820274"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "adm_verify_active_fallback_device"
     namespace: "bluetooth"
     description: "Verify if device selected for fallback is different then last one"
