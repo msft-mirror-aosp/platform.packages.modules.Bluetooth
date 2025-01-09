@@ -2,16 +2,6 @@ package: "com.android.bluetooth.flags"
 container: "com.android.btservices"
 
 flag {
-    name: "adm_fallback_when_wired_audio_disconnected"
-    namespace: "bluetooth"
-    description: "Fallback to other connected device when wired audio device disconnects"
-    bug: "348124361"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "adm_verify_active_fallback_device"
     namespace: "bluetooth"
     description: "Verify if device selected for fallback is different then last one"

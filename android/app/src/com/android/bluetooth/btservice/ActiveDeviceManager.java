@@ -867,9 +867,6 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
         @Override
         public void onAudioDevicesRemoved(AudioDeviceInfo[] removedDevices) {
             Log.d(TAG, "onAudioDevicesRemoved");
-            if (!Flags.admFallbackWhenWiredAudioDisconnected()) {
-                return;
-            }
             if (!Arrays.stream(removedDevices)
                     .anyMatch(AudioManagerAudioDeviceCallback::isWiredAudioHeadset)) {
                 return;
