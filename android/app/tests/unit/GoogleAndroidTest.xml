@@ -51,6 +51,6 @@
     <object type="module_controller"
             class="com.android.tradefed.testtype.suite.module.MainlineTestModuleController">
         <option name="enable" value="true" />
-        <option name="mainline-module-package-name" value="com.google.android.btservices" />
+        <option name="mainline-module-package-name" value="com.google.android.bt" />
     </object>
 </configuration>

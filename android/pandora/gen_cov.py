@@ -310,8 +310,8 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '--apex-name',
-      default='com.android.btservices',
-      help='bluetooth apex name. Default: com.android.btservices')
+      default='com.android.bt',
+      help='bluetooth apex name. Default: com.android.bt')
   parser.add_argument(
       '--java', action='store_true', help='generate Java coverage')
   parser.add_argument(
