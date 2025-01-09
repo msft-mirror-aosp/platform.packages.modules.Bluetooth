@@ -34,3 +34,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "extend_and_randomize_role_switch_delay"
+    namespace: "bluetooth"
+    description: "Fix the possible conflicts between role switch and authentication"
+    bug: "388459732"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
