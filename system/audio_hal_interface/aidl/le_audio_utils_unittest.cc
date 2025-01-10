@@ -919,8 +919,8 @@ TEST(BluetoothAudioClientInterfaceAidlTest, testGetStackUnicastConfigurationFrom
   ASSERT_EQ(stack_config->confs.source.size(), 2ul);
   ASSERT_EQ(*stack_config, expected_stack_config);
   ASSERT_EQ(stack_config->name,
-            "AIDL-2-1chan-SinkAse-CodecId_6_0_0-48000hz_120oct_7500us-TargetLatency_2-"
-            "2-1chan-SourceAse-CodecId_6_0_0-24000hz_80oct_7500us-TargetLatency_1");
+            "AIDL-2-1chan-SinkAse-CodecId_6_0_0-48000hz_120oct_7500us-BalancedReliability-"
+            "2-1chan-SourceAse-CodecId_6_0_0-24000hz_80oct_7500us-LowLatency");
 }
 
 TEST(BluetoothAudioClientInterfaceAidlTest, testGetStackUnicastConfigurationFromAidlFormatMonoLoc) {
@@ -935,8 +935,8 @@ TEST(BluetoothAudioClientInterfaceAidlTest, testGetStackUnicastConfigurationFrom
   ASSERT_EQ(stack_config->confs.source.size(), 1ul);
   ASSERT_EQ(*stack_config, expected_stack_config);
   ASSERT_EQ(stack_config->name,
-            "AIDL-2-1chan-SinkAse-CodecId_6_0_0-48000hz_120oct_7500us-TargetLatency_2-"
-            "1-1chan-SourceAse-CodecId_6_0_0-24000hz_80oct_7500us-TargetLatency_1");
+            "AIDL-2-1chan-SinkAse-CodecId_6_0_0-48000hz_120oct_7500us-BalancedReliability-"
+            "1-1chan-SourceAse-CodecId_6_0_0-24000hz_80oct_7500us-LowLatency");
 }
 
 TEST(BluetoothAudioClientInterfaceAidlTest, testGetStackBisConfigFromAidlFormat) {
@@ -1007,8 +1007,10 @@ TEST(BluetoothAudioClientInterfaceAidlTest,
           aidl_req_l, aidl_req_r};
   reference_aidl_requirements.sourceAseRequirement = reference_aidl_requirements.sinkAseRequirement;
 
+  ::bluetooth::le_audio::CodecManager::Flags flags =
+          ::bluetooth::le_audio::CodecManager::Flags::NONE;
   auto aidl_requirements = GetAidlLeAudioUnicastConfigurationRequirementsFromStackFormat(
-          stack_context, stack_sink_reqs, stack_source_reqs);
+          stack_context, stack_sink_reqs, stack_source_reqs, flags);
 
   ASSERT_EQ(aidl_requirements.audioContext, reference_aidl_requirements.audioContext);
   ASSERT_EQ(aidl_requirements.flags, reference_aidl_requirements.flags);

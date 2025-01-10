@@ -226,6 +226,15 @@ struct btif_storage_leaudio_update_pacs_bin {
 };
 extern struct btif_storage_leaudio_update_pacs_bin btif_storage_leaudio_update_pacs_bin;
 
+// Name: btif_storage_leaudio_update_gmap_bin
+// Params: void
+// Return: void
+struct btif_storage_leaudio_update_gmap_bin {
+  std::function<void(const RawAddress& addr)> body{[](const RawAddress& /* addr */) {}};
+  void operator()(const RawAddress& addr) { body(addr); }
+};
+extern struct btif_storage_leaudio_update_gmap_bin btif_storage_leaudio_update_gmap_bin;
+
 // Name: btif_storage_load_bonded_csis_devices
 // Params: void
 // Return: void
