@@ -210,6 +210,7 @@ android_app {
         ":system-messages-proto-src",
         "proto/keystore.proto",
         "src/**/*.java",
+        "src/**/*.kt",
     ],
     proto: {
         type: "lite",
@@ -236,7 +237,6 @@ android_app {
         "framework-mediaprovider.stubs.module_lib",
         "framework-statsd.stubs.module_lib",
         "framework-tethering.stubs.module_lib",
-        "unsupportedappusage",
 
         // Need to link the class at runtime
         "framework-bluetooth.stubs.module_lib",

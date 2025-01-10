@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
-package com.android.bluetooth.gatt;
+package com.android.bluetooth.gatt
 
-/** GattService configuration. */
-public class GattServiceConfig {
-    public static final String TAG_PREFIX = "BtGatt.";
-    public static final boolean DEBUG_ADMIN = false;
+object GattServiceConfig {
+    @JvmField val TAG_PREFIX = "BtGatt."
+    @JvmField val DEBUG_ADMIN = false
 }
