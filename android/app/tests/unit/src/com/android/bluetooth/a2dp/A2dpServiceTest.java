@@ -200,7 +200,6 @@ public class A2dpServiceTest {
 
         // Verify that setActiveDevice(null) was called during shutdown
         verify(mMockNativeInterface).setActiveDevice(null);
-        mA2dpService.start();
     }
 
     /** Test get priority for BluetoothDevice */
