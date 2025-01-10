@@ -41,9 +41,7 @@ cc_library_static {
         "packages/modules/Bluetooth/system/udrv/include",
         "system/security/keystore/include",
     ],
-    apex_available: [
-        "com.android.btservices",
-    ],
+    apex_available: ["com.android.bt"],
     host_supported: true,
     min_sdk_version: "Tiramisu",
     static_libs: [
@@ -102,9 +100,7 @@ cc_library {
     sanitize: {
         scs: true,
     },
-    apex_available: [
-        "com.android.btservices",
-    ],
+    apex_available: ["com.android.bt"],
     host_supported: true,
     min_sdk_version: "30",
 }

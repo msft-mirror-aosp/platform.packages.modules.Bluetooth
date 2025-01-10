@@ -23,9 +23,7 @@ java_defaults {
         "androidx.annotation_annotation",
         "modules-utils-build",
     ],
-    apex_available: [
-        "com.android.btservices",
-    ],
+    apex_available: ["com.android.bt"],
     min_sdk_version: "Tiramisu",
 }
 

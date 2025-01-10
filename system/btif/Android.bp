@@ -24,9 +24,7 @@ cc_library {
     generated_sources: ["statslog_bt.cpp"],
     generated_headers: ["statslog_bt.h"],
     export_generated_headers: ["statslog_bt.h"],
-    apex_available: [
-        "com.android.btservices",
-    ],
+    apex_available: ["com.android.bt"],
     min_sdk_version: "30",
     shared_libs: [
         "libstatssocket",
@@ -64,9 +62,7 @@ cc_library_static {
     shared_libs: [
         "libchrome",
     ],
-    apex_available: [
-        "com.android.btservices",
-    ],
+    apex_available: ["com.android.bt"],
     min_sdk_version: "Tiramisu",
 }
 
@@ -164,9 +160,7 @@ cc_library_static {
     shared_libs: [
         "libbinder",
     ],
-    apex_available: [
-        "com.android.btservices",
-    ],
+    apex_available: ["com.android.bt"],
     host_supported: true,
     min_sdk_version: "Tiramisu",
 }
@@ -253,9 +247,7 @@ cc_library_static {
         /* we export all classes, so change default visibility, instead of having EXPORT_SYMBOL on each class*/
         "-fvisibility=default",
     ],
-    apex_available: [
-        "com.android.btservices",
-    ],
+    apex_available: ["com.android.bt"],
     host_supported: true,
     min_sdk_version: "Tiramisu",
     header_libs: ["libbluetooth_headers"],
