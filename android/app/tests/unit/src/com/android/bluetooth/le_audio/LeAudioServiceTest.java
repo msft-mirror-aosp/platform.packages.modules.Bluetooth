@@ -1306,12 +1306,11 @@ public class LeAudioServiceTest {
 
         verify(mTbsService).setInbandRingtoneSupport(mSingleDevice);
 
-        /* Expect 2 calles to Audio Manager - one for output  as this is
-         * Ringtone use case */
+        /* Expect 2 calls to Audio Manager - one for output  as this is Ringtone use case */
         verify(mAudioManager)
                 .handleBluetoothActiveDeviceChanged(
                         any(), any(), any(BluetoothProfileConnectionInfo.class));
-        /* Since LeAudioService called AudioManager - assume Audio manager calles properly callback
+        /* Since LeAudioService called AudioManager - assume Audio manager calls properly callback
          * mAudioManager.onAudioDeviceAdded
          */
         injectAudioDeviceAdded(mSingleDevice, AudioDeviceInfo.TYPE_BLE_HEADSET, true, false, true);
