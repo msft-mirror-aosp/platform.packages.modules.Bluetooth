@@ -15,6 +15,8 @@
  */
 package com.android.bluetooth.pbapclient;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertThrows;
@@ -79,7 +81,19 @@ import java.util.Map;
 @MediumTest
 @RunWith(ParameterizedAndroidJunit4.class)
 public class PbapClientServiceTest {
-    private static final String REMOTE_DEVICE_ADDRESS = "00:00:00:00:00:00";
+    @Rule public final SetFlagsRule mSetFlagsRule;
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
+    @Mock private Context mMockContext;
+    @Mock private AdapterService mMockAdapterService;
+    @Mock private DatabaseManager mDatabaseManager;
+    @Mock private PackageManager mMockPackageManager;
+    @Mock private Resources mMockResources;
+    @Mock private UserManager mMockUserManager;
+    @Mock private AccountManager mMockAccountManager;
+    @Mock private SdpPseRecord mMockSdpRecord;
+    @Mock private PbapClientContactsStorage mMockStorage;
+    @Mock private PbapClientStateMachine mMockDeviceStateMachine;
 
     // Constants for SDP. Note that these values come from the native stack, but no centralized
     // constants exist for them as part of the various SDP APIs.
@@ -90,30 +104,17 @@ public class PbapClientServiceTest {
     // Constant for testing ACL disconnection events with a bad transport
     public static final int TRANSPORT_UNKNOWN = -1;
 
-    @Rule public final SetFlagsRule mSetFlagsRule;
+    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
+    private final BluetoothDevice mRemoteDevice = getTestDevice(mAdapter, 56);
+    private final Map<BluetoothDevice, PbapClientStateMachine> mMockDeviceMap =
+            new HashMap<BluetoothDevice, PbapClientStateMachine>();
 
-    private PbapClientService mService = null;
-    private BluetoothAdapter mAdapter = null;
-    private BluetoothDevice mRemoteDevice;
-
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
-    @Mock private Context mMockContext;
-    @Mock private AdapterService mMockAdapterService;
-    @Mock private DatabaseManager mDatabaseManager;
-    @Mock private PackageManager mMockPackageManager;
     private MockContentResolver mMockContentResolver;
     private MockCallLogProvider mMockCallLogProvider;
-    @Mock private Resources mMockResources;
-    @Mock private UserManager mMockUserManager;
-    @Mock private AccountManager mMockAccountManager;
-    @Mock private SdpPseRecord mMockSdpRecord;
+    private PbapClientService mService;
 
     // NEW: Objects for new state machine implementation
     private PbapClientService.PbapClientStateMachineCallback mDeviceCallback;
-    @Mock private PbapClientContactsStorage mMockStorage;
-    private Map<BluetoothDevice, PbapClientStateMachine> mMockDeviceMap =
-            new HashMap<BluetoothDevice, PbapClientStateMachine>();
-    @Mock private PbapClientStateMachine mMockDeviceStateMachine;
 
     @Parameters(name = "{0}")
     public static List<FlagsParameterization> getParams() {
@@ -167,10 +168,6 @@ public class PbapClientServiceTest {
                         })
                 .when(mMockStorage)
                 .getStorageAccountForDevice(any(BluetoothDevice.class));
-
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
-        assertThat(mAdapter).isNotNull();
-        mRemoteDevice = mAdapter.getRemoteDevice(REMOTE_DEVICE_ADDRESS);
 
         if (Looper.myLooper() == null) {
             Looper.prepare();
