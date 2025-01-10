@@ -130,6 +130,10 @@ public:
                                           IBluetoothAudioProvider::LeAudioDeviceCapabilities>>>&),
            (const ::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::
                     LeAudioBroadcastConfigurationRequirement&)));
+  MOCK_METHOD(std::optional<bluetooth::audio::aidl::IBluetoothAudioProviderFactory::ProviderInfo>,
+              GetProviderInfo,
+              ((bluetooth::audio::aidl::SessionType),
+               (std::shared_ptr<bluetooth::audio::aidl::IBluetoothAudioProviderFactory>)));
 
   static void SetInstance(MockBluetoothAudioClientInterfaceAidl* ptr) { instance_ptr = ptr; }
 
@@ -414,6 +418,17 @@ std::vector<AudioCapabilities> BluetoothAudioClientInterface::GetAudioCapabiliti
     return instance->GetAudioCapabilities(session_type);
   }
   return std::vector<AudioCapabilities>(0);
+}
+
+std::optional<bluetooth::audio::aidl::IBluetoothAudioProviderFactory::ProviderInfo>
+BluetoothAudioClientInterface::GetProviderInfo(
+        bluetooth::audio::aidl::SessionType session_type,
+        std::shared_ptr<bluetooth::audio::aidl::IBluetoothAudioProviderFactory> provider_factory) {
+  auto instance = MockBluetoothAudioClientInterfaceAidl::GetInstance();
+  if (instance) {
+    return instance->GetProviderInfo(session_type, provider_factory);
+  }
+  return std::nullopt;
 }
 
 std::vector<IBluetoothAudioProvider::LeAudioAseConfigurationSetting>

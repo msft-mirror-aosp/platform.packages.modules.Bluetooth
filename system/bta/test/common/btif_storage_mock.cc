@@ -41,6 +41,12 @@ void btif_storage_leaudio_update_pacs_bin(const RawAddress& addr) {
   btif_storage_interface->LeAudioUpdatePacs(addr);
 }
 
+/** Store GMAP information */
+void btif_storage_leaudio_update_gmap_bin(const RawAddress& addr) {
+  log::assert_that(btif_storage_interface != nullptr, "Mock storage module not set!");
+  btif_storage_interface->LeAudioUpdateGmap(addr);
+}
+
 void btif_storage_leaudio_update_ase_bin(const RawAddress& addr) {
   log::assert_that(btif_storage_interface != nullptr, "Mock storage module not set!");
   btif_storage_interface->LeAudioUpdateAses(addr);

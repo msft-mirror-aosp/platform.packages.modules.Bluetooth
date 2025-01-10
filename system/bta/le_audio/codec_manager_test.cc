@@ -25,6 +25,8 @@
 #include "hci/controller_interface_mock.h"
 #include "hci/hci_packets.h"
 #include "internal_include/stack_config.h"
+#include "le_audio/gmap_client.h"
+#include "le_audio/gmap_server.h"
 #include "le_audio/le_audio_types.h"
 #include "le_audio_set_configuration_provider.h"
 #include "test/mock/mock_legacy_hci_interface.h"
@@ -95,17 +97,21 @@ stack_config_t mock_stack_config{
 
 const stack_config_t* stack_config_get_interface(void) { return &mock_stack_config; }
 
-namespace bluetooth {
-namespace audio {
-namespace le_audio {
+namespace bluetooth::audio::le_audio {
 OffloadCapabilities get_offload_capabilities() {
   return {*offload_capabilities, *offload_capabilities};
 }
-}  // namespace le_audio
-}  // namespace audio
-}  // namespace bluetooth
+std::optional<bluetooth::le_audio::ProviderInfo> LeAudioClientInterface::GetCodecConfigProviderInfo(
+        void) const {
+  return std::nullopt;
+}
+LeAudioClientInterface* LeAudioClientInterface::Get() { return nullptr; }
+}  // namespace bluetooth::audio::le_audio
 
 namespace bluetooth::le_audio {
+
+void GmapClient::UpdateGmapOffloaderSupport(bool) {}
+void GmapServer::UpdateGmapOffloaderSupport(bool) {}
 
 class MockLeAudioSourceHalClient;
 MockLeAudioSourceHalClient* mock_le_audio_source_hal_client_;
@@ -681,12 +687,16 @@ TEST_F(CodecManagerTestAdsp, test_capabilities_none) {
 TEST_F(CodecManagerTestAdsp, test_capabilities) {
   for (auto test_context : ::bluetooth::le_audio::types::kLeAudioContextAllTypesArray) {
     // Build the offloader capabilities vector using the configuration provider
-    // in HOST mode to get all the .json filce configuration entries.
+    // in HOST mode to get all the .json file configuration entries.
     std::vector<AudioSetConfiguration> offload_capabilities;
     AudioSetConfigurationProvider::Initialize(bluetooth::le_audio::types::CodecLocation::HOST);
-    for (auto& cap : *AudioSetConfigurationProvider::Get()->GetConfigurations(test_context)) {
+    auto all_local_configs = AudioSetConfigurationProvider::Get()->GetConfigurations(test_context);
+    ASSERT_NE(0lu, all_local_configs->size());
+
+    for (auto& cap : *all_local_configs) {
       offload_capabilities.push_back(*cap);
     }
+
     ASSERT_NE(0u, offload_capabilities.size());
     set_mock_offload_capabilities(offload_capabilities);
     // Clean up before the codec manager starts it in ADSP mode.
