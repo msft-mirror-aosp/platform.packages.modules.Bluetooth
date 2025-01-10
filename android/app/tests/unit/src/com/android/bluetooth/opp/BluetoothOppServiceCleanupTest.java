@@ -61,7 +61,6 @@ public class BluetoothOppServiceCleanupTest {
         BluetoothOppService service = null;
         try {
             service = new BluetoothOppService(adapterService);
-            service.start();
             service.setAvailable(true);
 
             // Call stop while UpdateThread is running.
