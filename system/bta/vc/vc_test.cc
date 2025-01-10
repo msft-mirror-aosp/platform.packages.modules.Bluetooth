@@ -555,8 +555,8 @@ protected:
 
   void TestAppRegister(void) {
     BtaAppRegisterCallback app_register_callback;
-    EXPECT_CALL(gatt_interface, AppRegister(_, _, _))
-            .WillOnce(DoAll(SaveArg<0>(&gatt_callback), SaveArg<1>(&app_register_callback)));
+    EXPECT_CALL(gatt_interface, AppRegister(_, _, _, _))
+            .WillOnce(DoAll(SaveArg<1>(&gatt_callback), SaveArg<2>(&app_register_callback)));
     VolumeControl::Initialize(&callbacks, base::DoNothing());
     ASSERT_TRUE(gatt_callback);
     ASSERT_TRUE(app_register_callback);
@@ -765,8 +765,8 @@ TEST_F(VolumeControlTest, test_get_uninitialized) { ASSERT_DEATH(VolumeControl::
 TEST_F(VolumeControlTest, test_initialize) {
   bool init_cb_called = false;
   BtaAppRegisterCallback app_register_callback;
-  EXPECT_CALL(gatt_interface, AppRegister(_, _, _))
-          .WillOnce(DoAll(SaveArg<0>(&gatt_callback), SaveArg<1>(&app_register_callback)));
+  EXPECT_CALL(gatt_interface, AppRegister(_, _, _, _))
+          .WillOnce(DoAll(SaveArg<1>(&gatt_callback), SaveArg<2>(&app_register_callback)));
   VolumeControl::Initialize(
           &callbacks,
           base::Bind([](bool* init_cb_called) { *init_cb_called = true; }, &init_cb_called));

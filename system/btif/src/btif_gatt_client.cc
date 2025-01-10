@@ -266,13 +266,13 @@ void btm_read_rssi_cb(void* p_void) {
  *  Client API Functions
  ******************************************************************************/
 
-static bt_status_t btif_gattc_register_app(const Uuid& uuid, bool eatt_support) {
+static bt_status_t btif_gattc_register_app(const Uuid& uuid, const char* name, bool eatt_support) {
   CHECK_BTGATT_INIT();
 
   return do_in_jni_thread(Bind(
-          [](const Uuid& uuid, bool eatt_support) {
+          [](const Uuid& uuid, const std::string& name, bool eatt_support) {
             BTA_GATTC_AppRegister(
-                    bta_gattc_cback,
+                    name, bta_gattc_cback,
                     base::Bind(
                             [](const Uuid& uuid, uint8_t client_id, uint8_t status) {
                               do_in_jni_thread(Bind(
@@ -286,7 +286,7 @@ static bt_status_t btif_gattc_register_app(const Uuid& uuid, bool eatt_support) 
                             uuid),
                     eatt_support);
           },
-          uuid, eatt_support));
+          uuid, std::string(name), eatt_support));
 }
 
 static void btif_gattc_unregister_app_impl(int client_if) { BTA_GATTC_AppDeregister(client_if); }

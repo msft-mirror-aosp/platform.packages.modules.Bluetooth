@@ -32,6 +32,7 @@ import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothProfile;
+import android.content.AttributionSource;
 import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
@@ -172,6 +173,10 @@ public class BatteryStateMachine extends StateMachine {
     @VisibleForTesting
     @SuppressLint("AndroidFrameworkRequiresPermission") // We should call internal gatt interface
     boolean connectGatt() {
+        mDevice.setAttributionSource(
+                (new AttributionSource.Builder(AttributionSource.myAttributionSource()))
+                        .setAttributionTag("BatteryService")
+                        .build());
         mBluetoothGatt =
                 mDevice.connectGatt(
                         mService,
