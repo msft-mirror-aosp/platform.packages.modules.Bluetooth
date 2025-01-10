@@ -694,7 +694,6 @@ public class AdapterServiceTest {
         mAdapterService.bringUpBle();
 
         assertThat(mAdapterService.getBluetoothGatt()).isNotNull();
-        assertThat(mAdapterService.getBluetoothScan()).isNull();
 
         dropNextMessage(MESSAGE_PROFILE_SERVICE_REGISTERED);
         dropNextMessage(MESSAGE_PROFILE_SERVICE_STATE_CHANGED);

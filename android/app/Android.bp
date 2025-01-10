@@ -32,9 +32,7 @@ java_library {
     name: "bluetooth.mapsapi",
 
     srcs: ["lib/mapapi/**/*.java"],
-    apex_available: [
-        "com.android.btservices",
-    ],
+    apex_available: ["com.android.bt"],
     min_sdk_version: "Tiramisu",
     sdk_version: "module_current",
     lint: {
@@ -47,9 +45,7 @@ java_library {
 
     srcs: [":framework-mms-shared-srcs"],
     libs: ["unsupportedappusage"],
-    apex_available: [
-        "com.android.btservices",
-    ],
+    apex_available: ["com.android.bt"],
     min_sdk_version: "Tiramisu",
     sdk_version: "module_current",
     lint: {
@@ -80,7 +76,7 @@ cc_library_shared {
         "packages/modules/Bluetooth/system",
         "packages/modules/Bluetooth/system/gd",
     ],
-    // libbluetooth_jni is the jni lib included in the btservices apex.
+    // libbluetooth_jni is the jni lib included in the com.android.bt apex.
     // As this library is inside an APEX the shared_libs that does not
     // expose stubs are copied inside it. As a result using those as
     // shared libraries is less interesting as they are not shared, so we link
@@ -164,9 +160,7 @@ cc_library_shared {
     sanitize: {
         scs: true,
     },
-    apex_available: [
-        "com.android.btservices",
-    ],
+    apex_available: ["com.android.bt"],
     min_sdk_version: "Tiramisu",
 }
 
@@ -200,9 +194,7 @@ cc_library {
     sanitize: {
         scs: true,
     },
-    apex_available: [
-        "com.android.btservices",
-    ],
+    apex_available: ["com.android.bt"],
     host_supported: true,
     min_sdk_version: "Tiramisu",
 }
@@ -338,13 +330,9 @@ android_app {
         enabled: true,
         shrink: true,
         optimize: false,
-        // TODO(b/289285719): Revisit after resolving mocking issues in testing.
-        proguard_compatibility: true,
         proguard_flags_files: ["proguard.flags"],
     },
-    apex_available: [
-        "com.android.btservices",
-    ],
+    apex_available: ["com.android.bt"],
     min_sdk_version: "Tiramisu",
     sdk_version: "module_current",
     updatable: true,
@@ -358,9 +346,7 @@ java_library {
     libs: [
         "app-compat-annotations",
     ],
-    apex_available: [
-        "com.android.btservices",
-    ],
+    apex_available: ["com.android.bt"],
     min_sdk_version: "Tiramisu",
     sdk_version: "module_current",
 }
@@ -379,9 +365,7 @@ java_library {
     srcs: [
         ":srcs_bluetooth_protos",
     ],
-    apex_available: [
-        "com.android.btservices",
-    ],
+    apex_available: ["com.android.bt"],
     min_sdk_version: "Tiramisu",
     sdk_version: "module_current",
 }

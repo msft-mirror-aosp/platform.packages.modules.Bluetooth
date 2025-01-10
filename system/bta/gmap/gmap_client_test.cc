@@ -68,7 +68,7 @@ TEST_F(GmapClientTest, test_add_from_storage) {
   const uint16_t role_handle = 2;
   const uint8_t UGT_feature = 0b0011;
   const uint16_t UGT_feature_handle = 4;
-  gmapClient.AddFromStorage(addr, role, role_handle, UGT_feature, UGT_feature_handle);
+  gmapClient.AddFromStorage(role, role_handle, UGT_feature, UGT_feature_handle);
   ASSERT_EQ(gmapClient.getRole(), role);
   ASSERT_EQ(gmapClient.getRoleHandle(), role_handle);
   ASSERT_EQ(gmapClient.getUGTFeature(), UGT_feature);

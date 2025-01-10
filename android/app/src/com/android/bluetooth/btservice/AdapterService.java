@@ -1717,9 +1717,8 @@ public class AdapterService extends Service {
         if (profile == BluetoothProfile.HID_HOST) {
             return Utils.arrayContains(remoteDeviceUuids, BluetoothUuid.HID)
                     || Utils.arrayContains(remoteDeviceUuids, BluetoothUuid.HOGP)
-                    || (Flags.androidHeadtrackerService()
-                            && Utils.arrayContains(
-                                    remoteDeviceUuids, HidHostService.ANDROID_HEADTRACKER_UUID));
+                    || Utils.arrayContains(
+                            remoteDeviceUuids, HidHostService.ANDROID_HEADTRACKER_UUID);
         }
         if (profile == BluetoothProfile.HID_DEVICE) {
             return mHidDeviceService.getConnectionState(device)
@@ -4180,7 +4179,7 @@ public class AdapterService extends Service {
             Set<Integer> eventCodesSet =
                     Arrays.stream(eventCodes).boxed().collect(Collectors.toSet());
             if (eventCodesSet.stream()
-                    .anyMatch((n) -> (n < 0) || (n >= 0x50 && n < 0x60) || (n > 0xff))) {
+                    .anyMatch((n) -> (n < 0) || (n >= 0x52 && n < 0x60) || (n > 0xff))) {
                 throw new IllegalArgumentException("invalid vendor-specific event code");
             }
 
@@ -4410,6 +4409,18 @@ public class AdapterService extends Service {
             }
             service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
             return service.isRfcommSocketOffloadSupported();
+        }
+
+        @Override
+        public IBinder getBluetoothAdvertise() {
+            AdapterService service = getService();
+            return service == null ? null : service.getBluetoothAdvertise();
+        }
+
+        @Override
+        public IBinder getDistanceMeasurement() {
+            AdapterService service = getService();
+            return service == null ? null : service.getDistanceMeasurement();
         }
     }
 
@@ -6135,11 +6146,27 @@ public class AdapterService extends Service {
     }
 
     IBinder getBluetoothScan() {
-        return mScanController == null ? null : mScanController.getBinder();
+        ScanController controller = getBluetoothScanController();
+        return controller == null ? null : controller.getBinder();
     }
 
+    @Nullable
     public ScanController getBluetoothScanController() {
-        return mScanController;
+        if (Flags.scanManagerRefactor()) {
+            return mScanController;
+        } else {
+            return mGattService == null ? null : mGattService.getScanController();
+        }
+    }
+
+    @Nullable
+    IBinder getBluetoothAdvertise() {
+        return mGattService == null ? null : mGattService.getBluetoothAdvertise();
+    }
+
+    @Nullable
+    IBinder getDistanceMeasurement() {
+        return mGattService == null ? null : mGattService.getDistanceMeasurement();
     }
 
     @RequiresPermission(BLUETOOTH_CONNECT)
@@ -6221,10 +6248,9 @@ public class AdapterService extends Service {
             Log.w(TAG, "GATT Service is not running!");
             return;
         }
-        if (Flags.scanManagerRefactor()) {
-            mScanController.notifyProfileConnectionStateChange(profile, fromState, toState);
-        } else {
-            mGattService.notifyProfileConnectionStateChange(profile, fromState, toState);
+        ScanController controller = getBluetoothScanController();
+        if (controller != null) {
+            controller.notifyProfileConnectionStateChange(profile, fromState, toState);
         }
     }
 
@@ -6429,14 +6455,7 @@ public class AdapterService extends Service {
             long idleTime,
             long energyUsed,
             UidTraffic[] data) {
-        if (Flags.btSystemContextReport()) {
-            energyInfoCallbackInternal(
-                    status, ctrlState, txTime, rxTime, idleTime, energyUsed, data);
-        } else if (ctrlState >= BluetoothActivityEnergyInfo.BT_STACK_STATE_INVALID
-                && ctrlState <= BluetoothActivityEnergyInfo.BT_STACK_STATE_STATE_IDLE) {
-            energyInfoCallbackInternal(
-                    status, ctrlState, txTime, rxTime, idleTime, energyUsed, data);
-        }
+        energyInfoCallbackInternal(status, ctrlState, txTime, rxTime, idleTime, energyUsed, data);
         Log.v(
                 TAG,
                 "energyInfoCallback()"

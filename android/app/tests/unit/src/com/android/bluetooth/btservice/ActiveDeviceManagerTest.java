@@ -589,7 +589,6 @@ public class ActiveDeviceManagerTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ADM_ALWAYS_FALLBACK_TO_AVAILABLE_DEVICE)
     public void a2dpHeadsetActivated_checkFallbackMeachanismOneA2dpOneHeadset() {
         // Active call
         when(mAudioManager.getMode()).thenReturn(AudioManager.MODE_IN_CALL);
@@ -850,6 +849,66 @@ public class ActiveDeviceManagerTest {
     public void leAudioConnected_notReadyForStream() {
         when(mLeAudioService.isGroupAvailableForStream(anyInt())).thenReturn(false);
         leAudioConnected(mLeAudioDevice);
+        mTestLooper.dispatchAll();
+        verify(mLeAudioService, never()).setActiveDevice(mLeAudioDevice);
+    }
+
+    /**
+     * LE Audio is connected but is not ready for stream (no available context types). Check if it's
+     * not used as fallback device from A2DP
+     */
+    @Test
+    public void leAudioFallbackA2dpToLeaudio_notReadyForStream() {
+        when(mLeAudioService.isGroupAvailableForStream(anyInt())).thenReturn(false);
+        leAudioConnected(mLeAudioDevice);
+        a2dpConnected(mA2dpDevice, true);
+        mTestLooper.dispatchAll();
+        verify(mLeAudioService, never()).setActiveDevice(mLeAudioDevice);
+        verify(mA2dpService).setActiveDevice(mA2dpDevice);
+
+        a2dpDisconnected(mA2dpDevice);
+        mTestLooper.dispatchAll();
+        verify(mLeAudioService, never()).setActiveDevice(mLeAudioDevice);
+    }
+
+    /**
+     * LE Audio is connected but is not ready for stream (no available context types). Check if it's
+     * not used as fallback device from A2DP
+     */
+    @Test
+    public void leAudioFallbackLeaudioToLeaudio_notReadyForStream() {
+        /* LeAudio device from group 1 - not ready for stream */
+        when(mLeAudioService.getGroupId(mLeAudioDevice)).thenReturn(1);
+        /* LeAudio device from group 1 - ready for stream */
+        when(mLeAudioService.getGroupId(mSecondaryAudioDevice)).thenReturn(2);
+        when(mLeAudioService.isGroupAvailableForStream(1)).thenReturn(false);
+        when(mLeAudioService.isGroupAvailableForStream(2)).thenReturn(true);
+        leAudioConnected(mLeAudioDevice);
+        leAudioConnected(mSecondaryAudioDevice);
+        mTestLooper.dispatchAll();
+        verify(mLeAudioService, never()).setActiveDevice(mLeAudioDevice);
+        verify(mLeAudioService).setActiveDevice(mSecondaryAudioDevice);
+
+        leAudioDisconnected(mSecondaryAudioDevice);
+        mTestLooper.dispatchAll();
+        verify(mLeAudioService, never()).setActiveDevice(mLeAudioDevice);
+    }
+
+    /**
+     * LE Audio is connected but is not ready for stream (no available context types). Check if it's
+     * not used as fallback device from ASHA
+     */
+    @Test
+    public void leAudioFallbackAshaToLeaudio_notReadyForStream() {
+        when(mLeAudioService.isGroupAvailableForStream(anyInt())).thenReturn(false);
+
+        leAudioConnected(mLeAudioDevice);
+        hearingAidConnected(mHearingAidDevice);
+        mTestLooper.dispatchAll();
+        verify(mLeAudioService, never()).setActiveDevice(mLeAudioDevice);
+        verify(mHearingAidService).setActiveDevice(mHearingAidDevice);
+
+        hearingAidDisconnected(mHearingAidDevice);
         mTestLooper.dispatchAll();
         verify(mLeAudioService, never()).setActiveDevice(mLeAudioDevice);
     }
@@ -1661,7 +1720,6 @@ public class ActiveDeviceManagerTest {
 
     /** A wired audio device is disconnected. Check if falls back to connected A2DP. */
     @Test
-    @EnableFlags(Flags.FLAG_ADM_FALLBACK_WHEN_WIRED_AUDIO_DISCONNECTED)
     public void wiredAudioDeviceDisconnected_setFallbackDevice() throws Exception {
         AudioDeviceInfo[] testDevices = createAudioDeviceInfoTestDevices();
 

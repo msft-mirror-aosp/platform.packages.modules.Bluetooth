@@ -34,6 +34,7 @@
 #include "stack/include/l2cap_types.h"
 #include "stack/include/port_api.h"
 #include "stack/include/rfcdefs.h"
+#include "stack/rfcomm/rfc_event.h"
 #include "stack/rfcomm/rfc_state.h"
 #include "types/raw_address.h"
 
@@ -45,7 +46,7 @@
 #define PORT_FC_CREDIT 2    /* use RFCOMM credit based flow control */
 
 /*
- * Define Port Data Transfere control block
+ * Define Port Data Transfer control block
  */
 typedef struct {
   fixed_queue_t* queue;       /* Queue of buffers waiting to be sent */
@@ -104,10 +105,22 @@ typedef struct {
 } tRFC_MCB;
 
 /*
+ * RFCOMM Port State Machine Control Block
+ */
+struct RfcommPortSm {
+  tRFC_PORT_STATE state;
+  tRFC_PORT_STATE state_prior;
+  tRFC_PORT_EVENT last_event;
+  tPORT_RESULT close_reason;
+  uint64_t open_timestamp;
+  uint64_t close_timestamp;
+};
+
+/*
  * RFCOMM Port Connection Control Block
  */
 typedef struct {
-  tRFC_PORT_STATE state; /* Current state of the connection */
+  RfcommPortSm sm_cb;  // State machine control block
 
 #define RFC_RSP_PN 0x01
 #define RFC_RSP_RPN_REPLY 0x02
@@ -155,8 +168,9 @@ typedef struct {
 
   tPORT_CONNECTION_STATE state; /* State of the application */
 
-  uint8_t scn;   /* Service channel number */
-  uint16_t uuid; /* Service UUID */
+  uint8_t scn;      /* Service channel number */
+  uint16_t uuid;    /* Service UUID */
+  uint32_t app_uid; /* UID of the app for which this socket was created */
 
   RawAddress bd_addr; /* BD ADDR of the device for the multiplexer channel */
   bool is_server;     /* true if the server application */

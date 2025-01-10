@@ -19,16 +19,6 @@
 #include "stack/include/bt_hdr.h"
 #include "types/raw_address.h"
 
-/** stack/connection_manager/connection_manager.cc */
-namespace connection_manager {
-bool background_connect_remove(uint8_t /*app_id*/, const RawAddress& /*address*/) { return false; }
-bool direct_connect_remove(uint8_t /*app_id*/, const RawAddress& /*address*/,
-                           bool /*connection_timeout*/) {
-  return false;
-}
-bool is_background_connection(const RawAddress& /*address*/) { return false; }
-}  // namespace connection_manager
-
 /** stack/gatt/att_protocol.cc */
 BT_HDR* attp_build_sr_msg(tGATT_TCB& /*tcb*/, uint8_t /*op_code*/, tGATT_SR_MSG* /*p_msg*/,
                           uint16_t /*payload_size*/) {
@@ -56,7 +46,6 @@ void gatt_update_app_use_link_flag(tGATT_IF /*gatt_if*/, tGATT_TCB* /*p_tcb*/, b
                                    bool /*check_acl_link*/) {}
 void gatts_proc_srv_chg_ind_ack(tGATT_TCB) {}
 bool gatt_disconnect(tGATT_TCB* /*p_tcb*/) { return false; }
-void gatt_cancel_connect(const RawAddress& /*bd_addr*/, tBT_TRANSPORT /*transport*/) {}
 tGATT_CH_STATE gatt_get_ch_state(tGATT_TCB* /*p_tcb*/) { return GATT_CH_CLOSE; }
 void gatt_set_ch_state(tGATT_TCB* /*p_tcb*/, tGATT_CH_STATE /*ch_state*/) {}
 

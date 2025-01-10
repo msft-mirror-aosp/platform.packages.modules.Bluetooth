@@ -68,18 +68,18 @@ public class ScanObjectsFactory {
      * Create an instance of ScanManager
      *
      * @param adapterService an AdapterService instance
-     * @param scanHelper a TransitionalScanHelper instance
+     * @param scanController a ScanController instance
      * @param bluetoothAdapterProxy a bluetoothAdapterProxy instance
      * @param looper the looper to be used for processing messages
      * @return the created ScanManager instance
      */
     public ScanManager createScanManager(
             AdapterService adapterService,
-            TransitionalScanHelper scanHelper,
+            ScanController scanController,
             BluetoothAdapterProxy bluetoothAdapterProxy,
             Looper looper) {
         return new ScanManager(
-                adapterService, scanHelper, bluetoothAdapterProxy, looper, getSystemClock());
+                adapterService, scanController, bluetoothAdapterProxy, looper, getSystemClock());
     }
 
     public PeriodicScanManager createPeriodicScanManager(AdapterService adapterService) {

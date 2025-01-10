@@ -48,7 +48,6 @@ import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.ProfileService;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
-import com.android.bluetooth.flags.Flags;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 
@@ -180,18 +179,12 @@ public class HeadsetClientService extends ProfileService {
     int hfToAmVol(int hfVol) {
         int amRange = mMaxAmVcVol - mMinAmVcVol;
         int hfRange = MAX_HFP_SCO_VOICE_CALL_VOLUME - MIN_HFP_SCO_VOICE_CALL_VOLUME;
-        int amVol = 0;
-        if (Flags.headsetClientAmHfVolumeSymmetric()) {
-            amVol =
-                    (int)
-                                    Math.round(
-                                            (hfVol - MIN_HFP_SCO_VOICE_CALL_VOLUME)
-                                                    * ((double) amRange / hfRange))
-                            + mMinAmVcVol;
-        } else {
-            int amOffset = (amRange * (hfVol - MIN_HFP_SCO_VOICE_CALL_VOLUME)) / hfRange;
-            amVol = mMinAmVcVol + amOffset;
-        }
+        int amVol =
+                (int)
+                                Math.round(
+                                        (hfVol - MIN_HFP_SCO_VOICE_CALL_VOLUME)
+                                                * ((double) amRange / hfRange))
+                        + mMinAmVcVol;
         Log.d(TAG, "HF -> AM " + hfVol + " " + amVol);
         return amVol;
     }
@@ -199,15 +192,9 @@ public class HeadsetClientService extends ProfileService {
     int amToHfVol(int amVol) {
         int amRange = (mMaxAmVcVol > mMinAmVcVol) ? (mMaxAmVcVol - mMinAmVcVol) : 1;
         int hfRange = MAX_HFP_SCO_VOICE_CALL_VOLUME - MIN_HFP_SCO_VOICE_CALL_VOLUME;
-        int hfVol = 0;
-        if (Flags.headsetClientAmHfVolumeSymmetric()) {
-            hfVol =
-                    (int) Math.round((amVol - mMinAmVcVol) * ((double) hfRange / amRange))
-                            + MIN_HFP_SCO_VOICE_CALL_VOLUME;
-        } else {
-            int hfOffset = (hfRange * (amVol - mMinAmVcVol)) / amRange;
-            hfVol = MIN_HFP_SCO_VOICE_CALL_VOLUME + hfOffset;
-        }
+        int hfVol =
+                (int) Math.round((amVol - mMinAmVcVol) * ((double) hfRange / amRange))
+                        + MIN_HFP_SCO_VOICE_CALL_VOLUME;
         Log.d(TAG, "AM -> HF " + amVol + " " + hfVol);
         return hfVol;
     }

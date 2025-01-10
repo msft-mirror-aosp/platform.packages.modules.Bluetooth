@@ -54,7 +54,8 @@ public class DistanceMeasurementManager {
 
     private final AdapterService mAdapterService;
     private final HandlerThread mHandlerThread;
-    DistanceMeasurementNativeInterface mDistanceMeasurementNativeInterface;
+    private final DistanceMeasurementNativeInterface mDistanceMeasurementNativeInterface;
+    private final DistanceMeasurementBinder mDistanceMeasurementBinder;
     private final ConcurrentHashMap<String, CopyOnWriteArraySet<DistanceMeasurementTracker>>
             mRssiTrackers = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, CopyOnWriteArraySet<DistanceMeasurementTracker>>
@@ -70,6 +71,7 @@ public class DistanceMeasurementManager {
         mHandlerThread.start();
         mDistanceMeasurementNativeInterface = DistanceMeasurementNativeInterface.getInstance();
         mDistanceMeasurementNativeInterface.init(this);
+        mDistanceMeasurementBinder = new DistanceMeasurementBinder(adapterService, this);
         if (Flags.channelSounding25q2Apis()) {
             mHasChannelSoundingFeature =
                     adapterService
@@ -81,7 +83,12 @@ public class DistanceMeasurementManager {
     }
 
     void cleanup() {
+        mDistanceMeasurementBinder.cleanup();
         mDistanceMeasurementNativeInterface.cleanup();
+    }
+
+    DistanceMeasurementBinder getBinder() {
+        return mDistanceMeasurementBinder;
     }
 
     DistanceMeasurementMethod[] getSupportedDistanceMeasurementMethods() {
@@ -538,4 +545,5 @@ public class DistanceMeasurementManager {
     private static void logd(String msg) {
         Log.d(TAG, msg);
     }
+
 }

@@ -344,4 +344,10 @@ interface IBluetooth
 
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_PRIVILEGED)")
     boolean isRfcommSocketOffloadSupported(in AttributionSource source);
+
+    @JavaPassthrough(annotation="@android.annotation.RequiresNoPermission")
+    IBinder getBluetoothAdvertise();
+
+    @JavaPassthrough(annotation="@android.annotation.RequiresNoPermission")
+    IBinder getDistanceMeasurement();
 }

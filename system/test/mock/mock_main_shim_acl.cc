@@ -47,7 +47,7 @@ void DumpsysNeighbor(int /* fd */) { inc_func_call_count(__func__); }
 void shim::Acl::Dump(int /* fd */) const { inc_func_call_count(__func__); }
 
 shim::Acl::Acl(os::Handler* /* handler */, const acl_interface_t& acl_interface,
-               uint8_t /* max_acceptlist_size */, uint8_t /* max_address_resolution_size */)
+               uint8_t /* max_address_resolution_size */)
     : acl_interface_(acl_interface) {
   inc_func_call_count(__func__);
 }

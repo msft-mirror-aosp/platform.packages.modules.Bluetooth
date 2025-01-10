@@ -3728,17 +3728,20 @@ TEST_F(UnicastTestNoInit, ConnectFailedDueToInvalidParameters) {
   std::vector<uint8_t> snk_pacs;
   LeAudioClient::GetSinkPacsForStorage(test_address0, snk_pacs);
 
+  std::vector<uint8_t> gmap_data;
+  LeAudioClient::GetGmapForStorage(test_address0, gmap_data);
+
   EXPECT_CALL(mock_storage_load, Call()).WillOnce([&]() {
     do_in_main_thread(base::Bind(&LeAudioClient::AddFromStorage, test_address0, autoconnect,
                                  codec_spec_conf::kLeAudioLocationFrontLeft,
                                  codec_spec_conf::kLeAudioLocationFrontLeft, 0xff, 0xff,
                                  std::move(handles), std::move(snk_pacs), std::move(src_pacs),
-                                 std::move(ases)));
+                                 std::move(ases), std::move(gmap_data)));
     do_in_main_thread(base::Bind(&LeAudioClient::AddFromStorage, test_address1, autoconnect,
                                  codec_spec_conf::kLeAudioLocationFrontRight,
                                  codec_spec_conf::kLeAudioLocationFrontRight, 0xff, 0xff,
                                  std::move(handles), std::move(snk_pacs), std::move(src_pacs),
-                                 std::move(ases)));
+                                 std::move(ases), std::move(gmap_data)));
   });
 
   // Expect stored device0 to connect automatically (first directed connection )
@@ -3835,16 +3838,17 @@ TEST_F(UnicastTestNoInit, LoadStoredEarbudsBroakenStorage) {
   std::vector<uint8_t> empty_buf;
 
   EXPECT_CALL(mock_storage_load, Call()).WillOnce([&]() {
-    do_in_main_thread(base::BindOnce(&LeAudioClient::AddFromStorage, test_address0, autoconnect,
-                                     codec_spec_conf::kLeAudioLocationFrontLeft,
-                                     codec_spec_conf::kLeAudioLocationFrontLeft, 0xff, 0xff,
-                                     std::move(empty_buf), std::move(empty_buf),
-                                     std::move(empty_buf), std::move(empty_buf)));
+    do_in_main_thread(base::BindOnce(
+            &LeAudioClient::AddFromStorage, test_address0, autoconnect,
+            codec_spec_conf::kLeAudioLocationFrontLeft, codec_spec_conf::kLeAudioLocationFrontLeft,
+            0xff, 0xff, std::move(empty_buf), std::move(empty_buf), std::move(empty_buf),
+            std::move(empty_buf), std::move(empty_buf)));
     do_in_main_thread(base::BindOnce(&LeAudioClient::AddFromStorage, test_address1, autoconnect,
                                      codec_spec_conf::kLeAudioLocationFrontRight,
                                      codec_spec_conf::kLeAudioLocationFrontRight, 0xff, 0xff,
                                      std::move(empty_buf), std::move(empty_buf),
-                                     std::move(empty_buf), std::move(empty_buf)));
+                                     std::move(empty_buf), std::move(empty_buf),
+                                     std::move(empty_buf)));
     SyncOnMainLoop();
   });
 
@@ -3975,17 +3979,20 @@ TEST_F(UnicastTestNoInit, LoadStoredEarbudsCsisGrouped) {
   std::vector<uint8_t> snk_pacs;
   LeAudioClient::GetSinkPacsForStorage(test_address0, snk_pacs);
 
+  std::vector<uint8_t> gmap_data;
+  LeAudioClient::GetGmapForStorage(test_address0, gmap_data);
+
   EXPECT_CALL(mock_storage_load, Call()).WillOnce([&]() {
     do_in_main_thread(base::BindOnce(&LeAudioClient::AddFromStorage, test_address0, autoconnect,
                                      codec_spec_conf::kLeAudioLocationFrontLeft,
                                      codec_spec_conf::kLeAudioLocationFrontLeft, 0xff, 0xff,
                                      std::move(handles), std::move(snk_pacs), std::move(src_pacs),
-                                     std::move(ases)));
+                                     std::move(ases), std::move(gmap_data)));
     do_in_main_thread(base::BindOnce(&LeAudioClient::AddFromStorage, test_address1, autoconnect,
                                      codec_spec_conf::kLeAudioLocationFrontRight,
                                      codec_spec_conf::kLeAudioLocationFrontRight, 0xff, 0xff,
                                      std::move(handles), std::move(snk_pacs), std::move(src_pacs),
-                                     std::move(ases)));
+                                     std::move(ases), std::move(gmap_data)));
     SyncOnMainLoop();
   });
 
@@ -4098,6 +4105,9 @@ TEST_F(UnicastTest, LoadStoredBandedHeadphones) {
   std::vector<uint8_t> snk_pacs;
   LeAudioClient::GetSinkPacsForStorage(test_address0, snk_pacs);
 
+  std::vector<uint8_t> gmap_data;
+  LeAudioClient::GetGmapForStorage(test_address0, gmap_data);
+
   /* Disconnect & Cleanup */
   DisconnectLeAudioWithAclClose(test_address0, conn_id);
   if (LeAudioClient::IsLeAudioClientRunning()) {
@@ -4116,7 +4126,7 @@ TEST_F(UnicastTest, LoadStoredBandedHeadphones) {
                                              codec_spec_conf::kLeAudioLocationFrontRight,
                                      codec_spec_conf::kLeAudioLocationMonoAudio, 0xff, 0xff,
                                      std::move(handles), std::move(snk_pacs), std::move(src_pacs),
-                                     std::move(ases)));
+                                     std::move(ases), std::move(gmap_data)));
     SyncOnMainLoop();
   });
 
@@ -4221,17 +4231,20 @@ TEST_F(UnicastTestNoInit, ServiceChangedBeforeServiceIsConnected) {
   std::vector<uint8_t> snk_pacs;
   LeAudioClient::GetSinkPacsForStorage(test_address0, snk_pacs);
 
+  std::vector<uint8_t> gmap_data;
+  LeAudioClient::GetGmapForStorage(test_address0, gmap_data);
+
   EXPECT_CALL(mock_storage_load, Call()).WillOnce([&]() {
     do_in_main_thread(base::BindOnce(&LeAudioClient::AddFromStorage, test_address0, autoconnect,
                                      codec_spec_conf::kLeAudioLocationFrontLeft,
                                      codec_spec_conf::kLeAudioLocationFrontLeft, 0xff, 0xff,
                                      std::move(handles), std::move(snk_pacs), std::move(src_pacs),
-                                     std::move(ases)));
+                                     std::move(ases), std::move(gmap_data)));
     do_in_main_thread(base::BindOnce(&LeAudioClient::AddFromStorage, test_address1, autoconnect,
                                      codec_spec_conf::kLeAudioLocationFrontRight,
                                      codec_spec_conf::kLeAudioLocationFrontRight, 0xff, 0xff,
                                      std::move(handles), std::move(snk_pacs), std::move(src_pacs),
-                                     std::move(ases)));
+                                     std::move(ases), std::move(gmap_data)));
     SyncOnMainLoop();
   });
 
@@ -4347,18 +4360,21 @@ TEST_F(UnicastTestNoInit, LoadStoredEarbudsCsisGroupedDifferently) {
   std::vector<uint8_t> snk_pacs;
   LeAudioClient::GetSinkPacsForStorage(test_address0, snk_pacs);
 
+  std::vector<uint8_t> gmap_data;
+  LeAudioClient::GetGmapForStorage(test_address0, gmap_data);
+
   // Load devices from the storage when storage API is called
   EXPECT_CALL(mock_storage_load, Call()).WillOnce([&]() {
     do_in_main_thread(base::BindOnce(&LeAudioClient::AddFromStorage, test_address0, autoconnect0,
                                      codec_spec_conf::kLeAudioLocationFrontLeft,
                                      codec_spec_conf::kLeAudioLocationFrontLeft, 0xff, 0xff,
                                      std::move(handles), std::move(snk_pacs), std::move(src_pacs),
-                                     std::move(ases)));
+                                     std::move(ases), std::move(gmap_data)));
     do_in_main_thread(base::BindOnce(&LeAudioClient::AddFromStorage, test_address1, autoconnect1,
                                      codec_spec_conf::kLeAudioLocationFrontRight,
                                      codec_spec_conf::kLeAudioLocationFrontRight, 0xff, 0xff,
                                      std::move(handles), std::move(snk_pacs), std::move(src_pacs),
-                                     std::move(ases)));
+                                     std::move(ases), std::move(gmap_data)));
   });
 
   // Expect stored device0 to connect automatically
@@ -13007,6 +13023,67 @@ TEST_F(UnicastTest, CodecFrameBlocks2) {
 
   // Verify that the initially started session was updated with the new params
   ASSERT_EQ(codec_manager_stream_params.sink.codec_frames_blocks_per_sdu, max_codec_frames_per_sdu);
+}
+
+TEST_F(UnicastTestHandoverMode, UpdateMetadataToNotAllowedContexts) {
+  com::android::bluetooth::flags::provider_->leaudio_stop_updated_to_not_available_context_stream(
+          true);
+  const RawAddress test_address0 = GetTestAddress(0);
+  int group_id = bluetooth::groups::kGroupUnknown;
+
+  available_snk_context_types_ =
+          (types::LeAudioContextType::RINGTONE | types::LeAudioContextType::CONVERSATIONAL |
+           types::LeAudioContextType::UNSPECIFIED | types::LeAudioContextType::MEDIA |
+           types::LeAudioContextType::SOUNDEFFECTS)
+                  .value();
+  available_src_context_types_ = available_snk_context_types_;
+  supported_snk_context_types_ = types::kLeAudioContextAllTypes.value();
+  supported_src_context_types_ =
+          (types::kLeAudioContextAllRemoteSource | types::LeAudioContextType::UNSPECIFIED).value();
+  /* Don't allow SOUNDEFFECTS context type to be streamed */
+  int allowed_context_types =
+          (types::LeAudioContextType::RINGTONE | types::LeAudioContextType::CONVERSATIONAL |
+           types::LeAudioContextType::UNSPECIFIED | types::LeAudioContextType::MEDIA)
+                  .value();
+
+  SetSampleDatabaseEarbudsValid(1, test_address0, codec_spec_conf::kLeAudioLocationStereo,
+                                codec_spec_conf::kLeAudioLocationStereo, default_channel_cnt,
+                                default_channel_cnt, 0x0004, false /*add_csis*/, true /*add_cas*/,
+                                true /*add_pacs*/, default_ase_cnt /*add_ascs_cnt*/, 1 /*set_size*/,
+                                0 /*rank*/);
+  EXPECT_CALL(mock_audio_hal_client_callbacks_,
+              OnConnectionState(ConnectionState::CONNECTED, test_address0))
+          .Times(1);
+  EXPECT_CALL(mock_audio_hal_client_callbacks_,
+              OnGroupNodeStatus(test_address0, _, GroupNodeStatus::ADDED))
+          .WillOnce(DoAll(SaveArg<1>(&group_id)));
+
+  ConnectLeAudio(test_address0);
+  ASSERT_NE(group_id, bluetooth::groups::kGroupUnknown);
+
+  EXPECT_CALL(*mock_le_audio_source_hal_client_, Start(_, _, _)).Times(1);
+  types::BidirectionalPair<types::AudioContexts> metadata = {.sink = types::AudioContexts(),
+                                                             .source = types::AudioContexts()};
+  EXPECT_CALL(mock_state_machine_, StartStream(_, types::LeAudioContextType::MEDIA, _, _)).Times(1);
+
+  LeAudioClient::Get()->GroupSetActive(group_id);
+  SyncOnMainLoop();
+
+  /* Set the same allowed context mask for sink and source */
+  LeAudioClient::Get()->SetGroupAllowedContextMask(group_id, allowed_context_types,
+                                                   allowed_context_types);
+
+  StartStreaming(AUDIO_USAGE_MEDIA, AUDIO_CONTENT_TYPE_UNKNOWN, group_id, AUDIO_SOURCE_INVALID,
+                 false, false);
+
+  SyncOnMainLoop();
+  Mock::VerifyAndClearExpectations(&mock_audio_hal_client_callbacks_);
+  Mock::VerifyAndClearExpectations(mock_le_audio_source_hal_client_);
+
+  /* Expect stream to be stopped when not allowed context would be updated in metadata */
+  EXPECT_CALL(mock_state_machine_, StopStream(_));
+
+  UpdateLocalSourceMetadata(AUDIO_USAGE_ASSISTANCE_SONIFICATION, AUDIO_CONTENT_TYPE_UNKNOWN, true);
 }
 
 }  // namespace bluetooth::le_audio

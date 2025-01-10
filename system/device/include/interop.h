@@ -362,6 +362,9 @@ typedef enum {
   // Some HOGP devices requires MTU exchange be part of the initial setup to function.
   INTEROP_HOGP_FORCE_MTU_EXCHANGE,
 
+  // Some devices claim to support HFP in EIR but does not actually support it.
+  INTEROP_DISABLE_HF_PROFILE,
+
   END_OF_INTEROP_LIST
 } interop_feature_t;
 

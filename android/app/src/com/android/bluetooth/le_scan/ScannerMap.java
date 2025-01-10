@@ -56,18 +56,25 @@ public class ScannerMap {
             WorkSource workSource,
             IScannerCallback callback,
             AdapterService adapterService,
-            TransitionalScanHelper scanHelper) {
-        return add(uuid, attributionSource, workSource, callback, null, adapterService, scanHelper);
+            ScanController scanController) {
+        return add(
+                uuid,
+                attributionSource,
+                workSource,
+                callback,
+                null,
+                adapterService,
+                scanController);
     }
 
     /** Add an entry to the application context list with a pending intent. */
     ScannerApp add(
             UUID uuid,
             AttributionSource attributionSource,
-            TransitionalScanHelper.PendingIntentInfo piInfo,
+            ScanController.PendingIntentInfo piInfo,
             AdapterService adapterService,
-            TransitionalScanHelper scanHelper) {
-        return add(uuid, attributionSource, null, null, piInfo, adapterService, scanHelper);
+            ScanController scanController) {
+        return add(uuid, attributionSource, null, null, piInfo, adapterService, scanController);
     }
 
     private ScannerApp add(
@@ -75,9 +82,9 @@ public class ScannerMap {
             AttributionSource attributionSource,
             @Nullable WorkSource workSource,
             @Nullable IScannerCallback callback,
-            @Nullable TransitionalScanHelper.PendingIntentInfo piInfo,
+            @Nullable ScanController.PendingIntentInfo piInfo,
             AdapterService adapterService,
-            TransitionalScanHelper scanHelper) {
+            ScanController scanController) {
         int appUid;
         String appName = null;
         if (piInfo != null) {
@@ -99,7 +106,7 @@ public class ScannerMap {
                             workSource,
                             this,
                             adapterService,
-                            scanHelper,
+                            scanController,
                             getSystemClock());
             mAppScanStatsMap.put(appUid, appScanStats);
         }
@@ -175,7 +182,7 @@ public class ScannerMap {
     }
 
     /** Get an application context by the pending intent info object. */
-    ScannerApp getByPendingIntentInfo(TransitionalScanHelper.PendingIntentInfo info) {
+    ScannerApp getByPendingIntentInfo(ScanController.PendingIntentInfo info) {
         ScannerApp app =
                 getAppByPredicate(entry -> entry.mInfo != null && entry.mInfo.equals(info));
         if (app == null) {
@@ -219,7 +226,7 @@ public class ScannerMap {
 
     public static class ScannerApp {
         /** Context information */
-        @Nullable TransitionalScanHelper.PendingIntentInfo mInfo;
+        @Nullable ScanController.PendingIntentInfo mInfo;
 
         /** Statistics for this app */
         AppScanStats mAppScanStats;
@@ -269,7 +276,7 @@ public class ScannerMap {
                 UUID uuid,
                 @Nullable String attributionTag,
                 @Nullable IScannerCallback callback,
-                @Nullable TransitionalScanHelper.PendingIntentInfo info,
+                @Nullable ScanController.PendingIntentInfo info,
                 String name,
                 AppScanStats appScanStats) {
             this.mUuid = uuid;

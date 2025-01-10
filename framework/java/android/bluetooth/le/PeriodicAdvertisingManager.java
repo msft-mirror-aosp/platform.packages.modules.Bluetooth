@@ -24,7 +24,6 @@ import android.annotation.SuppressLint;
 import android.bluetooth.Attributable;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.IBluetoothGatt;
 import android.bluetooth.IBluetoothScan;
 import android.bluetooth.annotations.RequiresBluetoothLocationPermission;
 import android.bluetooth.annotations.RequiresBluetoothScanPermission;
@@ -34,8 +33,6 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.RemoteException;
 import android.util.Log;
-
-import com.android.bluetooth.flags.Flags;
 
 import java.util.IdentityHashMap;
 import java.util.Objects;
@@ -159,22 +156,12 @@ public final class PeriodicAdvertisingManager {
         IPeriodicAdvertisingCallback wrapped = wrap(callback, handler);
         mCallbackWrappers.put(callback, wrapped);
 
-        if (Flags.scanManagerRefactor()) {
-            IBluetoothScan scan = mBluetoothAdapter.getBluetoothScan();
+        IBluetoothScan scan = mBluetoothAdapter.getBluetoothScan();
 
-            try {
-                scan.registerSync(scanResult, skip, timeout, wrapped, mAttributionSource);
-            } catch (RemoteException e) {
-                Log.e(TAG, "Failed to register sync - ", e);
-            }
-        } else {
-            IBluetoothGatt gatt = mBluetoothAdapter.getBluetoothGatt();
-
-            try {
-                gatt.registerSync(scanResult, skip, timeout, wrapped, mAttributionSource);
-            } catch (RemoteException e) {
-                Log.e(TAG, "Failed to register sync - ", e);
-            }
+        try {
+            scan.registerSync(scanResult, skip, timeout, wrapped, mAttributionSource);
+        } catch (RemoteException e) {
+            Log.e(TAG, "Failed to register sync - ", e);
         }
     }
 
@@ -198,22 +185,12 @@ public final class PeriodicAdvertisingManager {
             throw new IllegalArgumentException("callback was not properly registered");
         }
 
-        if (Flags.scanManagerRefactor()) {
-            IBluetoothScan scan = mBluetoothAdapter.getBluetoothScan();
+        IBluetoothScan scan = mBluetoothAdapter.getBluetoothScan();
 
-            try {
-                scan.unregisterSync(wrapper, mAttributionSource);
-            } catch (RemoteException e) {
-                Log.e(TAG, "Failed to cancel sync creation - ", e);
-            }
-        } else {
-            IBluetoothGatt gatt = mBluetoothAdapter.getBluetoothGatt();
-
-            try {
-                gatt.unregisterSync(wrapper, mAttributionSource);
-            } catch (RemoteException e) {
-                Log.e(TAG, "Failed to cancel sync creation - ", e);
-            }
+        try {
+            scan.unregisterSync(wrapper, mAttributionSource);
+        } catch (RemoteException e) {
+            Log.e(TAG, "Failed to cancel sync creation - ", e);
         }
     }
 
@@ -225,22 +202,12 @@ public final class PeriodicAdvertisingManager {
     @RequiresBluetoothScanPermission
     @RequiresPermission(BLUETOOTH_SCAN)
     public void transferSync(BluetoothDevice bda, int serviceData, int syncHandle) {
-        if (Flags.scanManagerRefactor()) {
-            IBluetoothScan scan = mBluetoothAdapter.getBluetoothScan();
+        IBluetoothScan scan = mBluetoothAdapter.getBluetoothScan();
 
-            try {
-                scan.transferSync(bda, serviceData, syncHandle, mAttributionSource);
-            } catch (RemoteException e) {
-                Log.e(TAG, "Failed to register sync - ", e);
-            }
-        } else {
-            IBluetoothGatt gatt = mBluetoothAdapter.getBluetoothGatt();
-
-            try {
-                gatt.transferSync(bda, serviceData, syncHandle, mAttributionSource);
-            } catch (RemoteException e) {
-                Log.e(TAG, "Failed to register sync - ", e);
-            }
+        try {
+            scan.transferSync(bda, serviceData, syncHandle, mAttributionSource);
+        } catch (RemoteException e) {
+            Log.e(TAG, "Failed to register sync - ", e);
         }
     }
 
@@ -285,22 +252,12 @@ public final class PeriodicAdvertisingManager {
             throw new IllegalArgumentException("callback was not properly registered");
         }
 
-        if (Flags.scanManagerRefactor()) {
-            IBluetoothScan scan = mBluetoothAdapter.getBluetoothScan();
+        IBluetoothScan scan = mBluetoothAdapter.getBluetoothScan();
 
-            try {
-                scan.transferSetInfo(bda, serviceData, advHandle, wrapper, mAttributionSource);
-            } catch (RemoteException e) {
-                Log.e(TAG, "Failed to register sync - ", e);
-            }
-        } else {
-            IBluetoothGatt gatt = mBluetoothAdapter.getBluetoothGatt();
-
-            try {
-                gatt.transferSetInfo(bda, serviceData, advHandle, wrapper, mAttributionSource);
-            } catch (RemoteException e) {
-                Log.e(TAG, "Failed to register sync - ", e);
-            }
+        try {
+            scan.transferSetInfo(bda, serviceData, advHandle, wrapper, mAttributionSource);
+        } catch (RemoteException e) {
+            Log.e(TAG, "Failed to register sync - ", e);
         }
     }
 

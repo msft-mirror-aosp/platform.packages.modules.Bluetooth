@@ -33,7 +33,6 @@
 #include "gatt_api.h"
 #include "internal_include/bt_target.h"
 #include "macros.h"
-#include "os/logging/log_adapter.h"
 #include "osi/include/fixed_queue.h"
 #include "stack/include/bt_hdr.h"
 #include "types/bluetooth/uuid.h"
@@ -194,7 +193,6 @@ typedef struct {
   uint8_t listening{0}; /* if adv for all has been enabled */
   bool eatt_support{false};
   std::string name;
-  std::set<RawAddress> direct_connect_request;
   std::map<RawAddress, uint16_t> mtu_prefs;
 } tGATT_REG;
 
@@ -491,7 +489,6 @@ extern bluetooth::common::TimestampedCircularBuffer<tTCB_STATE_HISTORY> tcb_stat
 
 /* from gatt_main.cc */
 bool gatt_disconnect(tGATT_TCB* p_tcb);
-void gatt_cancel_connect(const RawAddress& bd_addr, tBT_TRANSPORT transport);
 bool gatt_act_connect(tGATT_REG* p_reg, const RawAddress& bd_addr, tBT_TRANSPORT transport,
                       int8_t initiating_phys);
 bool gatt_act_connect(tGATT_REG* p_reg, const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type,

@@ -36,7 +36,6 @@
 #include "bta/sys/bta_sys.h"
 #include "internal_include/bt_target.h"
 #include "main/shim/dumpsys.h"
-#include "os/logging/log_adapter.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bnep_api.h"
 #include "stack/include/bt_hdr.h"
@@ -685,7 +684,7 @@ void PAN_Dumpsys(int fd) {
     if (pcb->con_state == PAN_STATE_IDLE) {
       continue;
     }
-    LOG_DUMPSYS(fd, "  Id:%d peer:%s", i, ADDRESS_TO_LOGGABLE_CSTR(pcb->rem_bda));
+    LOG_DUMPSYS(fd, "  Id:%d peer:%s", i, pcb->rem_bda.ToRedactedStringForLogging().c_str());
     LOG_DUMPSYS(fd, "    rx_packets:%-5lu rx_octets:%-8lu rx_errors:%-5lu rx_drops:%-5lu",
                 (unsigned long)pcb->read.packets, (unsigned long)pcb->read.octets,
                 (unsigned long)pcb->read.errors, (unsigned long)pcb->read.drops);

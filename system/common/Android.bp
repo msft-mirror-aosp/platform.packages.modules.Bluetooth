@@ -20,6 +20,7 @@ cc_library_static {
     ],
     srcs: [
         "address_obfuscator.cc",
+        "le_conn_params.cc",
         "message_loop_thread.cc",
         "metric_id_allocator.cc",
         "os_utils.cc",
@@ -48,9 +49,7 @@ cc_library_static {
         "libcrypto",
         "libcutils",
     ],
-    apex_available: [
-        "com.android.btservices",
-    ],
+    apex_available: ["com.android.bt"],
     min_sdk_version: "Tiramisu",
     header_libs: ["libbluetooth_headers"],
     static_libs: [

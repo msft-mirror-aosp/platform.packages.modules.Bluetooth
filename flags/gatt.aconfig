@@ -1,5 +1,5 @@
 package: "com.android.bluetooth.flags"
-container: "com.android.btservices"
+container: "com.android.bt"
 
 flag {
     name: "default_gatt_transport"
@@ -9,4 +9,12 @@ flag {
     metadata {
         purpose: PURPOSE_BUGFIX
     }
+}
+
+flag {
+    name: "le_subrate_api"
+    namespace: "bluetooth"
+    description: "New API to control LE subrate parameters"
+    bug: "384794418"
+    is_exported: true
 }

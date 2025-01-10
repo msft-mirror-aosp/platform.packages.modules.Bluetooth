@@ -41,6 +41,13 @@ types::CodecLocation CodecManager::GetCodecLocation() const {
   return pimpl_->GetCodecLocation();
 }
 
+std::optional<ProviderInfo> CodecManager::GetCodecConfigProviderInfo(void) const {
+  if (!pimpl_) {
+    return std::nullopt;
+  }
+  return pimpl_->GetCodecConfigProviderInfo();
+}
+
 bool CodecManager::IsDualBiDirSwbSupported(void) const {
   if (!pimpl_) {
     return false;

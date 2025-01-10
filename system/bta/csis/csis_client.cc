@@ -59,7 +59,6 @@
 #include "internal_include/bt_trace.h"
 #include "main/shim/le_scanning_manager.h"
 #include "neighbor_inquiry.h"
-#include "os/logging/log_adapter.h"
 #include "osi/include/osi.h"
 #include "osi/include/stack_power_telemetry.h"
 #include "stack/btm/btm_sec.h"
@@ -752,14 +751,15 @@ public:
       for (auto& device : devices_) {
         if (!g->IsDeviceInTheGroup(device)) {
           if (device->GetExpectedGroupIdMember() == g->GetGroupId()) {
-            stream << "        == candidate addr: " << ADDRESS_TO_LOGGABLE_STR(device->addr)
+            stream << "        == candidate addr: " << device->addr.ToRedactedStringForLogging()
                    << "\n";
           }
           continue;
         }
 
-        stream << "        == addr: " << ADDRESS_TO_LOGGABLE_STR(device->addr) << " ==\n"
-               << "        csis instance: data:" << "\n";
+        stream << "        == addr: " << device->addr.ToRedactedStringForLogging() << " ==\n"
+               << "        csis instance: data:"
+               << "\n";
 
         auto instance = device->GetCsisInstanceByGroupId(g->GetGroupId());
         if (!instance) {

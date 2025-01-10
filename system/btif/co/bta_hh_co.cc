@@ -553,8 +553,7 @@ static int uhid_fd_poll(btif_hh_uhid_t* p_uhid, struct pollfd* pfds, int nfds) {
   int counter = 0;
 
   do {
-    if (com::android::bluetooth::flags::break_uhid_polling_early() &&
-        !com::android::bluetooth::flags::hid_report_queuing() && !p_uhid->hh_keep_polling) {
+    if (!com::android::bluetooth::flags::hid_report_queuing() && !p_uhid->hh_keep_polling) {
       log::debug("Polling stopped");
       return -1;
     }
@@ -569,13 +568,6 @@ static int uhid_fd_poll(btif_hh_uhid_t* p_uhid, struct pollfd* pfds, int nfds) {
                                     : BTA_HH_UHID_POLL_PERIOD_MS;
     ret = poll(pfds, nfds, uhid_poll_timeout);
   } while (ret == -1 && errno == EINTR);
-
-  if (!com::android::bluetooth::flags::break_uhid_polling_early()) {
-    if (ret == 0) {
-      log::verbose("Polling timed out, attempt to read (old behavior)");
-      return 1;
-    }
-  }
 
   return ret;
 }

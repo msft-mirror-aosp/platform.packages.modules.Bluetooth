@@ -36,7 +36,6 @@
 #include "device/include/interop.h"
 #include "internal_include/bt_target.h"
 #include "main/shim/dumpsys.h"
-#include "os/logging/log_adapter.h"
 #include "osi/include/allocator.h"
 #include "stack/btm/btm_dev.h"
 #include "stack/include/bt_name.h"

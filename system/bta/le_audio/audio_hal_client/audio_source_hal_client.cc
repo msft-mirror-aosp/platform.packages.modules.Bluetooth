@@ -227,19 +227,12 @@ void SourceImpl::SendAudioData() {
     sStats.media_read_last_underflow_us = bluetooth::common::time_get_os_boottime_us();
   }
 
-  if (com::android::bluetooth::flags::leaudio_hal_client_asrc()) {
-    auto asrc_buffers = asrc_->Run(data);
+  auto asrc_buffers = asrc_->Run(data);
 
-    std::lock_guard<std::mutex> guard(audioSourceCallbacksMutex_);
-    for (auto buffer : asrc_buffers) {
-      if (audioSourceCallbacks_ != nullptr) {
-        audioSourceCallbacks_->OnAudioDataReady(*buffer);
-      }
-    }
-  } else {
-    std::lock_guard<std::mutex> guard(audioSourceCallbacksMutex_);
+  std::lock_guard<std::mutex> guard(audioSourceCallbacksMutex_);
+  for (auto buffer : asrc_buffers) {
     if (audioSourceCallbacks_ != nullptr) {
-      audioSourceCallbacks_->OnAudioDataReady(data);
+      audioSourceCallbacks_->OnAudioDataReady(*buffer);
     }
   }
 }
@@ -267,11 +260,9 @@ bool SourceImpl::InitAudioSinkThread() {
 
 void SourceImpl::StartAudioTicks() {
   wakelock_acquire();
-  if (com::android::bluetooth::flags::leaudio_hal_client_asrc()) {
-    asrc_ = std::make_unique<bluetooth::audio::asrc::SourceAudioHalAsrc>(
-            worker_thread_, source_codec_config_.num_channels, source_codec_config_.sample_rate,
-            source_codec_config_.bits_per_sample, source_codec_config_.data_interval_us);
-  }
+  asrc_ = std::make_unique<bluetooth::audio::asrc::SourceAudioHalAsrc>(
+          worker_thread_, source_codec_config_.num_channels, source_codec_config_.sample_rate,
+          source_codec_config_.bits_per_sample, source_codec_config_.data_interval_us);
   audio_timer_.SchedulePeriodic(
           worker_thread_->GetWeakPtr(), FROM_HERE,
           base::BindRepeating(&SourceImpl::SendAudioData, weak_factory_.GetWeakPtr()),

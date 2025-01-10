@@ -67,16 +67,6 @@ using bluetooth::Uuid;
 using std::vector;
 using namespace bluetooth;
 
-/* TODO: b/329720661 Remove this namespace entirely when
- * prevent_hogp_reconnect_when_connected flag is shipped */
-namespace {
-#ifndef BTA_HH_LE_RECONN
-constexpr bool kBTA_HH_LE_RECONN = true;
-#else
-constexpr bool kBTA_HH_LE_RECONN = false;
-#endif
-}  // namespace
-
 #define BTA_HH_APP_ID_LE 0xff
 
 #define BTA_HH_LE_PROTO_BOOT_MODE 0x00
@@ -232,9 +222,7 @@ void bta_hh_le_enable(void) {
                         }),
                         false);
 
-  if (com::android::bluetooth::flags::leaudio_dynamic_spatial_audio()) {
-    LeAudioClient::RegisterIsoDataConsumer(bta_hh_le_iso_data_callback);
-  }
+  LeAudioClient::RegisterIsoDataConsumer(bta_hh_le_iso_data_callback);
 }
 
 /*******************************************************************************
@@ -280,7 +268,7 @@ static uint8_t bta_hh_le_get_le_dev_hdl(uint8_t cb_index) {
  * Parameters:
  *
  ******************************************************************************/
-void bta_hh_le_open_conn(tBTA_HH_DEV_CB* p_cb) {
+void bta_hh_le_open_conn(tBTA_HH_DEV_CB* p_cb, bool direct) {
   p_cb->hid_handle = bta_hh_le_get_le_dev_hdl(p_cb->index);
   if (p_cb->hid_handle == BTA_HH_IDX_INVALID) {
     tBTA_HH_STATUS status = BTA_HH_ERR_NO_RES;
@@ -289,6 +277,15 @@ void bta_hh_le_open_conn(tBTA_HH_DEV_CB* p_cb) {
   }
 
   bta_hh_cb.le_cb_index[BTA_HH_GET_LE_CB_IDX(p_cb->hid_handle)] = p_cb->index;  // Update index map
+  if (!direct) {
+    // don't reconnect unbonded device
+    if (!BTM_IsLinkKeyKnown(p_cb->link_spec.addrt.bda, BT_TRANSPORT_LE)) {
+      return;
+    }
+    log::debug("Add {} to background connection list", p_cb->link_spec);
+    bta_hh_le_add_dev_bg_conn(p_cb);
+    return;
+  }
 
   BTA_GATTC_Open(bta_hh_cb.gatt_if, p_cb->link_spec.addrt.bda, BTM_BLE_DIRECT_CONNECTION, false);
 }
@@ -639,13 +636,6 @@ static void bta_hh_le_open_cmpl(tBTA_HH_DEV_CB* p_cb) {
     if (interop_match_vendor_product_ids(INTEROP_HOGP_FORCE_MTU_EXCHANGE, p_cb->dscp_info.vendor_id,
                                          p_cb->dscp_info.product_id)) {
       BTA_GATTC_ConfigureMTU(p_cb->conn_id, GATT_MAX_MTU_SIZE);
-    }
-
-    if (!com::android::bluetooth::flags::prevent_hogp_reconnect_when_connected()) {
-      if (kBTA_HH_LE_RECONN && p_cb->status == BTA_HH_OK) {
-        bta_hh_le_add_dev_bg_conn(p_cb);
-      }
-      return;
     }
   }
 }
@@ -1600,8 +1590,7 @@ static void bta_hh_le_srvc_search_cmpl(tBTA_GATTC_SEARCH_CMPL* p_data) {
       scp_service = &service;
     } else if (service.uuid == Uuid::From16Bit(UUID_SERVCLASS_GAP_SERVER)) {
       gap_service = &service;
-    } else if (com::android::bluetooth::flags::android_headtracker_service() &&
-               service.uuid == ANDROID_HEADTRACKER_SERVICE_UUID) {
+    } else if (service.uuid == ANDROID_HEADTRACKER_SERVICE_UUID) {
       headtracker_service = &service;
     }
   }
@@ -1782,6 +1771,11 @@ void bta_hh_gatt_close(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data) {
   if (bta_hh_cb.cnt_num == 0 && bta_hh_cb.w4_disable) {
     bta_hh_disc_cmpl();
   } else {
+    if (com::android::bluetooth::flags::hogp_reconnection()) {
+      // reconnection is handled in btif_hh.cc:btif_hh_disconnected
+      return;
+    }
+
     switch (le_close->reason) {
       case GATT_CONN_FAILED_ESTABLISHMENT:
       case GATT_CONN_TERMINATE_PEER_USER:
@@ -2178,6 +2172,12 @@ void bta_hh_le_get_dscp_act(tBTA_HH_DEV_CB* p_cb) {
  *
  ******************************************************************************/
 static void bta_hh_le_add_dev_bg_conn(tBTA_HH_DEV_CB* p_cb) {
+  if (com::android::bluetooth::flags::hogp_reconnection()) {
+    if (p_cb->in_bg_conn) {
+      return;
+    }
+  }
+
   /* Add device into BG connection to accept remote initiated connection */
   BTA_GATTC_Open(bta_hh_cb.gatt_if, p_cb->link_spec.addrt.bda, BTM_BLE_BKG_CONNECT_ALLOW_LIST,
                  false);
@@ -2408,10 +2408,6 @@ static void bta_hh_process_cache_rpt(tBTA_HH_DEV_CB* p_cb, tBTA_HH_RPT_CACHE_ENT
 
 static bool bta_hh_le_iso_data_callback(const RawAddress& addr, uint16_t /*cis_conn_hdl*/,
                                         uint8_t* data, uint16_t size, uint32_t /*timestamp*/) {
-  if (!com::android::bluetooth::flags::leaudio_dynamic_spatial_audio()) {
-    log::warn("DSA not supported");
-    return false;
-  }
 
   tAclLinkSpec link_spec = {.addrt.bda = addr, .transport = BT_TRANSPORT_LE};
 
