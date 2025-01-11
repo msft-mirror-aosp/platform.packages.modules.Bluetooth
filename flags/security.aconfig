@@ -36,10 +36,10 @@ flag {
 }
 
 flag {
-  name: "le_enc_on_reconnection"
+  name: "le_enc_on_reconnect"
   namespace: "bluetooth"
   description: "Encrypt LE link on reconnection with bonded devices"
-  bug: "356201480"
+  bug: "388864535"
   metadata {
     purpose: PURPOSE_BUGFIX
   }
