@@ -44,7 +44,6 @@ import com.android.bluetooth.hfpclient.NativeInterface;
 import com.android.bluetooth.hid.HidDeviceNativeInterface;
 import com.android.bluetooth.hid.HidHostNativeInterface;
 import com.android.bluetooth.le_audio.LeAudioNativeInterface;
-import com.android.bluetooth.pan.PanNativeInterface;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -89,7 +88,6 @@ public class ProfileServiceTest {
     @Mock private HearingAidNativeInterface mHearingAidNativeInterface;
     @Mock private HidDeviceNativeInterface mHidDeviceNativeInterface;
     @Mock private HidHostNativeInterface mHidHostNativeInterface;
-    @Mock private PanNativeInterface mPanNativeInterface;
     @Mock private LeAudioNativeInterface mLeAudioInterface;
 
     private void setProfileState(int profile, int state) {
@@ -155,6 +153,7 @@ public class ProfileServiceTest {
                                                 && profile != BluetoothProfile.VOLUME_CONTROL
                                                 && profile != BluetoothProfile.CSIP_SET_COORDINATOR
                                                 && profile != BluetoothProfile.GATT
+                                                && profile != BluetoothProfile.PAN
                                                 && profile != BluetoothProfile.A2DP)
                         .toArray();
         TestUtils.setAdapterService(mAdapterService);
@@ -169,7 +168,6 @@ public class ProfileServiceTest {
         HearingAidNativeInterface.setInstance(mHearingAidNativeInterface);
         HidDeviceNativeInterface.setInstance(mHidDeviceNativeInterface);
         HidHostNativeInterface.setInstance(mHidHostNativeInterface);
-        PanNativeInterface.setInstance(mPanNativeInterface);
         LeAudioNativeInterface.setInstance(mLeAudioInterface);
     }
 
@@ -187,7 +185,6 @@ public class ProfileServiceTest {
         HearingAidNativeInterface.setInstance(null);
         HidDeviceNativeInterface.setInstance(null);
         HidHostNativeInterface.setInstance(null);
-        PanNativeInterface.setInstance(null);
         LeAudioNativeInterface.setInstance(null);
     }
 
