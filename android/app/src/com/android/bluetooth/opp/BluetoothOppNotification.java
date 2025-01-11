@@ -51,7 +51,6 @@ import android.util.Log;
 import com.android.bluetooth.BluetoothMethodProxy;
 import com.android.bluetooth.R;
 import com.android.bluetooth.Utils;
-import com.android.bluetooth.flags.Flags;
 
 import com.google.common.annotations.VisibleForTesting;
 
@@ -234,7 +233,7 @@ class BluetoothOppNotification {
                         case NOTIFY:
                             synchronized (BluetoothOppNotification.this) {
                                 if (mPendingUpdate > 0 && mUpdateNotificationThread == null) {
-                                    Log.v(TAG, "new notify threadi!");
+                                    Log.v(TAG, "new notify thread!");
                                     mUpdateNotificationThread = new NotificationUpdateThread();
                                     mUpdateNotificationThread.start();
                                     Log.v(TAG, "send delay message");

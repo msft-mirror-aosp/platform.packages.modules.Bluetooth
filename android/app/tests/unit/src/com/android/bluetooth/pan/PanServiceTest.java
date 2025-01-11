@@ -32,6 +32,7 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.content.Context;
 import android.net.TetheringInterface;
+import android.net.TetheringManager;
 import android.os.UserManager;
 
 import androidx.test.InstrumentationRegistry;
@@ -55,15 +56,6 @@ import org.mockito.junit.MockitoRule;
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class PanServiceTest {
-    private static final String REMOTE_DEVICE_ADDRESS = "00:00:00:00:00:00";
-    private static final byte[] REMOTE_DEVICE_ADDRESS_AS_ARRAY = new byte[] {0, 0, 0, 0, 0, 0};
-
-    private static final int TIMEOUT_MS = 5_000;
-
-    private PanService mService = null;
-    private BluetoothAdapter mAdapter = null;
-    private BluetoothDevice mRemoteDevice;
-
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
     @Mock private AdapterService mAdapterService;
@@ -71,31 +63,34 @@ public class PanServiceTest {
     @Mock private PanNativeInterface mNativeInterface;
     @Mock private UserManager mMockUserManager;
 
-    @Before
-    public void setUp() throws Exception {
-        Context targetContext = InstrumentationRegistry.getTargetContext();
-        TestUtils.setAdapterService(mAdapterService);
-        doReturn(mDatabaseManager).when(mAdapterService).getDatabase();
-        PanNativeInterface.setInstance(mNativeInterface);
-        mService = new PanService(targetContext);
-        mService.start();
-        mService.setAvailable(true);
+    private static final byte[] REMOTE_DEVICE_ADDRESS_AS_ARRAY = new byte[] {0, 0, 0, 0, 0, 0};
 
-        // Try getting the Bluetooth adapter
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
-        assertThat(mAdapter).isNotNull();
-        mService.mUserManager = mMockUserManager;
-        mRemoteDevice = mAdapter.getRemoteDevice(REMOTE_DEVICE_ADDRESS);
+    private static final int TIMEOUT_MS = 5_000;
+
+    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
+    private final BluetoothDevice mRemoteDevice = TestUtils.getTestDevice(mAdapter, 0);
+    private final Context mTargetContext = InstrumentationRegistry.getTargetContext();
+
+    private PanService mService;
+
+    @Before
+    public void setUp() {
+        doReturn(mTargetContext.getResources()).when(mAdapterService).getResources();
+        doReturn(mDatabaseManager).when(mAdapterService).getDatabase();
+        TestUtils.mockGetSystemService(
+                mAdapterService, Context.USER_SERVICE, UserManager.class, mMockUserManager);
+        TestUtils.mockGetSystemService(
+                mAdapterService, Context.TETHERING_SERVICE, TetheringManager.class);
+
+        mService = new PanService(mAdapterService, mNativeInterface);
+        mService.setAvailable(true);
     }
 
     @After
-    public void tearDown() throws Exception {
+    public void tearDown() {
         mService.stop();
         mService.cleanup();
-        PanNativeInterface.setInstance(null);
-        mService = PanService.getPanService();
-        assertThat(mService).isNull();
-        TestUtils.clearAdapterService(mAdapterService);
+        assertThat(PanService.getPanService()).isNull();
     }
 
     @Test
