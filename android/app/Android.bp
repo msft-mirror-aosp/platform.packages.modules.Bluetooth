@@ -200,7 +200,6 @@ cc_library {
 }
 
 // Bluetooth APK
-
 android_app {
     name: "Bluetooth",
     defaults: ["bluetooth_framework_errorprone_rules"],
@@ -211,6 +210,7 @@ android_app {
         ":system-messages-proto-src",
         "proto/keystore.proto",
         "src/**/*.java",
+        "src/**/*.kt",
     ],
     proto: {
         type: "lite",
@@ -226,7 +226,6 @@ android_app {
 
     jni_uses_platform_apis: true,
     libs: [
-        "app-compat-annotations",
         "bluetooth_constants_java",
         "bluetooth_flags_java_lib",
         "error_prone_annotations",
@@ -238,7 +237,6 @@ android_app {
         "framework-mediaprovider.stubs.module_lib",
         "framework-statsd.stubs.module_lib",
         "framework-tethering.stubs.module_lib",
-        "unsupportedappusage",
 
         // Need to link the class at runtime
         "framework-bluetooth.stubs.module_lib",
@@ -336,24 +334,6 @@ android_app {
     min_sdk_version: "Tiramisu",
     sdk_version: "module_current",
     updatable: true,
-}
-
-java_library {
-    name: "bluetooth.change-ids",
-    srcs: [
-        "src/com/android/bluetooth/ChangeIds.java",
-    ],
-    libs: [
-        "app-compat-annotations",
-    ],
-    apex_available: ["com.android.bt"],
-    min_sdk_version: "Tiramisu",
-    sdk_version: "module_current",
-}
-
-platform_compat_config {
-    name: "bluetoothapk-platform-compat-config",
-    src: ":bluetooth.change-ids",
 }
 
 java_library {
