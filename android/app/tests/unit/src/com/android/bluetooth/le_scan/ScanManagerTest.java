@@ -126,7 +126,7 @@ public class ScanManagerTest {
     @Mock private LocationManager mLocationManager;
     @Mock private MetricsLogger mMetricsLogger;
     @Mock private ScanNativeInterface mScanNativeInterface;
-    @Mock private TransitionalScanHelper mScanHelper;
+    @Mock private ScanController mScanController;
 
     @Spy private GattObjectsFactory mGattObjectsFactory = GattObjectsFactory.getInstance();
     @Spy private ScanObjectsFactory mScanObjectsFactory = ScanObjectsFactory.getInstance();
@@ -238,7 +238,7 @@ public class ScanManagerTest {
         mScanManager =
                 new ScanManager(
                         mAdapterService,
-                        mScanHelper,
+                        mScanController,
                         mBluetoothAdapterProxy,
                         mLooper.getLooper(),
                         mTimeProvider);
@@ -251,7 +251,7 @@ public class ScanManagerTest {
                                 null,
                                 null,
                                 mAdapterService,
-                                mScanHelper,
+                                mScanController,
                                 mTimeProvider));
     }
 
@@ -1257,7 +1257,7 @@ public class ScanManagerTest {
                                     source,
                                     null,
                                     mAdapterService,
-                                    mScanHelper,
+                                    mScanController,
                                     mTimeProvider));
             // Create scan client for the app, which also records scan start
             ScanClient client = createScanClient(isFiltered, scanMode, UID, appScanStats);
@@ -1328,7 +1328,7 @@ public class ScanManagerTest {
                                 source1,
                                 null,
                                 mAdapterService,
-                                mScanHelper,
+                                mScanController,
                                 mTimeProvider));
         // Create scan client for the first app
         ScanClient client1 =
@@ -1350,7 +1350,7 @@ public class ScanManagerTest {
                                 source2,
                                 null,
                                 mAdapterService,
-                                mScanHelper,
+                                mScanController,
                                 mTimeProvider));
         // Create scan client for the second app
         ScanClient client2 = createScanClient(isFiltered, SCAN_MODE_BALANCED, UID_2, appScanStats2);
@@ -1386,7 +1386,7 @@ public class ScanManagerTest {
                                 source3,
                                 null,
                                 mAdapterService,
-                                mScanHelper,
+                                mScanController,
                                 mTimeProvider));
         // Create scan client for the third app
         ScanClient client3 =
@@ -1423,7 +1423,7 @@ public class ScanManagerTest {
                                 source4,
                                 null,
                                 mAdapterService,
-                                mScanHelper,
+                                mScanController,
                                 mTimeProvider));
         // Create scan client for the fourth app
         ScanClient client4 =
@@ -1909,7 +1909,7 @@ public class ScanManagerTest {
             mScanManager =
                     new ScanManager(
                             mAdapterService,
-                            mScanHelper,
+                            mScanController,
                             mBluetoothAdapterProxy,
                             mLooper.getLooper(),
                             mTimeProvider);

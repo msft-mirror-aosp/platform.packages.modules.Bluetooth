@@ -257,7 +257,8 @@ void RFCOMM_ControlReq(tRFC_MCB* p_mcb, uint8_t dlci, tPORT_CTRL* p_pars) {
     return;
   }
 
-  if ((p_port->state != PORT_CONNECTION_STATE_OPENED) || (p_port->rfc.state != RFC_STATE_OPENED)) {
+  if ((p_port->state != PORT_CONNECTION_STATE_OPENED) ||
+      (p_port->rfc.sm_cb.state != RFC_STATE_OPENED)) {
     return;
   }
 
@@ -285,7 +286,8 @@ void RFCOMM_FlowReq(tRFC_MCB* p_mcb, uint8_t dlci, bool enable) {
     return;
   }
 
-  if ((p_port->state != PORT_CONNECTION_STATE_OPENED) || (p_port->rfc.state != RFC_STATE_OPENED)) {
+  if ((p_port->state != PORT_CONNECTION_STATE_OPENED) ||
+      (p_port->rfc.sm_cb.state != RFC_STATE_OPENED)) {
     return;
   }
 
@@ -312,7 +314,8 @@ void RFCOMM_LineStatusReq(tRFC_MCB* p_mcb, uint8_t dlci, uint8_t status) {
     return;
   }
 
-  if ((p_port->state != PORT_CONNECTION_STATE_OPENED) || (p_port->rfc.state != RFC_STATE_OPENED)) {
+  if ((p_port->state != PORT_CONNECTION_STATE_OPENED) ||
+      (p_port->rfc.sm_cb.state != RFC_STATE_OPENED)) {
     return;
   }
 

@@ -391,7 +391,7 @@ void BTA_HhDisable(void);
  * Returns          void
  *
  ******************************************************************************/
-void BTA_HhOpen(const tAclLinkSpec& link_spec);
+void BTA_HhOpen(const tAclLinkSpec& link_spec, bool direct);
 
 /*******************************************************************************
  *

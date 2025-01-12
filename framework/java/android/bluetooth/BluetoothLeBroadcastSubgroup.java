@@ -229,7 +229,9 @@ public final class BluetoothLeBroadcastSubgroup implements Parcelable {
             mCodecId = original.getCodecId();
             mCodecSpecificConfig = original.getCodecSpecificConfig();
             mContentMetadata = original.getContentMetadata();
-            mChannels = original.getChannels();
+            for (BluetoothLeBroadcastChannel channel : original.getChannels()) {
+                mChannels.add(new BluetoothLeBroadcastChannel.Builder(channel).build());
+            }
         }
 
         /**

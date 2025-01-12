@@ -731,6 +731,7 @@ uint8_t btif_a2dp_sink_enqueue_buf(BT_HDR* p_pkt) {
   }
 
   log::verbose("+");
+
   /* Allocate and queue this buffer */
   BT_HDR* p_msg = reinterpret_cast<BT_HDR*>(osi_malloc(sizeof(*p_msg) + p_pkt->len));
   memcpy(p_msg, p_pkt, sizeof(*p_msg));
@@ -738,17 +739,18 @@ uint8_t btif_a2dp_sink_enqueue_buf(BT_HDR* p_pkt) {
   memcpy(p_msg->data, p_pkt->data + p_pkt->offset, p_pkt->len);
   fixed_queue_enqueue(btif_a2dp_sink_cb.rx_audio_queue, p_msg);
 
+  /* If the queue is full, pop the front off to make room for the new data */
   if (fixed_queue_length(btif_a2dp_sink_cb.rx_audio_queue) == MAX_INPUT_A2DP_FRAME_QUEUE_SZ) {
+    log::verbose("Audio data buffer has reached max size. Dropping front packet");
     osi_free(fixed_queue_try_dequeue(btif_a2dp_sink_cb.rx_audio_queue));
-    uint8_t ret = fixed_queue_length(btif_a2dp_sink_cb.rx_audio_queue);
-    return ret;
   }
 
-  // Avoid other checks if alarm has already been initialized.
+  /* Check to see if we need to start decoding */
   if (btif_a2dp_sink_cb.decode_alarm == nullptr &&
       fixed_queue_length(btif_a2dp_sink_cb.rx_audio_queue) >= MAX_A2DP_DELAYED_START_FRAME_COUNT) {
-    log::verbose("Initiate decoding. Current focus state:{}", btif_a2dp_sink_cb.rx_focus_state);
+    log::verbose("Can initiate decoding, focus_state={}", btif_a2dp_sink_cb.rx_focus_state);
     if (btif_a2dp_sink_cb.rx_focus_state == BTIF_A2DP_SINK_FOCUS_GRANTED) {
+      log::info("Request to begin decoding");
       btif_a2dp_sink_audio_handle_start_decoding();
     }
   }

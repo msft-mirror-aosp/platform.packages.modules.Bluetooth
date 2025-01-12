@@ -465,7 +465,6 @@ public final class BluetoothHidHost implements BluetoothProfile {
      * @throws IllegalArgumentException if the {@code device} invalid.
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_ALLOW_SWITCHING_HID_AND_HOGP)
     @SystemApi
     @RequiresBluetoothConnectPermission
     @RequiresPermission(
@@ -569,7 +568,6 @@ public final class BluetoothHidHost implements BluetoothProfile {
      * @throws IllegalArgumentException if the {@code device} invalid.
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_ALLOW_SWITCHING_HID_AND_HOGP)
     @SystemApi
     @RequiresBluetoothConnectPermission
     @RequiresPermission(

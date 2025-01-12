@@ -43,7 +43,6 @@ import android.os.Binder;
 import android.os.RemoteException;
 import android.os.WorkSource;
 import android.os.test.TestLooper;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.InstrumentationRegistry;
@@ -53,7 +52,6 @@ import androidx.test.runner.AndroidJUnit4;
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.CompanionManager;
-import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.gatt.GattNativeInterface;
 import com.android.bluetooth.gatt.GattObjectsFactory;
 
@@ -73,16 +71,16 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
-/** Test cases for {@link TransitionalScanHelper}. */
+/** Test cases for {@link ScanController}. */
 @SmallTest
 @RunWith(AndroidJUnit4.class)
-public class TransitionalScanHelperTest {
+public class ScanControllerTest {
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
     @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     @Mock private ScannerMap mScannerMap;
     @Mock private ScannerMap.ScannerApp mApp;
-    @Mock private TransitionalScanHelper.PendingIntentInfo mPiInfo;
+    @Mock private ScanController.PendingIntentInfo mPiInfo;
     @Mock private PeriodicScanManager mPeriodicScanManager;
     @Mock private ScanManager mScanManager;
     @Mock private Resources mResources;
@@ -96,7 +94,7 @@ public class TransitionalScanHelperTest {
     private final AttributionSource mAttributionSource = mAdapter.getAttributionSource();
     private final Context mContext = InstrumentationRegistry.getTargetContext();
 
-    private TransitionalScanHelper mScanHelper;
+    private ScanController mScanController;
     private CompanionManager mBtCompanionManager;
 
     @Before
@@ -112,7 +110,7 @@ public class TransitionalScanHelperTest {
 
         doReturn(mResources).when(mAdapterService).getResources();
         doReturn(mContext.getPackageManager()).when(mAdapterService).getPackageManager();
-        doReturn(mContext.getSharedPreferences("TransitionalScanHelperTest", Context.MODE_PRIVATE))
+        doReturn(mContext.getSharedPreferences("ScanControllerTest", Context.MODE_PRIVATE))
                 .when(mAdapterService)
                 .getSharedPreferences(anyString(), anyInt());
 
@@ -125,15 +123,15 @@ public class TransitionalScanHelperTest {
         TestLooper testLooper = new TestLooper();
         testLooper.startAutoDispatch();
 
-        mScanHelper = new TransitionalScanHelper(mAdapterService, () -> false);
-        mScanHelper.start(testLooper.getLooper());
+        mScanController = new ScanController(mAdapterService);
+        // mScanController.start(testLooper.getLooper());
 
-        mScanHelper.setScannerMap(mScannerMap);
+        mScanController.setScannerMap(mScannerMap);
     }
 
     @After
     public void tearDown() throws Exception {
-        mScanHelper.stop();
+        mScanController.stop();
 
         GattObjectsFactory.setInstanceForTesting(null);
         ScanObjectsFactory.setInstanceForTesting(null);
@@ -141,7 +139,7 @@ public class TransitionalScanHelperTest {
 
     @Test
     public void testParseBatchTimestamp() {
-        long timestampNanos = mScanHelper.parseTimestampNanos(new byte[] {-54, 7});
+        long timestampNanos = mScanController.parseTimestampNanos(new byte[] {-54, 7});
         assertThat(timestampNanos).isEqualTo(99700000000L);
     }
 
@@ -155,7 +153,7 @@ public class TransitionalScanHelperTest {
         AppScanStats appScanStats = mock(AppScanStats.class);
         doReturn(appScanStats).when(mScannerMap).getAppScanStatsById(scannerId);
 
-        mScanHelper.continuePiStartScan(scannerId, mApp);
+        mScanController.continuePiStartScan(scannerId, mApp);
 
         verify(appScanStats)
                 .recordScanStart(mPiInfo.settings, mPiInfo.filters, false, false, scannerId, null);
@@ -173,7 +171,7 @@ public class TransitionalScanHelperTest {
         AppScanStats appScanStats = mock(AppScanStats.class);
         doReturn(appScanStats).when(mScannerMap).getAppScanStatsById(scannerId);
 
-        mScanHelper.continuePiStartScan(scannerId, mApp);
+        mScanController.continuePiStartScan(scannerId, mApp);
 
         verify(appScanStats)
                 .recordScanStart(mPiInfo.settings, mPiInfo.filters, false, false, scannerId, null);
@@ -208,7 +206,7 @@ public class TransitionalScanHelperTest {
         doReturn(scanClientSet).when(mScanManager).getFullBatchScanQueue();
         doReturn(mApp).when(mScannerMap).getById(scanClient.scannerId);
 
-        mScanHelper.onBatchScanReportsInternal(
+        mScanController.onBatchScanReportsInternal(
                 status, scannerId, reportType, numRecords, recordData);
         verify(mScanManager).callbackDone(scannerId, status);
 
@@ -221,28 +219,29 @@ public class TransitionalScanHelperTest {
         IScannerCallback callback = mock(IScannerCallback.class);
         mApp.mCallback = callback;
 
-        mScanHelper.onBatchScanReportsInternal(
+        mScanController.onBatchScanReportsInternal(
                 status, scannerId, reportType, numRecords, recordData);
         verify(callback).onBatchScanResults(any());
     }
 
     @Test
     public void enforceReportDelayFloor() {
-        long reportDelayFloorHigher = TransitionalScanHelper.DEFAULT_REPORT_DELAY_FLOOR + 1;
+        long reportDelayFloorHigher = ScanController.DEFAULT_REPORT_DELAY_FLOOR + 1;
         ScanSettings scanSettings =
                 new ScanSettings.Builder().setReportDelay(reportDelayFloorHigher).build();
 
-        ScanSettings newScanSettings = mScanHelper.enforceReportDelayFloor(scanSettings);
+        ScanSettings newScanSettings = mScanController.enforceReportDelayFloor(scanSettings);
 
         assertThat(newScanSettings.getReportDelayMillis())
                 .isEqualTo(scanSettings.getReportDelayMillis());
 
         ScanSettings scanSettingsFloor = new ScanSettings.Builder().setReportDelay(1).build();
 
-        ScanSettings newScanSettingsFloor = mScanHelper.enforceReportDelayFloor(scanSettingsFloor);
+        ScanSettings newScanSettingsFloor =
+                mScanController.enforceReportDelayFloor(scanSettingsFloor);
 
         assertThat(newScanSettingsFloor.getReportDelayMillis())
-                .isEqualTo(TransitionalScanHelper.DEFAULT_REPORT_DELAY_FLOOR);
+                .isEqualTo(ScanController.DEFAULT_REPORT_DELAY_FLOOR);
     }
 
     @Test
@@ -253,7 +252,7 @@ public class TransitionalScanHelperTest {
         AppScanStats appScanStats = mock(AppScanStats.class);
         doReturn(appScanStats).when(mScannerMap).getAppScanStatsByUid(Binder.getCallingUid());
 
-        mScanHelper.registerScanner(callback, workSource, mAttributionSource);
+        mScanController.registerScanner(callback, workSource, mAttributionSource);
         verify(mScannerMap)
                 .add(
                         any(),
@@ -261,7 +260,7 @@ public class TransitionalScanHelperTest {
                         eq(workSource),
                         eq(callback),
                         any(),
-                        eq(mScanHelper));
+                        eq(mScanController));
         verify(mScanManager).registerScanner(any());
     }
 
@@ -269,7 +268,7 @@ public class TransitionalScanHelperTest {
     public void flushPendingBatchResults() {
         int scannerId = 3;
 
-        mScanHelper.flushPendingBatchResults(scannerId, mAttributionSource);
+        mScanController.flushPendingBatchResults(scannerId, mAttributionSource);
         verify(mScanManager).flushBatchScanResults(new ScanClient(scannerId));
     }
 
@@ -313,7 +312,7 @@ public class TransitionalScanHelperTest {
         // Simulate remote client crash
         doThrow(new RemoteException()).when(callback).onScanResult(any());
 
-        mScanHelper.onScanResult(
+        mScanController.onScanResult(
                 eventType,
                 addressType,
                 address,
@@ -337,7 +336,7 @@ public class TransitionalScanHelperTest {
         int timeout = 2;
         IPeriodicAdvertisingCallback callback = mock(IPeriodicAdvertisingCallback.class);
 
-        mScanHelper.registerSync(scanResult, skip, timeout, callback, mAttributionSource);
+        mScanController.registerSync(scanResult, skip, timeout, callback, mAttributionSource);
         verify(mPeriodicScanManager).startSync(scanResult, skip, timeout, callback);
     }
 
@@ -346,7 +345,7 @@ public class TransitionalScanHelperTest {
         int serviceData = 1;
         int syncHandle = 2;
 
-        mScanHelper.transferSync(mDevice, serviceData, syncHandle, mAttributionSource);
+        mScanController.transferSync(mDevice, serviceData, syncHandle, mAttributionSource);
         verify(mPeriodicScanManager).transferSync(mDevice, serviceData, syncHandle);
     }
 
@@ -356,7 +355,8 @@ public class TransitionalScanHelperTest {
         int advHandle = 2;
         IPeriodicAdvertisingCallback callback = mock(IPeriodicAdvertisingCallback.class);
 
-        mScanHelper.transferSetInfo(mDevice, serviceData, advHandle, callback, mAttributionSource);
+        mScanController.transferSetInfo(
+                mDevice, serviceData, advHandle, callback, mAttributionSource);
         verify(mPeriodicScanManager).transferSetInfo(mDevice, serviceData, advHandle, callback);
     }
 
@@ -364,24 +364,13 @@ public class TransitionalScanHelperTest {
     public void unregisterSync() {
         IPeriodicAdvertisingCallback callback = mock(IPeriodicAdvertisingCallback.class);
 
-        mScanHelper.unregisterSync(callback, mAttributionSource);
+        mScanController.unregisterSync(callback, mAttributionSource);
         verify(mPeriodicScanManager).stopSync(callback);
     }
 
     @Test
-    public void getCurrentUsedTrackingAdvertisement() {
-        mScanHelper.getCurrentUsedTrackingAdvertisement();
-        verify(mScanManager).getCurrentUsedTrackingAdvertisement();
-    }
-
-    @Test
-    public void cleanUp_doesNotCrash() {
-        mScanHelper.cleanup();
-    }
-
-    @Test
     public void profileConnectionStateChanged_notifyScanManager() {
-        mScanHelper.notifyProfileConnectionStateChange(
+        mScanController.notifyProfileConnectionStateChange(
                 BluetoothProfile.A2DP,
                 BluetoothProfile.STATE_CONNECTING,
                 BluetoothProfile.STATE_CONNECTED);
@@ -401,7 +390,7 @@ public class TransitionalScanHelperTest {
         byte[] scanRsp = new byte[] {0x04};
         int filtIndex = 5;
 
-        int advState = TransitionalScanHelper.ADVT_STATE_ONFOUND;
+        int advState = ScanController.ADVT_STATE_ONFOUND;
         int advInfoPresent = 7;
         String address = "00:11:22:33:FF:EE";
         int addrType = BluetoothDevice.ADDRESS_TYPE_RANDOM;
@@ -422,7 +411,7 @@ public class TransitionalScanHelperTest {
         IScannerCallback callback = mock(IScannerCallback.class);
 
         app.mCallback = callback;
-        app.mInfo = mock(TransitionalScanHelper.PendingIntentInfo.class);
+        app.mInfo = mock(ScanController.PendingIntentInfo.class);
 
         doReturn(app).when(mScannerMap).getById(scannerId);
         doReturn(scanClientSet).when(mScanManager).getRegularScanQueue();
@@ -443,7 +432,7 @@ public class TransitionalScanHelperTest {
                         rssiValue,
                         timeStamp);
 
-        mScanHelper.onTrackAdvFoundLost(advtFilterOnFoundOnLostInfo);
+        mScanController.onTrackAdvFoundLost(advtFilterOnFoundOnLostInfo);
         ArgumentCaptor<ScanResult> result = ArgumentCaptor.forClass(ScanResult.class);
         verify(callback).onFoundOrLost(eq(true), result.capture());
         assertThat(result.getValue().getDevice()).isNotNull();

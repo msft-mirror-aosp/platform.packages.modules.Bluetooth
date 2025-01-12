@@ -826,9 +826,6 @@ tBTM_STATUS BTM_SecBond(const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type,
   if ((transport == BT_TRANSPORT_LE && (dev_type & BT_DEVICE_TYPE_BLE) == 0) ||
       (transport == BT_TRANSPORT_BR_EDR && (dev_type & BT_DEVICE_TYPE_BREDR) == 0)) {
     log::warn("Requested transport and supported transport don't match");
-    if (!com::android::bluetooth::flags::pairing_on_unknown_transport()) {
-      return tBTM_STATUS::BTM_ILLEGAL_ACTION;
-    }
   }
   return btm_sec_bond_by_transport(bd_addr, addr_type, transport);
 }
@@ -1251,8 +1248,7 @@ void BTM_PasskeyReqReply(tBTM_STATUS res, const RawAddress& bd_addr, uint32_t pa
  *
  ******************************************************************************/
 void BTM_ReadLocalOobData(void) {
-  if (com::android::bluetooth::flags::use_local_oob_extended_command() &&
-      bluetooth::shim::GetController()->SupportsSecureConnections()) {
+  if (bluetooth::shim::GetController()->SupportsSecureConnections()) {
     btsnd_hcic_read_local_oob_extended_data();
   } else {
     btsnd_hcic_read_local_oob_data();
@@ -2171,7 +2167,7 @@ tBTM_SEC_DEV_REC* btm_rnr_add_name_to_security_record(const RawAddress* p_bd_add
 
   BTM_LogHistory(kBtmLogTag, (p_bd_addr) ? *p_bd_addr : RawAddress::kEmpty, "RNR complete",
                  std::format("hci_status:{} name:{}", hci_error_code_text(hci_status),
-                             PRIVATE_NAME(reinterpret_cast<char const*>(p_bd_name))));
+                             reinterpret_cast<char const*>(p_bd_name)));
 
   if (p_dev_rec == nullptr) {
     // We need to send the callbacks to complete the RNR cycle despite failure
@@ -4636,7 +4632,9 @@ static void btm_sec_wait_and_start_authentication(tBTM_SEC_DEV_REC* p_dev_rec) {
 
   /* Overwrite the system-wide authentication delay if device-specific
    * interoperability delay is needed. */
-  if (interop_match_addr(INTEROP_DELAY_AUTH, addr)) {
+  if (interop_match_addr(INTEROP_DELAY_AUTH, addr) ||
+      interop_match_name(INTEROP_DELAY_AUTH,
+                         reinterpret_cast<char const*>(p_dev_rec->sec_bd_name))) {
     delay_auth = BTM_SEC_START_AUTH_DELAY;
   }
 

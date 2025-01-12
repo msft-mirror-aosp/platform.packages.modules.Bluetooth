@@ -4203,6 +4203,26 @@ public final class BluetoothAdapter {
         return null;
     }
 
+    /**
+     * Return a binder to BluetoothAdvertise
+     *
+     * @hide
+     */
+    @RequiresNoPermission
+    public @Nullable IBluetoothAdvertise getBluetoothAdvertise() {
+        mServiceLock.readLock().lock();
+        try {
+            if (mService != null) {
+                return IBluetoothAdvertise.Stub.asInterface(mService.getBluetoothAdvertise());
+            }
+        } catch (RemoteException e) {
+            logRemoteException(TAG, e);
+        } finally {
+            mServiceLock.readLock().unlock();
+        }
+        return null;
+    }
+
     /** Return a binder to a Profile service */
     private @Nullable IBinder getProfile(int profile) {
         mServiceLock.readLock().lock();
@@ -5830,8 +5850,8 @@ public final class BluetoothAdapter {
      * Register an {@link BluetoothHciVendorCallback} to listen for HCI vendor responses and events
      *
      * @param eventCodeSet Set of vendor-specific event codes to listen for updates. Each
-     *     vendor-specific event code must be in the range 0x00 to 0x4f or 0x60 to 0xff.
-     *     The inclusive range 0x50-0x5f is reserved by the system.
+     *     vendor-specific event code must be in the range 0x00 to 0x4f or 0x60 to 0xff. The
+     *     inclusive range 0x52-0x5f is reserved by the system.
      * @param executor an {@link Executor} to execute given callback
      * @param callback user implementation of the {@link BluetoothHciVendorCallback}
      * @throws IllegalArgumentException if the callback is already registered, or event codes not in
@@ -5851,7 +5871,7 @@ public final class BluetoothAdapter {
         requireNonNull(executor);
         requireNonNull(callback);
         if (eventCodeSet.stream()
-                .anyMatch((n) -> (n < 0) || (n >= 0x50 && n < 0x60) || (n > 0xff))) {
+                .anyMatch((n) -> (n < 0) || (n >= 0x52 && n < 0x60) || (n > 0xff))) {
             throw new IllegalArgumentException("Event code not in valid range");
         }
 

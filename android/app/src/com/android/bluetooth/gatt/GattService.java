@@ -16,7 +16,6 @@
 
 package com.android.bluetooth.gatt;
 
-import static android.Manifest.permission.BLUETOOTH_ADVERTISE;
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE;
@@ -43,14 +42,10 @@ import android.bluetooth.BluetoothUtils;
 import android.bluetooth.IBluetoothGatt;
 import android.bluetooth.IBluetoothGattCallback;
 import android.bluetooth.IBluetoothGattServerCallback;
-import android.bluetooth.le.AdvertiseData;
-import android.bluetooth.le.AdvertisingSetParameters;
 import android.bluetooth.le.ChannelSoundingParams;
 import android.bluetooth.le.DistanceMeasurementMethod;
 import android.bluetooth.le.DistanceMeasurementParams;
-import android.bluetooth.le.IAdvertisingSetCallback;
 import android.bluetooth.le.IDistanceMeasurementCallback;
-import android.bluetooth.le.PeriodicAdvertisingParameters;
 import android.companion.CompanionDeviceManager;
 import android.content.AttributionSource;
 import android.content.pm.PackageManager;
@@ -282,13 +277,6 @@ public class GattService extends ProfileService {
     private boolean isHandleRestricted(int connId, int handle) {
         Set<Integer> restrictedHandles = mRestrictedHandles.get(connId);
         return restrictedHandles != null && restrictedHandles.contains(handle);
-    }
-
-    /** Notify Scan manager of bluetooth profile connection state changes */
-    public void notifyProfileConnectionStateChange(int profile, int fromState, int toState) {
-        if (mScanController != null) {
-            mScanController.notifyProfileConnectionStateChange(profile, fromState, toState);
-        }
     }
 
     class ServerDeathRecipient implements IBinder.DeathRecipient {
@@ -833,133 +821,6 @@ public class GattService extends ProfileService {
         }
 
         @Override
-        public void startAdvertisingSet(
-                AdvertisingSetParameters parameters,
-                AdvertiseData advertiseData,
-                AdvertiseData scanResponse,
-                PeriodicAdvertisingParameters periodicParameters,
-                AdvertiseData periodicData,
-                int duration,
-                int maxExtAdvEvents,
-                int serverIf,
-                IAdvertisingSetCallback callback,
-                AttributionSource attributionSource) {
-            GattService service = getService();
-            if (service == null) {
-                return;
-            }
-            service.startAdvertisingSet(
-                    parameters,
-                    advertiseData,
-                    scanResponse,
-                    periodicParameters,
-                    periodicData,
-                    duration,
-                    maxExtAdvEvents,
-                    serverIf,
-                    callback,
-                    attributionSource);
-        }
-
-        @Override
-        public void stopAdvertisingSet(
-                IAdvertisingSetCallback callback, AttributionSource attributionSource) {
-            GattService service = getService();
-            if (service == null) {
-                return;
-            }
-            service.stopAdvertisingSet(callback, attributionSource);
-        }
-
-        @Override
-        public void getOwnAddress(int advertiserId, AttributionSource attributionSource) {
-            GattService service = getService();
-            if (service == null) {
-                return;
-            }
-            service.getOwnAddress(advertiserId, attributionSource);
-        }
-
-        @Override
-        public void enableAdvertisingSet(
-                int advertiserId,
-                boolean enable,
-                int duration,
-                int maxExtAdvEvents,
-                AttributionSource attributionSource) {
-            GattService service = getService();
-            if (service == null) {
-                return;
-            }
-            service.enableAdvertisingSet(
-                    advertiserId, enable, duration, maxExtAdvEvents, attributionSource);
-        }
-
-        @Override
-        public void setAdvertisingData(
-                int advertiserId, AdvertiseData data, AttributionSource attributionSource) {
-            GattService service = getService();
-            if (service == null) {
-                return;
-            }
-            service.setAdvertisingData(advertiserId, data, attributionSource);
-        }
-
-        @Override
-        public void setScanResponseData(
-                int advertiserId, AdvertiseData data, AttributionSource attributionSource) {
-            GattService service = getService();
-            if (service == null) {
-                return;
-            }
-            service.setScanResponseData(advertiserId, data, attributionSource);
-        }
-
-        @Override
-        public void setAdvertisingParameters(
-                int advertiserId,
-                AdvertisingSetParameters parameters,
-                AttributionSource attributionSource) {
-            GattService service = getService();
-            if (service == null) {
-                return;
-            }
-            service.setAdvertisingParameters(advertiserId, parameters, attributionSource);
-        }
-
-        @Override
-        public void setPeriodicAdvertisingParameters(
-                int advertiserId,
-                PeriodicAdvertisingParameters parameters,
-                AttributionSource attributionSource) {
-            GattService service = getService();
-            if (service == null) {
-                return;
-            }
-            service.setPeriodicAdvertisingParameters(advertiserId, parameters, attributionSource);
-        }
-
-        @Override
-        public void setPeriodicAdvertisingData(
-                int advertiserId, AdvertiseData data, AttributionSource attributionSource) {
-            GattService service = getService();
-            if (service == null) {
-                return;
-            }
-            service.setPeriodicAdvertisingData(advertiserId, data, attributionSource);
-        }
-
-        @Override
-        public void setPeriodicAdvertisingEnable(
-                int advertiserId, boolean enable, AttributionSource attributionSource) {
-            GattService service = getService();
-            if (service == null) {
-                return;
-            }
-            service.setPeriodicAdvertisingEnable(advertiserId, enable, attributionSource);
-        }
-
-        @Override
         public void disconnectAll(AttributionSource attributionSource) {
             GattService service = getService();
             if (service == null) {
@@ -1079,7 +940,6 @@ public class GattService extends ProfileService {
                     .toArray();
         }
     }
-    ;
 
     /**************************************************************************
      * Callback functions - CLIENT
@@ -1747,158 +1607,6 @@ public class GattService extends ProfileService {
             Log.d(TAG, "unreg:" + appId);
             unregisterClient(appId, attributionSource);
         }
-    }
-
-    /**************************************************************************
-     * ADVERTISING SET
-     *************************************************************************/
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_ADVERTISE,
-                BLUETOOTH_PRIVILEGED,
-            },
-            conditional = true)
-    void startAdvertisingSet(
-            AdvertisingSetParameters parameters,
-            AdvertiseData advertiseData,
-            AdvertiseData scanResponse,
-            PeriodicAdvertisingParameters periodicParameters,
-            AdvertiseData periodicData,
-            int duration,
-            int maxExtAdvEvents,
-            int serverIf,
-            IAdvertisingSetCallback callback,
-            AttributionSource attributionSource) {
-        if (!Utils.checkAdvertisePermissionForDataDelivery(
-                this, attributionSource, "GattService startAdvertisingSet")) {
-            return;
-        }
-        if (parameters.getOwnAddressType() != AdvertisingSetParameters.ADDRESS_TYPE_DEFAULT
-                || serverIf != 0
-                || parameters.isDirected()) {
-            this.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
-        }
-        mAdvertiseManager.startAdvertisingSet(
-                parameters,
-                advertiseData,
-                scanResponse,
-                periodicParameters,
-                periodicData,
-                duration,
-                maxExtAdvEvents,
-                serverIf,
-                callback,
-                attributionSource);
-    }
-
-    @RequiresPermission(BLUETOOTH_ADVERTISE)
-    void stopAdvertisingSet(IAdvertisingSetCallback callback, AttributionSource attributionSource) {
-        if (!Utils.checkAdvertisePermissionForDataDelivery(
-                this, attributionSource, "GattService stopAdvertisingSet")) {
-            return;
-        }
-        mAdvertiseManager.stopAdvertisingSet(callback);
-    }
-
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_ADVERTISE,
-                BLUETOOTH_PRIVILEGED,
-            })
-    void getOwnAddress(int advertiserId, AttributionSource attributionSource) {
-        if (!Utils.checkAdvertisePermissionForDataDelivery(
-                this, attributionSource, "GattService getOwnAddress")) {
-            return;
-        }
-        this.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
-        mAdvertiseManager.getOwnAddress(advertiserId);
-    }
-
-    @RequiresPermission(BLUETOOTH_ADVERTISE)
-    void enableAdvertisingSet(
-            int advertiserId,
-            boolean enable,
-            int duration,
-            int maxExtAdvEvents,
-            AttributionSource attributionSource) {
-        if (!Utils.checkAdvertisePermissionForDataDelivery(
-                this, attributionSource, "GattService enableAdvertisingSet")) {
-            return;
-        }
-        mAdvertiseManager.enableAdvertisingSet(advertiserId, enable, duration, maxExtAdvEvents);
-    }
-
-    @RequiresPermission(BLUETOOTH_ADVERTISE)
-    void setAdvertisingData(
-            int advertiserId, AdvertiseData data, AttributionSource attributionSource) {
-        if (!Utils.checkAdvertisePermissionForDataDelivery(
-                this, attributionSource, "GattService setAdvertisingData")) {
-            return;
-        }
-        mAdvertiseManager.setAdvertisingData(advertiserId, data);
-    }
-
-    @RequiresPermission(BLUETOOTH_ADVERTISE)
-    void setScanResponseData(
-            int advertiserId, AdvertiseData data, AttributionSource attributionSource) {
-        if (!Utils.checkAdvertisePermissionForDataDelivery(
-                this, attributionSource, "GattService setScanResponseData")) {
-            return;
-        }
-        mAdvertiseManager.setScanResponseData(advertiserId, data);
-    }
-
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_ADVERTISE,
-                BLUETOOTH_PRIVILEGED,
-            },
-            conditional = true)
-    void setAdvertisingParameters(
-            int advertiserId,
-            AdvertisingSetParameters parameters,
-            AttributionSource attributionSource) {
-        if (!Utils.checkAdvertisePermissionForDataDelivery(
-                this, attributionSource, "GattService setAdvertisingParameters")) {
-            return;
-        }
-        if (parameters.getOwnAddressType() != AdvertisingSetParameters.ADDRESS_TYPE_DEFAULT
-                || parameters.isDirected()) {
-            this.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
-        }
-        mAdvertiseManager.setAdvertisingParameters(advertiserId, parameters);
-    }
-
-    @RequiresPermission(BLUETOOTH_ADVERTISE)
-    void setPeriodicAdvertisingParameters(
-            int advertiserId,
-            PeriodicAdvertisingParameters parameters,
-            AttributionSource attributionSource) {
-        if (!Utils.checkAdvertisePermissionForDataDelivery(
-                this, attributionSource, "GattService setPeriodicAdvertisingParameters")) {
-            return;
-        }
-        mAdvertiseManager.setPeriodicAdvertisingParameters(advertiserId, parameters);
-    }
-
-    @RequiresPermission(BLUETOOTH_ADVERTISE)
-    void setPeriodicAdvertisingData(
-            int advertiserId, AdvertiseData data, AttributionSource attributionSource) {
-        if (!Utils.checkAdvertisePermissionForDataDelivery(
-                this, attributionSource, "GattService setPeriodicAdvertisingData")) {
-            return;
-        }
-        mAdvertiseManager.setPeriodicAdvertisingData(advertiserId, data);
-    }
-
-    @RequiresPermission(BLUETOOTH_ADVERTISE)
-    void setPeriodicAdvertisingEnable(
-            int advertiserId, boolean enable, AttributionSource attributionSource) {
-        if (!Utils.checkAdvertisePermissionForDataDelivery(
-                this, attributionSource, "GattService setPeriodicAdvertisingEnable")) {
-            return;
-        }
-        mAdvertiseManager.setPeriodicAdvertisingEnable(advertiserId, enable);
     }
 
     /**************************************************************************
@@ -3347,6 +3055,14 @@ public class GattService extends ProfileService {
         }
 
         return BluetoothStatusCodes.SUCCESS;
+    }
+
+    /**************************************************************************
+     * Binder functions
+     *************************************************************************/
+
+    public IBinder getBluetoothAdvertise() {
+        return mAdvertiseManager.getBinder();
     }
 
     /**************************************************************************

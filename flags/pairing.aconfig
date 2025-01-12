@@ -12,40 +12,10 @@ flag {
 }
 
 flag {
-    name: "pairing_on_unknown_transport"
-    namespace: "bluetooth"
-    description: "Allow pairing on transport not known to be supported by the remote device"
-    bug: "335239971"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "cancel_pairing_only_on_disconnected_transport"
     namespace: "bluetooth"
     description: "Cancel pairing due to unexpected disconnection only if the transport matches"
     bug: "338152239"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "temporary_pairing_device_properties"
-    namespace: "bluetooth"
-    description: "Do not remove the device properties immediately after insecure pairing"
-    bug: "342202557"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "use_local_oob_extended_command"
-    namespace: "bluetooth"
-    description: "Use HCI Read Local OOB Extended Data command to generate local OOB when Secure Connections is supported by the controller"
-    bug: "342250775"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -246,6 +216,26 @@ flag {
     namespace: "bluetooth"
     description: "Use appropriate authentication requirements for SMP security request in peripheral role"
     bug: "385202199"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "le_appearance_after_ctkd"
+    namespace: "bluetooth"
+    description: "Allow read of LE appearance after CTKD if class of device is unknown"
+    bug: "386835787"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "create_metadata_after_bonding"
+    namespace: "bluetooth"
+    description: "Don't create metadata before the device is bonded"
+    bug: "387523991"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

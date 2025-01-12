@@ -25,13 +25,6 @@ flag {
 }
 
 flag {
-    name: "leaudio_dynamic_spatial_audio"
-    namespace: "bluetooth"
-    description: "Support Dynamic Spatial Audio for LE Audio"
-    bug: "309665975"
-}
-
-flag {
     name: "metadata_api_inactive_audio_device_upon_connection"
     is_exported: true
     namespace: "bluetooth"
@@ -194,16 +187,6 @@ flag {
     namespace: "bluetooth"
     description: "Request streaming would be send without available cotext validation"
     bug: "336466406"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "headtracker_codec_capability"
-    namespace: "bluetooth"
-    description: "Use Android Headtracker codec capabilities"
-    bug: "338098113"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -454,6 +437,16 @@ flag {
     namespace: "bluetooth"
     description: "Use Audio Recording listener instead of monitoring sink session"
     bug: "381054654"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_sm_ignore_connect_events_in_connecting_state"
+    namespace: "bluetooth"
+    description: "When received CONNECT event in Connecting state, with no prior DISCONNECT - ignore the event"
+    bug: "384460395"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

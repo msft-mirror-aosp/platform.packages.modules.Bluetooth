@@ -14,23 +14,35 @@
  * limitations under the License.
  */
 
-/**
- * Bluetooth MAP MCE StateMachine (Disconnected) | ^ CONNECT | | DISCONNECTED V | (Connecting)
- * (Disconnecting) | ^ CONNECTED | | DISCONNECT V | (Connected)
- *
- * <p>Valid Transitions: State + Event -> Transition:
- *
- * <p>Disconnected + CONNECT -> Connecting Connecting + CONNECTED -> Connected Connecting + TIMEOUT
- * -> Disconnecting Connecting + DISCONNECT/CONNECT -> Defer Message Connected + DISCONNECT ->
- * Disconnecting Connected + CONNECT -> Disconnecting + Defer Message Disconnecting + DISCONNECTED
- * -> (Safe) Disconnected Disconnecting + TIMEOUT -> (Force) Disconnected Disconnecting +
- * DISCONNECT/CONNECT : Defer Message
- */
+// Bluetooth MAP MCE StateMachine
+//         (Disconnected)
+//             |    ^
+//     CONNECT |    | DISCONNECTED
+//             V    |
+//    (Connecting) (Disconnecting)
+//             |    ^
+//   CONNECTED |    | DISCONNECT
+//             V    |
+//           (Connected)
+
+// Valid Transitions: State + Event -> Transition:
+
+// Disconnected + CONNECT -> Connecting
+// Connecting + CONNECTED -> Connected
+// Connecting + TIMEOUT -> Disconnecting
+// Connecting + DISCONNECT/CONNECT -> Defer Message
+// Connected + DISCONNECT -> Disconnecting
+// Connected + CONNECT -> Disconnecting + Defer Message
+// Disconnecting + DISCONNECTED -> (Safe) Disconnected
+// Disconnecting + TIMEOUT -> (Force) Disconnected
+// Disconnecting + DISCONNECT/CONNECT : Defer Message
 package com.android.bluetooth.mapclient;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static android.Manifest.permission.RECEIVE_SMS;
+
+import static java.util.Objects.requireNonNull;
 
 import android.app.Activity;
 import android.app.PendingIntent;
@@ -64,6 +76,7 @@ import com.android.vcard.VCardConstants;
 import com.android.vcard.VCardEntry;
 import com.android.vcard.VCardProperty;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Calendar;
 import java.util.HashMap;
@@ -100,12 +113,12 @@ class MceStateMachine extends StateMachine {
     // Bluetooth, to work with the default Car Messenger.  This may need to be set to false if the
     // messaging app takes that responsibility.
     private static final Boolean SAVE_OUTBOUND_MESSAGES = true;
-    private static final int DISCONNECT_TIMEOUT = 3000;
-    private static final int CONNECT_TIMEOUT = 10000;
+    @VisibleForTesting static final Duration DISCONNECT_TIMEOUT = Duration.ofSeconds(3);
+    @VisibleForTesting static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(10);
     private static final int MAX_MESSAGES = 20;
     private static final int MSG_CONNECT = 1;
     private static final int MSG_DISCONNECT = 2;
-    static final int MSG_CONNECTING_TIMEOUT = 3;
+    private static final int MSG_CONNECTING_TIMEOUT = 3;
     private static final int MSG_DISCONNECTING_TIMEOUT = 4;
 
     // Constants for SDP. Note that these values come from the native stack, but no centralized
@@ -136,22 +149,26 @@ class MceStateMachine extends StateMachine {
     private static final String SEND_MESSAGE_TYPE =
             "persist.bluetooth.pts.mapclient.sendmessagetype";
 
+    private final State mDisconnected = new Disconnected();
+    private final State mConnecting = new Connecting();
+    private final State mConnected = new Connected();
+    private final State mDisconnecting = new Disconnecting();
+
+    private final HashMap<String, Bmessage> mSentMessageLog = new HashMap<>(MAX_MESSAGES);
+    private final HashMap<Bmessage, PendingIntent> mSentReceiptRequested =
+            new HashMap<>(MAX_MESSAGES);
+    private final HashMap<Bmessage, PendingIntent> mDeliveryReceiptRequested =
+            new HashMap<>(MAX_MESSAGES);
+
+    private final BluetoothDevice mDevice;
+    private final MapClientService mService;
+    private final AdapterService mAdapterService;
+
     // Connectivity States
     private int mPreviousState = BluetoothProfile.STATE_DISCONNECTED;
     private int mMostRecentState = BluetoothProfile.STATE_DISCONNECTED;
-    private State mDisconnected;
-    private State mConnecting;
-    private State mConnected;
-    private State mDisconnecting;
-
-    private final BluetoothDevice mDevice;
-    private MapClientService mService;
     private MasClient mMasClient;
     private MapClientContent mDatabase;
-    private HashMap<String, Bmessage> mSentMessageLog = new HashMap<>(MAX_MESSAGES);
-    private HashMap<Bmessage, PendingIntent> mSentReceiptRequested = new HashMap<>(MAX_MESSAGES);
-    private HashMap<Bmessage, PendingIntent> mDeliveryReceiptRequested =
-            new HashMap<>(MAX_MESSAGES);
 
     private final Object mLock = new Object();
 
@@ -214,36 +231,33 @@ class MceStateMachine extends StateMachine {
     ConcurrentHashMap<String, MessageMetadata> mMessages =
             new ConcurrentHashMap<String, MessageMetadata>();
 
-    MceStateMachine(MapClientService service, BluetoothDevice device) {
-        this(service, device, null, null);
-    }
-
-    MceStateMachine(MapClientService service, BluetoothDevice device, Looper looper) {
-        this(service, device, null, null, looper);
-    }
-
-    @VisibleForTesting
     MceStateMachine(
-            MapClientService service,
-            BluetoothDevice device,
-            MasClient masClient,
-            MapClientContent database) {
-        super(TAG);
+            MapClientService service, BluetoothDevice device, AdapterService adapterService) {
+        super(TAG); // Create a state machine with its own separate thread
+        mAdapterService = requireNonNull(adapterService);
         mService = service;
-        mMasClient = masClient;
         mDevice = device;
-        mDatabase = database;
         initStateMachine();
     }
 
+    MceStateMachine(
+            MapClientService service,
+            BluetoothDevice device,
+            AdapterService adapterService,
+            Looper looper) {
+        this(service, device, adapterService, looper, null, null);
+    }
+
     @VisibleForTesting
     MceStateMachine(
             MapClientService service,
             BluetoothDevice device,
+            AdapterService adapterService,
+            Looper looper,
             MasClient masClient,
-            MapClientContent database,
-            Looper looper) {
-        super(TAG, looper);
+            MapClientContent database) {
+        super(TAG, requireNonNull(looper));
+        mAdapterService = requireNonNull(adapterService);
         mService = service;
         mMasClient = masClient;
         mDevice = device;
@@ -254,10 +268,6 @@ class MceStateMachine extends StateMachine {
     private void initStateMachine() {
         mPreviousState = BluetoothProfile.STATE_DISCONNECTED;
 
-        mDisconnected = new Disconnected();
-        mConnecting = new Connecting();
-        mDisconnecting = new Disconnecting();
-        mConnected = new Connected();
 
         addState(mDisconnected);
         addState(mConnecting);
@@ -302,11 +312,8 @@ class MceStateMachine extends StateMachine {
         }
         setState(state);
 
-        AdapterService adapterService = AdapterService.getAdapterService();
-        if (adapterService != null) {
-            adapterService.updateProfileConnectionAdapterProperties(
-                    mDevice, BluetoothProfile.MAP_CLIENT, state, prevState);
-        }
+        mAdapterService.updateProfileConnectionAdapterProperties(
+                mDevice, BluetoothProfile.MAP_CLIENT, state, prevState);
 
         Intent intent = new Intent(BluetoothMapClient.ACTION_CONNECTION_STATE_CHANGED);
         intent.putExtra(BluetoothProfile.EXTRA_PREVIOUS_STATE, prevState);
@@ -552,7 +559,7 @@ class MceStateMachine extends StateMachine {
 
             // When commanded to connect begin SDP to find the MAS server.
             mDevice.sdpSearch(BluetoothUuid.MAS);
-            sendMessageDelayed(MSG_CONNECTING_TIMEOUT, CONNECT_TIMEOUT);
+            sendMessageDelayed(MSG_CONNECTING_TIMEOUT, CONNECT_TIMEOUT.toMillis());
             Log.i(TAG, Utils.getLoggableAddress(mDevice) + " [Connecting]: Await SDP results");
         }
 
@@ -1270,7 +1277,7 @@ class MceStateMachine extends StateMachine {
             if (mMasClient != null) {
                 mMasClient.makeRequest(new RequestSetNotificationRegistration(false));
                 mMasClient.shutdown();
-                sendMessageDelayed(MSG_DISCONNECTING_TIMEOUT, DISCONNECT_TIMEOUT);
+                sendMessageDelayed(MSG_DISCONNECTING_TIMEOUT, DISCONNECT_TIMEOUT.toMillis());
             } else {
                 // MAP was never connected
                 transitionTo(mDisconnected);
@@ -1345,10 +1352,6 @@ class MceStateMachine extends StateMachine {
                 return "MSG_GET_MESSAGE_LISTING";
             case MSG_SET_MESSAGE_STATUS:
                 return "MSG_SET_MESSAGE_STATUS";
-            case DISCONNECT_TIMEOUT:
-                return "DISCONNECT_TIMEOUT";
-            case CONNECT_TIMEOUT:
-                return "CONNECT_TIMEOUT";
             case MSG_CONNECT:
                 return "MSG_CONNECT";
             case MSG_DISCONNECT:

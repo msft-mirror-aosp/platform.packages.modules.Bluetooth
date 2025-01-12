@@ -33,7 +33,6 @@
 #include "common/strings.h"
 #include "device/include/interop.h"
 #include "main/shim/dumpsys.h"
-#include "os/logging/log_adapter.h"
 #include "stack/btm/neighbor_inquiry.h"
 #include "stack/include/bt_dev_class.h"
 #include "stack/include/bt_name.h"
@@ -343,7 +342,7 @@ static void bta_dm_remote_name_cmpl(const tBTA_DM_REMOTE_NAME& remote_name_msg) 
                  std::format("status:{} state:{} name:\"{}\"",
                              hci_status_code_text(remote_name_msg.hci_status),
                              bta_dm_state_text(bta_dm_search_get_state()),
-                             PRIVATE_NAME(reinterpret_cast<char const*>(remote_name_msg.bd_name))));
+                             reinterpret_cast<char const*>(remote_name_msg.bd_name)));
 
   tBTM_INQ_INFO* p_btm_inq_info =
           get_btm_client_interface().db.BTM_InqDbRead(remote_name_msg.bd_addr);

@@ -50,9 +50,6 @@ static bool acl_ble_common_connection(const tBLE_BD_ADDR& address_with_type, uin
     btm_ble_clear_topology_mask(BTM_BLE_STATE_INIT_BIT);
   }
 
-  // Inform any applications that a connection has completed.
-  connection_manager::on_connection_complete(address_with_type.bda);
-
   // Allocate or update the security device record for this device
   btm_ble_connected(address_with_type.bda, handle, HCI_ENCRYPT_MODE_DISABLED, role,
                     address_with_type.type, is_in_security_db,
@@ -108,8 +105,6 @@ void acl_ble_enhanced_connection_complete_from_shim(
         uint16_t conn_interval, uint16_t conn_latency, uint16_t conn_timeout,
         const RawAddress& local_rpa, const RawAddress& peer_rpa, tBLE_ADDR_TYPE peer_addr_type,
         bool can_read_discoverable_characteristics) {
-  connection_manager::on_connection_complete(address_with_type.bda);
-
   tBLE_BD_ADDR resolved_address_with_type;
   const bool is_in_security_db =
           maybe_resolve_received_address(address_with_type, &resolved_address_with_type);

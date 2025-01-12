@@ -63,12 +63,16 @@
 #include "include/hardware/bluetooth_headset_interface.h"
 #include "include/hardware/bt_hf.h"
 #include "internal_include/bt_target.h"
-#include "os/logging/log_adapter.h"
 #include "stack/btm/btm_sco_hfp_hal.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_log_history.h"
 #include "types/raw_address.h"
+
+#define PRIVATE_CELL(number)                                        \
+  (number.replace(0, (number.size() > 2) ? number.size() - 2 : 0,   \
+                  (number.size() > 2) ? number.size() - 2 : 0, '*') \
+           .c_str())
 
 namespace {
 constexpr char kBtmLogTag[] = "HFP";

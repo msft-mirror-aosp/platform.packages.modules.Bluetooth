@@ -145,13 +145,6 @@ bt_status_t btif_storage_add_hid_device_info(const tAclLinkSpec& link_spec, uint
   log::verbose("link spec: {}", link_spec.ToRedactedStringForLogging());
   std::string bdstr = link_spec.addrt.bda.ToString();
 
-  if (!com::android::bluetooth::flags::allow_switching_hid_and_hogp()) {
-    btif_storage_hid_device_info(bdstr, attr_mask, sub_class, app_id, vendor_id, product_id,
-                                 version, ctry_code, ssr_max_latency, ssr_min_tout, dl_len,
-                                 dsc_list);
-    return BT_STATUS_SUCCESS;
-  }
-
   if (link_spec.transport == BT_TRANSPORT_AUTO) {
     log::error("Unexpected transport!");
     return BT_STATUS_UNHANDLED;
@@ -291,9 +284,7 @@ bt_status_t btif_storage_load_bonded_hid_info(void) {
     link_spec.transport = BT_TRANSPORT_AUTO;
 
     int db_version = 0;
-    if (com::android::bluetooth::flags::allow_switching_hid_and_hogp()) {
-      btif_config_get_int(name, BTIF_STORAGE_KEY_HID_DB_VERSION, &db_version);
-    }
+    btif_config_get_int(name, BTIF_STORAGE_KEY_HID_DB_VERSION, &db_version);
 
     log::info("link spec: {}; db version: {}", link_spec, db_version);
 
@@ -338,22 +329,20 @@ bt_status_t btif_storage_remove_hid_info(const tAclLinkSpec& link_spec) {
   btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_REPORT);
   btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_REPORT_VERSION);
 
-  if (com::android::bluetooth::flags::allow_switching_hid_and_hogp()) {
-    int db_version = 0;
-    btif_config_get_int(bdstr, BTIF_STORAGE_KEY_HID_DB_VERSION, &db_version);
-    if (db_version == STORAGE_HID_DB_VERSION) {
-      btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_ATTR_MASK);
-      btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_SUB_CLASS);
-      btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_APP_ID);
-      btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_VENDOR_ID);
-      btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_PRODUCT_ID);
-      btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_VERSION);
-      btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_COUNTRY_CODE);
-      btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_DESCRIPTOR);
-      btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_RECONNECT_ALLOWED);
-    }
-    btif_config_remove(bdstr, BTIF_STORAGE_KEY_HID_DB_VERSION);
+  int db_version = 0;
+  btif_config_get_int(bdstr, BTIF_STORAGE_KEY_HID_DB_VERSION, &db_version);
+  if (db_version == STORAGE_HID_DB_VERSION) {
+    btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_ATTR_MASK);
+    btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_SUB_CLASS);
+    btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_APP_ID);
+    btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_VENDOR_ID);
+    btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_PRODUCT_ID);
+    btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_VERSION);
+    btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_COUNTRY_CODE);
+    btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_DESCRIPTOR);
+    btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_RECONNECT_ALLOWED);
   }
+  btif_config_remove(bdstr, BTIF_STORAGE_KEY_HID_DB_VERSION);
   return BT_STATUS_SUCCESS;
 }
 

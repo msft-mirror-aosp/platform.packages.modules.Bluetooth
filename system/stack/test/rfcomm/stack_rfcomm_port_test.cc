@@ -48,9 +48,9 @@ TEST_F(StackRfcommPortTest, PORT_IsOpening__basic) {
   ASSERT_TRUE(PORT_IsOpening(&bd_addr));
   rfc_cb.port.rfc_mcb[0].state = RFC_MX_STATE_CONNECTED;
   rfc_cb.port.port[0].rfc.p_mcb = &rfc_cb.port.rfc_mcb[0];
-  rfc_cb.port.port[0].rfc.state = RFC_STATE_OPENED;
+  rfc_cb.port.port[0].rfc.sm_cb.state = RFC_STATE_OPENED;
   ASSERT_FALSE(PORT_IsOpening(&bd_addr));
-  rfc_cb.port.port[0].rfc.state = RFC_STATE_TERM_WAIT_SEC_CHECK;
+  rfc_cb.port.port[0].rfc.sm_cb.state = RFC_STATE_TERM_WAIT_SEC_CHECK;
   ASSERT_TRUE(PORT_IsOpening(&bd_addr));
   rfc_cb.port.rfc_mcb[0].state = RFC_MX_STATE_DISC_WAIT_UA;
   ASSERT_FALSE(PORT_IsOpening(&bd_addr));
@@ -90,9 +90,9 @@ TEST_F(StackRfcommPortTest, PORT_IsCollisionDetected__basic) {
   rfc_cb.port.rfc_mcb[0].state = RFC_MX_STATE_CONNECTED;
 
   rfc_cb.port.port[0].rfc.p_mcb = &rfc_cb.port.rfc_mcb[0];
-  rfc_cb.port.port[0].rfc.state = RFC_STATE_OPENED;
+  rfc_cb.port.port[0].rfc.sm_cb.state = RFC_STATE_OPENED;
   ASSERT_FALSE(PORT_IsCollisionDetected(test_bd_addr));
-  rfc_cb.port.port[0].rfc.state = RFC_STATE_TERM_WAIT_SEC_CHECK;
+  rfc_cb.port.port[0].rfc.sm_cb.state = RFC_STATE_TERM_WAIT_SEC_CHECK;
   ASSERT_TRUE(PORT_IsCollisionDetected(test_bd_addr));
   rfc_cb.port.rfc_mcb[0].state = RFC_MX_STATE_DISC_WAIT_UA;
   ASSERT_FALSE(PORT_IsCollisionDetected(test_bd_addr));

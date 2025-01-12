@@ -145,8 +145,11 @@ public class BassClientStateMachineTest {
     private static final int WAIT_MS = 1_200;
     private static final int TEST_BROADCAST_ID = 42;
     private static final int TEST_SOURCE_ID = 1;
+    private static final int TEST_CHANNEL_INDEX = 1;
     private static final String TEST_BROADCAST_NAME = "Test";
     private static final String EMPTY_BLUETOOTH_DEVICE_ADDRESS = "00:00:00:00:00:00";
+    private static final byte OPCODE_UPDATE_SOURCE = 0x03;
+    private static final int UPDATE_SOURCE_FIXED_LENGTH = 6;
     private Context mTargetContext;
     private BluetoothAdapter mAdapter;
     private HandlerThread mHandlerThread;
@@ -2978,7 +2981,7 @@ public class BassClientStateMachineTest {
                 TEST_SOURCE_ID,
                 BluetoothLeBroadcastReceiveState.PA_SYNC_STATE_SYNCHRONIZED,
                 BluetoothLeBroadcastReceiveState.BIG_ENCRYPTION_STATE_DECRYPTING,
-                BassConstants.BIS_SYNC_FAILED_SYNC_TO_BIG);
+                BassConstants.BCAST_RCVR_STATE_BIS_SYNC_FAILED_SYNC_TO_BIG);
         // Verify broadcast audio session is logged when bis sync failed
         verify(mMetricsLogger)
                 .logLeAudioBroadcastAudioSync(
@@ -3179,6 +3182,69 @@ public class BassClientStateMachineTest {
         assertThat(mBassClientStateMachine.mPendingSourceId).isEqualTo(TEST_SOURCE_ID);
     }
 
+    @Test
+    public void updateBroadcastSource_withMetadataChanged() {
+        prepareInitialReceiveStateForGatt();
+
+        generateBroadcastReceiveStatesAndVerify(
+                mSourceTestDevice,
+                TEST_SOURCE_ID,
+                BluetoothLeBroadcastReceiveState.PA_SYNC_STATE_SYNCHRONIZED,
+                BluetoothLeBroadcastReceiveState.BIG_ENCRYPTION_STATE_DECRYPTING,
+                0x1L);
+
+        BassClientStateMachine.BluetoothGattTestableWrapper btGatt =
+                Mockito.mock(BassClientStateMachine.BluetoothGattTestableWrapper.class);
+        mBassClientStateMachine.mBluetoothGatt = btGatt;
+        BluetoothGattCharacteristic scanControlPoint =
+                Mockito.mock(BluetoothGattCharacteristic.class);
+        mBassClientStateMachine.mBroadcastScanControlPoint = scanControlPoint;
+
+        BluetoothLeBroadcastMetadata metadata = createBroadcastMetadata();
+        mBassClientStateMachine.mPendingMetadata = metadata;
+
+        // Verify pausing broadcast stream with updated metadata
+        BluetoothLeBroadcastMetadata updatedMetadataPaused = getMetadataToPauseStream(metadata);
+        byte[] valueBisPaused = convertMetadataToUpdateSourceByteArray(updatedMetadataPaused);
+
+        sendMessageAndVerifyTransition(
+                mBassClientStateMachine.obtainMessage(
+                        UPDATE_BCAST_SOURCE,
+                        TEST_SOURCE_ID,
+                        BassConstants.INVALID_PA_SYNC_VALUE,
+                        updatedMetadataPaused),
+                BassClientStateMachine.ConnectedProcessing.class);
+        assertThat(mBassClientStateMachine.mPendingOperation).isEqualTo(UPDATE_BCAST_SOURCE);
+        assertThat(mBassClientStateMachine.mPendingSourceId).isEqualTo(TEST_SOURCE_ID);
+        verify(scanControlPoint).setValue(eq(valueBisPaused));
+
+        sendMessageAndVerifyTransition(
+                mBassClientStateMachine.obtainMessage(GATT_TXN_PROCESSED),
+                BassClientStateMachine.Connected.class);
+        TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
+        Mockito.clearInvocations(scanControlPoint);
+
+        // Verify resuming broadcast stream with the original metadata
+        byte[] valueBisResumed = convertMetadataToUpdateSourceByteArray(metadata);
+        sendMessageAndVerifyTransition(
+                mBassClientStateMachine.obtainMessage(
+                        UPDATE_BCAST_SOURCE,
+                        TEST_SOURCE_ID,
+                        BassConstants.INVALID_PA_SYNC_VALUE,
+                        metadata),
+                BassClientStateMachine.ConnectedProcessing.class);
+        assertThat(mBassClientStateMachine.mPendingOperation).isEqualTo(UPDATE_BCAST_SOURCE);
+        assertThat(mBassClientStateMachine.mPendingSourceId).isEqualTo(TEST_SOURCE_ID);
+        verify(scanControlPoint).setValue(eq(valueBisResumed));
+
+        sendMessageAndVerifyTransition(
+                mBassClientStateMachine.obtainMessage(GATT_TXN_PROCESSED),
+                BassClientStateMachine.Connected.class);
+
+        TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
+        Mockito.clearInvocations(scanControlPoint);
+    }
+
     private void initToConnectingState() {
         allowConnection(true);
         allowConnectGatt(true);
@@ -3282,6 +3348,78 @@ public class BassClientStateMachineTest {
         // builder expect at least one subgroup
         builder.addSubgroup(createBroadcastSubgroup());
         return builder.build();
+    }
+
+    private byte[] convertMetadataToUpdateSourceByteArray(BluetoothLeBroadcastMetadata metaData) {
+        int numSubGroups = metaData.getSubgroups().size();
+
+        byte[] res = new byte[UPDATE_SOURCE_FIXED_LENGTH + numSubGroups * 5];
+        int offset = 0;
+        // Opcode
+        res[offset++] = OPCODE_UPDATE_SOURCE;
+        // Source_ID
+        res[offset++] = (byte) TEST_SOURCE_ID;
+        // PA_Sync
+        res[offset++] = (byte) (0x01);
+        // PA_Interval
+        res[offset++] = (byte) 0xFF;
+        res[offset++] = (byte) 0xFF;
+        // Num_Subgroups
+        res[offset++] = (byte) numSubGroups;
+
+        for (int i = 0; i < numSubGroups; i++) {
+            int bisIndexValue = 0;
+            for (BluetoothLeBroadcastChannel channel :
+                    metaData.getSubgroups().get(i).getChannels()) {
+                if (channel.isSelected()) {
+                    if (channel.getChannelIndex() == 0) {
+                        continue;
+                    }
+                    bisIndexValue |= 1 << (channel.getChannelIndex() - 1);
+                }
+            }
+            // BIS_Sync
+            res[offset++] = (byte) (bisIndexValue & 0x00000000000000FF);
+            res[offset++] = (byte) ((bisIndexValue & 0x000000000000FF00) >>> 8);
+            res[offset++] = (byte) ((bisIndexValue & 0x0000000000FF0000) >>> 16);
+            res[offset++] = (byte) ((bisIndexValue & 0x00000000FF000000) >>> 24);
+            // Metadata_Length; On Modify source, don't update any Metadata
+            res[offset++] = 0;
+        }
+        return res;
+    }
+
+    private BluetoothLeBroadcastMetadata getMetadataToPauseStream(
+            BluetoothLeBroadcastMetadata metadata) {
+        BluetoothLeBroadcastMetadata.Builder metadataToUpdateBuilder =
+                new BluetoothLeBroadcastMetadata.Builder(metadata);
+
+        List<BluetoothLeBroadcastSubgroup> updatedSubgroups = new ArrayList<>();
+        for (BluetoothLeBroadcastSubgroup subgroup : metadata.getSubgroups()) {
+            BluetoothLeBroadcastSubgroup.Builder subgroupBuilder =
+                    new BluetoothLeBroadcastSubgroup.Builder(subgroup);
+
+            List<BluetoothLeBroadcastChannel> updatedChannels = new ArrayList<>();
+            for (BluetoothLeBroadcastChannel channel : subgroup.getChannels()) {
+                BluetoothLeBroadcastChannel updatedChannel =
+                        new BluetoothLeBroadcastChannel.Builder(channel).setSelected(false).build();
+                updatedChannels.add(updatedChannel);
+            }
+
+            subgroupBuilder.clearChannel();
+            for (BluetoothLeBroadcastChannel channel : updatedChannels) {
+                subgroupBuilder.addChannel(channel);
+            }
+
+            updatedSubgroups.add(subgroupBuilder.build());
+        }
+
+        metadataToUpdateBuilder.clearSubgroup();
+        for (BluetoothLeBroadcastSubgroup subgroup : updatedSubgroups) {
+            metadataToUpdateBuilder.addSubgroup(subgroup);
+        }
+
+        return metadataToUpdateBuilder.build();
     }
 
     private void prepareInitialReceiveStateForGatt() {
@@ -3416,7 +3554,6 @@ public class BassClientStateMachineTest {
         // German language code in ISO 639-3
         final String testLanguage = "deu";
         final int testCodecId = 42;
-        final int testChannelIndex = 56;
 
         BluetoothLeAudioCodecConfigMetadata codecMetadata =
                 new BluetoothLeAudioCodecConfigMetadata.Builder()
@@ -3442,7 +3579,7 @@ public class BassClientStateMachineTest {
         BluetoothLeBroadcastChannel channel =
                 new BluetoothLeBroadcastChannel.Builder()
                         .setSelected(true)
-                        .setChannelIndex(testChannelIndex)
+                        .setChannelIndex(TEST_CHANNEL_INDEX)
                         .setCodecMetadata(channelCodecMetadata)
                         .build();
         builder.addChannel(channel);

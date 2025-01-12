@@ -2036,7 +2036,6 @@ public class LeAudioService extends ProfileService {
             }
             mAdapterService
                     .getBluetoothScanController()
-                    .getTransitionalScanHelper()
                     .registerScannerInternal(this, getAttributionSource(), null);
         }
 
@@ -2047,12 +2046,10 @@ public class LeAudioService extends ProfileService {
             }
             mAdapterService
                     .getBluetoothScanController()
-                    .getTransitionalScanHelper()
                     .stopScanInternal(mScannerId);
 
             mAdapterService
                     .getBluetoothScanController()
-                    .getTransitionalScanHelper()
                     .unregisterScannerInternal(mScannerId);
             mScannerId = 0;
         }
@@ -2079,7 +2076,6 @@ public class LeAudioService extends ProfileService {
 
             mAdapterService
                     .getBluetoothScanController()
-                    .getTransitionalScanHelper()
                     .startScanInternal(scannerId, settings, List.of(filter));
         }
 
@@ -2939,7 +2935,7 @@ public class LeAudioService extends ProfileService {
             return false;
         }
 
-        return bassClientService.isAnyReceiverReceivingBroadcast(getGroupDevices(groupId));
+        return bassClientService.isAnyReceiverActive(getGroupDevices(groupId));
     }
 
     private void notifyGroupStreamStatusChanged(int groupId, int groupStreamStatus) {
@@ -3656,7 +3652,8 @@ public class LeAudioService extends ProfileService {
                             }
 
                             if (leaudioBigDependsOnAudioState()) {
-                                if (mAwaitingBroadcastCreateResponse) {
+                                if (mAwaitingBroadcastCreateResponse
+                                        && !Flags.leaudioBroadcastPrimaryGroupSelection()) {
                                     updateFallbackUnicastGroupIdForBroadcast(groupId);
                                 }
                             } else {
@@ -4193,6 +4190,11 @@ public class LeAudioService extends ProfileService {
                             false,
                             hasFallbackDevice,
                             false);
+                    /* Set by default earliest connected device */
+                    if (Flags.leaudioBroadcastPrimaryGroupSelection()
+                            && mUnicastGroupIdDeactivatedForBroadcastTransition == groupId) {
+                        setDefaultBroadcastToUnicastFallbackGroup();
+                    }
                     return;
                 }
 
