@@ -254,12 +254,12 @@ public class BluetoothOppManagerTest {
     public void cleanUpSendingFileInfo_fileInfoCleaned() {
         BluetoothOppUtility.sSendFileMap.clear();
         Uri uri = Uri.parse("content:///a/new/folder/abc/xyz.txt");
-        assertThat(BluetoothOppUtility.sSendFileMap.size()).isEqualTo(0);
+        assertThat(BluetoothOppUtility.sSendFileMap).isEmpty();
         BluetoothOppManager.getInstance(mContext)
                 .saveSendingFileInfo("text/plain", uri.toString(), false, true);
         assertThat(BluetoothOppUtility.sSendFileMap.size()).isEqualTo(1);
 
         BluetoothOppManager.getInstance(mContext).cleanUpSendingFileInfo();
-        assertThat(BluetoothOppUtility.sSendFileMap.size()).isEqualTo(0);
+        assertThat(BluetoothOppUtility.sSendFileMap).isEmpty();
     }
 }

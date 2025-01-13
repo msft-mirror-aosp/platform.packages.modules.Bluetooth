@@ -22,7 +22,6 @@ import android.annotation.SuppressLint;
 
 import androidx.test.runner.AndroidJUnit4;
 
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -33,52 +32,52 @@ public class BipImageFormatTest {
     public void testParseNative_requiredOnly() {
         String expected = "<native encoding=\"JPEG\" pixel=\"1280*1024\" />";
         BipImageFormat format = BipImageFormat.parseNative("JPEG", "1280*1024", null);
-        Assert.assertEquals(BipImageFormat.FORMAT_NATIVE, format.getType());
-        Assert.assertEquals(new BipEncoding(BipEncoding.JPEG, null), format.getEncoding());
-        Assert.assertEquals(BipPixel.createFixed(1280, 1024), format.getPixel());
-        Assert.assertEquals(new BipTransformation(), format.getTransformation());
-        Assert.assertEquals(-1, format.getSize());
-        Assert.assertEquals(-1, format.getMaxSize());
-        Assert.assertEquals(expected, format.toString());
+        assertThat(format.getType()).isEqualTo(BipImageFormat.FORMAT_NATIVE);
+        assertThat(format.getEncoding()).isEqualTo(new BipEncoding(BipEncoding.JPEG, null));
+        assertThat(format.getPixel()).isEqualTo(BipPixel.createFixed(1280, 1024));
+        assertThat(format.getTransformation()).isEqualTo(new BipTransformation());
+        assertThat(format.getSize()).isEqualTo(-1);
+        assertThat(format.getMaxSize()).isEqualTo(-1);
+        assertThat(format.toString()).isEqualTo(expected);
     }
 
     @Test
     public void testParseNative_withSize() {
         String expected = "<native encoding=\"JPEG\" pixel=\"1280*1024\" size=\"1048576\" />";
         BipImageFormat format = BipImageFormat.parseNative("JPEG", "1280*1024", "1048576");
-        Assert.assertEquals(BipImageFormat.FORMAT_NATIVE, format.getType());
-        Assert.assertEquals(new BipEncoding(BipEncoding.JPEG, null), format.getEncoding());
-        Assert.assertEquals(BipPixel.createFixed(1280, 1024), format.getPixel());
-        Assert.assertEquals(new BipTransformation(), format.getTransformation());
-        Assert.assertEquals(1048576, format.getSize());
-        Assert.assertEquals(-1, format.getMaxSize());
-        Assert.assertEquals(expected, format.toString());
+        assertThat(format.getType()).isEqualTo(BipImageFormat.FORMAT_NATIVE);
+        assertThat(format.getEncoding()).isEqualTo(new BipEncoding(BipEncoding.JPEG, null));
+        assertThat(format.getPixel()).isEqualTo(BipPixel.createFixed(1280, 1024));
+        assertThat(format.getTransformation()).isEqualTo(new BipTransformation());
+        assertThat(format.getSize()).isEqualTo(1048576);
+        assertThat(format.getMaxSize()).isEqualTo(-1);
+        assertThat(format.toString()).isEqualTo(expected);
     }
 
     @Test
     public void testParseVariant_requiredOnly() {
         String expected = "<variant encoding=\"JPEG\" pixel=\"1280*1024\" />";
         BipImageFormat format = BipImageFormat.parseVariant("JPEG", "1280*1024", null, null);
-        Assert.assertEquals(BipImageFormat.FORMAT_VARIANT, format.getType());
-        Assert.assertEquals(new BipEncoding(BipEncoding.JPEG, null), format.getEncoding());
-        Assert.assertEquals(BipPixel.createFixed(1280, 1024), format.getPixel());
-        Assert.assertEquals(new BipTransformation(), format.getTransformation());
-        Assert.assertEquals(-1, format.getSize());
-        Assert.assertEquals(-1, format.getMaxSize());
-        Assert.assertEquals(expected, format.toString());
+        assertThat(format.getType()).isEqualTo(BipImageFormat.FORMAT_VARIANT);
+        assertThat(format.getEncoding()).isEqualTo(new BipEncoding(BipEncoding.JPEG, null));
+        assertThat(format.getPixel()).isEqualTo(BipPixel.createFixed(1280, 1024));
+        assertThat(format.getTransformation()).isEqualTo(new BipTransformation());
+        assertThat(format.getSize()).isEqualTo(-1);
+        assertThat(format.getMaxSize()).isEqualTo(-1);
+        assertThat(format.toString()).isEqualTo(expected);
     }
 
     @Test
     public void testParseVariant_withMaxSize() {
         String expected = "<variant encoding=\"JPEG\" pixel=\"1280*1024\" maxsize=\"1048576\" />";
         BipImageFormat format = BipImageFormat.parseVariant("JPEG", "1280*1024", "1048576", null);
-        Assert.assertEquals(BipImageFormat.FORMAT_VARIANT, format.getType());
-        Assert.assertEquals(new BipEncoding(BipEncoding.JPEG, null), format.getEncoding());
-        Assert.assertEquals(BipPixel.createFixed(1280, 1024), format.getPixel());
-        Assert.assertEquals(new BipTransformation(), format.getTransformation());
-        Assert.assertEquals(-1, format.getSize());
-        Assert.assertEquals(1048576, format.getMaxSize());
-        Assert.assertEquals(expected, format.toString());
+        assertThat(format.getType()).isEqualTo(BipImageFormat.FORMAT_VARIANT);
+        assertThat(format.getEncoding()).isEqualTo(new BipEncoding(BipEncoding.JPEG, null));
+        assertThat(format.getPixel()).isEqualTo(BipPixel.createFixed(1280, 1024));
+        assertThat(format.getTransformation()).isEqualTo(new BipTransformation());
+        assertThat(format.getSize()).isEqualTo(-1);
+        assertThat(format.getMaxSize()).isEqualTo(1048576);
+        assertThat(format.toString()).isEqualTo(expected);
     }
 
     @Test
@@ -93,16 +92,16 @@ public class BipImageFormatTest {
 
         BipImageFormat format =
                 BipImageFormat.parseVariant("JPEG", "1280*1024", null, "stretch fill crop");
-        Assert.assertEquals(trans, format.getTransformation());
-        Assert.assertEquals(expected, format.toString());
+        assertThat(format.getTransformation()).isEqualTo(trans);
+        assertThat(format.toString()).isEqualTo(expected);
 
         format = BipImageFormat.parseVariant("JPEG", "1280*1024", null, "stretch crop fill");
-        Assert.assertEquals(trans, format.getTransformation());
-        Assert.assertEquals(expected, format.toString());
+        assertThat(format.getTransformation()).isEqualTo(trans);
+        assertThat(format.toString()).isEqualTo(expected);
 
         format = BipImageFormat.parseVariant("JPEG", "1280*1024", null, "crop stretch fill");
-        Assert.assertEquals(trans, format.getTransformation());
-        Assert.assertEquals(expected, format.toString());
+        assertThat(format.getTransformation()).isEqualTo(trans);
+        assertThat(format.toString()).isEqualTo(expected);
     }
 
     @Test
@@ -117,31 +116,31 @@ public class BipImageFormatTest {
 
         BipImageFormat format =
                 BipImageFormat.parseVariant("JPEG", "1280*1024", "1048576", "stretch fill crop");
-        Assert.assertEquals(BipImageFormat.FORMAT_VARIANT, format.getType());
-        Assert.assertEquals(new BipEncoding(BipEncoding.JPEG, null), format.getEncoding());
-        Assert.assertEquals(BipPixel.createFixed(1280, 1024), format.getPixel());
-        Assert.assertEquals(trans, format.getTransformation());
-        Assert.assertEquals(-1, format.getSize());
-        Assert.assertEquals(1048576, format.getMaxSize());
-        Assert.assertEquals(expected, format.toString());
+        assertThat(format.getType()).isEqualTo(BipImageFormat.FORMAT_VARIANT);
+        assertThat(format.getEncoding()).isEqualTo(new BipEncoding(BipEncoding.JPEG, null));
+        assertThat(format.getPixel()).isEqualTo(BipPixel.createFixed(1280, 1024));
+        assertThat(format.getTransformation()).isEqualTo(trans);
+        assertThat(format.getSize()).isEqualTo(-1);
+        assertThat(format.getMaxSize()).isEqualTo(1048576);
+        assertThat(format.toString()).isEqualTo(expected);
 
         format = BipImageFormat.parseVariant("JPEG", "1280*1024", "1048576", "stretch crop fill");
-        Assert.assertEquals(BipImageFormat.FORMAT_VARIANT, format.getType());
-        Assert.assertEquals(new BipEncoding(BipEncoding.JPEG, null), format.getEncoding());
-        Assert.assertEquals(BipPixel.createFixed(1280, 1024), format.getPixel());
-        Assert.assertEquals(trans, format.getTransformation());
-        Assert.assertEquals(-1, format.getSize());
-        Assert.assertEquals(1048576, format.getMaxSize());
-        Assert.assertEquals(expected, format.toString());
+        assertThat(format.getType()).isEqualTo(BipImageFormat.FORMAT_VARIANT);
+        assertThat(format.getEncoding()).isEqualTo(new BipEncoding(BipEncoding.JPEG, null));
+        assertThat(format.getPixel()).isEqualTo(BipPixel.createFixed(1280, 1024));
+        assertThat(format.getTransformation()).isEqualTo(trans);
+        assertThat(format.getSize()).isEqualTo(-1);
+        assertThat(format.getMaxSize()).isEqualTo(1048576);
+        assertThat(format.toString()).isEqualTo(expected);
 
         format = BipImageFormat.parseVariant("JPEG", "1280*1024", "1048576", "crop stretch fill");
-        Assert.assertEquals(BipImageFormat.FORMAT_VARIANT, format.getType());
-        Assert.assertEquals(new BipEncoding(BipEncoding.JPEG, null), format.getEncoding());
-        Assert.assertEquals(BipPixel.createFixed(1280, 1024), format.getPixel());
-        Assert.assertEquals(trans, format.getTransformation());
-        Assert.assertEquals(-1, format.getSize());
-        Assert.assertEquals(1048576, format.getMaxSize());
-        Assert.assertEquals(expected, format.toString());
+        assertThat(format.getType()).isEqualTo(BipImageFormat.FORMAT_VARIANT);
+        assertThat(format.getEncoding()).isEqualTo(new BipEncoding(BipEncoding.JPEG, null));
+        assertThat(format.getPixel()).isEqualTo(BipPixel.createFixed(1280, 1024));
+        assertThat(format.getTransformation()).isEqualTo(trans);
+        assertThat(format.getSize()).isEqualTo(-1);
+        assertThat(format.getMaxSize()).isEqualTo(1048576);
+        assertThat(format.toString()).isEqualTo(expected);
     }
 
     @Test
@@ -152,13 +151,13 @@ public class BipImageFormatTest {
                         new BipEncoding(BipEncoding.JPEG, null),
                         BipPixel.createFixed(1280, 1024),
                         -1);
-        Assert.assertEquals(BipImageFormat.FORMAT_NATIVE, format.getType());
-        Assert.assertEquals(new BipEncoding(BipEncoding.JPEG, null), format.getEncoding());
-        Assert.assertEquals(BipPixel.createFixed(1280, 1024), format.getPixel());
-        Assert.assertEquals(new BipTransformation(), format.getTransformation());
-        Assert.assertEquals(-1, format.getSize());
-        Assert.assertEquals(-1, format.getMaxSize());
-        Assert.assertEquals(expected, format.toString());
+        assertThat(format.getType()).isEqualTo(BipImageFormat.FORMAT_NATIVE);
+        assertThat(format.getEncoding()).isEqualTo(new BipEncoding(BipEncoding.JPEG, null));
+        assertThat(format.getPixel()).isEqualTo(BipPixel.createFixed(1280, 1024));
+        assertThat(format.getTransformation()).isNull();
+        assertThat(format.getSize()).isEqualTo(-1);
+        assertThat(format.getMaxSize()).isEqualTo(-1);
+        assertThat(format.toString()).isEqualTo(expected);
     }
 
     @Test
@@ -169,13 +168,13 @@ public class BipImageFormatTest {
                         new BipEncoding(BipEncoding.JPEG, null),
                         BipPixel.createFixed(1280, 1024),
                         1048576);
-        Assert.assertEquals(BipImageFormat.FORMAT_NATIVE, format.getType());
-        Assert.assertEquals(new BipEncoding(BipEncoding.JPEG, null), format.getEncoding());
-        Assert.assertEquals(BipPixel.createFixed(1280, 1024), format.getPixel());
-        Assert.assertEquals(new BipTransformation(), format.getTransformation());
-        Assert.assertEquals(1048576, format.getSize());
-        Assert.assertEquals(-1, format.getMaxSize());
-        Assert.assertEquals(expected, format.toString());
+        assertThat(format.getType()).isEqualTo(BipImageFormat.FORMAT_NATIVE);
+        assertThat(format.getEncoding()).isEqualTo(new BipEncoding(BipEncoding.JPEG, null));
+        assertThat(format.getPixel()).isEqualTo(BipPixel.createFixed(1280, 1024));
+        assertThat(format.getTransformation()).isNull();
+        assertThat(format.getSize()).isEqualTo(1048576);
+        assertThat(format.getMaxSize()).isEqualTo(-1);
+        assertThat(format.toString()).isEqualTo(expected);
     }
 
     @Test
@@ -187,13 +186,13 @@ public class BipImageFormatTest {
                         BipPixel.createFixed(32, 32),
                         -1,
                         null);
-        Assert.assertEquals(BipImageFormat.FORMAT_VARIANT, format.getType());
-        Assert.assertEquals(new BipEncoding(BipEncoding.JPEG, null), format.getEncoding());
-        Assert.assertEquals(BipPixel.createFixed(32, 32), format.getPixel());
-        Assert.assertEquals(null, format.getTransformation());
-        Assert.assertEquals(-1, format.getSize());
-        Assert.assertEquals(-1, format.getMaxSize());
-        Assert.assertEquals(expected, format.toString());
+        assertThat(format.getType()).isEqualTo(BipImageFormat.FORMAT_VARIANT);
+        assertThat(format.getEncoding()).isEqualTo(new BipEncoding(BipEncoding.JPEG, null));
+        assertThat(format.getPixel()).isEqualTo(BipPixel.createFixed(32, 32));
+        assertThat(format.getTransformation()).isNull();
+        assertThat(format.getSize()).isEqualTo(-1);
+        assertThat(format.getMaxSize()).isEqualTo(-1);
+        assertThat(format.toString()).isEqualTo(expected);
     }
 
     @Test
@@ -214,13 +213,13 @@ public class BipImageFormatTest {
                         BipPixel.createFixed(32, 32),
                         -1,
                         trans);
-        Assert.assertEquals(BipImageFormat.FORMAT_VARIANT, format.getType());
-        Assert.assertEquals(new BipEncoding(BipEncoding.JPEG, null), format.getEncoding());
-        Assert.assertEquals(BipPixel.createFixed(32, 32), format.getPixel());
-        Assert.assertEquals(trans, format.getTransformation());
-        Assert.assertEquals(-1, format.getSize());
-        Assert.assertEquals(-1, format.getMaxSize());
-        Assert.assertEquals(expected, format.toString());
+        assertThat(format.getType()).isEqualTo(BipImageFormat.FORMAT_VARIANT);
+        assertThat(format.getEncoding()).isEqualTo(new BipEncoding(BipEncoding.JPEG, null));
+        assertThat(format.getPixel()).isEqualTo(BipPixel.createFixed(32, 32));
+        assertThat(format.getTransformation()).isEqualTo(trans);
+        assertThat(format.getSize()).isEqualTo(-1);
+        assertThat(format.getMaxSize()).isEqualTo(-1);
+        assertThat(format.toString()).isEqualTo(expected);
     }
 
     @Test
@@ -232,13 +231,13 @@ public class BipImageFormatTest {
                         BipPixel.createFixed(32, 32),
                         123,
                         null);
-        Assert.assertEquals(BipImageFormat.FORMAT_VARIANT, format.getType());
-        Assert.assertEquals(new BipEncoding(BipEncoding.JPEG, null), format.getEncoding());
-        Assert.assertEquals(BipPixel.createFixed(32, 32), format.getPixel());
-        Assert.assertEquals(null, format.getTransformation());
-        Assert.assertEquals(-1, format.getSize());
-        Assert.assertEquals(123, format.getMaxSize());
-        Assert.assertEquals(expected, format.toString());
+        assertThat(format.getType()).isEqualTo(BipImageFormat.FORMAT_VARIANT);
+        assertThat(format.getEncoding()).isEqualTo(new BipEncoding(BipEncoding.JPEG, null));
+        assertThat(format.getPixel()).isEqualTo(BipPixel.createFixed(32, 32));
+        assertThat(format.getTransformation()).isNull();
+        assertThat(format.getSize()).isEqualTo(-1);
+        assertThat(format.getMaxSize()).isEqualTo(123);
+        assertThat(format.toString()).isEqualTo(expected);
     }
 
     @Test
@@ -259,13 +258,13 @@ public class BipImageFormatTest {
                         BipPixel.createFixed(32, 32),
                         123,
                         trans);
-        Assert.assertEquals(BipImageFormat.FORMAT_VARIANT, format.getType());
-        Assert.assertEquals(new BipEncoding(BipEncoding.JPEG, null), format.getEncoding());
-        Assert.assertEquals(BipPixel.createFixed(32, 32), format.getPixel());
-        Assert.assertEquals(trans, format.getTransformation());
-        Assert.assertEquals(-1, format.getSize());
-        Assert.assertEquals(123, format.getMaxSize());
-        Assert.assertEquals(expected, format.toString());
+        assertThat(format.getType()).isEqualTo(BipImageFormat.FORMAT_VARIANT);
+        assertThat(format.getEncoding()).isEqualTo(new BipEncoding(BipEncoding.JPEG, null));
+        assertThat(format.getPixel()).isEqualTo(BipPixel.createFixed(32, 32));
+        assertThat(format.getTransformation()).isEqualTo(trans);
+        assertThat(format.getSize()).isEqualTo(-1);
+        assertThat(format.getMaxSize()).isEqualTo(123);
+        assertThat(format.toString()).isEqualTo(expected);
     }
 
     @Test(expected = ParseException.class)

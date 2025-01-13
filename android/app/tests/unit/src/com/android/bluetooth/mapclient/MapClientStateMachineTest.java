@@ -78,7 +78,6 @@ import com.google.common.truth.Correspondence;
 import org.hamcrest.Matcher;
 import org.hamcrest.core.AllOf;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -258,7 +257,7 @@ public class MapClientStateMachineTest {
     /** Test that default state is STATE_CONNECTING */
     @Test
     public void testDefaultConnectingState() {
-        Assert.assertEquals(STATE_CONNECTING, mStateMachine.getState());
+        assertThat(mStateMachine.getState()).isEqualTo(STATE_CONNECTING);
     }
 
     /**
@@ -679,10 +678,9 @@ public class MapClientStateMachineTest {
 
         MceStateMachine.MessageMetadata messageMetadata =
                 mStateMachine.mMessages.get(mTestMessageSmsHandle);
-        Assert.assertEquals(messageMetadata.getHandle(), mTestMessageSmsHandle);
-        Assert.assertEquals(
-                new ObexTime(Instant.ofEpochMilli(messageMetadata.getTimestamp())).toString(),
-                dateTime);
+        assertThat(messageMetadata.getHandle()).isEqualTo(mTestMessageSmsHandle);
+        assertThat(new ObexTime(Instant.ofEpochMilli(messageMetadata.getTimestamp())).toString())
+                .isEqualTo(dateTime);
     }
 
     /**
