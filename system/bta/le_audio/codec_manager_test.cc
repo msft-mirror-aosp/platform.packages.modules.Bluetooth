@@ -160,7 +160,7 @@ public:
   MOCK_METHOD((void), ConfirmStreamingRequest, (), (override));
   MOCK_METHOD((void), CancelStreamingRequest, (), (override));
   MOCK_METHOD((void), UpdateRemoteDelay, (uint16_t delay), (override));
-  MOCK_METHOD((void), UpdateAudioConfigToHal, (const ::bluetooth::le_audio::offload_config&),
+  MOCK_METHOD((void), UpdateAudioConfigToHal, (const ::bluetooth::le_audio::stream_config&),
               (override));
   MOCK_METHOD((void), SuspendedForReconfiguration, (), (override));
   MOCK_METHOD((void), ReconfigurationComplete, (), (override));
@@ -192,7 +192,7 @@ public:
   MOCK_METHOD((void), ConfirmStreamingRequest, (), (override));
   MOCK_METHOD((void), CancelStreamingRequest, (), (override));
   MOCK_METHOD((void), UpdateRemoteDelay, (uint16_t delay), (override));
-  MOCK_METHOD((void), UpdateAudioConfigToHal, (const ::bluetooth::le_audio::offload_config&),
+  MOCK_METHOD((void), UpdateAudioConfigToHal, (const ::bluetooth::le_audio::stream_config&),
               (override));
   MOCK_METHOD((void), UpdateBroadcastAudioConfigToHal,
               (const ::bluetooth::le_audio::broadcast_offload_config&), (override));
@@ -413,34 +413,39 @@ TEST_F(CodecManagerTestAdsp, testStreamConfigurationAdspDownMix) {
   types::BidirectionalPair<stream_parameters> stream_params{
           .sink =
                   {
-                          .sample_frequency_hz = 16000,
-                          .frame_duration_us = 10000,
-                          .octets_per_codec_frame = 40,
                           .audio_channel_allocation = codec_spec_conf::kLeAudioLocationFrontLeft,
-                          .codec_frames_blocks_per_sdu = 1,
+                          .stream_config =
+                                  {
+                                          .stream_map = {stream_map_info(
+                                                  97, codec_spec_conf::kLeAudioLocationFrontLeft,
+                                                  true)},
+                                          .bits_per_sample = 16,
+                                          .sampling_frequency_hz = 16000,
+                                          .frame_duration_us = 10000,
+                                          .octets_per_codec_frame = 40,
+                                          .codec_frames_blocks_per_sdu = 1,
+                                          .peer_delay_ms = 44,
+                                  },
                           .num_of_channels = 1,
                           .num_of_devices = 1,
-                          .stream_locations =
-                                  {
-                                          std::pair<uint16_t, uint32_t>{
-                                                  97 /*conn_handle*/,
-                                                  codec_spec_conf::kLeAudioLocationFrontLeft},
-                                  },
                   },
           .source =
                   {
-                          .sample_frequency_hz = 16000,
-                          .frame_duration_us = 10000,
-                          .octets_per_codec_frame = 40,
                           .audio_channel_allocation = codec_spec_conf::kLeAudioLocationFrontLeft,
-                          .codec_frames_blocks_per_sdu = 1,
+                          .stream_config =
+                                  {
+                                          .stream_map = {stream_map_info(
+                                                  97, codec_spec_conf::kLeAudioLocationBackLeft,
+                                                  true)},
+                                          .bits_per_sample = 16,
+                                          .sampling_frequency_hz = 16000,
+                                          .frame_duration_us = 10000,
+                                          .octets_per_codec_frame = 40,
+                                          .codec_frames_blocks_per_sdu = 1,
+                                          .peer_delay_ms = 44,
+                                  },
                           .num_of_channels = 1,
                           .num_of_devices = 1,
-                          {
-                                  std::pair<uint16_t, uint32_t>{
-                                          97 /*conn_handle*/,
-                                          codec_spec_conf::kLeAudioLocationBackLeft},
-                          },
                   },
   };
 
@@ -448,10 +453,9 @@ TEST_F(CodecManagerTestAdsp, testStreamConfigurationAdspDownMix) {
   codec_manager->UpdateCisConfiguration(cises, stream_params.source, kLeAudioDirectionSource);
 
   // Verify the offloader config content
-  types::BidirectionalPair<std::optional<offload_config>> out_offload_configs;
+  types::BidirectionalPair<std::optional<stream_config>> out_offload_configs;
   codec_manager->UpdateActiveAudioConfig(
-          stream_params, {.sink = 44, .source = 44},
-          [&out_offload_configs](const offload_config& config, uint8_t direction) {
+          stream_params, [&out_offload_configs](const stream_config& config, uint8_t direction) {
             out_offload_configs.get(direction) = config;
           });
 
@@ -481,10 +485,10 @@ TEST_F(CodecManagerTestAdsp, testStreamConfigurationAdspDownMix) {
     }
 
     ASSERT_EQ(16, config.bits_per_sample);
-    ASSERT_EQ(16000u, config.sampling_rate);
-    ASSERT_EQ(10000u, config.frame_duration);
-    ASSERT_EQ(40u, config.octets_per_frame);
-    ASSERT_EQ(1, config.blocks_per_sdu);
+    ASSERT_EQ(16000u, config.sampling_frequency_hz);
+    ASSERT_EQ(10000u, config.frame_duration_us);
+    ASSERT_EQ(40u, config.octets_per_codec_frame);
+    ASSERT_EQ(1, config.codec_frames_blocks_per_sdu);
     ASSERT_EQ(44, config.peer_delay_ms);
     ASSERT_EQ(codec_spec_conf::kLeAudioLocationStereo, allocation);
   }
@@ -495,8 +499,7 @@ TEST_F(CodecManagerTestAdsp, testStreamConfigurationAdspDownMix) {
   out_offload_configs.sink = std::nullopt;
   out_offload_configs.source = std::nullopt;
   codec_manager->UpdateActiveAudioConfig(
-          stream_params, {.sink = 44, .source = 44},
-          [&out_offload_configs](const offload_config& config, uint8_t direction) {
+          stream_params, [&out_offload_configs](const stream_config& config, uint8_t direction) {
             out_offload_configs.get(direction) = config;
           });
 
@@ -508,10 +511,10 @@ TEST_F(CodecManagerTestAdsp, testStreamConfigurationAdspDownMix) {
     auto& config = out_offload_configs.get(direction).value();
     ASSERT_EQ(0lu, config.stream_map.size());
     ASSERT_EQ(16, config.bits_per_sample);
-    ASSERT_EQ(16000u, config.sampling_rate);
-    ASSERT_EQ(10000u, config.frame_duration);
-    ASSERT_EQ(40u, config.octets_per_frame);
-    ASSERT_EQ(1, config.blocks_per_sdu);
+    ASSERT_EQ(16000u, config.sampling_frequency_hz);
+    ASSERT_EQ(10000u, config.frame_duration_us);
+    ASSERT_EQ(40u, config.octets_per_codec_frame);
+    ASSERT_EQ(1, config.codec_frames_blocks_per_sdu);
     ASSERT_EQ(44, config.peer_delay_ms);
   }
 }
@@ -541,34 +544,39 @@ TEST_F(CodecManagerTestAdsp, testStreamConfigurationMono) {
   types::BidirectionalPair<stream_parameters> stream_params{
           .sink =
                   {
-                          .sample_frequency_hz = 16000,
-                          .frame_duration_us = 10000,
-                          .octets_per_codec_frame = 40,
                           .audio_channel_allocation = codec_spec_conf::kLeAudioLocationMonoAudio,
-                          .codec_frames_blocks_per_sdu = 1,
+                          .stream_config =
+                                  {
+                                          .stream_map = {stream_map_info(
+                                                  97, codec_spec_conf::kLeAudioLocationMonoAudio,
+                                                  true)},
+                                          .bits_per_sample = 16,
+                                          .sampling_frequency_hz = 16000,
+                                          .frame_duration_us = 10000,
+                                          .octets_per_codec_frame = 40,
+                                          .codec_frames_blocks_per_sdu = 1,
+                                          .peer_delay_ms = 44,
+                                  },
                           .num_of_channels = 1,
                           .num_of_devices = 1,
-                          .stream_locations =
-                                  {
-                                          std::pair<uint16_t, uint32_t>{
-                                                  97 /*conn_handle*/,
-                                                  codec_spec_conf::kLeAudioLocationMonoAudio},
-                                  },
                   },
           .source =
                   {
-                          .sample_frequency_hz = 16000,
-                          .frame_duration_us = 10000,
-                          .octets_per_codec_frame = 40,
                           .audio_channel_allocation = codec_spec_conf::kLeAudioLocationMonoAudio,
-                          .codec_frames_blocks_per_sdu = 1,
+                          .stream_config =
+                                  {
+                                          .stream_map = {stream_map_info(
+                                                  97, codec_spec_conf::kLeAudioLocationMonoAudio,
+                                                  true)},
+                                          .bits_per_sample = 16,
+                                          .sampling_frequency_hz = 16000,
+                                          .frame_duration_us = 10000,
+                                          .octets_per_codec_frame = 40,
+                                          .codec_frames_blocks_per_sdu = 1,
+                                          .peer_delay_ms = 44,
+                                  },
                           .num_of_channels = 1,
                           .num_of_devices = 1,
-                          {
-                                  std::pair<uint16_t, uint32_t>{
-                                          97 /*conn_handle*/,
-                                          codec_spec_conf::kLeAudioLocationMonoAudio},
-                          },
                   },
   };
 
@@ -578,10 +586,9 @@ TEST_F(CodecManagerTestAdsp, testStreamConfigurationMono) {
                                                     kLeAudioDirectionSource));
 
   // Verify the offloader config content
-  types::BidirectionalPair<std::optional<offload_config>> out_offload_configs;
+  types::BidirectionalPair<std::optional<stream_config>> out_offload_configs;
   codec_manager->UpdateActiveAudioConfig(
-          stream_params, {.sink = 44, .source = 44},
-          [&out_offload_configs](const offload_config& config, uint8_t direction) {
+          stream_params, [&out_offload_configs](const stream_config& config, uint8_t direction) {
             out_offload_configs.get(direction) = config;
           });
 
@@ -611,10 +618,10 @@ TEST_F(CodecManagerTestAdsp, testStreamConfigurationMono) {
     }
 
     ASSERT_EQ(16, config.bits_per_sample);
-    ASSERT_EQ(16000u, config.sampling_rate);
-    ASSERT_EQ(10000u, config.frame_duration);
-    ASSERT_EQ(40u, config.octets_per_frame);
-    ASSERT_EQ(1, config.blocks_per_sdu);
+    ASSERT_EQ(16000u, config.sampling_frequency_hz);
+    ASSERT_EQ(10000u, config.frame_duration_us);
+    ASSERT_EQ(40u, config.octets_per_codec_frame);
+    ASSERT_EQ(1, config.codec_frames_blocks_per_sdu);
     ASSERT_EQ(44, config.peer_delay_ms);
     ASSERT_EQ(codec_spec_conf::kLeAudioLocationMonoAudio, allocation);
   }
@@ -625,8 +632,7 @@ TEST_F(CodecManagerTestAdsp, testStreamConfigurationMono) {
   out_offload_configs.sink = std::nullopt;
   out_offload_configs.source = std::nullopt;
   codec_manager->UpdateActiveAudioConfig(
-          stream_params, {.sink = 44, .source = 44},
-          [&out_offload_configs](const offload_config& config, uint8_t direction) {
+          stream_params, [&out_offload_configs](const stream_config& config, uint8_t direction) {
             out_offload_configs.get(direction) = config;
           });
 
@@ -638,10 +644,10 @@ TEST_F(CodecManagerTestAdsp, testStreamConfigurationMono) {
     auto& config = out_offload_configs.get(direction).value();
     ASSERT_EQ(0lu, config.stream_map.size());
     ASSERT_EQ(16, config.bits_per_sample);
-    ASSERT_EQ(16000u, config.sampling_rate);
-    ASSERT_EQ(10000u, config.frame_duration);
-    ASSERT_EQ(40u, config.octets_per_frame);
-    ASSERT_EQ(1, config.blocks_per_sdu);
+    ASSERT_EQ(16000u, config.sampling_frequency_hz);
+    ASSERT_EQ(10000u, config.frame_duration_us);
+    ASSERT_EQ(40u, config.octets_per_codec_frame);
+    ASSERT_EQ(1, config.codec_frames_blocks_per_sdu);
     ASSERT_EQ(44, config.peer_delay_ms);
   }
 }

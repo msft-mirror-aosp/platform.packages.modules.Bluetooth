@@ -281,7 +281,7 @@ void LeAudioClientInterface::Sink::StopSession() {
 }
 
 void LeAudioClientInterface::Sink::UpdateAudioConfigToHal(
-        const ::bluetooth::le_audio::offload_config& offload_config) {
+        const ::bluetooth::le_audio::stream_config& offload_config) {
   if (HalVersionManager::GetHalTransport() == BluetoothAudioHalTransport::HIDL) {
     return;
   }
@@ -291,7 +291,7 @@ void LeAudioClientInterface::Sink::UpdateAudioConfigToHal(
   }
 
   get_aidl_client_interface(is_broadcaster_)
-          ->UpdateAudioConfig(aidl::le_audio::offload_config_to_hal_audio_config(offload_config));
+          ->UpdateAudioConfig(aidl::le_audio::stream_config_to_hal_audio_config(offload_config));
 }
 
 std::optional<::bluetooth::le_audio::broadcaster::BroadcastConfiguration>
@@ -582,7 +582,7 @@ void LeAudioClientInterface::Source::StopSession() {
 }
 
 void LeAudioClientInterface::Source::UpdateAudioConfigToHal(
-        const ::bluetooth::le_audio::offload_config& offload_config) {
+        const ::bluetooth::le_audio::stream_config& offload_config) {
   if (HalVersionManager::GetHalTransport() == BluetoothAudioHalTransport::HIDL) {
     return;
   }
@@ -592,7 +592,7 @@ void LeAudioClientInterface::Source::UpdateAudioConfigToHal(
     return;
   }
   aidl::le_audio::LeAudioSourceTransport::interface->UpdateAudioConfig(
-          aidl::le_audio::offload_config_to_hal_audio_config(offload_config));
+          aidl::le_audio::stream_config_to_hal_audio_config(offload_config));
 }
 
 size_t LeAudioClientInterface::Source::Write(const uint8_t* p_buf, uint32_t len) {

@@ -54,8 +54,7 @@ public:
   MOCK_METHOD((void), UpdateActiveAudioConfig,
               (const bluetooth::le_audio::types::BidirectionalPair<
                        bluetooth::le_audio::stream_parameters>& stream_params,
-               bluetooth::le_audio::types::BidirectionalPair<uint16_t> delays_ms,
-               std::function<void(const ::bluetooth::le_audio::offload_config& config,
+               std::function<void(const ::bluetooth::le_audio::stream_config& config,
                                   uint8_t direction)>
                        update_receiver));
   MOCK_METHOD(

@@ -169,12 +169,12 @@ void LeAudioDeviceGroup::UpdateCisConfiguration(uint8_t direction) {
 void LeAudioDeviceGroup::Cleanup(void) {
   /* Bluetooth is off while streaming - disconnect CISes and remove CIG */
   if (GetState() == AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING) {
-    auto& sink_stream_locations = stream_conf.stream_params.sink.stream_locations;
-    auto& source_stream_locations = stream_conf.stream_params.source.stream_locations;
+    auto& sink_stream_locations = stream_conf.stream_params.sink.stream_config.stream_map;
+    auto& source_stream_locations = stream_conf.stream_params.source.stream_config.stream_map;
 
     if (!sink_stream_locations.empty()) {
-      for (const auto kv_pair : sink_stream_locations) {
-        auto cis_handle = kv_pair.first;
+      for (const auto info : sink_stream_locations) {
+        auto cis_handle = info.stream_handle;
         bluetooth::hci::IsoManager::GetInstance()->DisconnectCis(cis_handle, HCI_ERR_PEER_USER);
 
         /* Check the other direction if disconnecting bidirectional CIS */
@@ -182,16 +182,18 @@ void LeAudioDeviceGroup::Cleanup(void) {
           continue;
         }
         source_stream_locations.erase(
-                std::remove_if(source_stream_locations.begin(), source_stream_locations.end(),
-                               [&cis_handle](auto& pair) { return pair.first == cis_handle; }),
+                std::remove_if(
+                        source_stream_locations.begin(), source_stream_locations.end(),
+                        [&cis_handle](auto& inf) { return inf.stream_handle == cis_handle; }),
                 source_stream_locations.end());
       }
     }
 
     /* Take care of the non-bidirectional CISes */
     if (!source_stream_locations.empty()) {
-      for (auto [cis_handle, _] : source_stream_locations) {
-        bluetooth::hci::IsoManager::GetInstance()->DisconnectCis(cis_handle, HCI_ERR_PEER_USER);
+      for (auto info : source_stream_locations) {
+        bluetooth::hci::IsoManager::GetInstance()->DisconnectCis(info.stream_handle,
+                                                                 HCI_ERR_PEER_USER);
       }
     }
   }
@@ -1936,17 +1938,18 @@ bool LeAudioDeviceGroup::IsMetadataChanged(
 }
 
 bool LeAudioDeviceGroup::IsCisPartOfCurrentStream(uint16_t cis_conn_hdl) const {
-  auto& sink_stream_locations = stream_conf.stream_params.sink.stream_locations;
-  auto iter = std::find_if(sink_stream_locations.begin(), sink_stream_locations.end(),
-                           [cis_conn_hdl](auto& pair) { return cis_conn_hdl == pair.first; });
+  auto& sink_stream_locations = stream_conf.stream_params.sink.stream_config.stream_map;
+  auto iter =
+          std::find_if(sink_stream_locations.begin(), sink_stream_locations.end(),
+                       [cis_conn_hdl](auto& info) { return cis_conn_hdl == info.stream_handle; });
 
   if (iter != sink_stream_locations.end()) {
     return true;
   }
 
-  auto& source_stream_locations = stream_conf.stream_params.source.stream_locations;
+  auto& source_stream_locations = stream_conf.stream_params.source.stream_config.stream_map;
   iter = std::find_if(source_stream_locations.begin(), source_stream_locations.end(),
-                      [cis_conn_hdl](auto& pair) { return cis_conn_hdl == pair.first; });
+                      [cis_conn_hdl](auto& info) { return cis_conn_hdl == info.stream_handle; });
 
   return iter != source_stream_locations.end();
 }
@@ -1966,21 +1969,22 @@ void LeAudioDeviceGroup::RemoveCisFromStreamIfNeeded(LeAudioDevice* leAudioDevic
 
   for (auto dir : {types::kLeAudioDirectionSink, types::kLeAudioDirectionSource}) {
     auto& params = stream_conf.stream_params.get(dir);
-    params.stream_locations.erase(
-            std::remove_if(params.stream_locations.begin(), params.stream_locations.end(),
-                           [leAudioDevice, &cis_conn_hdl, &params, dir](auto& pair) {
+    params.stream_config.stream_map.erase(
+            std::remove_if(params.stream_config.stream_map.begin(),
+                           params.stream_config.stream_map.end(),
+                           [leAudioDevice, &cis_conn_hdl, &params, dir](auto& info) {
                              if (!cis_conn_hdl) {
-                               cis_conn_hdl = pair.first;
+                               cis_conn_hdl = info.stream_handle;
                              }
                              auto ases_pair = leAudioDevice->GetAsesByCisConnHdl(cis_conn_hdl);
-                             if (ases_pair.get(dir) && cis_conn_hdl == pair.first) {
+                             if (ases_pair.get(dir) && cis_conn_hdl == info.stream_handle) {
                                params.num_of_devices--;
                                params.num_of_channels -= ases_pair.get(dir)->channel_count;
-                               params.audio_channel_allocation &= ~pair.second;
+                               params.audio_channel_allocation &= ~info.audio_channel_allocation;
                              }
-                             return ases_pair.get(dir) && cis_conn_hdl == pair.first;
+                             return ases_pair.get(dir) && cis_conn_hdl == info.stream_handle;
                            }),
-            params.stream_locations.end());
+            params.stream_config.stream_map.end());
   }
 
   log::info(
@@ -2262,9 +2266,9 @@ void LeAudioDeviceGroup::Dump(std::stringstream& stream, int active_group_id) co
          << ",\tpending reconfiguration: " << stream_conf.pending_configuration << "\n"
          << "      Num of devices:\t" << Size() << " (" << NumOfConnected() << " connected)\n"
          << "      Num of sinks:\t" << stream_conf.stream_params.sink.num_of_devices << " ("
-         << stream_conf.stream_params.sink.stream_locations.size() << " connected)\n"
+         << stream_conf.stream_params.sink.stream_config.stream_map.size() << " connected)\n"
          << "      Num of sources:\t" << stream_conf.stream_params.source.num_of_devices << " ("
-         << stream_conf.stream_params.source.stream_locations.size() << " connected)";
+         << stream_conf.stream_params.source.stream_config.stream_map.size() << " connected)";
 
   if (GetFirstActiveDevice() != nullptr) {
     uint32_t sink_delay;

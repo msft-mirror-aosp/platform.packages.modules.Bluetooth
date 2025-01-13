@@ -96,7 +96,7 @@ private:
     virtual void StopSession() = 0;
     virtual void ConfirmStreamingRequest() = 0;
     virtual void CancelStreamingRequest() = 0;
-    virtual void UpdateAudioConfigToHal(const ::bluetooth::le_audio::offload_config& config) = 0;
+    virtual void UpdateAudioConfigToHal(const ::bluetooth::le_audio::stream_config& config) = 0;
     virtual void SuspendedForReconfiguration() = 0;
     virtual void ReconfigurationComplete() = 0;
   };
@@ -114,7 +114,7 @@ public:
     void StopSession() override;
     void ConfirmStreamingRequest() override;
     void CancelStreamingRequest() override;
-    void UpdateAudioConfigToHal(const ::bluetooth::le_audio::offload_config& config) override;
+    void UpdateAudioConfigToHal(const ::bluetooth::le_audio::stream_config& config) override;
     void UpdateBroadcastAudioConfigToHal(
             const ::bluetooth::le_audio::broadcast_offload_config& config);
     void SuspendedForReconfiguration() override;
@@ -145,7 +145,7 @@ public:
     void StopSession() override;
     void ConfirmStreamingRequest() override;
     void CancelStreamingRequest() override;
-    void UpdateAudioConfigToHal(const ::bluetooth::le_audio::offload_config& config) override;
+    void UpdateAudioConfigToHal(const ::bluetooth::le_audio::stream_config& config) override;
     void SuspendedForReconfiguration() override;
     void ReconfigurationComplete() override;
     // Source the given stream of bytes to be sinked into the upper layers

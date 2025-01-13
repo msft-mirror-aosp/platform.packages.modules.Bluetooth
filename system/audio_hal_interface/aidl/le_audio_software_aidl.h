@@ -58,8 +58,8 @@ using ::bluetooth::audio::le_audio::StreamCallbacks;
 void flush_source();
 bool hal_ucast_capability_to_stack_format(const UnicastCapability& ucast_capability,
                                           CodecConfigSetting& stack_capability);
-AudioConfiguration offload_config_to_hal_audio_config(
-        const ::bluetooth::le_audio::offload_config& offload_config);
+AudioConfiguration stream_config_to_hal_audio_config(
+        const ::bluetooth::le_audio::stream_config& offload_config);
 AudioConfiguration broadcast_config_to_hal_audio_config(
         const LeAudioBroadcastConfiguration& bcast_config);
 

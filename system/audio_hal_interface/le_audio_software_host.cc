@@ -305,7 +305,7 @@ void LeAudioClientInterface::Sink::CancelStreamingRequest() {
 }
 
 void LeAudioClientInterface::Sink::UpdateAudioConfigToHal(
-        const ::le_audio::offload_config& /*offload_config*/) {}
+        const ::le_audio::stream_config& /*offload_config*/) {}
 
 void LeAudioClientInterface::Sink::UpdateBroadcastAudioConfigToHal(
         ::le_audio::broadcast_offload_config const& /*config*/) {}
@@ -457,7 +457,7 @@ void LeAudioClientInterface::Source::CancelStreamingRequest() {
 }
 
 void LeAudioClientInterface::Source::UpdateAudioConfigToHal(
-        const ::le_audio::offload_config& /*offload_config*/) {}
+        const ::le_audio::stream_config& /*offload_config*/) {}
 
 void LeAudioClientInterface::Source::SuspendedForReconfiguration() {
   log::info("");

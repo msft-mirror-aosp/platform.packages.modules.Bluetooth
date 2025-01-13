@@ -17,6 +17,7 @@
 #include "mock_codec_manager.h"
 
 #include "le_audio/codec_manager.h"
+#include "le_audio/le_audio_types.h"
 
 MockCodecManager* mock_codec_manager_pimpl_;
 MockCodecManager* MockCodecManager::GetInstance() {
@@ -76,11 +77,10 @@ bool CodecManager::UpdateActiveBroadcastAudioHalClient(
 
 void CodecManager::UpdateActiveAudioConfig(
         const types::BidirectionalPair<stream_parameters>& stream_params,
-        types::BidirectionalPair<uint16_t> delays_ms,
-        std::function<void(const ::bluetooth::le_audio::offload_config& config, uint8_t direction)>
+        std::function<void(const ::bluetooth::le_audio::stream_config& config, uint8_t direction)>
                 update_receiver) {
   if (pimpl_) {
-    return pimpl_->UpdateActiveAudioConfig(stream_params, delays_ms, update_receiver);
+    return pimpl_->UpdateActiveAudioConfig(stream_params, update_receiver);
   }
 }
 

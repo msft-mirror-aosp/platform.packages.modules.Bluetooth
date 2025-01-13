@@ -1294,29 +1294,51 @@ void get_cis_count(types::LeAudioContextType context_type, uint8_t expected_dire
                    uint8_t& cis_count_unidir_sink, uint8_t& cis_count_unidir_source);
 }  // namespace set_configurations
 
-struct stream_parameters {
+struct stream_map_info {
+  stream_map_info(uint16_t stream_handle, uint32_t audio_channel_allocation, bool is_stream_active)
+      : stream_handle(stream_handle),
+        audio_channel_allocation(audio_channel_allocation),
+        is_stream_active(is_stream_active) {}
+  uint16_t stream_handle;
+  uint32_t audio_channel_allocation;
+  bool is_stream_active;
+};
+
+struct stream_config {
+  std::vector<stream_map_info> stream_map;
   /* For now we have always same frequency for all the channels */
-  uint32_t sample_frequency_hz;
+  uint8_t bits_per_sample;
+  uint32_t sampling_frequency_hz;
   uint32_t frame_duration_us;
   uint16_t octets_per_codec_frame;
-  uint32_t audio_channel_allocation;
   uint8_t codec_frames_blocks_per_sdu;
+  uint16_t peer_delay_ms;
+
+  void clear() {
+    stream_map.clear();
+    bits_per_sample = 0;
+    sampling_frequency_hz = 0;
+    frame_duration_us = 0;
+    octets_per_codec_frame = 0;
+    codec_frames_blocks_per_sdu = 0;
+    peer_delay_ms = 0;
+  }
+};
+
+struct stream_parameters {
+  uint32_t audio_channel_allocation;
+
+  /* Stream parameters and CIS to Audio Allocation map */
+  stream_config stream_config;
 
   /* Total number of channels we request from the audio framework */
   uint8_t num_of_channels;
   int num_of_devices;
-  /* cis_handle, audio location*/
-  std::vector<std::pair<uint16_t, uint32_t>> stream_locations;
 
   void clear() {
-    sample_frequency_hz = 0;
-    frame_duration_us = 0;
-    octets_per_codec_frame = 0;
-    audio_channel_allocation = 0;
-    codec_frames_blocks_per_sdu = 0;
     num_of_channels = 0;
     num_of_devices = 0;
-    stream_locations.clear();
+    stream_config.clear();
   }
 };
 

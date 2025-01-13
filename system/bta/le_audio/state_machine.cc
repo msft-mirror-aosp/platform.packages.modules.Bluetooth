@@ -1357,10 +1357,11 @@ private:
               ase->direction == bluetooth::le_audio::types::kLeAudioDirectionSink ? "sink"
                                                                                   : "source");
 
-    auto iter = std::find_if(params.stream_locations.begin(), params.stream_locations.end(),
-                             [cis_conn_hdl](auto& pair) { return cis_conn_hdl == pair.first; });
-    log::assert_that(iter == params.stream_locations.end(), "Stream is already there 0x{:04x}",
-                     cis_conn_hdl);
+    auto iter = std::find_if(
+            params.stream_config.stream_map.begin(), params.stream_config.stream_map.end(),
+            [cis_conn_hdl](auto& info) { return cis_conn_hdl == info.stream_handle; });
+    log::assert_that(iter == params.stream_config.stream_map.end(),
+                     "Stream is already there 0x{:04x}", cis_conn_hdl);
 
     auto core_config = ase->codec_config.GetAsCoreCodecConfig();
 
@@ -1372,41 +1373,46 @@ private:
     }
     auto ase_audio_channel_allocation = core_config.audio_channel_allocation.value_or(0);
     params.audio_channel_allocation |= ase_audio_channel_allocation;
-    params.stream_locations.emplace_back(
-            std::make_pair(ase->cis_conn_hdl, ase_audio_channel_allocation));
+    params.stream_config.stream_map.emplace_back(ase->cis_conn_hdl, ase_audio_channel_allocation,
+                                                 true);
 
-    if (params.sample_frequency_hz == 0) {
-      params.sample_frequency_hz = core_config.GetSamplingFrequencyHz();
-    } else {
-      log::assert_that(params.sample_frequency_hz == core_config.GetSamplingFrequencyHz(),
-                       "sample freq mismatch: {}!={}", params.sample_frequency_hz,
-                       core_config.GetSamplingFrequencyHz());
-    }
-
-    if (params.octets_per_codec_frame == 0) {
-      params.octets_per_codec_frame = *core_config.octets_per_codec_frame;
-    } else {
-      log::assert_that(params.octets_per_codec_frame == *core_config.octets_per_codec_frame,
-                       "octets per frame mismatch: {}!={}", params.octets_per_codec_frame,
-                       *core_config.octets_per_codec_frame);
-    }
-
-    if (params.codec_frames_blocks_per_sdu == 0) {
-      params.codec_frames_blocks_per_sdu = *core_config.codec_frames_blocks_per_sdu;
+    if (params.stream_config.sampling_frequency_hz == 0) {
+      params.stream_config.sampling_frequency_hz = core_config.GetSamplingFrequencyHz();
     } else {
       log::assert_that(
-              params.codec_frames_blocks_per_sdu == *core_config.codec_frames_blocks_per_sdu,
-              "codec_frames_blocks_per_sdu: {}!={}", params.codec_frames_blocks_per_sdu,
-              *core_config.codec_frames_blocks_per_sdu);
+              params.stream_config.sampling_frequency_hz == core_config.GetSamplingFrequencyHz(),
+              "sample freq mismatch: {}!={}", params.stream_config.sampling_frequency_hz,
+              core_config.GetSamplingFrequencyHz());
     }
 
-    if (params.frame_duration_us == 0) {
-      params.frame_duration_us = core_config.GetFrameDurationUs();
+    if (params.stream_config.octets_per_codec_frame == 0) {
+      params.stream_config.octets_per_codec_frame = *core_config.octets_per_codec_frame;
     } else {
-      log::assert_that(params.frame_duration_us == core_config.GetFrameDurationUs(),
-                       "frame_duration_us: {}!={}", params.frame_duration_us,
+      log::assert_that(
+              params.stream_config.octets_per_codec_frame == *core_config.octets_per_codec_frame,
+              "octets per frame mismatch: {}!={}", params.stream_config.octets_per_codec_frame,
+              *core_config.octets_per_codec_frame);
+    }
+
+    if (params.stream_config.codec_frames_blocks_per_sdu == 0) {
+      params.stream_config.codec_frames_blocks_per_sdu = *core_config.codec_frames_blocks_per_sdu;
+    } else {
+      log::assert_that(params.stream_config.codec_frames_blocks_per_sdu ==
+                               *core_config.codec_frames_blocks_per_sdu,
+                       "codec_frames_blocks_per_sdu: {}!={}",
+                       params.stream_config.codec_frames_blocks_per_sdu,
+                       *core_config.codec_frames_blocks_per_sdu);
+    }
+
+    if (params.stream_config.frame_duration_us == 0) {
+      params.stream_config.frame_duration_us = core_config.GetFrameDurationUs();
+    } else {
+      log::assert_that(params.stream_config.frame_duration_us == core_config.GetFrameDurationUs(),
+                       "frame_duration_us: {}!={}", params.stream_config.frame_duration_us,
                        core_config.GetFrameDurationUs());
     }
+
+    params.stream_config.peer_delay_ms = group->GetRemoteDelay(ase->direction);
 
     log::info(
             "Added {} Stream Configuration. CIS Connection Handle: {}, Audio "

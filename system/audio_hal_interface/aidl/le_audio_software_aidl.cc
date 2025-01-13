@@ -696,14 +696,14 @@ bluetooth::audio::le_audio::OffloadCapabilities get_offload_capabilities() {
   return {offload_capabilities, broadcast_offload_capabilities};
 }
 
-AudioConfiguration offload_config_to_hal_audio_config(
-        const ::bluetooth::le_audio::offload_config& offload_config) {
+AudioConfiguration stream_config_to_hal_audio_config(
+        const ::bluetooth::le_audio::stream_config& offload_config) {
   Lc3Configuration lc3_config{
           .pcmBitDepth = static_cast<int8_t>(offload_config.bits_per_sample),
-          .samplingFrequencyHz = static_cast<int32_t>(offload_config.sampling_rate),
-          .frameDurationUs = static_cast<int32_t>(offload_config.frame_duration),
-          .octetsPerFrame = static_cast<int32_t>(offload_config.octets_per_frame),
-          .blocksPerSdu = static_cast<int8_t>(offload_config.blocks_per_sdu),
+          .samplingFrequencyHz = static_cast<int32_t>(offload_config.sampling_frequency_hz),
+          .frameDurationUs = static_cast<int32_t>(offload_config.frame_duration_us),
+          .octetsPerFrame = static_cast<int32_t>(offload_config.octets_per_codec_frame),
+          .blocksPerSdu = static_cast<int8_t>(offload_config.codec_frames_blocks_per_sdu),
   };
   LeAudioConfiguration ucast_config = {
           .peerDelayUs = static_cast<int32_t>(offload_config.peer_delay_ms * 1000),
