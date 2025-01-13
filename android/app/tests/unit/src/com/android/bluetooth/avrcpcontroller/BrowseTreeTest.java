@@ -47,7 +47,7 @@ public class BrowseTreeTest {
     public void constructor_withoutDevice() {
         BrowseTree browseTree = new BrowseTree(null);
 
-        assertThat(browseTree.mRootNode.mItem.getDevice()).isEqualTo(null);
+        assertThat(browseTree.mRootNode.mItem.getDevice()).isNull();
     }
 
     @Test

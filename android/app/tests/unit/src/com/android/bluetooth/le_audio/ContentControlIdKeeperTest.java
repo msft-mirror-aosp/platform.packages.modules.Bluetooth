@@ -69,10 +69,10 @@ public class ContentControlIdKeeperTest {
         verify(mLeAudioServiceMock).setCcidInformation(eq(uuid), eq(ccid), eq(context));
         Map<ParcelUuid, Pair<Integer, Integer>> uuidToCcidContextPair =
                 ContentControlIdKeeper.getUuidToCcidContextPairMap();
-        Assert.assertEquals(expectedListSize, uuidToCcidContextPair.size());
+        assertThat(uuidToCcidContextPair.size()).isEqualTo(expectedListSize);
         assertThat(uuidToCcidContextPair).containsKey(uuid);
-        Assert.assertEquals(ccid, (long) uuidToCcidContextPair.get(uuid).first);
-        Assert.assertEquals(context, (long) uuidToCcidContextPair.get(uuid).second);
+        assertThat(uuidToCcidContextPair.get(uuid).first).isEqualTo(ccid);
+        assertThat(uuidToCcidContextPair.get(uuid).second).isEqualTo(context);
 
         return ccid;
     }
@@ -88,7 +88,7 @@ public class ContentControlIdKeeperTest {
 
         verify(mLeAudioServiceMock).setCcidInformation(eq(uuid), eq(ccid), eq(0));
 
-        Assert.assertEquals(expectedListSize, uuidToCcidContextPair.size());
+        assertThat(uuidToCcidContextPair.size()).isEqualTo(expectedListSize);
     }
 
     @Test
@@ -120,14 +120,14 @@ public class ContentControlIdKeeperTest {
     public void testAcquireInvalidContext() {
         ParcelUuid uuid = new ParcelUuid(UUID.randomUUID());
 
-        int ccid = ContentControlIdKeeper.acquireCcid(uuid, 0);
-        Assert.assertEquals(ccid, ContentControlIdKeeper.CCID_INVALID);
+        assertThat(ContentControlIdKeeper.acquireCcid(uuid, 0))
+                .isEqualTo(ContentControlIdKeeper.CCID_INVALID);
 
         verify(mLeAudioServiceMock, times(0))
                 .setCcidInformation(any(ParcelUuid.class), any(int.class), any(int.class));
         Map<ParcelUuid, Pair<Integer, Integer>> uuidToCcidContextPair =
                 ContentControlIdKeeper.getUuidToCcidContextPairMap();
-        Assert.assertEquals(0, uuidToCcidContextPair.size());
+        assertThat(uuidToCcidContextPair).isEmpty();
     }
 
     @Test
@@ -138,6 +138,6 @@ public class ContentControlIdKeeperTest {
         int ccid_two = testCcidAcquire(uuid, BluetoothLeAudio.CONTEXT_TYPE_RINGTONE, 1);
 
         // This is implementation specific but verifies that the previous CCID was recycled
-        Assert.assertEquals(ccid_one, ccid_two);
+        assertThat(ccid_two).isEqualTo(ccid_one);
     }
 }

@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.a2dp;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.mockito.Mockito.*;
 
 import android.bluetooth.BluetoothAdapter;
@@ -243,22 +245,22 @@ public class A2dpCodecConfigTest {
         for (BluetoothCodecConfig config : codecConfigs) {
             switch (config.getCodecType()) {
                 case BluetoothCodecConfig.SOURCE_CODEC_TYPE_SBC:
-                    Assert.assertEquals(config.getCodecPriority(), SBC_PRIORITY_DEFAULT);
+                    assertThat(config.getCodecPriority()).isEqualTo(SBC_PRIORITY_DEFAULT);
                     break;
                 case BluetoothCodecConfig.SOURCE_CODEC_TYPE_AAC:
-                    Assert.assertEquals(config.getCodecPriority(), AAC_PRIORITY_DEFAULT);
+                    assertThat(config.getCodecPriority()).isEqualTo(AAC_PRIORITY_DEFAULT);
                     break;
                 case BluetoothCodecConfig.SOURCE_CODEC_TYPE_APTX:
-                    Assert.assertEquals(config.getCodecPriority(), APTX_PRIORITY_DEFAULT);
+                    assertThat(config.getCodecPriority()).isEqualTo(APTX_PRIORITY_DEFAULT);
                     break;
                 case BluetoothCodecConfig.SOURCE_CODEC_TYPE_APTX_HD:
-                    Assert.assertEquals(config.getCodecPriority(), APTX_HD_PRIORITY_DEFAULT);
+                    assertThat(config.getCodecPriority()).isEqualTo(APTX_HD_PRIORITY_DEFAULT);
                     break;
                 case BluetoothCodecConfig.SOURCE_CODEC_TYPE_LDAC:
-                    Assert.assertEquals(config.getCodecPriority(), LDAC_PRIORITY_DEFAULT);
+                    assertThat(config.getCodecPriority()).isEqualTo(LDAC_PRIORITY_DEFAULT);
                     break;
                 case BluetoothCodecConfig.SOURCE_CODEC_TYPE_OPUS:
-                    Assert.assertEquals(config.getCodecPriority(), OPUS_PRIORITY_DEFAULT);
+                    assertThat(config.getCodecPriority()).isEqualTo(OPUS_PRIORITY_DEFAULT);
                     break;
             }
         }

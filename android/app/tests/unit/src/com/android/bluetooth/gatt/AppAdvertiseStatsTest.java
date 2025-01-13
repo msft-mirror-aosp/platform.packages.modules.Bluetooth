@@ -102,7 +102,7 @@ public class AppAdvertiseStatsTest {
         AppAdvertiseStats appAdvertiseStats =
                 new AppAdvertiseStats(appUid, id, name, mAttributionSource);
 
-        assertThat(appAdvertiseStats.mAdvertiserRecords.size()).isEqualTo(0);
+        assertThat(appAdvertiseStats.mAdvertiserRecords).isEmpty();
 
         int duration = 1;
         int maxExtAdvEvents = 2;
@@ -145,7 +145,7 @@ public class AppAdvertiseStatsTest {
         int maxExtAdvEvents = 2;
         int instanceCount = 3;
 
-        assertThat(appAdvertiseStats.mAdvertiserRecords.size()).isEqualTo(0);
+        assertThat(appAdvertiseStats.mAdvertiserRecords).isEmpty();
 
         appAdvertiseStats.recordAdvertiseStart(duration, maxExtAdvEvents, instanceCount);
 
@@ -186,7 +186,7 @@ public class AppAdvertiseStatsTest {
         int maxExtAdvEvents = 2;
         int instanceCount = 3;
 
-        assertThat(appAdvertiseStats.mAdvertiserRecords.size()).isEqualTo(0);
+        assertThat(appAdvertiseStats.mAdvertiserRecords).isEmpty();
 
         appAdvertiseStats.enableAdvertisingSet(true, duration, maxExtAdvEvents, instanceCount);
         appAdvertiseStats.enableAdvertisingSet(false, duration, maxExtAdvEvents, instanceCount);

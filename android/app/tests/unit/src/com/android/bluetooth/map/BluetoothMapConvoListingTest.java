@@ -80,7 +80,7 @@ public class BluetoothMapConvoListingTest {
     @Test
     public void segment_whenOffsetIsBiggerThanSize_returnsEmptyList() {
         mListing.segment(1, 4);
-        assertThat(mListing.getList().size()).isEqualTo(0);
+        assertThat(mListing.getList()).isEmpty();
     }
 
     @Test

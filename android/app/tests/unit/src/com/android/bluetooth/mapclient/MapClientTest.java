@@ -37,7 +37,6 @@ import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -123,12 +122,12 @@ public class MapClientTest {
         // is the statemachine created
         Map<BluetoothDevice, MceStateMachine> map = mService.getInstanceMap();
 
-        Assert.assertEquals(1, map.size());
+        assertThat(map.size()).isEqualTo(1);
         MceStateMachine sm = map.get(device);
         assertThat(sm).isNotNull();
         TestUtils.waitForLooperToFinishScheduledTask(sm.getHandler().getLooper());
 
-        Assert.assertEquals(BluetoothProfile.STATE_CONNECTING, sm.getState());
+        assertThat(sm.getState()).isEqualTo(BluetoothProfile.STATE_CONNECTING);
         mService.cleanupDevice(device, sm);
         assertThat(mService.getInstanceMap()).doesNotContainKey(device);
     }
@@ -171,7 +170,7 @@ public class MapClientTest {
 
         // verify
         Map<BluetoothDevice, MceStateMachine> map = mService.getInstanceMap();
-        Assert.assertEquals(MapClientService.MAXIMUM_CONNECTED_DEVICES, map.size());
+        assertThat(map.size()).isEqualTo(MapClientService.MAXIMUM_CONNECTED_DEVICES);
         for (BluetoothDevice d : list) {
             assertThat(map).containsKey(d);
         }

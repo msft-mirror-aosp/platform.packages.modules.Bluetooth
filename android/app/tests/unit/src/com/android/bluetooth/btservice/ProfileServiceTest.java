@@ -46,7 +46,6 @@ import com.android.bluetooth.hid.HidHostNativeInterface;
 import com.android.bluetooth.le_audio.LeAudioNativeInterface;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -119,9 +118,7 @@ public class ProfileServiceTest {
                         .collect(Collectors.groupingBy(Object::getClass, Collectors.counting()));
 
         counts.forEach(
-                (clazz, count) ->
-                        Assert.assertEquals(
-                                clazz.getSimpleName(), (long) invocationNumber, count.longValue()));
+                (clazz, count) -> assertThat((long) invocationNumber).isEqualTo(count.longValue()));
     }
 
     @Before
@@ -233,7 +230,7 @@ public class ProfileServiceTest {
 
         List<ProfileService> startedArguments = starts.getAllValues();
         List<ProfileService> stoppedArguments = stops.getAllValues();
-        Assert.assertEquals(startedArguments.size(), stoppedArguments.size());
+        assertThat(startedArguments.size()).isEqualTo(stoppedArguments.size());
         for (ProfileService service : startedArguments) {
             assertThat(stoppedArguments).contains(service);
             stoppedArguments.remove(service);
@@ -260,7 +257,7 @@ public class ProfileServiceTest {
                 verify(mAdapterService, times(NUM_REPEATS * profileNumber + i + 1))
                         .onProfileServiceStateChanged(
                                 stop.capture(), eq(BluetoothAdapter.STATE_OFF));
-                Assert.assertEquals(start.getValue(), stop.getValue());
+                assertThat(start.getValue()).isEqualTo(stop.getValue());
             }
             profileNumber += 1;
         }
@@ -284,7 +281,7 @@ public class ProfileServiceTest {
                 ArgumentCaptor<ProfileService> stop = ArgumentCaptor.forClass(ProfileService.class);
                 verify(mAdapterService, times(NUM_REPEATS * profileNumber + i + 1))
                         .removeProfile(stop.capture());
-                Assert.assertEquals(start.getValue(), stop.getValue());
+                assertThat(start.getValue()).isEqualTo(stop.getValue());
             }
             profileNumber += 1;
         }
