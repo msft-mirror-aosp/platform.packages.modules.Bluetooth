@@ -62,6 +62,8 @@ public class DistanceMeasurementManager {
             mCsTrackers = new ConcurrentHashMap<>();
     private final boolean mHasChannelSoundingFeature;
 
+    private volatile boolean mIsTurnedOff = false;
+
     /** Constructor of {@link DistanceMeasurementManager}. */
     DistanceMeasurementManager(AdapterService adapterService) {
         mAdapterService = adapterService;
@@ -83,8 +85,22 @@ public class DistanceMeasurementManager {
     }
 
     void cleanup() {
+        mIsTurnedOff = true;
         mDistanceMeasurementBinder.cleanup();
         mDistanceMeasurementNativeInterface.cleanup();
+        Log.d(TAG, "stop all sessions as BT is off");
+        for (String addressForCs : mCsTrackers.keySet()) {
+            onDistanceMeasurementStopped(
+                    addressForCs,
+                    BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED,
+                    DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING);
+        }
+        for (String addressForRssi : mRssiTrackers.keySet()) {
+            onDistanceMeasurementStopped(
+                    addressForRssi,
+                    BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED,
+                    DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_RSSI);
+        }
     }
 
     DistanceMeasurementBinder getBinder() {
@@ -109,6 +125,12 @@ public class DistanceMeasurementManager {
 
     void startDistanceMeasurement(
             UUID uuid, DistanceMeasurementParams params, IDistanceMeasurementCallback callback) {
+        if (mIsTurnedOff) {
+            Log.d(TAG, "BT is turned off, no new request is allowed.");
+            invokeStartFail(
+                    callback, params.getDevice(), BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED);
+            return;
+        }
         Log.i(
                 TAG,
                 "startDistanceMeasurement:"
