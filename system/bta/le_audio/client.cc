@@ -1376,11 +1376,7 @@ public:
        * before group activation (active group context would take care of
        * Sink HAL client cleanup).
        */
-      if (com::android::bluetooth::flags::leaudio_use_audio_recording_listener()) {
-        if (sink_monitor_mode_ && !enable) {
-          local_metadata_context_types_.sink.clear();
-        }
-      } else {
+      if (!com::android::bluetooth::flags::leaudio_use_audio_recording_listener()) {
         if (sink_monitor_mode_ && !enable && le_audio_sink_hal_client_ &&
             active_group_id_ == bluetooth::groups::kGroupUnknown) {
           local_metadata_context_types_.sink.clear();
