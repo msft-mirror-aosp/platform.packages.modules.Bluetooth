@@ -1409,7 +1409,7 @@ private:
          * broadcast stream would be triggered from IsoTrafficEventCb context, once ISO would be
          * released.
          */
-        if (instance->is_iso_running_) {
+        if (!IsAnyoneStreaming() && instance->is_iso_running_) {
           log::debug("iso is busy, skip resume request");
           return;
         }
