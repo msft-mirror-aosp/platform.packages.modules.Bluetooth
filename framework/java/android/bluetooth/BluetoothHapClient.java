@@ -24,7 +24,6 @@ import static android.bluetooth.BluetoothUtils.callServiceIfEnabled;
 import static java.util.Objects.requireNonNull;
 
 import android.annotation.CallbackExecutor;
-import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -40,8 +39,6 @@ import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.CloseGuard;
 import android.util.Log;
-
-import com.android.bluetooth.flags.Flags;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -336,7 +333,6 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
      * @hide
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_SETTINGS_CAN_CONTROL_HAP_PRESET)
     public static final int PRESET_INDEX_UNAVAILABLE = IBluetoothHapClient.PRESET_INDEX_UNAVAILABLE;
 
     /**
@@ -691,7 +687,6 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
      * @hide
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_SETTINGS_CAN_CONTROL_HAP_PRESET)
     @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public int getHapGroup(@NonNull BluetoothDevice device) {
@@ -715,7 +710,6 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
      * @hide
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_SETTINGS_CAN_CONTROL_HAP_PRESET)
     @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public int getActivePresetIndex(@NonNull BluetoothDevice device) {
@@ -815,7 +809,6 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
      * @hide
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_SETTINGS_CAN_CONTROL_HAP_PRESET)
     @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public void switchToNextPreset(@NonNull BluetoothDevice device) {
@@ -840,7 +833,6 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
      * @hide
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_SETTINGS_CAN_CONTROL_HAP_PRESET)
     @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public void switchToNextPresetForGroup(int groupId) {
@@ -860,7 +852,6 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
      * @hide
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_SETTINGS_CAN_CONTROL_HAP_PRESET)
     @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public void switchToPreviousPreset(@NonNull BluetoothDevice device) {
@@ -887,7 +878,6 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
      * @hide
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_SETTINGS_CAN_CONTROL_HAP_PRESET)
     @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public void switchToPreviousPresetForGroup(int groupId) {
@@ -906,7 +896,6 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
      * @hide
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_SETTINGS_CAN_CONTROL_HAP_PRESET)
     @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     @Nullable
