@@ -202,7 +202,7 @@ public class BluetoothMapAccountItemTest {
                         TEST_UCI,
                         TEST_UCI_PREFIX);
 
-        assertThat(accountItem).isNotEqualTo(null);
+        assertThat(accountItem).isNotNull();
     }
 
     @SuppressWarnings("EqualsIncompatibleType")

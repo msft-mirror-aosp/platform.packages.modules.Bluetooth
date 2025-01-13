@@ -88,7 +88,7 @@ public class CallLogPullRequestTest {
         request.onPullComplete();
 
         // No operation has been done.
-        assertThat(mCallCounter.size()).isEqualTo(0);
+        assertThat(mCallCounter).isEmpty();
     }
 
     @Test
@@ -102,7 +102,7 @@ public class CallLogPullRequestTest {
         request.onPullComplete();
 
         // No operation has been done.
-        assertThat(mCallCounter.size()).isEqualTo(0);
+        assertThat(mCallCounter).isEmpty();
     }
 
     @Test
@@ -116,7 +116,7 @@ public class CallLogPullRequestTest {
         request.onPullComplete();
 
         // Call counter should remain same.
-        assertThat(mCallCounter.size()).isEqualTo(0);
+        assertThat(mCallCounter).isEmpty();
     }
 
     @Test
@@ -140,7 +140,7 @@ public class CallLogPullRequestTest {
         request.onPullComplete();
 
         // Call counter should remain same.
-        assertThat(mCallCounter.size()).isEqualTo(0);
+        assertThat(mCallCounter).isEmpty();
     }
 
     @Test
