@@ -2693,6 +2693,7 @@ protected:
   LeAudioSinkAudioHalClient::Callbacks* unicast_sink_hal_cb_ = nullptr;
 
   uint8_t default_channel_cnt = 0x03;
+  uint8_t default_src_channel_cnt = default_channel_cnt;
   uint8_t default_ase_cnt = 1;
 
   NiceMock<MockCsisClient> mock_csis_client_module_;
@@ -2989,7 +2990,7 @@ TEST_F(UnicastTest, CleanupWhenUserConnecting) {
   uint16_t conn_id = 1;
   SetSampleDatabaseEarbudsValid(1, test_address0, codec_spec_conf::kLeAudioLocationStereo,
                                 codec_spec_conf::kLeAudioLocationStereo, default_channel_cnt,
-                                default_channel_cnt, 0x0004,
+                                default_src_channel_cnt, 0x0004,
                                 /* source sample freq 16khz */ true, /*add_csis*/
                                 true,                                /*add_cas*/
                                 true,                                /*add_pacs*/
@@ -4999,6 +5000,79 @@ TEST_F(UnicastTest, GroupSetActive_and_InactiveDuringStreamConfiguration) {
 
   EXPECT_CALL(mock_state_machine_, StopStream(_)).Times(1);
   LeAudioClient::Get()->GroupSetActive(bluetooth::groups::kGroupUnknown);
+
+  SyncOnMainLoop();
+  Mock::VerifyAndClearExpectations(&mock_state_machine_);
+}
+
+TEST_F(UnicastTest, AnotherGroupSetActive_DuringVoip) {
+  com::android::bluetooth::flags::provider_->leaudio_improve_switch_during_phone_call(true);
+  const RawAddress test_address0 = GetTestAddress(0);
+  const RawAddress test_address1 = GetTestAddress(1);
+  int group_id_1 = 1;
+  int group_id_2 = 2;
+  int group_size = 1;
+
+  default_channel_cnt = 2;
+  default_src_channel_cnt = 1;
+
+  /**
+   * Scenario:
+   * 1. Voip is started
+   * 2. Group 1 is set active - no fast configuration is expected
+   * 3. Audio HAL resumse the stream and Group 1 is streaming
+   * 3. Group 2 is set to active - it is expected that stream to Group 1 is stopped and Group 2
+   * configuration goes to QoS configured
+   */
+  // Report working CSIS
+  ON_CALL(mock_csis_client_module_, IsCsisClientRunning()).WillByDefault(Return(true));
+  ON_CALL(mock_csis_client_module_, GetDesiredSize(_)).WillByDefault(Return(group_size));
+
+  log::info("Connecting first Group with device {}", test_address0);
+  ConnectCsisDevice(
+          test_address0, 1 /* conn_id*/,
+          codec_spec_conf::kLeAudioLocationFrontLeft | codec_spec_conf::kLeAudioLocationFrontRight,
+          codec_spec_conf::kLeAudioLocationFrontLeft, group_size, group_id_1, 1 /* rank*/);
+
+  SyncOnMainLoop();
+
+  log::info("Connecting second Group with device {}", test_address1);
+  ConnectCsisDevice(
+          test_address1, 2 /* conn_id*/,
+          codec_spec_conf::kLeAudioLocationFrontLeft | codec_spec_conf::kLeAudioLocationFrontRight,
+          codec_spec_conf::kLeAudioLocationFrontLeft, group_size, group_id_2, 1 /* rank*/);
+  SyncOnMainLoop();
+  Mock::VerifyAndClearExpectations(&mock_audio_hal_client_callbacks_);
+
+  EXPECT_CALL(mock_state_machine_, StartStream(_, _, _, _)).Times(0);
+  EXPECT_CALL(mock_state_machine_, ConfigureStream(_, _, _, _, _)).Times(0);
+
+  log::info("Group is getting Active");
+  LeAudioClient::Get()->GroupSetActive(group_id_1);
+
+  SyncOnMainLoop();
+  Mock::VerifyAndClearExpectations(&mock_state_machine_);
+
+  log::info("Audio HAL opens for Converstational");
+
+  // VOIP not using Telecom API has no ccids.
+  types::BidirectionalPair<std::vector<uint8_t>> ccids = {.sink = {}, .source = {}};
+  EXPECT_CALL(mock_state_machine_,
+              StartStream(_, types::LeAudioContextType::CONVERSATIONAL, _, ccids))
+          .Times(AtLeast(1));
+
+  StartStreaming(AUDIO_USAGE_VOICE_COMMUNICATION, AUDIO_CONTENT_TYPE_SPEECH, group_id_1);
+
+  SyncOnMainLoop();
+  Mock::VerifyAndClearExpectations(&mock_audio_hal_client_callbacks_);
+  Mock::VerifyAndClearExpectations(mock_le_audio_source_hal_client_);
+
+  log::info("Set group 2 as active one ");
+  EXPECT_CALL(mock_state_machine_, StopStream(_)).Times(1);
+  EXPECT_CALL(mock_state_machine_, StartStream(_, _, _, _)).Times(0);
+  EXPECT_CALL(mock_state_machine_, ConfigureStream(_, _, _, _, true)).Times(1);
+
+  LeAudioClient::Get()->GroupSetActive(group_id_2);
 
   SyncOnMainLoop();
   Mock::VerifyAndClearExpectations(&mock_state_machine_);
