@@ -422,7 +422,7 @@ public:
                           is_volume_change, is_mute_change);
 
     if (!is_volume_change && !is_mute_change) {
-      bluetooth::log::error("Autonomous change but volume and mute did not changed.");
+      bluetooth::log::warn("Autonomous change but volume and mute did not changed.");
       return;
     }
 
@@ -920,7 +920,7 @@ public:
             [operation_id](auto& operation) { return operation.operation_id_ == operation_id; });
 
     if (op == ongoing_operations_.end()) {
-      bluetooth::log::error("Could not find operation id: {}", operation_id);
+      bluetooth::log::warn("Could not find operation id: {}", operation_id);
       return;
     }
 
