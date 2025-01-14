@@ -320,7 +320,7 @@ public class BluetoothManagerServiceTest {
         verify(mContext)
                 .bindServiceAsUser(
                         any(Intent.class), captor.capture(), anyInt(), any(UserHandle.class));
-        assertThat(captor.getAllValues().size()).isEqualTo(1);
+        assertThat(captor.getAllValues()).hasSize(1);
 
         BluetoothManagerService.BluetoothServiceConnection serviceConnection =
                 captor.getAllValues().get(0);
@@ -334,7 +334,7 @@ public class BluetoothManagerServiceTest {
         ArgumentCaptor<IBluetoothCallback> captor =
                 ArgumentCaptor.forClass(IBluetoothCallback.class);
         verify(adapterBinder).registerCallback(captor.capture(), any());
-        assertThat(captor.getAllValues().size()).isEqualTo(1);
+        assertThat(captor.getAllValues()).hasSize(1);
         return captor.getValue();
     }
 

@@ -337,7 +337,7 @@ public final class DatabaseManagerTest {
         List<Metadata> list = mDatabase.load();
 
         // Check number of metadata in the database
-        assertThat(list.size()).isEqualTo(1);
+        assertThat(list).hasSize(1);
 
         // Check whether the device is in database
         Metadata checkData = list.get(0);
@@ -385,7 +385,7 @@ public final class DatabaseManagerTest {
         // Check number of metadata in the database
         List<Metadata> list = mDatabase.load();
         // OTHER_BT_ADDR1 and OTHER_BT_ADDR2 should still in database
-        assertThat(list.size()).isEqualTo(2);
+        assertThat(list).hasSize(2);
 
         // Check whether the devices are in the database
         Metadata checkData1 = list.get(0);
@@ -1662,7 +1662,7 @@ public final class DatabaseManagerTest {
                 return;
             }
         }
-        assertThat(list.size()).isEqualTo(1);
+        assertThat(list).hasSize(1);
 
         // Check whether the device is in database
         restartDatabaseManagerHelper();
@@ -1703,7 +1703,7 @@ public final class DatabaseManagerTest {
             assertThat(list).isEmpty();
             return;
         }
-        assertThat(list.size()).isEqualTo(1);
+        assertThat(list).hasSize(1);
 
         // Check whether the device is in database
         restartDatabaseManagerHelper();
@@ -1830,7 +1830,7 @@ public final class DatabaseManagerTest {
             assertThat(list).isEmpty();
             return;
         }
-        assertThat(list.size()).isEqualTo(2);
+        assertThat(list).hasSize(2);
 
         // Check whether the device is in database
         restartDatabaseManagerHelper();

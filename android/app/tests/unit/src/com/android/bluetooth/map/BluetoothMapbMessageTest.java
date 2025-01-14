@@ -69,7 +69,7 @@ public class BluetoothMapbMessageTest {
         assertThat(messageMime.getVersionString()).isEqualTo("VERSION:" + TEST_VERSION_STRING);
         assertThat(messageMime.getType()).isEqualTo(TEST_TYPE);
         assertThat(messageMime.getFolder()).isEqualTo("telecom/msg/" + TEST_FOLDER);
-        assertThat(messageMime.getRecipients().size()).isEqualTo(1);
+        assertThat(messageMime.getRecipients()).hasSize(1);
         assertThat(messageMime.getOriginators()).isNull();
     }
 
@@ -189,7 +189,7 @@ public class BluetoothMapbMessageTest {
                 .isEqualTo("VERSION:" + TEST_VERSION_STRING);
         assertThat(messageMimeParsed.getType()).isEqualTo(TEST_TYPE);
         assertThat(messageMimeParsed.getFolder()).isEqualTo(TEST_FOLDER);
-        assertThat(messageMimeParsed.getRecipients().size()).isEqualTo(1);
-        assertThat(messageMimeParsed.getOriginators().size()).isEqualTo(1);
+        assertThat(messageMimeParsed.getRecipients()).hasSize(1);
+        assertThat(messageMimeParsed.getOriginators()).hasSize(1);
     }
 }

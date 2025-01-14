@@ -118,7 +118,7 @@ public class BluetoothMapSmsPduTest {
                 BluetoothMapSmsPdu.getSubmitPdus(
                         mTargetContext, TEST_TEXT_WITH_TWO_SMS_PARTS, null);
 
-        assertThat(pdus.size()).isEqualTo(2);
+        assertThat(pdus).hasSize(2);
         assertThat(pdus.get(0).getType()).isEqualTo(BluetoothMapSmsPdu.SMS_TYPE_GSM);
 
         BluetoothMapbMessageSms messageSmsToEncode = new BluetoothMapbMessageSms();
@@ -145,7 +145,7 @@ public class BluetoothMapSmsPduTest {
 
         List<SmsPdu> pdus = BluetoothMapSmsPdu.getSubmitPdus(mTargetContext, TEST_TEXT, null);
 
-        assertThat(pdus.size()).isEqualTo(1);
+        assertThat(pdus).hasSize(1);
         assertThat(pdus.get(0).getType()).isEqualTo(BluetoothMapSmsPdu.SMS_TYPE_CDMA);
 
         BluetoothMapbMessageSms messageSmsToEncode = new BluetoothMapbMessageSms();
@@ -172,7 +172,7 @@ public class BluetoothMapSmsPduTest {
                 BluetoothMapSmsPdu.getDeliverPdus(
                         mTargetContext, TEST_TEXT, TEST_DESTINATION_ADDRESS, TEST_DATE);
 
-        assertThat(pdus.size()).isEqualTo(1);
+        assertThat(pdus).hasSize(1);
         assertThat(pdus.get(0).getType()).isEqualTo(BluetoothMapSmsPdu.SMS_TYPE_GSM);
 
         BluetoothMapbMessageSms messageSmsToEncode = new BluetoothMapbMessageSms();
@@ -201,7 +201,7 @@ public class BluetoothMapSmsPduTest {
                 BluetoothMapSmsPdu.getDeliverPdus(
                         mTargetContext, TEST_TEXT, TEST_DESTINATION_ADDRESS, TEST_DATE);
 
-        assertThat(pdus.size()).isEqualTo(1);
+        assertThat(pdus).hasSize(1);
         assertThat(pdus.get(0).getType()).isEqualTo(BluetoothMapSmsPdu.SMS_TYPE_CDMA);
 
         BluetoothMapbMessageSms messageSmsToEncode = new BluetoothMapbMessageSms();

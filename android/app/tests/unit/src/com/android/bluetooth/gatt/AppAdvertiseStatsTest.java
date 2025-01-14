@@ -129,7 +129,7 @@ public class AppAdvertiseStatsTest {
 
         int numOfExpectedRecords = 2;
 
-        assertThat(appAdvertiseStats.mAdvertiserRecords.size()).isEqualTo(numOfExpectedRecords);
+        assertThat(appAdvertiseStats.mAdvertiserRecords).hasSize(numOfExpectedRecords);
     }
 
     @Test
@@ -170,7 +170,7 @@ public class AppAdvertiseStatsTest {
 
         int numOfExpectedRecords = 2;
 
-        assertThat(appAdvertiseStats.mAdvertiserRecords.size()).isEqualTo(numOfExpectedRecords);
+        assertThat(appAdvertiseStats.mAdvertiserRecords).hasSize(numOfExpectedRecords);
     }
 
     @Test
@@ -193,7 +193,7 @@ public class AppAdvertiseStatsTest {
 
         int numOfExpectedRecords = 1;
 
-        assertThat(appAdvertiseStats.mAdvertiserRecords.size()).isEqualTo(numOfExpectedRecords);
+        assertThat(appAdvertiseStats.mAdvertiserRecords).hasSize(numOfExpectedRecords);
     }
 
     @Test
