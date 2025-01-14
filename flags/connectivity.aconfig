@@ -34,3 +34,11 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "allow_gatt_connect_from_the_apps_without_making_leaudio_device_active"
+    namespace: "bluetooth"
+    description: "Allows for GATT connection without making LeAudio device active after connection"
+    bug: "389274300"
+}
+
