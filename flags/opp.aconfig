@@ -20,3 +20,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "update_opp_launcher_user_changed"
+    namespace: "bluetooth"
+    description: "Enable/disable OPP launcher when user changed"
+    bug: "389596902"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
