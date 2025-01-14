@@ -69,7 +69,7 @@ public class ContentControlIdKeeperTest {
         verify(mLeAudioServiceMock).setCcidInformation(eq(uuid), eq(ccid), eq(context));
         Map<ParcelUuid, Pair<Integer, Integer>> uuidToCcidContextPair =
                 ContentControlIdKeeper.getUuidToCcidContextPairMap();
-        assertThat(uuidToCcidContextPair.size()).isEqualTo(expectedListSize);
+        assertThat(uuidToCcidContextPair).hasSize(expectedListSize);
         assertThat(uuidToCcidContextPair).containsKey(uuid);
         assertThat(uuidToCcidContextPair.get(uuid).first).isEqualTo(ccid);
         assertThat(uuidToCcidContextPair.get(uuid).second).isEqualTo(context);
@@ -88,7 +88,7 @@ public class ContentControlIdKeeperTest {
 
         verify(mLeAudioServiceMock).setCcidInformation(eq(uuid), eq(ccid), eq(0));
 
-        assertThat(uuidToCcidContextPair.size()).isEqualTo(expectedListSize);
+        assertThat(uuidToCcidContextPair).hasSize(expectedListSize);
     }
 
     @Test

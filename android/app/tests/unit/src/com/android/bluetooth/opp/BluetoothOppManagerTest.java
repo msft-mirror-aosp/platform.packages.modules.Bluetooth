@@ -257,7 +257,7 @@ public class BluetoothOppManagerTest {
         assertThat(BluetoothOppUtility.sSendFileMap).isEmpty();
         BluetoothOppManager.getInstance(mContext)
                 .saveSendingFileInfo("text/plain", uri.toString(), false, true);
-        assertThat(BluetoothOppUtility.sSendFileMap.size()).isEqualTo(1);
+        assertThat(BluetoothOppUtility.sSendFileMap).hasSize(1);
 
         BluetoothOppManager.getInstance(mContext).cleanUpSendingFileInfo();
         assertThat(BluetoothOppUtility.sSendFileMap).isEmpty();

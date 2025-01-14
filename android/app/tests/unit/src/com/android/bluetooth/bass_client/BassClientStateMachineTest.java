@@ -3528,7 +3528,7 @@ public class BassClientStateMachineTest {
                 null, characteristic, GATT_SUCCESS);
         TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
 
-        assertThat(mBassClientStateMachine.getAllSources().size()).isEqualTo(1);
+        assertThat(mBassClientStateMachine.getAllSources()).hasSize(1);
         BluetoothLeBroadcastReceiveState recvState = mBassClientStateMachine.getAllSources().get(0);
 
         assertThat(recvState.getSourceId()).isEqualTo(sourceId);
@@ -3540,10 +3540,10 @@ public class BassClientStateMachineTest {
         assertThat(recvState.getBigEncryptionState()).isEqualTo(bigEncryptState);
         assertThat(recvState.getNumSubgroups()).isEqualTo(numOfSubgroups);
 
-        assertThat(recvState.getBisSyncState().size()).isEqualTo(numOfSubgroups);
+        assertThat(recvState.getBisSyncState()).hasSize(numOfSubgroups);
         assertThat(recvState.getBisSyncState().get(0)).isEqualTo(bisSyncState);
 
-        assertThat(recvState.getSubgroupMetadata().size()).isEqualTo(numOfSubgroups);
+        assertThat(recvState.getSubgroupMetadata()).hasSize(numOfSubgroups);
         BluetoothLeAudioContentMetadata metaData = recvState.getSubgroupMetadata().get(0);
         assertThat(metaData.getRawMetadata().length).isEqualTo(metaDataLength);
         assertThat(metaData.getRawMetadata())
