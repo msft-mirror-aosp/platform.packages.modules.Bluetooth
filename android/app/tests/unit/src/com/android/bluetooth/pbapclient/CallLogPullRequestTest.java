@@ -165,7 +165,7 @@ public class CallLogPullRequestTest {
 
         request.onPullComplete();
 
-        assertThat(mCallCounter.size()).isEqualTo(1);
+        assertThat(mCallCounter).hasSize(1);
         for (String key : mCallCounter.keySet()) {
             assertThat(mCallCounter.get(key)).isEqualTo(2);
             break;

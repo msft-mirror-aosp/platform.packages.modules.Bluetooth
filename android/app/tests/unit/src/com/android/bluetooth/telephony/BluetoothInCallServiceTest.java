@@ -906,7 +906,7 @@ public class BluetoothInCallServiceTest {
 
         // parent call arrived, but children have not, then do inference on children
         calls.add(conferenceCall);
-        assertThat(calls.size()).isEqualTo(1);
+        assertThat(calls).hasSize(1);
         mBluetoothInCallService.onCallAdded(conferenceCall);
 
         clearInvocations(mMockBluetoothHeadset);
@@ -945,7 +945,7 @@ public class BluetoothInCallServiceTest {
         mBluetoothInCallService.onCallRemoved(holdingCall, true);
         calls.remove(activeCall);
         calls.remove(holdingCall);
-        assertThat(calls.size()).isEqualTo(1);
+        assertThat(calls).hasSize(1);
 
         clearInvocations(mMockBluetoothHeadset);
         mBluetoothInCallService.listCurrentCalls();
@@ -1041,7 +1041,7 @@ public class BluetoothInCallServiceTest {
 
         // parent call arrived, but children have not, then do inference on children
         calls.add(conferenceCall);
-        assertThat(calls.size()).isEqualTo(1);
+        assertThat(calls).hasSize(1);
         mBluetoothInCallService.onCallAdded(conferenceCall);
 
         clearInvocations(mMockBluetoothHeadset);
@@ -1079,7 +1079,7 @@ public class BluetoothInCallServiceTest {
         mBluetoothInCallService.onCallRemoved(activeCall_1, true);
         doReturn(false).when(activeCall_1).isConference();
         calls.remove(activeCall_1);
-        assertThat(calls.size()).isEqualTo(2);
+        assertThat(calls).hasSize(2);
 
         // Call 2 removed from conf
         doReturn(cause).when(activeCall_2).getDisconnectCause();

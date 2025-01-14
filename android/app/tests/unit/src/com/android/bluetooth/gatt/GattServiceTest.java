@@ -299,7 +299,7 @@ public class GattServiceTest {
                 mService.getDevicesMatchingConnectionStates(states, mAttributionSource);
 
         int expectedSize = 1;
-        assertThat(deviceList.size()).isEqualTo(expectedSize);
+        assertThat(deviceList).hasSize(expectedSize);
 
         BluetoothDevice bluetoothDevice = deviceList.get(0);
         assertThat(bluetoothDevice.getAddress()).isEqualTo(address);

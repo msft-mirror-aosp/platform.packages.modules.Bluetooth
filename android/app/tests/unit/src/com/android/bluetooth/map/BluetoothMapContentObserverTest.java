@@ -232,7 +232,7 @@ public class BluetoothMapContentObserverTest {
                 () -> observer.pushMessage(message, folderElement, appParams, null));
 
         // Validate that 3 addresses were inserted into the database with 2 being the recipients
-        assertThat(mProvider.mContents.size()).isEqualTo(3);
+        assertThat(mProvider.mContents).hasSize(3);
         assertThat(mProvider.mContents).contains(TEST_NUMBER_ONE);
         assertThat(mProvider.mContents).contains(TEST_NUMBER_TWO);
     }
