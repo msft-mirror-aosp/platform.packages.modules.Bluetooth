@@ -244,7 +244,7 @@ public class PbapClientContactsStorageTest {
         assertThat(mStorage.getStorageAccounts()).contains(account1);
 
         mStorage.removeAccount(account2);
-        assertThat(mStorage.getStorageAccounts().size()).isEqualTo(mMockedAccounts.size());
+        assertThat(mStorage.getStorageAccounts()).hasSize(mMockedAccounts.size());
         assertThat(mStorage.getStorageAccounts()).contains(account1);
         assertThat(mStorage.getStorageAccounts()).doesNotContain(account2);
     }

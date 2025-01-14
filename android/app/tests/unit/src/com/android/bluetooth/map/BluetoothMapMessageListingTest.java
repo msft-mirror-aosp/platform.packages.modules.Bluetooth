@@ -84,7 +84,7 @@ public class BluetoothMapMessageListingTest {
     @Test
     public void segment_whenCountIsLessThanOne_returnsOffsetToEnd() {
         mListing.segment(0, 1);
-        assertThat(mListing.getList().size()).isEqualTo(2);
+        assertThat(mListing.getList()).hasSize(2);
     }
 
     @Test
@@ -96,7 +96,7 @@ public class BluetoothMapMessageListingTest {
     @Test
     public void segment_whenOffsetCountCombinationIsValid_returnsCorrectly() {
         mListing.segment(1, 1);
-        assertThat(mListing.getList().size()).isEqualTo(1);
+        assertThat(mListing.getList()).hasSize(1);
     }
 
     @Test
@@ -122,14 +122,14 @@ public class BluetoothMapMessageListingTest {
         listingToAppend.add(listingElementToAppendOne);
         listingToAppend.add(listingElementToAppendTwo);
 
-        assertThat(listingToAppend.getList().size()).isEqualTo(2);
+        assertThat(listingToAppend.getList()).hasSize(2);
 
         final InputStream listingStream =
                 new ByteArrayInputStream(listingToAppend.encode(false, TEST_VERSION));
 
         BluetoothMapMessageListing listing = new BluetoothMapMessageListing();
         appendFromXml(listingStream, listing);
-        assertThat(listing.getList().size()).isEqualTo(2);
+        assertThat(listing.getList()).hasSize(2);
         assertThat(listing.getList().get(0).getDateTime()).isEqualTo(TEST_DATE_TIME_EARLIEST);
         assertThat(listing.getList().get(1).getReadBool()).isTrue();
     }

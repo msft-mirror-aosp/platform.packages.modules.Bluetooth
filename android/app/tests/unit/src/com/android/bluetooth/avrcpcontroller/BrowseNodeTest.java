@@ -155,7 +155,7 @@ public class BrowseNodeTest {
 
         mRootNode.addChild(browseNode);
 
-        assertThat(mRootNode.getContents().size()).isEqualTo(1);
+        assertThat(mRootNode.getContents()).hasSize(1);
     }
 
     @Test

@@ -1687,7 +1687,7 @@ public class LeAudioBroadcastServiceTest {
                             eq(mDevice2), eq(mDevice), connectionInfoArgumentCaptor.capture());
             List<BluetoothProfileConnectionInfo> connInfos =
                     connectionInfoArgumentCaptor.getAllValues();
-            assertThat(connInfos.size()).isEqualTo(1);
+            assertThat(connInfos).hasSize(1);
             assertThat(connInfos.get(0).isLeOutput()).isFalse();
         }
         assertThat(mService.mUnicastGroupIdDeactivatedForBroadcastTransition).isEqualTo(groupId2);

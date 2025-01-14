@@ -270,12 +270,12 @@ public class PbapClientObexClientTest {
         assertThat(phonebook.getOffset()).isEqualTo(0);
         assertThat(phonebook.getCount()).isEqualTo(1);
         assertThat(phonebook.getList()).isNotEmpty();
-        assertThat(phonebook.getList().size()).isEqualTo(1);
+        assertThat(phonebook.getList()).hasSize(1);
 
         VCardEntry contact1 = phonebook.getList().get(0);
         assertThat(contact1.getDisplayName()).isEqualTo("Foo Bar");
         assertThat(contact1.getPhoneList()).isNotNull();
-        assertThat(contact1.getPhoneList().size()).isEqualTo(1);
+        assertThat(contact1.getPhoneList()).hasSize(1);
         assertThat(contact1.getPhoneList().get(0).getNumber()).isEqualTo("+1-234-567-8901");
     }
 
