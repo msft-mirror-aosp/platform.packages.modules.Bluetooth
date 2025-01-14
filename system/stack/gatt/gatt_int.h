@@ -611,7 +611,7 @@ bool gatt_is_pending_mtu_exchange(tGATT_TCB* p_tcb);
 void gatt_set_conn_id_waiting_for_mtu_exchange(tGATT_TCB* p_tcb, tCONN_ID conn_id);
 
 void gatt_sr_copy_prep_cnt_to_cback_cnt(tGATT_TCB& p_tcb);
-bool gatt_sr_is_cback_cnt_zero(tGATT_TCB& p_tcb);
+bool gatt_sr_is_cback_cnt_zero(tGATT_TCB& p_tcb, uint16_t cid);
 bool gatt_sr_is_prep_cnt_zero(tGATT_TCB& p_tcb);
 void gatt_sr_reset_cback_cnt(tGATT_TCB& p_tcb, uint16_t cid);
 void gatt_sr_reset_prep_cnt(tGATT_TCB& tcb);
