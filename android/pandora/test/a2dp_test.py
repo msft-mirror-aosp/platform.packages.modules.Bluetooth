@@ -21,7 +21,7 @@ import logging
 import numpy as np
 
 from a2dp.packets import avdtp
-from avatar import BumblePandoraDevice, PandoraDevice, PandoraDevices, pandora
+from avatar import BumblePandoraDevice, PandoraDevice, PandoraDevices, pandora_snippet
 from avatar.pandora_server import AndroidPandoraServer
 from bumble.a2dp import (
     A2DP_MPEG_2_4_AAC_CODEC_TYPE,
@@ -316,7 +316,7 @@ class A2dpTest(base_test.BaseTestClass):  # type: ignore[misc]
         self.ref1.a2dp.on('connection', on_avdtp_connection)
 
         # Retrieve Bumble connection object from Pandora connection token
-        connection = pandora.get_raw_connection(device=self.ref1, connection=ref1_dut)
+        connection = pandora_snippet.get_raw_connection(device=self.ref1, connection=ref1_dut)
 
         # Open AVCTP L2CAP channel
         avctp = await connection.create_l2cap_channel(spec=ClassicChannelSpec(AVCTP_PSM))
@@ -416,7 +416,7 @@ class A2dpTest(base_test.BaseTestClass):  # type: ignore[misc]
         )
 
         # Retrieve Bumble connection object from Pandora connection token
-        connection = pandora.get_raw_connection(device=self.ref1, connection=ref1_dut)
+        connection = pandora_snippet.get_raw_connection(device=self.ref1, connection=ref1_dut)
         # Find a free CID for a new channel
         connection_channels = self.ref1.device.l2cap_channel_manager.channels.setdefault(connection.handle, {})
         source_cid = self.ref1.device.l2cap_channel_manager.find_free_br_edr_cid(connection_channels)
@@ -697,7 +697,7 @@ class A2dpTest(base_test.BaseTestClass):  # type: ignore[misc]
         avdtp_future = asyncio.get_running_loop().create_future()
 
         # Retrieve Bumble connection object from Pandora connection token
-        connection = pandora.get_raw_connection(device=self.ref1, connection=ref1_dut)
+        connection = pandora_snippet.get_raw_connection(device=self.ref1, connection=ref1_dut)
         assert connection is not None
 
         channel = await connection.create_l2cap_channel(spec=ClassicChannelSpec(psm=AVDTP_PSM))
