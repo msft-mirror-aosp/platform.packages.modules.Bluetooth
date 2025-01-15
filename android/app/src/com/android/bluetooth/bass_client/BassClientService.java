@@ -2499,6 +2499,28 @@ public class BassClientService extends ProfileService {
         BluetoothDevice srcDevice = getDeviceForSyncHandle(syncHandle);
         mSyncHandleToDeviceMap.remove(syncHandle);
         int broadcastId = getBroadcastIdForSyncHandle(syncHandle);
+        if (leaudioMonitorUnicastSourceWhenManagedByBroadcastDelegator()) {
+            synchronized (mPendingSourcesToAdd) {
+                Iterator<AddSourceData> iterator = mPendingSourcesToAdd.iterator();
+                while (iterator.hasNext()) {
+                    AddSourceData pendingSourcesToAdd = iterator.next();
+                    if (pendingSourcesToAdd.mSourceMetadata.getBroadcastId() == broadcastId) {
+                        iterator.remove();
+                    }
+                }
+            }
+            synchronized (mSinksWaitingForPast) {
+                Iterator<Map.Entry<BluetoothDevice, Pair<Integer, Integer>>> iterator =
+                        mSinksWaitingForPast.entrySet().iterator();
+                while (iterator.hasNext()) {
+                    Map.Entry<BluetoothDevice, Pair<Integer, Integer>> entry = iterator.next();
+                    int broadcastIdForPast = entry.getValue().first;
+                    if (broadcastId == broadcastIdForPast) {
+                        iterator.remove();
+                    }
+                }
+            }
+        }
         mSyncHandleToBroadcastIdMap.remove(syncHandle);
         if (srcDevice != null) {
             mPeriodicAdvertisementResultMap.get(srcDevice).remove(broadcastId);
@@ -4054,7 +4076,10 @@ public class BassClientService extends ProfileService {
         mUnicastSourceStreamStatus = Optional.of(status);
 
         if (status == STATUS_LOCAL_STREAM_REQUESTED) {
-            if (areReceiversReceivingOnlyExternalBroadcast(getConnectedDevices())) {
+            if ((leaudioMonitorUnicastSourceWhenManagedByBroadcastDelegator()
+                            && hasPrimaryDeviceManagedExternalBroadcast())
+                    || (!leaudioMonitorUnicastSourceWhenManagedByBroadcastDelegator()
+                            && areReceiversReceivingOnlyExternalBroadcast(getConnectedDevices()))) {
                 if (leaudioBroadcastAssistantPeripheralEntrustment()) {
                     cacheSuspendingSources(BassConstants.INVALID_BROADCAST_ID);
                     List<Pair<BluetoothLeBroadcastReceiveState, BluetoothDevice>> sourcesToStop =
@@ -4067,11 +4092,13 @@ public class BassClientService extends ProfileService {
                     suspendAllReceiversSourceSynchronization();
                 }
             }
-            for (Map.Entry<Integer, PauseType> entry : mPausedBroadcastIds.entrySet()) {
-                Integer broadcastId = entry.getKey();
-                PauseType pauseType = entry.getValue();
-                if (pauseType != PauseType.HOST_INTENTIONAL) {
-                    suspendReceiversSourceSynchronization(broadcastId);
+            if (!leaudioMonitorUnicastSourceWhenManagedByBroadcastDelegator()) {
+                for (Map.Entry<Integer, PauseType> entry : mPausedBroadcastIds.entrySet()) {
+                    Integer broadcastId = entry.getKey();
+                    PauseType pauseType = entry.getValue();
+                    if (pauseType != PauseType.HOST_INTENTIONAL) {
+                        suspendReceiversSourceSynchronization(broadcastId);
+                    }
                 }
             }
         } else if (status == STATUS_LOCAL_STREAM_SUSPENDED) {
