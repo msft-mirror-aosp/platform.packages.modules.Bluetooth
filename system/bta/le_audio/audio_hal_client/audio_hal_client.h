@@ -89,8 +89,8 @@ public:
           const std::vector<std::pair<types::LeAudioContextType, uint8_t>>& subgroup_quality,
           const std::optional<std::vector<::bluetooth::le_audio::types::acs_ac_record>>& pacs)
           const = 0;
-  virtual std::optional<::bluetooth::le_audio::set_configurations::AudioSetConfiguration>
-  GetUnicastConfig(const CodecManager::UnicastConfigurationRequirements& requirements) const = 0;
+  virtual std::optional<::bluetooth::le_audio::types::AudioSetConfiguration> GetUnicastConfig(
+          const CodecManager::UnicastConfigurationRequirements& requirements) const = 0;
 };
 
 /* Used by the local BLE Audio Sink device to pass the audio data

@@ -68,10 +68,8 @@ struct StreamCallbacks {
 };
 
 struct OffloadCapabilities {
-  std::vector<bluetooth::le_audio::set_configurations::AudioSetConfiguration>
-          unicast_offload_capabilities;
-  std::vector<bluetooth::le_audio::set_configurations::AudioSetConfiguration>
-          broadcast_offload_capabilities;
+  std::vector<bluetooth::le_audio::types::AudioSetConfiguration> unicast_offload_capabilities;
+  std::vector<bluetooth::le_audio::types::AudioSetConfiguration> broadcast_offload_capabilities;
 };
 
 OffloadCapabilities get_offload_capabilities();
@@ -127,9 +125,9 @@ public:
                     subgroup_quality,
             const std::optional<std::vector<::bluetooth::le_audio::types::acs_ac_record>>& pacs)
             const;
-    std::optional<::bluetooth::le_audio::set_configurations::AudioSetConfiguration>
-    GetUnicastConfig(const ::bluetooth::le_audio::CodecManager::UnicastConfigurationRequirements&
-                             requirements) const;
+    std::optional<::bluetooth::le_audio::types::AudioSetConfiguration> GetUnicastConfig(
+            const ::bluetooth::le_audio::CodecManager::UnicastConfigurationRequirements&
+                    requirements) const;
 
   private:
     bool is_broadcaster_ = false;

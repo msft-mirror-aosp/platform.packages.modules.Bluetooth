@@ -58,17 +58,14 @@ public:
                                   uint8_t direction)>
                        update_receiver));
   MOCK_METHOD(
-          (std::unique_ptr<bluetooth::le_audio::set_configurations::AudioSetConfiguration>),
-          GetCodecConfig,
+          (std::unique_ptr<bluetooth::le_audio::types::AudioSetConfiguration>), GetCodecConfig,
           (const bluetooth::le_audio::CodecManager::UnicastConfigurationRequirements& requirements,
            bluetooth::le_audio::CodecManager::UnicastConfigurationProvider),
           (const));
   MOCK_METHOD((bool), CheckCodecConfigIsBiDirSwb,
-              (const bluetooth::le_audio::set_configurations::AudioSetConfiguration& config),
-              (const));
+              (const bluetooth::le_audio::types::AudioSetConfiguration& config), (const));
   MOCK_METHOD((bool), CheckCodecConfigIsDualBiDirSwb,
-              (const bluetooth::le_audio::set_configurations::AudioSetConfiguration& config),
-              (const));
+              (const bluetooth::le_audio::types::AudioSetConfiguration& config), (const));
   MOCK_METHOD((std::unique_ptr<bluetooth::le_audio::broadcaster::BroadcastConfiguration>),
               GetBroadcastConfig,
               (const bluetooth::le_audio::CodecManager::BroadcastConfigurationRequirements&),

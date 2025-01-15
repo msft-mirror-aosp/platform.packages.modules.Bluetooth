@@ -259,7 +259,7 @@ uint32_t PickAudioLocation(types::LeAudioConfigurationStrategy strategy,
 }
 
 bool LeAudioDevice::IsAudioSetConfigurationSupported(
-        const set_configurations::AudioSetConfiguration* audio_set_conf) const {
+        const types::AudioSetConfiguration* audio_set_conf) const {
   for (auto direction :
        {le_audio::types::kLeAudioDirectionSink, le_audio::types::kLeAudioDirectionSource}) {
     const auto& confs = audio_set_conf->confs.get(direction);
@@ -283,7 +283,7 @@ bool LeAudioDevice::IsAudioSetConfigurationSupported(
   return true;
 }
 
-bool LeAudioDevice::ConfigureAses(const set_configurations::AudioSetConfiguration* audio_set_conf,
+bool LeAudioDevice::ConfigureAses(const types::AudioSetConfiguration* audio_set_conf,
                                   uint8_t num_of_devices, uint8_t direction,
                                   LeAudioContextType context_type,
                                   uint8_t* number_of_already_active_group_ase,
@@ -309,7 +309,7 @@ bool LeAudioDevice::ConfigureAses(const set_configurations::AudioSetConfiguratio
           (direction == types::kLeAudioDirectionSink) ? snk_audio_locations_ : src_audio_locations_;
 
   auto const& group_ase_configs = audio_set_conf->confs.get(direction);
-  std::vector<set_configurations::AseConfiguration> ase_configs;
+  std::vector<types::AseConfiguration> ase_configs;
   std::copy_if(group_ase_configs.cbegin(), group_ase_configs.cend(),
                std::back_inserter(ase_configs), [&audio_locations](auto const& cfg) {
                  /* Pass as matching if config has no allocation to match

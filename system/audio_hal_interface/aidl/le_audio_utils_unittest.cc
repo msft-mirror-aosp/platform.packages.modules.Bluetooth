@@ -223,7 +223,7 @@ PrepareReferenceLeAudioDataPathConfigurationLc3() {
 
 std::pair<::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::
                   LeAudioAseQosConfiguration,
-          bluetooth::le_audio::set_configurations::QosConfigSetting>
+          bluetooth::le_audio::types::QosConfigSetting>
 PrepareReferenceQosConfiguration(bool is_low_latency) {
   ::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::LeAudioAseQosConfiguration
           aidl_ase_config = ::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::
@@ -236,7 +236,7 @@ PrepareReferenceQosConfiguration(bool is_low_latency) {
                           .maxSdu = 120,
                           .retransmissionNum = 2,
                   };
-  bluetooth::le_audio::set_configurations::QosConfigSetting stack_ase_config = {
+  bluetooth::le_audio::types::QosConfigSetting stack_ase_config = {
           .target_latency =
                   is_low_latency
                           ? bluetooth::le_audio::types::kTargetLatencyLower
@@ -303,14 +303,14 @@ PrepareReferenceCodecSpecificConfigurationLc3(bool is_low_latency, bool is_left,
 
 std::pair<::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::
                   LeAudioAseConfigurationSetting::AseDirectionConfiguration,
-          ::bluetooth::le_audio::set_configurations::AseConfiguration>
+          ::bluetooth::le_audio::types::AseConfiguration>
 PrepareReferenceAseDirectionConfigLc3(bool is_left, bool is_right, bool is_low_latency,
                                       bool has_qos = true, bool has_datapath = true) {
   ::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::
           LeAudioAseConfigurationSetting::AseDirectionConfiguration aidl_ase_config;
 
-  ::bluetooth::le_audio::set_configurations::CodecConfigSetting stack_codec;
-  ::bluetooth::le_audio::set_configurations::AseConfiguration stack_ase_config(stack_codec);
+  ::bluetooth::le_audio::types::CodecConfigSetting stack_codec;
+  ::bluetooth::le_audio::types::AseConfiguration stack_ase_config(stack_codec);
 
   aidl_ase_config.aseConfiguration.targetLatency =
           is_low_latency ? ::aidl::android::hardware::bluetooth::audio::LeAudioAseConfiguration::
@@ -369,7 +369,7 @@ PrepareReferenceAseDirectionConfigLc3(bool is_left, bool is_right, bool is_low_l
 
 std::pair<::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::
                   LeAudioAseConfigurationSetting,
-          ::bluetooth::le_audio::set_configurations::AudioSetConfiguration>
+          ::bluetooth::le_audio::types::AudioSetConfiguration>
 PrepareReferenceAseConfigurationSetting(
         ::bluetooth::le_audio::types::LeAudioContextType ctx_type,
         std::optional<uint32_t> source_locations =
@@ -378,7 +378,7 @@ PrepareReferenceAseConfigurationSetting(
   // Prepare the AIDL format config
   ::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::
           LeAudioAseConfigurationSetting aidl_audio_set_config;
-  ::bluetooth::le_audio::set_configurations::AudioSetConfiguration stack_audio_set_config;
+  ::bluetooth::le_audio::types::AudioSetConfiguration stack_audio_set_config;
 
   aidl_audio_set_config.audioContext.bitmask = (uint16_t)ctx_type;
 

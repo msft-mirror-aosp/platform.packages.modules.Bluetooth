@@ -1294,11 +1294,11 @@ void LeAudioDeviceGroup::CigConfiguration::GenerateCisIds(LeAudioContextType con
     expected_remote_directions = types::kLeAudioDirectionSink;
   }
 
-  set_configurations::get_cis_count(
-          context_type, expected_remote_directions, group_size, group_->GetGroupSinkStrategy(),
-          group_->GetAseCount(types::kLeAudioDirectionSink),
-          group_->GetAseCount(types::kLeAudioDirectionSource), cis_count_bidir,
-          cis_count_unidir_sink, cis_count_unidir_source);
+  types::get_cis_count(context_type, expected_remote_directions, group_size,
+                       group_->GetGroupSinkStrategy(),
+                       group_->GetAseCount(types::kLeAudioDirectionSink),
+                       group_->GetAseCount(types::kLeAudioDirectionSource), cis_count_bidir,
+                       cis_count_unidir_sink, cis_count_unidir_source);
 
   uint8_t idx = 0;
   while (cis_count_bidir > 0) {
@@ -1521,7 +1521,7 @@ void LeAudioDeviceGroup::CigConfiguration::UnassignCis(LeAudioDevice* leAudioDev
 }
 
 bool CheckIfStrategySupported(types::LeAudioConfigurationStrategy strategy,
-                              const set_configurations::AseConfiguration& conf, uint8_t direction,
+                              const types::AseConfiguration& conf, uint8_t direction,
                               const LeAudioDevice& device) {
   /* Check direction and if audio location allows to create more cises to a
    * single device.
@@ -1572,8 +1572,7 @@ bool CheckIfStrategySupported(types::LeAudioConfigurationStrategy strategy,
  */
 bool LeAudioDeviceGroup::IsAudioSetConfigurationSupported(
         const CodecManager::UnicastConfigurationRequirements& requirements,
-        const set_configurations::AudioSetConfiguration* audio_set_conf,
-        bool use_preference) const {
+        const types::AudioSetConfiguration* audio_set_conf, bool use_preference) const {
   /* TODO For now: set ase if matching with first pac.
    * 1) We assume as well that devices will match requirements in order
    *    e.g. 1 Device - 1 Requirement, 2 Device - 2 Requirement etc.
@@ -1745,8 +1744,7 @@ bool LeAudioDeviceGroup::IsAudioSetConfigurationSupported(
  * configuration for codec and qos.
  */
 bool LeAudioDeviceGroup::ConfigureAses(
-        const set_configurations::AudioSetConfiguration* audio_set_conf,
-        LeAudioContextType context_type,
+        const types::AudioSetConfiguration* audio_set_conf, LeAudioContextType context_type,
         const types::BidirectionalPair<AudioContexts>& metadata_context_types,
         const types::BidirectionalPair<std::vector<uint8_t>>& ccid_lists) {
   bool reuse_cis_id = GetState() == AseState::BTA_LE_AUDIO_ASE_STATE_CODEC_CONFIGURED;
@@ -1831,15 +1829,15 @@ bool LeAudioDeviceGroup::ConfigureAses(
   return true;
 }
 
-std::shared_ptr<const set_configurations::AudioSetConfiguration>
-LeAudioDeviceGroup::GetCachedConfiguration(LeAudioContextType context_type) const {
+std::shared_ptr<const types::AudioSetConfiguration> LeAudioDeviceGroup::GetCachedConfiguration(
+        LeAudioContextType context_type) const {
   if (context_to_configuration_cache_map_.count(context_type) != 0) {
     return context_to_configuration_cache_map_.at(context_type).second;
   }
   return nullptr;
 }
 
-std::shared_ptr<const set_configurations::AudioSetConfiguration>
+std::shared_ptr<const types::AudioSetConfiguration>
 LeAudioDeviceGroup::GetCachedPreferredConfiguration(LeAudioContextType context_type) const {
   if (context_to_preferred_configuration_cache_map_.count(context_type) != 0) {
     return context_to_preferred_configuration_cache_map_.at(context_type).second;
@@ -1847,15 +1845,15 @@ LeAudioDeviceGroup::GetCachedPreferredConfiguration(LeAudioContextType context_t
   return nullptr;
 }
 
-std::shared_ptr<const set_configurations::AudioSetConfiguration>
-LeAudioDeviceGroup::GetActiveConfiguration(void) const {
+std::shared_ptr<const types::AudioSetConfiguration> LeAudioDeviceGroup::GetActiveConfiguration(
+        void) const {
   return IsUsingPreferredAudioSetConfiguration(configuration_context_type_)
                  ? GetCachedPreferredConfiguration(configuration_context_type_)
                  : GetCachedConfiguration(configuration_context_type_);
 }
 
-std::shared_ptr<const set_configurations::AudioSetConfiguration>
-LeAudioDeviceGroup::GetConfiguration(LeAudioContextType context_type) const {
+std::shared_ptr<const types::AudioSetConfiguration> LeAudioDeviceGroup::GetConfiguration(
+        LeAudioContextType context_type) const {
   if (context_type == LeAudioContextType::UNINITIALIZED) {
     return nullptr;
   }
@@ -1865,7 +1863,7 @@ LeAudioDeviceGroup::GetConfiguration(LeAudioContextType context_type) const {
     return GetCachedPreferredConfiguration(context_type);
   }
 
-  const set_configurations::AudioSetConfiguration* conf = nullptr;
+  const types::AudioSetConfiguration* conf = nullptr;
   bool is_valid = false;
 
   /* Refresh the cache if there is no valid configuration */
@@ -1881,13 +1879,13 @@ LeAudioDeviceGroup::GetConfiguration(LeAudioContextType context_type) const {
   return GetCachedConfiguration(context_type);
 }
 
-std::shared_ptr<const set_configurations::AudioSetConfiguration>
-LeAudioDeviceGroup::GetPreferredConfiguration(LeAudioContextType context_type) const {
+std::shared_ptr<const types::AudioSetConfiguration> LeAudioDeviceGroup::GetPreferredConfiguration(
+        LeAudioContextType context_type) const {
   if (context_type == LeAudioContextType::UNINITIALIZED) {
     return nullptr;
   }
 
-  const set_configurations::AudioSetConfiguration* conf = nullptr;
+  const types::AudioSetConfiguration* conf = nullptr;
   bool is_valid = false;
 
   if (context_to_preferred_configuration_cache_map_.count(context_type) != 0) {
@@ -2137,10 +2135,9 @@ bool LeAudioDeviceGroup::IsConfiguredForContext(LeAudioContextType context_type)
   return stream_conf.conf.get() == GetActiveConfiguration().get();
 }
 
-std::unique_ptr<set_configurations::AudioSetConfiguration>
-LeAudioDeviceGroup::FindFirstSupportedConfiguration(
+std::unique_ptr<types::AudioSetConfiguration> LeAudioDeviceGroup::FindFirstSupportedConfiguration(
         const CodecManager::UnicastConfigurationRequirements& requirements,
-        const set_configurations::AudioSetConfigurations* confs, bool use_preference) const {
+        const types::AudioSetConfigurations* confs, bool use_preference) const {
   log::assert_that(confs != nullptr, "confs should not be null");
 
   log::debug("context type: {},  number of connected devices: {}",
@@ -2151,7 +2148,7 @@ LeAudioDeviceGroup::FindFirstSupportedConfiguration(
     log::assert_that(conf != nullptr, "confs should not be null");
     if (IsAudioSetConfigurationSupported(requirements, conf, use_preference)) {
       log::debug("found: {}", conf->name);
-      return std::make_unique<set_configurations::AudioSetConfiguration>(*conf);
+      return std::make_unique<types::AudioSetConfiguration>(*conf);
     }
   }
 

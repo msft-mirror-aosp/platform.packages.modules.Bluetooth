@@ -68,7 +68,7 @@ auto constexpr kVendorCodecIdOne = bluetooth::le_audio::types::LeAudioCodecId(
          .vendor_company_id = 0xF00D,
          .vendor_codec_id = 0x0001});
 
-set_configurations::CodecConfigSetting kVendorCodecOne = {
+types::CodecConfigSetting kVendorCodecOne = {
         .id = kVendorCodecIdOne,
         .params = types::LeAudioLtvMap({
                 // Add the Sampling Freq and AudioChannelAllocation which are
@@ -81,7 +81,7 @@ set_configurations::CodecConfigSetting kVendorCodecOne = {
         .channel_count_per_iso_stream = 1,
 };
 
-set_configurations::CodecConfigSetting kVendorCodecOneSwb = {
+types::CodecConfigSetting kVendorCodecOneSwb = {
         .id = kVendorCodecIdOne,
         .params = types::LeAudioLtvMap({
                 // Add the Sampling Freq and AudioChannelAllocation which are
@@ -237,7 +237,6 @@ TEST_F(LeAudioDevicesTest, test_get_device_model_name_failed) {
 
 namespace {
 using namespace ::bluetooth::le_audio::codec_spec_caps;
-using namespace ::bluetooth::le_audio::set_configurations;
 using namespace ::bluetooth::le_audio::types;
 
 static const hdl_pair hdl_pair_nil = hdl_pair(0x0000, 0x0000);
@@ -718,15 +717,13 @@ protected:
 
     ON_CALL(*mock_codec_manager_, CheckCodecConfigIsBiDirSwb)
             .WillByDefault(
-                    Invoke([](const bluetooth::le_audio::set_configurations::AudioSetConfiguration&
-                                      config) {
+                    Invoke([](const bluetooth::le_audio::types::AudioSetConfiguration& config) {
                       return AudioSetConfigurationProvider::Get()->CheckConfigurationIsBiDirSwb(
                               config);
                     }));
     ON_CALL(*mock_codec_manager_, CheckCodecConfigIsDualBiDirSwb)
             .WillByDefault(
-                    Invoke([](const bluetooth::le_audio::set_configurations::AudioSetConfiguration&
-                                      config) {
+                    Invoke([](const bluetooth::le_audio::types::AudioSetConfiguration& config) {
                       return AudioSetConfigurationProvider::Get()->CheckConfigurationIsDualBiDirSwb(
                               config);
                     }));

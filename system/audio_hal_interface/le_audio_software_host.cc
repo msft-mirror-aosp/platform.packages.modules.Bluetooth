@@ -187,8 +187,8 @@ void SinkMetadataChanged(const sink_metadata_v7_t& metadata) {
 }
 
 OffloadCapabilities get_offload_capabilities() {
-  return {std::vector<bluetooth::le_audio::set_configurations::AudioSetConfiguration>(0),
-          std::vector<bluetooth::le_audio::set_configurations::AudioSetConfiguration>(0)};
+  return {std::vector<bluetooth::le_audio::types::AudioSetConfiguration>(0),
+          std::vector<bluetooth::le_audio::types::AudioSetConfiguration>(0)};
 }
 
 void LeAudioClientInterface::Sink::Cleanup() {
@@ -327,7 +327,7 @@ size_t LeAudioClientInterface::Sink::Read(uint8_t* p_buf, uint32_t len) {
   return bytes_read;
 }
 
-std::optional<::bluetooth::le_audio::set_configurations::AudioSetConfiguration>
+std::optional<::bluetooth::le_audio::types::AudioSetConfiguration>
 LeAudioClientInterface::Sink::GetUnicastConfig(
         const ::bluetooth::le_audio::CodecManager::
                 UnicastConfigurationRequirements& /*requirements*/) const {

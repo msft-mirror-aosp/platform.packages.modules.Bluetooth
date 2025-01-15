@@ -415,12 +415,12 @@ GetStackBroadcastConfigurationFromAidlFormat(
   return std::move(cfg);
 }
 
-static ::bluetooth::le_audio::set_configurations::QosConfigSetting GetStackQosConfigSettingFromAidl(
+static ::bluetooth::le_audio::types::QosConfigSetting GetStackQosConfigSettingFromAidl(
         const std::optional<::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::
                                     LeAudioAseQosConfiguration>& aidl_qos,
         ::aidl::android::hardware::bluetooth::audio::LeAudioAseConfiguration::TargetLatency
                 target_latency) {
-  auto config = ::bluetooth::le_audio::set_configurations::QosConfigSetting();
+  auto config = ::bluetooth::le_audio::types::QosConfigSetting();
   if (aidl_qos.has_value()) {
     config.sduIntervalUs = aidl_qos->sduIntervalUs;
     config.max_transport_latency = aidl_qos->maxTransportLatencyMs;
@@ -432,10 +432,10 @@ static ::bluetooth::le_audio::set_configurations::QosConfigSetting GetStackQosCo
   return config;
 }
 
-static ::bluetooth::le_audio::set_configurations::CodecConfigSetting GetCodecConfigSettingFromAidl(
+static ::bluetooth::le_audio::types::CodecConfigSetting GetCodecConfigSettingFromAidl(
         const std::optional<::aidl::android::hardware::bluetooth::audio::LeAudioAseConfiguration>&
                 ase_config) {
-  auto stack_config = ::bluetooth::le_audio::set_configurations::CodecConfigSetting();
+  auto stack_config = ::bluetooth::le_audio::types::CodecConfigSetting();
 
   if (ase_config.has_value()) {
     if (ase_config->codecId.has_value()) {
@@ -502,13 +502,13 @@ static ::bluetooth::le_audio::set_configurations::CodecConfigSetting GetCodecCon
 
 // The number of source entries is the total count of ASEs within the group to
 // be configured
-static ::bluetooth::le_audio::set_configurations::AseConfiguration GetStackAseConfigurationFromAidl(
+static ::bluetooth::le_audio::types::AseConfiguration GetStackAseConfigurationFromAidl(
         const ::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::
                 LeAudioAseConfigurationSetting::AseDirectionConfiguration& source) {
   auto stack_qos = GetStackQosConfigSettingFromAidl(source.qosConfiguration,
                                                     source.aseConfiguration.targetLatency);
 
-  auto config = ::bluetooth::le_audio::set_configurations::AseConfiguration(
+  auto config = ::bluetooth::le_audio::types::AseConfiguration(
           GetCodecConfigSettingFromAidl(source.aseConfiguration), stack_qos);
   if (source.dataPathConfiguration.has_value()) {
     config.data_path_configuration = GetStackDataPathFromAidlFormat(*source.dataPathConfiguration);
@@ -535,9 +535,8 @@ static std::string StackTargetLatencyToString(uint8_t target_latency) {
 }
 
 static std::string GenerateNameForConfig(
-        const ::bluetooth::le_audio::set_configurations::AudioSetConfiguration& config) {
-  auto namegen = [](const std::vector<::bluetooth::le_audio::set_configurations::AseConfiguration>&
-                            configs,
+        const ::bluetooth::le_audio::types::AudioSetConfiguration& config) {
+  auto namegen = [](const std::vector<::bluetooth::le_audio::types::AseConfiguration>& configs,
                     const char* dir_str) {
     std::stringstream cfg_str;
     if (configs.size() > 0) {
@@ -601,8 +600,7 @@ static std::string GenerateNameForConfig(
   return name.str();
 }
 
-static ::bluetooth::le_audio::set_configurations::AudioSetConfiguration
-GetStackConfigSettingFromAidl(
+static ::bluetooth::le_audio::types::AudioSetConfiguration GetStackConfigSettingFromAidl(
         ::bluetooth::le_audio::types::LeAudioContextType ctx_type,
         const ::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::
                 LeAudioAseConfigurationSetting& aidl_ase_config) {
@@ -612,7 +610,7 @@ GetStackConfigSettingFromAidl(
                aidl_ase_config.audioContext.bitmask);
   }
 
-  ::bluetooth::le_audio::set_configurations::AudioSetConfiguration cig_config{
+  ::bluetooth::le_audio::types::AudioSetConfiguration cig_config{
           .name = "AIDL codec provider configuration",
           .packing = (uint8_t)aidl_ase_config.packing,
           .confs = {.sink = {}, .source = {}},
@@ -650,7 +648,7 @@ GetStackConfigSettingFromAidl(
   return cig_config;
 }
 
-std::optional<::bluetooth::le_audio::set_configurations::AudioSetConfiguration>
+std::optional<::bluetooth::le_audio::types::AudioSetConfiguration>
 GetStackUnicastConfigurationFromAidlFormat(
         ::bluetooth::le_audio::types::LeAudioContextType ctx_type,
         const ::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::

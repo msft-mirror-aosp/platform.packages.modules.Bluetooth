@@ -46,7 +46,7 @@ using ::bluetooth::audio::aidl::BluetoothAudioCtrlAck;
 using ::bluetooth::audio::le_audio::LeAudioClientInterface;
 using ::bluetooth::audio::le_audio::StartRequestState;
 using ::bluetooth::audio::le_audio::StreamCallbacks;
-using ::bluetooth::le_audio::set_configurations::AseConfiguration;
+using ::bluetooth::le_audio::types::AseConfiguration;
 using ::bluetooth::le_audio::types::LeAudioCoreCodecConfig;
 
 static ChannelMode le_audio_channel_mode2audio_hal(uint8_t channels_count) {
@@ -562,7 +562,7 @@ bool hal_ucast_capability_to_stack_format(const UnicastCapability& hal_capabilit
     return false;
   }
 
-  stack_capability.id = ::bluetooth::le_audio::set_configurations::LeAudioCodecIdLc3;
+  stack_capability.id = ::bluetooth::le_audio::types::LeAudioCodecIdLc3;
   stack_capability.channel_count_per_iso_stream = channel_count;
 
   stack_capability.params.Add(::bluetooth::le_audio::codec_spec_conf::kLeAudioLtvTypeSamplingFreq,
@@ -618,7 +618,7 @@ static bool hal_bcast_capability_to_stack_format(const BroadcastCapability& hal_
     return false;
   }
 
-  stack_capability.id = ::bluetooth::le_audio::set_configurations::LeAudioCodecIdLc3;
+  stack_capability.id = ::bluetooth::le_audio::types::LeAudioCodecIdLc3;
   stack_capability.channel_count_per_iso_stream = channel_count;
 
   stack_capability.params.Add(::bluetooth::le_audio::codec_spec_conf::kLeAudioLtvTypeSamplingFreq,

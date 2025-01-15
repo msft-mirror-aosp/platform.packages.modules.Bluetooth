@@ -84,7 +84,7 @@ void CodecManager::UpdateActiveAudioConfig(
   }
 }
 
-std::unique_ptr<set_configurations::AudioSetConfiguration> CodecManager::GetCodecConfig(
+std::unique_ptr<types::AudioSetConfiguration> CodecManager::GetCodecConfig(
         const CodecManager::UnicastConfigurationRequirements& requirements,
         CodecManager::UnicastConfigurationProvider verifier) {
   if (!pimpl_) {
@@ -104,7 +104,7 @@ CodecManager::GetBroadcastConfig(
 }
 
 bool CodecManager::CheckCodecConfigIsBiDirSwb(
-        const bluetooth::le_audio::set_configurations::AudioSetConfiguration& config) const {
+        const bluetooth::le_audio::types::AudioSetConfiguration& config) const {
   if (!pimpl_) {
     return false;
   }
@@ -112,7 +112,7 @@ bool CodecManager::CheckCodecConfigIsBiDirSwb(
 }
 
 bool CodecManager::CheckCodecConfigIsDualBiDirSwb(
-        const bluetooth::le_audio::set_configurations::AudioSetConfiguration& config) const {
+        const bluetooth::le_audio::types::AudioSetConfiguration& config) const {
   if (!pimpl_) {
     return false;
   }

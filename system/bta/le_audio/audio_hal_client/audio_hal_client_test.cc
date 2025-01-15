@@ -105,8 +105,7 @@ public:
               ((const std::vector<std::pair<::le_audio::types::LeAudioContextType, uint8_t>>&),
                (const std::optional<std::vector<::bluetooth::le_audio::types::acs_ac_record>>&)),
               (const));
-  MOCK_METHOD((std::optional<::le_audio::set_configurations::AudioSetConfiguration>),
-              GetUnicastConfig,
+  MOCK_METHOD((std::optional<::le_audio::types::AudioSetConfiguration>), GetUnicastConfig,
               (const ::bluetooth::le_audio::CodecManager::UnicastConfigurationRequirements&),
               (const));
   MOCK_METHOD((void), UpdateBroadcastAudioConfigToHal,
@@ -190,7 +189,7 @@ LeAudioClientInterface::Sink::GetBroadcastConfig(
         const std::optional<std::vector<::bluetooth::le_audio::types::acs_ac_record>>& pacs) const {
   return sink_mock->GetBroadcastConfig(quality, pacs);
 }
-std::optional<::le_audio::set_configurations::AudioSetConfiguration>
+std::optional<::le_audio::types::AudioSetConfiguration>
 LeAudioClientInterface::Sink::GetUnicastConfig(
         const ::bluetooth::le_audio::CodecManager::UnicastConfigurationRequirements& requirements)
         const {

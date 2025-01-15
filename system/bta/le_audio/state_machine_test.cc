@@ -581,11 +581,9 @@ protected:
     // Regardless of the codec location, return all the possible configurations
     ON_CALL(*mock_codec_manager_, IsDualBiDirSwbSupported).WillByDefault(Return(true));
     ON_CALL(*mock_codec_manager_, CheckCodecConfigIsBiDirSwb)
-            .WillByDefault(
-                    Invoke([](const set_configurations::AudioSetConfiguration& config) -> bool {
-                      return AudioSetConfigurationProvider::Get()->CheckConfigurationIsBiDirSwb(
-                              config);
-                    }));
+            .WillByDefault(Invoke([](const types::AudioSetConfiguration& config) -> bool {
+              return AudioSetConfigurationProvider::Get()->CheckConfigurationIsBiDirSwb(config);
+            }));
     ON_CALL(*mock_codec_manager_, GetCodecConfig)
             .WillByDefault(Invoke(
                     [](const bluetooth::le_audio::CodecManager::UnicastConfigurationRequirements&
@@ -1766,8 +1764,7 @@ TEST_F(StateMachineTest, testConfigureCodecSingleFb2) {
 
             auto cfg = provider(requirements, &configs);
             if (cfg == nullptr) {
-              return std::unique_ptr<
-                      bluetooth::le_audio::set_configurations::AudioSetConfiguration>(nullptr);
+              return std::unique_ptr<bluetooth::le_audio::types::AudioSetConfiguration>(nullptr);
             }
 
             if (requirements.sink_pacs.has_value()) {

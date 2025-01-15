@@ -84,7 +84,7 @@ public:
           const std::vector<std::pair<types::LeAudioContextType, uint8_t>>& subgroup_quality,
           const std::optional<std::vector<::bluetooth::le_audio::types::acs_ac_record>>& pacs)
           const override;
-  std::optional<::bluetooth::le_audio::set_configurations::AudioSetConfiguration> GetUnicastConfig(
+  std::optional<::bluetooth::le_audio::types::AudioSetConfiguration> GetUnicastConfig(
           const CodecManager::UnicastConfigurationRequirements& requirements) const override;
   void UpdateBroadcastAudioConfigToHal(
           const ::bluetooth::le_audio::broadcast_offload_config& config) override;
@@ -472,8 +472,7 @@ std::optional<broadcaster::BroadcastConfiguration> SourceImpl::GetBroadcastConfi
   return halSinkInterface_->GetBroadcastConfig(subgroup_quality, pacs);
 }
 
-std::optional<::bluetooth::le_audio::set_configurations::AudioSetConfiguration>
-SourceImpl::GetUnicastConfig(
+std::optional<::bluetooth::le_audio::types::AudioSetConfiguration> SourceImpl::GetUnicastConfig(
         const CodecManager::UnicastConfigurationRequirements& requirements) const {
   if (halSinkInterface_ == nullptr) {
     log::error("Audio HAL Audio sink is null!");

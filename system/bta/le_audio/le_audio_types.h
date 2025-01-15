@@ -1182,9 +1182,6 @@ std::ostream& operator<<(std::ostream& os, const LeAudioContextType& context);
 std::ostream& operator<<(std::ostream& os, const DataPathState& state);
 std::ostream& operator<<(std::ostream& os, const CisState& state);
 std::ostream& operator<<(std::ostream& os, const AudioContexts& contexts);
-}  // namespace types
-
-namespace set_configurations {
 
 struct CodecConfigSetting {
   /* Codec identifier */
@@ -1292,7 +1289,7 @@ void get_cis_count(types::LeAudioContextType context_type, uint8_t expected_dire
                    int expected_device_cnt, types::LeAudioConfigurationStrategy strategy,
                    int group_ase_snk_cnt, int group_ase_src_count, uint8_t& cis_count_bidir,
                    uint8_t& cis_count_unidir_sink, uint8_t& cis_count_unidir_source);
-}  // namespace set_configurations
+}  // namespace types
 
 struct stream_map_info {
   stream_map_info(uint16_t stream_handle, uint32_t audio_channel_allocation, bool is_stream_active)
@@ -1347,7 +1344,7 @@ struct stream_configuration {
   bool pending_configuration;
 
   /* Currently selected remote device set configuration */
-  std::shared_ptr<const bluetooth::le_audio::set_configurations::AudioSetConfiguration> conf;
+  std::shared_ptr<const bluetooth::le_audio::types::AudioSetConfiguration> conf;
 
   /* Currently selected local audio codec */
   types::LeAudioCodecId codec_id;

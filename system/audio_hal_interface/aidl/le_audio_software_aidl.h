@@ -36,8 +36,8 @@ using ::bluetooth::audio::aidl::BluetoothAudioCtrlAck;
 using ::bluetooth::audio::aidl::LatencyMode;
 using ::bluetooth::audio::le_audio::StartRequestState;
 using ::bluetooth::le_audio::DsaMode;
-using ::bluetooth::le_audio::set_configurations::AudioSetConfiguration;
-using ::bluetooth::le_audio::set_configurations::CodecConfigSetting;
+using ::bluetooth::le_audio::types::AudioSetConfiguration;
+using ::bluetooth::le_audio::types::CodecConfigSetting;
 
 constexpr uint8_t kChannelNumberMono = 1;
 constexpr uint8_t kChannelNumberStereo = 2;

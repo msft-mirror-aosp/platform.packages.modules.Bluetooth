@@ -316,7 +316,7 @@ public:
               ((const std::vector<std::pair<types::LeAudioContextType, uint8_t>>&),
                (const std::optional<std::vector<::bluetooth::le_audio::types::acs_ac_record>>&)),
               (const override));
-  MOCK_METHOD((std::optional<::bluetooth::le_audio::set_configurations::AudioSetConfiguration>),
+  MOCK_METHOD((std::optional<::bluetooth::le_audio::types::AudioSetConfiguration>),
               GetUnicastConfig, (const CodecManager::UnicastConfigurationRequirements&),
               (const override));
   MOCK_METHOD((void), UpdateBroadcastAudioConfigToHal,
@@ -13198,8 +13198,7 @@ TEST_F(UnicastTest, CodecFrameBlocks2) {
                     }
                     auto cfg = provider(requirements, &filtered);
                     if (cfg == nullptr) {
-                      return std::unique_ptr<
-                              bluetooth::le_audio::set_configurations::AudioSetConfiguration>(
+                      return std::unique_ptr<bluetooth::le_audio::types::AudioSetConfiguration>(
                               nullptr);
                     }
 

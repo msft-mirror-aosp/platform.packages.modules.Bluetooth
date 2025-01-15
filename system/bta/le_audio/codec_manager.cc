@@ -62,9 +62,9 @@ using bluetooth::legacy::hci::GetInterface;
 
 using bluetooth::le_audio::btle_audio_codec_config_t;
 using bluetooth::le_audio::btle_audio_codec_index_t;
-using bluetooth::le_audio::set_configurations::AseConfiguration;
-using bluetooth::le_audio::set_configurations::AudioSetConfiguration;
-using bluetooth::le_audio::set_configurations::AudioSetConfigurations;
+using bluetooth::le_audio::types::AseConfiguration;
+using bluetooth::le_audio::types::AudioSetConfiguration;
+using bluetooth::le_audio::types::AudioSetConfigurations;
 
 typedef struct offloader_stream_maps {
   std::vector<bluetooth::le_audio::stream_map_info> streams_map_target;
@@ -869,8 +869,8 @@ private:
     codec_location_ = location;
   }
 
-  bool IsLc3ConfigMatched(const set_configurations::CodecConfigSetting& target_config,
-                          const set_configurations::CodecConfigSetting& adsp_config) {
+  bool IsLc3ConfigMatched(const types::CodecConfigSetting& target_config,
+                          const types::CodecConfigSetting& adsp_config) {
     if (adsp_config.id.coding_format != types::kLeAudioCodingFormatLC3 ||
         target_config.id.coding_format != types::kLeAudioCodingFormatLC3) {
       return false;
@@ -998,9 +998,9 @@ private:
     return bluetooth::le_audio::codec_spec_caps::kLeAudioSamplingFreq8000Hz;
   }
 
-  void storeLocalCapa(std::vector<::bluetooth::le_audio::set_configurations::AudioSetConfiguration>&
-                              adsp_capabilities,
-                      const std::vector<btle_audio_codec_config_t>& offload_preference_set) {
+  void storeLocalCapa(
+          std::vector<::bluetooth::le_audio::types::AudioSetConfiguration>& adsp_capabilities,
+          const std::vector<btle_audio_codec_config_t>& offload_preference_set) {
     log::debug("Print adsp_capabilities:");
 
     for (auto& adsp : adsp_capabilities) {
@@ -1295,8 +1295,7 @@ std::unique_ptr<AudioSetConfiguration> CodecManager::GetCodecConfig(
   return nullptr;
 }
 
-bool CodecManager::CheckCodecConfigIsBiDirSwb(
-        const set_configurations::AudioSetConfiguration& config) const {
+bool CodecManager::CheckCodecConfigIsBiDirSwb(const types::AudioSetConfiguration& config) const {
   if (pimpl_->IsRunning()) {
     return pimpl_->codec_manager_impl_->CheckCodecConfigIsBiDirSwb(config);
   }
@@ -1304,7 +1303,7 @@ bool CodecManager::CheckCodecConfigIsBiDirSwb(
 }
 
 bool CodecManager::CheckCodecConfigIsDualBiDirSwb(
-        const set_configurations::AudioSetConfiguration& config) const {
+        const types::AudioSetConfiguration& config) const {
   if (pimpl_->IsRunning()) {
     return pimpl_->codec_manager_impl_->CheckCodecConfigIsDualBiDirSwb(config);
   }
