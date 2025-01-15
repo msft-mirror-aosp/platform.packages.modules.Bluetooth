@@ -4235,6 +4235,16 @@ public class BassClientService extends ProfileService {
         return activeSinks;
     }
 
+    /** Get sink devices synced to the broadcasts by broadcast id */
+    public List<BluetoothDevice> getSyncedBroadcastSinks(int broadcastId) {
+        return getConnectedDevices().stream()
+                .filter(
+                        device ->
+                                getAllSources(device).stream()
+                                        .anyMatch(rs -> rs.getBroadcastId() == broadcastId))
+                .toList();
+    }
+
     private boolean isSyncedToBroadcastStream(Long syncState) {
         return syncState != BassConstants.BCAST_RCVR_STATE_BIS_SYNC_NOT_SYNC_TO_BIS
                 && syncState != BassConstants.BCAST_RCVR_STATE_BIS_SYNC_FAILED_SYNC_TO_BIG;
