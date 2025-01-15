@@ -177,9 +177,7 @@ cc_library_static {
     include_dirs: [
         "packages/modules/Bluetooth/system",
     ],
-    apex_available: [
-        "com.android.btservices",
-    ],
+    apex_available: ["com.android.bt"],
     min_sdk_version: "31",
     static_libs: [
         "bluetooth_flags_c_lib",
@@ -263,11 +261,11 @@ cc_test {
     ],
     static_libs: [
         "bluetooth_flags_c_lib_for_test",
+        "libaconfig_storage_read_api_cc",
         "libbluetooth_log",
         "libchrome",
         "libgmock",
         "server_configurable_flags",
-        "libaconfig_storage_read_api_cc",
     ],
     shared_libs: [
         "libbase",

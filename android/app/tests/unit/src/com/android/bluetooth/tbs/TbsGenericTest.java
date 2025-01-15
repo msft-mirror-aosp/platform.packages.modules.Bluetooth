@@ -212,7 +212,7 @@ public class TbsGenericTest {
         ArgumentCaptor<Map> currentCallsCaptor = ArgumentCaptor.forClass(Map.class);
         verify(mTbsGatt).setCallState(currentCallsCaptor.capture());
         Map<Integer, TbsCall> capturedCurrentCalls = currentCallsCaptor.getValue();
-        assertThat(capturedCurrentCalls.size()).isEqualTo(1);
+        assertThat(capturedCurrentCalls).hasSize(1);
         TbsCall capturedTbsCall = capturedCurrentCalls.get(capturedCallIndex);
         assertThat(capturedTbsCall).isNotNull();
         assertThat(capturedTbsCall.getState()).isEqualTo(BluetoothLeCall.STATE_INCOMING);
@@ -243,12 +243,12 @@ public class TbsGenericTest {
         ArgumentCaptor<Map> currentCallsCaptor = ArgumentCaptor.forClass(Map.class);
         verify(mTbsGatt).setCallState(currentCallsCaptor.capture());
         Map<Integer, TbsCall> capturedCurrentCalls = currentCallsCaptor.getValue();
-        assertThat(capturedCurrentCalls.size()).isEqualTo(1);
+        assertThat(capturedCurrentCalls).hasSize(1);
         TbsCall capturedTbsCall = capturedCurrentCalls.get(capturedCallIndex);
         assertThat(capturedTbsCall).isNotNull();
         assertThat(capturedTbsCall.getState()).isEqualTo(BluetoothLeCall.STATE_INCOMING);
-        assertThat(capturedTbsCall.getUri()).isEqualTo(null);
-        assertThat(capturedTbsCall.getSafeUri()).isEqualTo(null);
+        assertThat(capturedTbsCall.getUri()).isNull();
+        assertThat(capturedTbsCall.getSafeUri()).isNull();
         assertThat(capturedTbsCall.getFlags()).isEqualTo(0);
         assertThat(capturedTbsCall.isIncoming()).isTrue();
         assertThat(capturedTbsCall.getFriendlyName()).isEqualTo("aFriendlyCaller");
@@ -283,9 +283,9 @@ public class TbsGenericTest {
         ArgumentCaptor<Map> currentCallsCaptor = ArgumentCaptor.forClass(Map.class);
         verify(mTbsGatt).setCallState(currentCallsCaptor.capture());
         Map<Integer, TbsCall> capturedCurrentCalls = currentCallsCaptor.getValue();
-        assertThat(capturedCurrentCalls.size()).isEqualTo(0);
+        assertThat(capturedCurrentCalls).isEmpty();
         verify(mTbsGatt).setBearerListCurrentCalls(currentCallsCaptor.capture());
-        assertThat(capturedCurrentCalls.size()).isEqualTo(0);
+        assertThat(capturedCurrentCalls).isEmpty();
     }
 
     @Test
@@ -312,9 +312,9 @@ public class TbsGenericTest {
         ArgumentCaptor<Map> currentCallsCaptor = ArgumentCaptor.forClass(Map.class);
         verify(mTbsGatt).setCallState(currentCallsCaptor.capture());
         Map<Integer, TbsCall> capturedCurrentCalls = currentCallsCaptor.getValue();
-        assertThat(capturedCurrentCalls.size()).isEqualTo(1);
+        assertThat(capturedCurrentCalls).hasSize(1);
         verify(mTbsGatt).setBearerListCurrentCalls(currentCallsCaptor.capture());
-        assertThat(capturedCurrentCalls.size()).isEqualTo(1);
+        assertThat(capturedCurrentCalls).hasSize(1);
         TbsCall capturedTbsCall = capturedCurrentCalls.get(capturedCallIndex);
         assertThat(capturedTbsCall).isNotNull();
         assertThat(capturedTbsCall.getState()).isEqualTo(BluetoothLeCall.STATE_ACTIVE);
@@ -355,9 +355,9 @@ public class TbsGenericTest {
         ArgumentCaptor<Map> currentCallsCaptor = ArgumentCaptor.forClass(Map.class);
         verify(mTbsGatt).setCallState(currentCallsCaptor.capture());
         Map<Integer, TbsCall> capturedCurrentCalls = currentCallsCaptor.getValue();
-        assertThat(capturedCurrentCalls.size()).isEqualTo(2);
+        assertThat(capturedCurrentCalls).hasSize(2);
         verify(mTbsGatt).setBearerListCurrentCalls(currentCallsCaptor.capture());
-        assertThat(capturedCurrentCalls.size()).isEqualTo(2);
+        assertThat(capturedCurrentCalls).hasSize(2);
     }
 
     @Test
@@ -384,7 +384,7 @@ public class TbsGenericTest {
         ArgumentCaptor<Map> currentCallsCaptor = ArgumentCaptor.forClass(Map.class);
         verify(mTbsGatt).setCallState(currentCallsCaptor.capture());
         Map<Integer, TbsCall> capturedCurrentCalls = currentCallsCaptor.getValue();
-        assertThat(capturedCurrentCalls.size()).isEqualTo(1);
+        assertThat(capturedCurrentCalls).hasSize(1);
         Integer callIndex = capturedCurrentCalls.entrySet().iterator().next().getKey();
         reset(mTbsGatt);
 
@@ -442,7 +442,7 @@ public class TbsGenericTest {
         ArgumentCaptor<Map> currentCallsCaptor = ArgumentCaptor.forClass(Map.class);
         verify(mTbsGatt).setCallState(currentCallsCaptor.capture());
         Map<Integer, TbsCall> capturedCurrentCalls = currentCallsCaptor.getValue();
-        assertThat(capturedCurrentCalls.size()).isEqualTo(1);
+        assertThat(capturedCurrentCalls).hasSize(1);
         Integer callIndex = capturedCurrentCalls.entrySet().iterator().next().getKey();
         reset(mTbsGatt);
 
@@ -498,7 +498,7 @@ public class TbsGenericTest {
         ArgumentCaptor<Map> currentCallsCaptor = ArgumentCaptor.forClass(Map.class);
         verify(mTbsGatt).setCallState(currentCallsCaptor.capture());
         Map<Integer, TbsCall> capturedCurrentCalls = currentCallsCaptor.getValue();
-        assertThat(capturedCurrentCalls.size()).isEqualTo(1);
+        assertThat(capturedCurrentCalls).hasSize(1);
         Integer callIndex = capturedCurrentCalls.entrySet().iterator().next().getKey();
         reset(mTbsGatt);
 
@@ -554,7 +554,7 @@ public class TbsGenericTest {
         ArgumentCaptor<Map> currentCallsCaptor = ArgumentCaptor.forClass(Map.class);
         verify(mTbsGatt).setCallState(currentCallsCaptor.capture());
         Map<Integer, TbsCall> capturedCurrentCalls = currentCallsCaptor.getValue();
-        assertThat(capturedCurrentCalls.size()).isEqualTo(1);
+        assertThat(capturedCurrentCalls).hasSize(1);
         Integer callIndex = capturedCurrentCalls.entrySet().iterator().next().getKey();
         reset(mTbsGatt);
 
@@ -668,7 +668,7 @@ public class TbsGenericTest {
         ArgumentCaptor<Map> currentCallsCaptor = ArgumentCaptor.forClass(Map.class);
         verify(mTbsGatt).setCallState(currentCallsCaptor.capture());
         Map<Integer, TbsCall> capturedCurrentCalls = currentCallsCaptor.getValue();
-        assertThat(capturedCurrentCalls.size()).isEqualTo(2);
+        assertThat(capturedCurrentCalls).hasSize(2);
         reset(mTbsGatt);
 
         byte args[] = new byte[capturedCurrentCalls.size()];
@@ -690,7 +690,7 @@ public class TbsGenericTest {
             throw e.rethrowFromSystemServer();
         }
         List<ParcelUuid> callParcelUuids = callUuidCaptor.getValue();
-        assertThat(callParcelUuids.size()).isEqualTo(2);
+        assertThat(callParcelUuids).hasSize(2);
         for (ParcelUuid callParcelUuid : callParcelUuids) {
             assertThat(callUuids.contains(callParcelUuid.getUuid())).isEqualTo(true);
         }

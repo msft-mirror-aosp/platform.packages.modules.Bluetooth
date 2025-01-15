@@ -22,7 +22,6 @@ import android.annotation.SuppressLint;
 
 import androidx.test.runner.AndroidJUnit4;
 
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -67,17 +66,17 @@ public class BipDatetimeTest {
     @SuppressLint("UndefinedEquals")
     private void testParse(String date, Date expectedDate, boolean isUtc, String expectedStr) {
         BipDateTime bipDateTime = new BipDateTime(date);
-        Assert.assertEquals(expectedDate, bipDateTime.getTime());
-        Assert.assertEquals(isUtc, bipDateTime.isUtc());
-        Assert.assertEquals(expectedStr, bipDateTime.toString());
+        assertThat(bipDateTime.getTime()).isEqualTo(expectedDate);
+        assertThat(bipDateTime.isUtc()).isEqualTo(isUtc);
+        assertThat(bipDateTime.toString()).isEqualTo(expectedStr);
     }
 
     @SuppressLint("UndefinedEquals")
     private void testCreate(Date date, String dateStr) {
         BipDateTime bipDate = new BipDateTime(date);
-        Assert.assertEquals(date, bipDate.getTime());
+        assertThat(bipDate.getTime()).isEqualTo(date);
         assertThat(bipDate.isUtc()).isTrue();
-        Assert.assertEquals(dateStr, bipDate.toString());
+        assertThat(bipDate.toString()).isEqualTo(dateStr);
     }
 
     @Test

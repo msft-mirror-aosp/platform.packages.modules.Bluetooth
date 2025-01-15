@@ -23,7 +23,6 @@ import static org.mockito.Mockito.*;
 import androidx.test.filters.MediumTest;
 import androidx.test.runner.AndroidJUnit4;
 
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -96,7 +95,7 @@ public class BmessageTest {
 
         message.setCharset("UTF-8");
 
-        Assert.assertEquals(message.getCharset(), "UTF-8");
+        assertThat(message.getCharset()).isEqualTo("UTF-8");
     }
 
     @Test
@@ -105,7 +104,7 @@ public class BmessageTest {
 
         message.setEncoding("test_encoding");
 
-        Assert.assertEquals(message.getEncoding(), "test_encoding");
+        assertThat(message.getEncoding()).isEqualTo("test_encoding");
     }
 
     @Test
@@ -114,6 +113,6 @@ public class BmessageTest {
 
         message.setStatus(Bmessage.Status.READ);
 
-        Assert.assertEquals(message.getStatus(), Bmessage.Status.READ);
+        assertThat(message.getStatus()).isEqualTo(Bmessage.Status.READ);
     }
 }

@@ -33,7 +33,6 @@ import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.hfp.HeadsetHalConstants;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -123,12 +122,12 @@ public class RemoteDevicesTest {
                 .sendBroadcast(
                         mIntentArgument.capture(), mStringArgument.capture(), any(Bundle.class));
         verifyBatteryLevelChangedIntent(mDevice1, batteryLevel, mIntentArgument);
-        Assert.assertEquals(BLUETOOTH_CONNECT, mStringArgument.getValue());
+        assertThat(mStringArgument.getValue()).isEqualTo(BLUETOOTH_CONNECT);
 
         // Verify that user can get battery level after the update
         assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNotNull();
-        Assert.assertEquals(
-                mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel(), batteryLevel);
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel())
+                .isEqualTo(batteryLevel);
 
         // Verify that update same battery level for the same device does not trigger intent
         mRemoteDevices.updateBatteryLevel(mDevice1, batteryLevel, /* fromBas= */ false);
@@ -140,12 +139,12 @@ public class RemoteDevicesTest {
         verify(mAdapterService, times(2))
                 .sendBroadcast(
                         mIntentArgument.capture(), mStringArgument.capture(), any(Bundle.class));
-        Assert.assertEquals(BLUETOOTH_CONNECT, mStringArgument.getValue());
+        assertThat(mStringArgument.getValue()).isEqualTo(BLUETOOTH_CONNECT);
         verifyBatteryLevelChangedIntent(mDevice1, batteryLevel, mIntentArgument);
 
         // Verify that user can get battery level after the update
-        Assert.assertEquals(
-                mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel(), batteryLevel);
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel())
+                .isEqualTo(batteryLevel);
 
         verifyNoMoreInteractions(mAdapterService);
     }
@@ -209,12 +208,12 @@ public class RemoteDevicesTest {
                 .sendBroadcast(
                         mIntentArgument.capture(), mStringArgument.capture(), any(Bundle.class));
         verifyBatteryLevelChangedIntent(mDevice1, batteryLevel, mIntentArgument);
-        Assert.assertEquals(BLUETOOTH_CONNECT, mStringArgument.getValue());
+        assertThat(mStringArgument.getValue()).isEqualTo(BLUETOOTH_CONNECT);
 
         // Verify that user can get battery level after the update
         assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNotNull();
-        Assert.assertEquals(
-                mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel(), batteryLevel);
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel())
+                .isEqualTo(batteryLevel);
 
         // Verify that resetting battery level changes it back to BluetoothDevice
         // .BATTERY_LEVEL_UNKNOWN
@@ -225,12 +224,11 @@ public class RemoteDevicesTest {
                         mIntentArgument.capture(), mStringArgument.capture(), any(Bundle.class));
         verifyBatteryLevelChangedIntent(
                 mDevice1, BluetoothDevice.BATTERY_LEVEL_UNKNOWN, mIntentArgument);
-        Assert.assertEquals(BLUETOOTH_CONNECT, mStringArgument.getValue());
+        assertThat(mStringArgument.getValue()).isEqualTo(BLUETOOTH_CONNECT);
         // Verify value is reset in properties
         assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNotNull();
-        Assert.assertEquals(
-                mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel(),
-                BluetoothDevice.BATTERY_LEVEL_UNKNOWN);
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel())
+                .isEqualTo(BluetoothDevice.BATTERY_LEVEL_UNKNOWN);
 
         // Verify no intent is sent after second reset
         mRemoteDevices.resetBatteryLevel(mDevice1, /* fromBas= */ false);
@@ -242,7 +240,7 @@ public class RemoteDevicesTest {
                 .sendBroadcast(
                         mIntentArgument.capture(), mStringArgument.capture(), any(Bundle.class));
         verifyBatteryLevelChangedIntent(mDevice1, batteryLevel, mIntentArgument);
-        Assert.assertEquals(BLUETOOTH_CONNECT, mStringArgument.getValue());
+        assertThat(mStringArgument.getValue()).isEqualTo(BLUETOOTH_CONNECT);
 
         verifyNoMoreInteractions(mAdapterService);
     }
@@ -260,12 +258,12 @@ public class RemoteDevicesTest {
                 .sendBroadcast(
                         mIntentArgument.capture(), mStringArgument.capture(), any(Bundle.class));
         verifyBatteryLevelChangedIntent(mDevice1, batteryLevel, mIntentArgument);
-        Assert.assertEquals(BLUETOOTH_CONNECT, mStringArgument.getValue());
+        assertThat(mStringArgument.getValue()).isEqualTo(BLUETOOTH_CONNECT);
 
         // Verify that user can get battery level after the update
         assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNotNull();
-        Assert.assertEquals(
-                mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel(), batteryLevel);
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel())
+                .isEqualTo(batteryLevel);
 
         // Verify that resetting battery level changes it back to BluetoothDevice
         // .BATTERY_LEVEL_UNKNOWN
@@ -279,12 +277,11 @@ public class RemoteDevicesTest {
                         mIntentArgument.capture(), mStringArgument.capture(), any(Bundle.class));
         verifyBatteryLevelChangedIntent(
                 mDevice1, BluetoothDevice.BATTERY_LEVEL_UNKNOWN, mIntentArgument);
-        Assert.assertEquals(BLUETOOTH_CONNECT, mStringArgument.getValue());
+        assertThat(mStringArgument.getValue()).isEqualTo(BLUETOOTH_CONNECT);
         // Verify value is reset in properties
         assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNotNull();
-        Assert.assertEquals(
-                mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel(),
-                BluetoothDevice.BATTERY_LEVEL_UNKNOWN);
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel())
+                .isEqualTo(BluetoothDevice.BATTERY_LEVEL_UNKNOWN);
 
         // Verify that updating battery level triggers ACTION_BATTERY_LEVEL_CHANGED intent again
         mRemoteDevices.updateBatteryLevel(mDevice1, batteryLevel, /* fromBas= */ false);
@@ -292,7 +289,7 @@ public class RemoteDevicesTest {
                 .sendBroadcast(
                         mIntentArgument.capture(), mStringArgument.capture(), any(Bundle.class));
         verifyBatteryLevelChangedIntent(mDevice1, batteryLevel, mIntentArgument);
-        Assert.assertEquals(BLUETOOTH_CONNECT, mStringArgument.getValue());
+        assertThat(mStringArgument.getValue()).isEqualTo(BLUETOOTH_CONNECT);
 
         verifyNoMoreInteractions(mAdapterService);
     }
@@ -313,12 +310,12 @@ public class RemoteDevicesTest {
                 .sendBroadcast(
                         mIntentArgument.capture(), mStringArgument.capture(), any(Bundle.class));
         verifyBatteryLevelChangedIntent(mDevice1, batteryLevel, mIntentArgument);
-        Assert.assertEquals(BLUETOOTH_CONNECT, mStringArgument.getValue());
+        assertThat(mStringArgument.getValue()).isEqualTo(BLUETOOTH_CONNECT);
 
         // Verify that user can get battery level after the update
         assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNotNull();
-        Assert.assertEquals(
-                mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel(), batteryLevel);
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel())
+                .isEqualTo(batteryLevel);
 
         // Verify that battery level is not reset
         mRemoteDevices.onHeadsetConnectionStateChanged(
@@ -327,8 +324,8 @@ public class RemoteDevicesTest {
                 BluetoothProfile.STATE_DISCONNECTED);
 
         assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNotNull();
-        Assert.assertEquals(
-                batteryLevel, mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel());
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel())
+                .isEqualTo(batteryLevel);
 
         // Recover the previous battery service if exists
         clearBatteryServiceForTesting(oldBatteryService);
@@ -350,12 +347,12 @@ public class RemoteDevicesTest {
                 .sendBroadcast(
                         mIntentArgument.capture(), mStringArgument.capture(), any(Bundle.class));
         verifyBatteryLevelChangedIntent(mDevice1, batteryLevel, mIntentArgument);
-        Assert.assertEquals(BLUETOOTH_CONNECT, mStringArgument.getValue());
+        assertThat(mStringArgument.getValue()).isEqualTo(BLUETOOTH_CONNECT);
 
         // Verify that user can get battery level after the update
         assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNotNull();
-        Assert.assertEquals(
-                batteryLevel, mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel());
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel())
+                .isEqualTo(batteryLevel);
 
         // Verify that when device is completely disconnected, RemoteDevices reset battery level to
         // BluetoothDevice.BATTERY_LEVEL_UNKNOWN
@@ -376,17 +373,15 @@ public class RemoteDevicesTest {
                 mDevice1,
                 BluetoothDevice.BATTERY_LEVEL_UNKNOWN,
                 mIntentArgument.getAllValues().get(mIntentArgument.getAllValues().size() - 2));
-        Assert.assertEquals(
-                BLUETOOTH_CONNECT,
-                mStringArgument.getAllValues().get(mStringArgument.getAllValues().size() - 2));
-        Assert.assertEquals(
-                BluetoothDevice.ACTION_ACL_DISCONNECTED, mIntentArgument.getValue().getAction());
-        Assert.assertEquals(BLUETOOTH_CONNECT, mStringArgument.getValue());
+        assertThat(mStringArgument.getAllValues().get(mStringArgument.getAllValues().size() - 2))
+                .isEqualTo(BLUETOOTH_CONNECT);
+        assertThat(mIntentArgument.getValue().getAction())
+                .isEqualTo(BluetoothDevice.ACTION_ACL_DISCONNECTED);
+        assertThat(mStringArgument.getValue()).isEqualTo(BLUETOOTH_CONNECT);
         // Verify value is reset in properties
         assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNotNull();
-        Assert.assertEquals(
-                BluetoothDevice.BATTERY_LEVEL_UNKNOWN,
-                mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel());
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel())
+                .isEqualTo(BluetoothDevice.BATTERY_LEVEL_UNKNOWN);
 
         // Verify that updating battery level triggers ACTION_BATTERY_LEVEL_CHANGED intent again
         mRemoteDevices.updateBatteryLevel(mDevice1, batteryLevel, /* fromBas= */ false);
@@ -394,7 +389,7 @@ public class RemoteDevicesTest {
                 .sendBroadcast(
                         mIntentArgument.capture(), mStringArgument.capture(), any(Bundle.class));
         verifyBatteryLevelChangedIntent(mDevice1, batteryLevel, mIntentArgument);
-        Assert.assertEquals(BLUETOOTH_CONNECT, mStringArgument.getValue());
+        assertThat(mStringArgument.getValue()).isEqualTo(BLUETOOTH_CONNECT);
     }
 
     @Test
@@ -411,7 +406,7 @@ public class RemoteDevicesTest {
                 .sendBroadcast(
                         mIntentArgument.capture(), mStringArgument.capture(), any(Bundle.class));
         verifyBatteryLevelChangedIntent(mDevice1, batteryLevel, mIntentArgument);
-        Assert.assertEquals(BLUETOOTH_CONNECT, mStringArgument.getValue());
+        assertThat(mStringArgument.getValue()).isEqualTo(BLUETOOTH_CONNECT);
     }
 
     @Test
@@ -444,7 +439,7 @@ public class RemoteDevicesTest {
                 .sendBroadcast(
                         mIntentArgument.capture(), mStringArgument.capture(), any(Bundle.class));
         verifyBatteryLevelChangedIntent(mDevice1, 42, mIntentArgument);
-        Assert.assertEquals(BLUETOOTH_CONNECT, mStringArgument.getValue());
+        assertThat(mStringArgument.getValue()).isEqualTo(BLUETOOTH_CONNECT);
     }
 
     @Test
@@ -471,107 +466,102 @@ public class RemoteDevicesTest {
                 .sendBroadcast(
                         mIntentArgument.capture(), mStringArgument.capture(), any(Bundle.class));
         verifyBatteryLevelChangedIntent(mDevice1, 60, mIntentArgument);
-        Assert.assertEquals(BLUETOOTH_CONNECT, mStringArgument.getValue());
+        assertThat(mStringArgument.getValue()).isEqualTo(BLUETOOTH_CONNECT);
     }
 
     @Test
     public void testGetBatteryLevelFromXEventVsc() {
-        Assert.assertEquals(42, RemoteDevices.getBatteryLevelFromXEventVsc(getXEventArray(3, 8)));
-        Assert.assertEquals(
-                100, RemoteDevices.getBatteryLevelFromXEventVsc(getXEventArray(10, 11)));
-        Assert.assertEquals(
-                BluetoothDevice.BATTERY_LEVEL_UNKNOWN,
-                RemoteDevices.getBatteryLevelFromXEventVsc(getXEventArray(1, 1)));
-        Assert.assertEquals(
-                BluetoothDevice.BATTERY_LEVEL_UNKNOWN,
-                RemoteDevices.getBatteryLevelFromXEventVsc(getXEventArray(3, 1)));
-        Assert.assertEquals(
-                BluetoothDevice.BATTERY_LEVEL_UNKNOWN,
-                RemoteDevices.getBatteryLevelFromXEventVsc(getXEventArray(-1, 1)));
-        Assert.assertEquals(
-                BluetoothDevice.BATTERY_LEVEL_UNKNOWN,
-                RemoteDevices.getBatteryLevelFromXEventVsc(getXEventArray(-1, -1)));
+        assertThat(RemoteDevices.getBatteryLevelFromXEventVsc(getXEventArray(3, 8))).isEqualTo(42);
+        assertThat(RemoteDevices.getBatteryLevelFromXEventVsc(getXEventArray(10, 11)))
+                .isEqualTo(100);
+        assertThat(RemoteDevices.getBatteryLevelFromXEventVsc(getXEventArray(1, 1)))
+                .isEqualTo(BluetoothDevice.BATTERY_LEVEL_UNKNOWN);
+        assertThat(RemoteDevices.getBatteryLevelFromXEventVsc(getXEventArray(3, 1)))
+                .isEqualTo(BluetoothDevice.BATTERY_LEVEL_UNKNOWN);
+        assertThat(RemoteDevices.getBatteryLevelFromXEventVsc(getXEventArray(-1, 1)))
+                .isEqualTo(BluetoothDevice.BATTERY_LEVEL_UNKNOWN);
+        assertThat(RemoteDevices.getBatteryLevelFromXEventVsc(getXEventArray(-1, -1)))
+                .isEqualTo(BluetoothDevice.BATTERY_LEVEL_UNKNOWN);
     }
 
     @Test
     public void testGetBatteryLevelFromAppleBatteryVsc() {
-        Assert.assertEquals(
-                10,
-                RemoteDevices.getBatteryLevelFromAppleBatteryVsc(
-                        new Object[] {
-                            1,
-                            BluetoothHeadset
-                                    .VENDOR_SPECIFIC_HEADSET_EVENT_IPHONEACCEV_BATTERY_LEVEL,
-                            0
-                        }));
-        Assert.assertEquals(
-                100,
-                RemoteDevices.getBatteryLevelFromAppleBatteryVsc(
-                        new Object[] {
-                            1,
-                            BluetoothHeadset
-                                    .VENDOR_SPECIFIC_HEADSET_EVENT_IPHONEACCEV_BATTERY_LEVEL,
-                            9
-                        }));
-        Assert.assertEquals(
-                60,
-                RemoteDevices.getBatteryLevelFromAppleBatteryVsc(
-                        new Object[] {
-                            3,
-                            BluetoothHeadset
-                                    .VENDOR_SPECIFIC_HEADSET_EVENT_IPHONEACCEV_BATTERY_LEVEL,
-                            5,
-                            2,
-                            1,
-                            3,
-                            10
-                        }));
-        Assert.assertEquals(
-                BluetoothDevice.BATTERY_LEVEL_UNKNOWN,
-                RemoteDevices.getBatteryLevelFromAppleBatteryVsc(
-                        new Object[] {
-                            3,
-                            BluetoothHeadset
-                                    .VENDOR_SPECIFIC_HEADSET_EVENT_IPHONEACCEV_BATTERY_LEVEL,
-                            5,
-                            2,
-                            1,
-                            3
-                        }));
-        Assert.assertEquals(
-                BluetoothDevice.BATTERY_LEVEL_UNKNOWN,
-                RemoteDevices.getBatteryLevelFromAppleBatteryVsc(
-                        new Object[] {
-                            1,
-                            BluetoothHeadset
-                                    .VENDOR_SPECIFIC_HEADSET_EVENT_IPHONEACCEV_BATTERY_LEVEL,
-                            10
-                        }));
-        Assert.assertEquals(
-                BluetoothDevice.BATTERY_LEVEL_UNKNOWN,
-                RemoteDevices.getBatteryLevelFromAppleBatteryVsc(
-                        new Object[] {
-                            1,
-                            BluetoothHeadset
-                                    .VENDOR_SPECIFIC_HEADSET_EVENT_IPHONEACCEV_BATTERY_LEVEL,
-                            -1
-                        }));
-        Assert.assertEquals(
-                BluetoothDevice.BATTERY_LEVEL_UNKNOWN,
-                RemoteDevices.getBatteryLevelFromAppleBatteryVsc(
-                        new Object[] {
-                            1,
-                            BluetoothHeadset
-                                    .VENDOR_SPECIFIC_HEADSET_EVENT_IPHONEACCEV_BATTERY_LEVEL,
-                            "5"
-                        }));
-        Assert.assertEquals(
-                BluetoothDevice.BATTERY_LEVEL_UNKNOWN,
-                RemoteDevices.getBatteryLevelFromAppleBatteryVsc(new Object[] {1, 35, 37}));
-        Assert.assertEquals(
-                BluetoothDevice.BATTERY_LEVEL_UNKNOWN,
-                RemoteDevices.getBatteryLevelFromAppleBatteryVsc(
-                        new Object[] {1, "WRONG", "WRONG"}));
+        assertThat(
+                        RemoteDevices.getBatteryLevelFromAppleBatteryVsc(
+                                new Object[] {
+                                    1,
+                                    BluetoothHeadset
+                                            .VENDOR_SPECIFIC_HEADSET_EVENT_IPHONEACCEV_BATTERY_LEVEL,
+                                    0
+                                }))
+                .isEqualTo(10);
+        assertThat(
+                        RemoteDevices.getBatteryLevelFromAppleBatteryVsc(
+                                new Object[] {
+                                    1,
+                                    BluetoothHeadset
+                                            .VENDOR_SPECIFIC_HEADSET_EVENT_IPHONEACCEV_BATTERY_LEVEL,
+                                    9
+                                }))
+                .isEqualTo(100);
+        assertThat(
+                        RemoteDevices.getBatteryLevelFromAppleBatteryVsc(
+                                new Object[] {
+                                    3,
+                                    BluetoothHeadset
+                                            .VENDOR_SPECIFIC_HEADSET_EVENT_IPHONEACCEV_BATTERY_LEVEL,
+                                    5,
+                                    2,
+                                    1,
+                                    3,
+                                    10
+                                }))
+                .isEqualTo(60);
+        assertThat(
+                        RemoteDevices.getBatteryLevelFromAppleBatteryVsc(
+                                new Object[] {
+                                    3,
+                                    BluetoothHeadset
+                                            .VENDOR_SPECIFIC_HEADSET_EVENT_IPHONEACCEV_BATTERY_LEVEL,
+                                    5,
+                                    2,
+                                    1,
+                                    3
+                                }))
+                .isEqualTo(BluetoothDevice.BATTERY_LEVEL_UNKNOWN);
+        assertThat(
+                        RemoteDevices.getBatteryLevelFromAppleBatteryVsc(
+                                new Object[] {
+                                    1,
+                                    BluetoothHeadset
+                                            .VENDOR_SPECIFIC_HEADSET_EVENT_IPHONEACCEV_BATTERY_LEVEL,
+                                    10
+                                }))
+                .isEqualTo(BluetoothDevice.BATTERY_LEVEL_UNKNOWN);
+        assertThat(
+                        RemoteDevices.getBatteryLevelFromAppleBatteryVsc(
+                                new Object[] {
+                                    1,
+                                    BluetoothHeadset
+                                            .VENDOR_SPECIFIC_HEADSET_EVENT_IPHONEACCEV_BATTERY_LEVEL,
+                                    -1
+                                }))
+                .isEqualTo(BluetoothDevice.BATTERY_LEVEL_UNKNOWN);
+        assertThat(
+                        RemoteDevices.getBatteryLevelFromAppleBatteryVsc(
+                                new Object[] {
+                                    1,
+                                    BluetoothHeadset
+                                            .VENDOR_SPECIFIC_HEADSET_EVENT_IPHONEACCEV_BATTERY_LEVEL,
+                                    "5"
+                                }))
+                .isEqualTo(BluetoothDevice.BATTERY_LEVEL_UNKNOWN);
+        assertThat(RemoteDevices.getBatteryLevelFromAppleBatteryVsc(new Object[] {1, 35, 37}))
+                .isEqualTo(BluetoothDevice.BATTERY_LEVEL_UNKNOWN);
+        assertThat(
+                        RemoteDevices.getBatteryLevelFromAppleBatteryVsc(
+                                new Object[] {1, "WRONG", "WRONG"}))
+                .isEqualTo(BluetoothDevice.BATTERY_LEVEL_UNKNOWN);
     }
 
     @Test
@@ -587,12 +577,12 @@ public class RemoteDevicesTest {
                 .sendBroadcast(
                         mIntentArgument.capture(), mStringArgument.capture(), any(Bundle.class));
         verifyBatteryLevelChangedIntent(mDevice1, batteryLevel, mIntentArgument);
-        Assert.assertEquals(BLUETOOTH_CONNECT, mStringArgument.getValue());
+        assertThat(mStringArgument.getValue()).isEqualTo(BLUETOOTH_CONNECT);
 
         // Verify that user can get battery level after the update
         assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNotNull();
-        Assert.assertEquals(
-                mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel(), batteryLevel);
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel())
+                .isEqualTo(batteryLevel);
 
         // Verify that resetting battery level changes it back to BluetoothDevice
         // .BATTERY_LEVEL_UNKNOWN
@@ -607,13 +597,12 @@ public class RemoteDevicesTest {
                         mIntentArgument.capture(), mStringArgument.capture(), any(Bundle.class));
         verifyBatteryLevelChangedIntent(
                 mDevice1, BluetoothDevice.BATTERY_LEVEL_UNKNOWN, mIntentArgument);
-        Assert.assertEquals(BLUETOOTH_CONNECT, mStringArgument.getValue());
+        assertThat(mStringArgument.getValue()).isEqualTo(BLUETOOTH_CONNECT);
 
         // Verify value is reset in properties
         assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNotNull();
-        Assert.assertEquals(
-                mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel(),
-                BluetoothDevice.BATTERY_LEVEL_UNKNOWN);
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel())
+                .isEqualTo(BluetoothDevice.BATTERY_LEVEL_UNKNOWN);
 
         // Verify that updating battery level triggers ACTION_BATTERY_LEVEL_CHANGED intent again
         mRemoteDevices.updateBatteryLevel(mDevice1, batteryLevel, /* fromBas= */ false);
@@ -621,7 +610,7 @@ public class RemoteDevicesTest {
                 .sendBroadcast(
                         mIntentArgument.capture(), mStringArgument.capture(), any(Bundle.class));
         verifyBatteryLevelChangedIntent(mDevice1, batteryLevel, mIntentArgument);
-        Assert.assertEquals(BLUETOOTH_CONNECT, mStringArgument.getValue());
+        assertThat(mStringArgument.getValue()).isEqualTo(BLUETOOTH_CONNECT);
 
         verifyNoMoreInteractions(mAdapterService);
     }
@@ -642,12 +631,12 @@ public class RemoteDevicesTest {
                 .sendBroadcast(
                         mIntentArgument.capture(), mStringArgument.capture(), any(Bundle.class));
         verifyBatteryLevelChangedIntent(mDevice1, batteryLevel, mIntentArgument);
-        Assert.assertEquals(BLUETOOTH_CONNECT, mStringArgument.getValue());
+        assertThat(mStringArgument.getValue()).isEqualTo(BLUETOOTH_CONNECT);
 
         // Verify that user can get battery level after the update
         assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNotNull();
-        Assert.assertEquals(
-                mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel(), batteryLevel);
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel())
+                .isEqualTo(batteryLevel);
 
         // Verify that battery level is not reset.
         mRemoteDevices.onHeadsetClientConnectionStateChanged(
@@ -656,8 +645,8 @@ public class RemoteDevicesTest {
                 BluetoothProfile.STATE_DISCONNECTED);
 
         assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNotNull();
-        Assert.assertEquals(
-                batteryLevel, mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel());
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel())
+                .isEqualTo(batteryLevel);
 
         clearBatteryServiceForTesting(oldBatteryService);
 
@@ -681,12 +670,12 @@ public class RemoteDevicesTest {
                 .sendBroadcast(
                         mIntentArgument.capture(), mStringArgument.capture(), any(Bundle.class));
         verifyBatteryLevelChangedIntent(mDevice1, batteryLevel, mIntentArgument);
-        Assert.assertEquals(BLUETOOTH_CONNECT, mStringArgument.getValue());
+        assertThat(mStringArgument.getValue()).isEqualTo(BLUETOOTH_CONNECT);
 
         // Verify that user can get battery level after the update
         assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNotNull();
-        Assert.assertEquals(
-                mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel(), batteryLevel);
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel())
+                .isEqualTo(batteryLevel);
 
         // Verify that updating battery service overrides hfp battery level
         mRemoteDevices.updateBatteryLevel(mDevice1, batteryLevel2, /* fromBas= */ true);
@@ -697,8 +686,8 @@ public class RemoteDevicesTest {
 
         // Verify that the battery level isn't reset
         mRemoteDevices.resetBatteryLevel(mDevice1, /* fromBas= */ true);
-        Assert.assertEquals(
-                batteryLevel, mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel());
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel())
+                .isEqualTo(batteryLevel);
         verify(mAdapterService, times(3))
                 .sendBroadcast(
                         mIntentArgument.capture(), mStringArgument.capture(), any(Bundle.class));
@@ -725,12 +714,12 @@ public class RemoteDevicesTest {
                 .sendBroadcast(
                         mIntentArgument.capture(), mStringArgument.capture(), any(Bundle.class));
         verifyBatteryLevelChangedIntent(mDevice1, batteryLevel, mIntentArgument);
-        Assert.assertEquals(BLUETOOTH_CONNECT, mStringArgument.getValue());
+        assertThat(mStringArgument.getValue()).isEqualTo(BLUETOOTH_CONNECT);
 
         // Verify that user can get battery level after the update
         assertThat(mRemoteDevices.getDeviceProperties(mDevice1)).isNotNull();
-        Assert.assertEquals(
-                mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel(), batteryLevel);
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel())
+                .isEqualTo(batteryLevel);
 
         // Verify that updating battery service doesn't send broadcast
         mRemoteDevices.updateBatteryLevel(mDevice1, batteryLevel, /* fromBas= */ true);
@@ -738,8 +727,8 @@ public class RemoteDevicesTest {
 
         // Verify that the battery level isn't reset
         mRemoteDevices.resetBatteryLevel(mDevice1, /* fromBas= */ true);
-        Assert.assertEquals(
-                batteryLevel, mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel());
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1).getBatteryLevel())
+                .isEqualTo(batteryLevel);
         verifyNoMoreInteractions(mAdapterService);
 
         clearBatteryServiceForTesting(oldBatteryService);
@@ -763,7 +752,7 @@ public class RemoteDevicesTest {
                 mDevice1,
                 RemoteDevices.batteryChargeIndicatorToPercentge(batteryLevel),
                 mIntentArgument);
-        Assert.assertEquals(BLUETOOTH_CONNECT, mStringArgument.getValue());
+        assertThat(mStringArgument.getValue()).isEqualTo(BLUETOOTH_CONNECT);
     }
 
     @Test
@@ -775,7 +764,7 @@ public class RemoteDevicesTest {
                 mRemoteDevices.addDeviceProperties(Utils.getBytesFromAddress(TEST_BT_ADDR_1));
         DeviceProperties prop2 =
                 mRemoteDevices.addDeviceProperties(Utils.getBytesFromAddress(TEST_BT_ADDR_1));
-        Assert.assertEquals(prop2, prop1);
+        assertThat(prop1).isEqualTo(prop2);
     }
 
     @Test
@@ -796,9 +785,8 @@ public class RemoteDevicesTest {
         deviceProp.setHfAudioPolicyForRemoteAg(policies);
 
         // Verify that the audio policy properties are set and get properly
-        Assert.assertEquals(
-                policies,
-                mRemoteDevices.getDeviceProperties(mDevice1).getHfAudioPolicyForRemoteAg());
+        assertThat(mRemoteDevices.getDeviceProperties(mDevice1).getHfAudioPolicyForRemoteAg())
+                .isEqualTo(policies);
     }
 
     @Test
@@ -845,14 +833,15 @@ public class RemoteDevicesTest {
 
     private static void verifyBatteryLevelChangedIntent(
             BluetoothDevice device, int batteryLevel, Intent intent) {
-        Assert.assertEquals(BluetoothDevice.ACTION_BATTERY_LEVEL_CHANGED, intent.getAction());
-        Assert.assertEquals(device, intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE));
-        Assert.assertEquals(
-                batteryLevel, intent.getIntExtra(BluetoothDevice.EXTRA_BATTERY_LEVEL, -15));
-        Assert.assertEquals(
-                Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT
-                        | Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND,
-                intent.getFlags());
+        assertThat(intent.getAction()).isEqualTo(BluetoothDevice.ACTION_BATTERY_LEVEL_CHANGED);
+        assertThat(intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice.class))
+                .isEqualTo(device);
+        assertThat(intent.getIntExtra(BluetoothDevice.EXTRA_BATTERY_LEVEL, -15))
+                .isEqualTo(batteryLevel);
+        assertThat(intent.getFlags())
+                .isEqualTo(
+                        Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT
+                                | Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
     }
 
     private static Object[] getXEventArray(int batteryLevel, int numLevels) {

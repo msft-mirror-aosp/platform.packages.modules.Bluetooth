@@ -51,7 +51,6 @@ import com.android.vcard.VCardEntry;
 import com.android.vcard.VCardProperty;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -138,7 +137,7 @@ public class MapClientContentTest {
                         any(),
                         anyInt(),
                         eq(SubscriptionManager.SUBSCRIPTION_TYPE_REMOTE_SIM));
-        Assert.assertEquals(0, mMockSmsContentProvider.mContentValues.size());
+        assertThat(mMockSmsContentProvider.mContentValues).isEmpty();
     }
 
     /** Test that a dirty database gets cleaned at startup. */
@@ -153,9 +152,9 @@ public class MapClientContentTest {
                         any(),
                         anyInt(),
                         eq(SubscriptionManager.SUBSCRIPTION_TYPE_REMOTE_SIM));
-        Assert.assertEquals(1, mMockSmsContentProvider.mContentValues.size());
+        assertThat(mMockSmsContentProvider.mContentValues).hasSize(1);
         mMapClientContent = new MapClientContent(mMockContext, mCallbacks, mTestDevice);
-        Assert.assertEquals(0, mMockSmsContentProvider.mContentValues.size());
+        assertThat(mMockSmsContentProvider.mContentValues).isEmpty();
     }
 
     /** Test inserting 2 SMS messages and then clearing out the database. */
@@ -170,16 +169,16 @@ public class MapClientContentTest {
                         any(),
                         anyInt(),
                         eq(SubscriptionManager.SUBSCRIPTION_TYPE_REMOTE_SIM));
-        Assert.assertEquals(1, mMockSmsContentProvider.mContentValues.size());
+        assertThat(mMockSmsContentProvider.mContentValues).hasSize(1);
 
         mMapClientContent.storeMessage(
                 mTestMessage1, mTestMessage1Handle, mTestMessage1Timestamp, MESSAGE_SEEN);
-        Assert.assertEquals(2, mMockSmsContentProvider.mContentValues.size());
-        Assert.assertEquals(0, mMockMmsContentProvider.mContentValues.size());
+        assertThat(mMockSmsContentProvider.mContentValues).hasSize(2);
+        assertThat(mMockMmsContentProvider.mContentValues).isEmpty();
 
         mMapClientContent.cleanUp();
-        Assert.assertEquals(0, mMockSmsContentProvider.mContentValues.size());
-        Assert.assertEquals(0, mMockThreadContentProvider.mContentValues.size());
+        assertThat(mMockSmsContentProvider.mContentValues).isEmpty();
+        assertThat(mMockThreadContentProvider.mContentValues).isEmpty();
     }
 
     /** Test inserting 2 MMS messages and then clearing out the database. */
@@ -194,14 +193,14 @@ public class MapClientContentTest {
                         any(),
                         anyInt(),
                         eq(SubscriptionManager.SUBSCRIPTION_TYPE_REMOTE_SIM));
-        Assert.assertEquals(1, mMockMmsContentProvider.mContentValues.size());
+        assertThat(mMockMmsContentProvider.mContentValues).hasSize(1);
 
         mMapClientContent.storeMessage(
                 mTestMessage2, mTestMessage1Handle, mTestMessage1Timestamp, MESSAGE_SEEN);
-        Assert.assertEquals(2, mMockMmsContentProvider.mContentValues.size());
+        assertThat(mMockMmsContentProvider.mContentValues).hasSize(2);
 
         mMapClientContent.cleanUp();
-        Assert.assertEquals(0, mMockMmsContentProvider.mContentValues.size());
+        assertThat(mMockMmsContentProvider.mContentValues).isEmpty();
     }
 
     /** Test that SMS and MMS messages end up in their respective databases. */
@@ -216,14 +215,14 @@ public class MapClientContentTest {
                         any(),
                         anyInt(),
                         eq(SubscriptionManager.SUBSCRIPTION_TYPE_REMOTE_SIM));
-        Assert.assertEquals(1, mMockMmsContentProvider.mContentValues.size());
+        assertThat(mMockMmsContentProvider.mContentValues).hasSize(1);
 
         mMapClientContent.storeMessage(
                 mTestMessage2, mTestMessage2Handle, mTestMessage1Timestamp, MESSAGE_SEEN);
-        Assert.assertEquals(2, mMockMmsContentProvider.mContentValues.size());
+        assertThat(mMockMmsContentProvider.mContentValues).hasSize(2);
 
         mMapClientContent.cleanUp();
-        Assert.assertEquals(0, mMockMmsContentProvider.mContentValues.size());
+        assertThat(mMockMmsContentProvider.mContentValues).isEmpty();
     }
 
     /** Test read status changed */
@@ -238,16 +237,16 @@ public class MapClientContentTest {
                         any(),
                         anyInt(),
                         eq(SubscriptionManager.SUBSCRIPTION_TYPE_REMOTE_SIM));
-        Assert.assertEquals(1, mMockMmsContentProvider.mContentValues.size());
+        assertThat(mMockMmsContentProvider.mContentValues).hasSize(1);
 
         mMapClientContent.storeMessage(
                 mTestMessage2, mTestMessage1Handle, mTestMessage1Timestamp, MESSAGE_SEEN);
-        Assert.assertEquals(2, mMockMmsContentProvider.mContentValues.size());
+        assertThat(mMockMmsContentProvider.mContentValues).hasSize(2);
 
         mMapClientContent.markRead(mTestMessage1Handle);
 
         mMapClientContent.cleanUp();
-        Assert.assertEquals(0, mMockMmsContentProvider.mContentValues.size());
+        assertThat(mMockMmsContentProvider.mContentValues).isEmpty();
     }
 
     /**
@@ -262,7 +261,7 @@ public class MapClientContentTest {
         mMapClientContent = new MapClientContent(mMockContext, mCallbacks, mTestDevice);
         mMapClientContent.storeMessage(
                 mTestMessage2, mTestMessage1Handle, mTestMessage1Timestamp, MESSAGE_SEEN);
-        Assert.assertEquals(1, mMockMmsContentProvider.mContentValues.size());
+        assertThat(mMockMmsContentProvider.mContentValues).hasSize(1);
         mMapClientContent.mContentObserver.onChange(false);
         verify(mCallbacks)
                 .onMessageStatusChanged(eq(mTestMessage1Handle), eq(BluetoothMapClient.READ));
@@ -274,7 +273,7 @@ public class MapClientContentTest {
         mMapClientContent = new MapClientContent(mMockContext, mCallbacks, mTestDevice);
         mMapClientContent.storeMessage(
                 mTestMessage1, mTestMessage1Handle, mTestMessage1Timestamp, MESSAGE_SEEN);
-        assertThat(mMockSmsContentProvider.mContentValues.size()).isEqualTo(1);
+        assertThat(mMockSmsContentProvider.mContentValues).hasSize(1);
 
         ContentValues storedSMS =
                 (ContentValues) mMockSmsContentProvider.mContentValues.values().toArray()[0];
@@ -288,7 +287,7 @@ public class MapClientContentTest {
         mMapClientContent = new MapClientContent(mMockContext, mCallbacks, mTestDevice);
         mMapClientContent.storeMessage(
                 mTestMessage1, mTestMessage1Handle, mTestMessage1Timestamp, MESSAGE_NOT_SEEN);
-        assertThat(mMockSmsContentProvider.mContentValues.size()).isEqualTo(1);
+        assertThat(mMockSmsContentProvider.mContentValues).hasSize(1);
 
         ContentValues storedSMS =
                 (ContentValues) mMockSmsContentProvider.mContentValues.values().toArray()[0];
@@ -302,7 +301,7 @@ public class MapClientContentTest {
         mMapClientContent = new MapClientContent(mMockContext, mCallbacks, mTestDevice);
         mMapClientContent.storeMessage(
                 mTestMessage2, mTestMessage1Handle, mTestMessage1Timestamp, MESSAGE_SEEN);
-        assertThat(mMockMmsContentProvider.mContentValues.size()).isEqualTo(1);
+        assertThat(mMockMmsContentProvider.mContentValues).hasSize(1);
 
         ContentValues storedMMS =
                 (ContentValues) mMockMmsContentProvider.mContentValues.values().toArray()[0];
@@ -316,7 +315,7 @@ public class MapClientContentTest {
         mMapClientContent = new MapClientContent(mMockContext, mCallbacks, mTestDevice);
         mMapClientContent.storeMessage(
                 mTestMessage2, mTestMessage1Handle, mTestMessage1Timestamp, MESSAGE_NOT_SEEN);
-        assertThat(mMockMmsContentProvider.mContentValues.size()).isEqualTo(1);
+        assertThat(mMockMmsContentProvider.mContentValues).hasSize(1);
 
         ContentValues storedMMS =
                 (ContentValues) mMockMmsContentProvider.mContentValues.values().toArray()[0];
@@ -341,14 +340,14 @@ public class MapClientContentTest {
                         any(),
                         anyInt(),
                         eq(SubscriptionManager.SUBSCRIPTION_TYPE_REMOTE_SIM));
-        Assert.assertEquals(1, mMockSmsContentProvider.mContentValues.size());
+        assertThat(mMockSmsContentProvider.mContentValues).hasSize(1);
         // attempt to delete an invalid handle, nothing should be removed.
         mMapClientContent.deleteMessage(mTestMessage2Handle);
-        Assert.assertEquals(1, mMockSmsContentProvider.mContentValues.size());
+        assertThat(mMockSmsContentProvider.mContentValues).hasSize(1);
 
         // delete a valid handle
         mMapClientContent.deleteMessage(mTestMessage1Handle);
-        Assert.assertEquals(0, mMockSmsContentProvider.mContentValues.size());
+        assertThat(mMockSmsContentProvider.mContentValues).isEmpty();
     }
 
     /**
@@ -368,7 +367,7 @@ public class MapClientContentTest {
                         any(),
                         anyInt(),
                         eq(SubscriptionManager.SUBSCRIPTION_TYPE_REMOTE_SIM));
-        Assert.assertEquals(1, mMockSmsContentProvider.mContentValues.size());
+        assertThat(mMockSmsContentProvider.mContentValues).hasSize(1);
         mMockSmsContentProvider.mContentValues.clear();
         mMapClientContent.mContentObserver.onChange(false);
         verify(mCallbacks)

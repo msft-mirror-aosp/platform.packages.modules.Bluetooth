@@ -38,9 +38,7 @@ cc_library_static {
     shared_libs: [
         "liblog",
     ],
-    apex_available: [
-        "com.android.btservices",
-    ],
+    apex_available: ["com.android.bt"],
     min_sdk_version: "Tiramisu",
     header_libs: ["libbluetooth_headers"],
 }

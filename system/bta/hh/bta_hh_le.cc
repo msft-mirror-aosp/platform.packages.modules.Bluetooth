@@ -1771,6 +1771,11 @@ void bta_hh_gatt_close(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data) {
   if (bta_hh_cb.cnt_num == 0 && bta_hh_cb.w4_disable) {
     bta_hh_disc_cmpl();
   } else {
+    if (com::android::bluetooth::flags::hogp_reconnection()) {
+      // reconnection is handled in btif_hh.cc:btif_hh_disconnected
+      return;
+    }
+
     switch (le_close->reason) {
       case GATT_CONN_FAILED_ESTABLISHMENT:
       case GATT_CONN_TERMINATE_PEER_USER:

@@ -34,7 +34,6 @@ import com.google.common.hash.Funnels;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -132,15 +131,15 @@ public class MetricsLoggerTest {
         BluetoothLog.Builder metricsBuilder = BluetoothLog.newBuilder();
         MetricsLogger.dumpProto(metricsBuilder);
         BluetoothLog metricsProto = metricsBuilder.build();
-        Assert.assertEquals(1, metricsProto.getProfileConnectionStatsCount());
+        assertThat(metricsProto.getProfileConnectionStatsCount()).isEqualTo(1);
         ProfileConnectionStats profileUsageStatsAvrcp = metricsProto.getProfileConnectionStats(0);
-        Assert.assertEquals(ProfileId.AVRCP, profileUsageStatsAvrcp.getProfileId());
-        Assert.assertEquals(1, profileUsageStatsAvrcp.getNumTimesConnected());
+        assertThat(profileUsageStatsAvrcp.getProfileId()).isEqualTo(ProfileId.AVRCP);
+        assertThat(profileUsageStatsAvrcp.getNumTimesConnected()).isEqualTo(1);
         // Verify that MetricsLogger's internal state is cleared after a dump
         BluetoothLog.Builder metricsBuilderAfterDump = BluetoothLog.newBuilder();
         MetricsLogger.dumpProto(metricsBuilderAfterDump);
         BluetoothLog metricsProtoAfterDump = metricsBuilderAfterDump.build();
-        Assert.assertEquals(0, metricsProtoAfterDump.getProfileConnectionStatsCount());
+        assertThat(metricsProtoAfterDump.getProfileConnectionStatsCount()).isEqualTo(0);
     }
 
     /** Test whether multiple profile's connection events can be logged interleaving */
@@ -152,20 +151,20 @@ public class MetricsLoggerTest {
         BluetoothLog.Builder metricsBuilder = BluetoothLog.newBuilder();
         MetricsLogger.dumpProto(metricsBuilder);
         BluetoothLog metricsProto = metricsBuilder.build();
-        Assert.assertEquals(2, metricsProto.getProfileConnectionStatsCount());
+        assertThat(metricsProto.getProfileConnectionStatsCount()).isEqualTo(2);
         Map<ProfileId, ProfileConnectionStats> profileConnectionCountMap =
                 getProfileUsageStatsMap(metricsProto.getProfileConnectionStatsList());
         assertThat(profileConnectionCountMap).containsKey(ProfileId.AVRCP);
-        Assert.assertEquals(
-                2, profileConnectionCountMap.get(ProfileId.AVRCP).getNumTimesConnected());
+        assertThat(profileConnectionCountMap.get(ProfileId.AVRCP).getNumTimesConnected())
+                .isEqualTo(2);
         assertThat(profileConnectionCountMap).containsKey(ProfileId.HEADSET);
-        Assert.assertEquals(
-                1, profileConnectionCountMap.get(ProfileId.HEADSET).getNumTimesConnected());
+        assertThat(profileConnectionCountMap.get(ProfileId.HEADSET).getNumTimesConnected())
+                .isEqualTo(1);
         // Verify that MetricsLogger's internal state is cleared after a dump
         BluetoothLog.Builder metricsBuilderAfterDump = BluetoothLog.newBuilder();
         MetricsLogger.dumpProto(metricsBuilderAfterDump);
         BluetoothLog metricsProtoAfterDump = metricsBuilderAfterDump.build();
-        Assert.assertEquals(0, metricsProtoAfterDump.getProfileConnectionStatsCount());
+        assertThat(metricsProtoAfterDump.getProfileConnectionStatsCount()).isEqualTo(0);
     }
 
     private static Map<ProfileId, ProfileConnectionStats> getProfileUsageStatsMap(
@@ -183,17 +182,17 @@ public class MetricsLoggerTest {
         mTestableMetricsLogger.cacheCount(2, 5);
         mTestableMetricsLogger.drainBufferedCounters();
 
-        Assert.assertEquals(20L, mTestableMetricsLogger.mTestableCounters.get(1).longValue());
-        Assert.assertEquals(5L, mTestableMetricsLogger.mTestableCounters.get(2).longValue());
+        assertThat(mTestableMetricsLogger.mTestableCounters.get(1).longValue()).isEqualTo(20L);
+        assertThat(mTestableMetricsLogger.mTestableCounters.get(2).longValue()).isEqualTo(5L);
 
         mTestableMetricsLogger.cacheCount(1, 3);
         mTestableMetricsLogger.cacheCount(2, 5);
         mTestableMetricsLogger.cacheCount(2, 5);
         mTestableMetricsLogger.cacheCount(3, 1);
         mTestableMetricsLogger.drainBufferedCounters();
-        Assert.assertEquals(3L, mTestableMetricsLogger.mTestableCounters.get(1).longValue());
-        Assert.assertEquals(10L, mTestableMetricsLogger.mTestableCounters.get(2).longValue());
-        Assert.assertEquals(1L, mTestableMetricsLogger.mTestableCounters.get(3).longValue());
+        assertThat(mTestableMetricsLogger.mTestableCounters.get(1).longValue()).isEqualTo(3L);
+        assertThat(mTestableMetricsLogger.mTestableCounters.get(2).longValue()).isEqualTo(10L);
+        assertThat(mTestableMetricsLogger.mTestableCounters.get(3).longValue()).isEqualTo(1L);
     }
 
     @Test
@@ -207,8 +206,8 @@ public class MetricsLoggerTest {
 
         assertThat(mTestableMetricsLogger.mTestableCounters).doesNotContainKey(1);
         assertThat(mTestableMetricsLogger.mTestableCounters).doesNotContainKey(3);
-        Assert.assertEquals(
-                Long.MAX_VALUE, mTestableMetricsLogger.mTestableCounters.get(2).longValue());
+        assertThat(mTestableMetricsLogger.mTestableCounters.get(2).longValue())
+                .isEqualTo(Long.MAX_VALUE);
     }
 
     @Test
@@ -218,9 +217,9 @@ public class MetricsLoggerTest {
         mTestableMetricsLogger.cacheCount(2, Long.MAX_VALUE);
         mTestableMetricsLogger.close();
 
-        Assert.assertEquals(1, mTestableMetricsLogger.mTestableCounters.get(1).longValue());
-        Assert.assertEquals(
-                Long.MAX_VALUE, mTestableMetricsLogger.mTestableCounters.get(2).longValue());
+        assertThat(mTestableMetricsLogger.mTestableCounters.get(1).longValue()).isEqualTo(1);
+        assertThat(mTestableMetricsLogger.mTestableCounters.get(2).longValue())
+                .isEqualTo(Long.MAX_VALUE);
     }
 
     @Test
@@ -244,10 +243,8 @@ public class MetricsLoggerTest {
         for (Map.Entry<String, String> entry : SANITIZED_DEVICE_NAME_MAP.entrySet()) {
             String deviceName = entry.getKey();
             String sha256 = MetricsLogger.getSha256String(entry.getValue());
-            Assert.assertEquals(
-                    deviceName,
-                    sha256,
-                    mTestableMetricsLogger.logAllowlistedDeviceNameHash(1, deviceName));
+            assertThat(mTestableMetricsLogger.logAllowlistedDeviceNameHash(1, deviceName))
+                    .isEqualTo(sha256);
         }
     }
 
@@ -263,7 +260,7 @@ public class MetricsLoggerTest {
             BluetoothRemoteDeviceInformation bluetoothRemoteDeviceInformation =
                     BluetoothRemoteDeviceInformation.parseFrom(remoteDeviceInformationBytes);
             int oui = (0 << 16) | (1 << 8) | 2; // OUI from the above mac address
-            Assert.assertEquals(bluetoothRemoteDeviceInformation.getOui(), oui);
+            assertThat(bluetoothRemoteDeviceInformation.getOui()).isEqualTo(oui);
 
         } catch (InvalidProtocolBufferException e) {
             assertThat(e.getMessage()).isNull(); // test failure here
@@ -278,7 +275,7 @@ public class MetricsLoggerTest {
         String actualMedicalDeviceSha256 =
                 mTestableMetricsLogger.getAllowlistedDeviceNameHash(deviceName, true);
 
-        Assert.assertEquals(expectMedicalDeviceSha256, actualMedicalDeviceSha256);
+        assertThat(actualMedicalDeviceSha256).isEqualTo(expectMedicalDeviceSha256);
     }
 
     @Test
@@ -289,13 +286,13 @@ public class MetricsLoggerTest {
         String actualMedicalDeviceSha256 =
                 mTestableMetricsLogger.getAllowlistedDeviceNameHash(deviceName, false);
 
-        Assert.assertEquals(expectMedicalDeviceSha256, actualMedicalDeviceSha256);
+        assertThat(actualMedicalDeviceSha256).isEqualTo(expectMedicalDeviceSha256);
     }
 
     @Test
     public void uploadEmptyDeviceName() throws IOException {
         initTestingBloomfilter();
-        Assert.assertEquals("", mTestableMetricsLogger.logAllowlistedDeviceNameHash(1, ""));
+        assertThat(mTestableMetricsLogger.logAllowlistedDeviceNameHash(1, "")).isEmpty();
     }
 
     private void initTestingBloomfilter() throws IOException {

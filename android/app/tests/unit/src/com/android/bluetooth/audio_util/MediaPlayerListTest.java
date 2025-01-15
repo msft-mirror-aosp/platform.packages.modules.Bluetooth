@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.audio_util;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.mockito.Mockito.*;
 
 import android.content.Context;
@@ -31,7 +33,6 @@ import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -138,7 +139,7 @@ public class MediaPlayerListTest {
     }
 
     @Test
-    public void testUpdateMeidaDataForAudioPlaybackWhenAcitvePlayNotPlaying() {
+    public void testUpdateMediaDataForAudioPlaybackWhenActivePlayNotPlaying() {
         // Verify update media data with playing state
         doReturn(prepareMediaData(PlaybackState.STATE_PAUSED))
                 .when(mMockPlayerWrapper)
@@ -146,7 +147,7 @@ public class MediaPlayerListTest {
         mMediaPlayerList.injectAudioPlaybacActive(true);
         verify(mMediaUpdateCallback).run(mMediaUpdateData.capture());
         MediaData data = mMediaUpdateData.getValue();
-        Assert.assertEquals(data.state.getState(), PlaybackState.STATE_PLAYING);
+        assertThat(data.state.getState()).isEqualTo(PlaybackState.STATE_PLAYING);
 
         // verify update media data with current media player media data
         MediaData currentMediaData = prepareMediaData(PlaybackState.STATE_PAUSED);
@@ -154,9 +155,9 @@ public class MediaPlayerListTest {
         mMediaPlayerList.injectAudioPlaybacActive(false);
         verify(mMediaUpdateCallback, times(2)).run(mMediaUpdateData.capture());
         data = mMediaUpdateData.getValue();
-        Assert.assertEquals(data.metadata, currentMediaData.metadata);
-        Assert.assertEquals(data.state.toString(), currentMediaData.state.toString());
-        Assert.assertEquals(data.queue, currentMediaData.queue);
+        assertThat(data.metadata).isEqualTo(currentMediaData.metadata);
+        assertThat(data.state.toString()).isEqualTo(currentMediaData.state.toString());
+        assertThat(data.queue).isEqualTo(currentMediaData.queue);
     }
 
     @Test
@@ -171,7 +172,7 @@ public class MediaPlayerListTest {
     }
 
     @Test
-    public void testNotUdpateMediaDataForAudioPlaybackWhenActivePlayerIsPlaying() {
+    public void testNotUpdateMediaDataForAudioPlaybackWhenActivePlayerIsPlaying() {
         // Verify not update media data for Audio Playback when active player is playing
         doReturn(prepareMediaData(PlaybackState.STATE_PLAYING))
                 .when(mMockPlayerWrapper)
@@ -182,7 +183,7 @@ public class MediaPlayerListTest {
     }
 
     @Test
-    public void testNotUdpateMediaDataForActivePlayerWhenAudioPlaybackIsActive() {
+    public void testNotUpdateMediaDataForActivePlayerWhenAudioPlaybackIsActive() {
         doReturn(prepareMediaData(PlaybackState.STATE_PLAYING))
                 .when(mMockPlayerWrapper)
                 .getCurrentMediaData();
@@ -225,7 +226,7 @@ public class MediaPlayerListTest {
         MediaPlayerWrapper newActiveMediaPlayer = mMediaPlayerList.getActivePlayer();
 
         // Should be the same as before.
-        Assert.assertEquals(activeMediaPlayer, newActiveMediaPlayer);
+        assertThat(activeMediaPlayer).isEqualTo(newActiveMediaPlayer);
 
         session.release();
     }

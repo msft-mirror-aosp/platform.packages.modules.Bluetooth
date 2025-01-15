@@ -513,7 +513,7 @@ public class HapClientServiceTest {
                         eq(BluetoothStatusCodes.REASON_REMOTE_REQUEST));
 
         List<BluetoothHapPresetInfo> presets = presetsCaptor.getValue();
-        assertThat(presets.size()).isEqualTo(3);
+        assertThat(presets).hasSize(3);
 
         Optional<BluetoothHapPresetInfo> preset =
                 presetsCaptor.getValue().stream().filter(p -> 0x01 == p.getIndex()).findFirst();

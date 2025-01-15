@@ -1106,8 +1106,8 @@ public class BluetoothMapContentTest {
         assertThat(messageMimeParsed.getVersionString())
                 .isEqualTo("VERSION:" + mContent.mMessageVersion);
         assertThat(messageMimeParsed.getFolder()).isEqualTo(mCurrentFolder.getFullPath());
-        assertThat(messageMimeParsed.getRecipients().size()).isEqualTo(1);
-        assertThat(messageMimeParsed.getOriginators().size()).isEqualTo(1);
+        assertThat(messageMimeParsed.getRecipients()).hasSize(1);
+        assertThat(messageMimeParsed.getOriginators()).hasSize(1);
         assertThat(messageMimeParsed.getOriginators().get(0).getName()).isEmpty();
         assertThat(messageMimeParsed.getRecipients().get(0).getName())
                 .isEqualTo(TEST_FORMATTED_NAME);
@@ -1166,8 +1166,8 @@ public class BluetoothMapContentTest {
         assertThat(messageMimeParsed.getVersionString())
                 .isEqualTo("VERSION:" + mContent.mMessageVersion);
         assertThat(messageMimeParsed.getFolder()).isEqualTo(mCurrentFolder.getFullPath());
-        assertThat(messageMimeParsed.getRecipients().size()).isEqualTo(1);
-        assertThat(messageMimeParsed.getOriginators().size()).isEqualTo(1);
+        assertThat(messageMimeParsed.getRecipients()).hasSize(1);
+        assertThat(messageMimeParsed.getOriginators()).hasSize(1);
         assertThat(messageMimeParsed.getOriginators().get(0).getName())
                 .isEqualTo(TEST_FORMATTED_NAME);
         assertThat(messageMimeParsed.getRecipients().get(0).getName()).isEmpty();

@@ -34,22 +34,20 @@ import java.io.IOException;
 public class MnsService {
     private static final String TAG = MnsService.class.getSimpleName();
 
-    static final int MSG_EVENT = 1;
-    /* for Client */
-    static final int EVENT_REPORT = 1001;
-    /* MAP version 1.4 */
-    private static final int MNS_VERSION = 0x0104;
+    static final int EVENT_REPORT = 1001; // for Client
+    private static final int MNS_VERSION = 0x0104; // MAP version 1.4
 
     private final SocketAcceptor mAcceptThread = new SocketAcceptor();
+    private final MapClientService mMapClientService;
+
     private ObexServerSockets mServerSockets;
 
-    private MapClientService mContext;
     private volatile boolean mShutdown = false; // Used to interrupt socket accept thread
     private int mSdpHandle = -1;
 
-    MnsService(MapClientService context) {
+    MnsService(MapClientService service) {
         Log.v(TAG, "MnsService()");
-        mContext = context;
+        mMapClientService = service;
         mServerSockets = ObexServerSockets.create(mAcceptThread);
         SdpManagerNativeInterface nativeInterface = SdpManagerNativeInterface.getInstance();
         if (!nativeInterface.isAvailable()) {
@@ -116,7 +114,7 @@ public class MnsService {
         public synchronized boolean onConnect(BluetoothDevice device, BluetoothSocket socket) {
             Log.d(TAG, "onConnect" + device + " SOCKET: " + socket);
             /* Signal to the service that we have received an incoming connection.*/
-            MceStateMachine stateMachine = mContext.getMceStateMachineForDevice(device);
+            MceStateMachine stateMachine = mMapClientService.getMceStateMachineForDevice(device);
             if (stateMachine == null) {
                 Log.e(
                         TAG,

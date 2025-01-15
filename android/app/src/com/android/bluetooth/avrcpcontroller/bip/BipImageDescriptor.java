@@ -87,7 +87,7 @@ public class BipImageDescriptor {
          * @param encoding The encoding you would like to set as a BIP spec defined string
          * @return This object so you can continue building
          */
-        public Builder setPropietaryEncoding(String encoding) {
+        public Builder setProprietaryEncoding(String encoding) {
             mImageDescriptor.mEncoding = new BipEncoding(BipEncoding.USR_XXX, encoding);
             return this;
         }

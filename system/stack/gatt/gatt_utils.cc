@@ -1362,17 +1362,30 @@ tGATT_SR_CMD* gatt_sr_get_cmd_by_trans_id(tGATT_TCB* p_tcb, uint32_t trans_id) {
  * Returns          True if thetotal application callback count is zero
  *
  ******************************************************************************/
-bool gatt_sr_is_cback_cnt_zero(tGATT_TCB& tcb) {
-  if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
-    return tcb.sr_cmd.cback_cnt_map.empty();
+bool gatt_sr_is_cback_cnt_zero(tGATT_TCB& tcb, uint16_t cid) {
+  tGATT_SR_CMD* sr_cmd_p;
+  if (cid == tcb.att_lcid) {
+    sr_cmd_p = &tcb.sr_cmd;
   } else {
-    for (uint8_t i = 0; i < GATT_MAX_APPS; i++) {
-      if (tcb.sr_cmd.cback_cnt[i]) {
-        return false;
-      }
+    EattChannel* channel = EattExtension::GetInstance()->FindEattChannelByCid(tcb.peer_bda, cid);
+    if (channel == nullptr) {
+      log::warn("{}, cid 0x{:02x} already disconnected", tcb.peer_bda, cid);
+      return true;
     }
-    return true;
+    sr_cmd_p = &channel->server_outstanding_cmd_;
   }
+
+  if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
+    return sr_cmd_p->cback_cnt_map.empty();
+  }
+
+  for (uint8_t i = 0; i < GATT_MAX_APPS; i++) {
+    if (sr_cmd_p->cback_cnt[i] != 0) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 /*******************************************************************************
@@ -1581,46 +1594,25 @@ void gatt_sr_update_prep_cnt(tGATT_TCB& tcb, tGATT_IF gatt_if, bool is_inc, bool
   }
 }
 
-static bool gatt_is_anybody_interested_in_connection(const RawAddress& bda) {
-  if (connection_manager::is_background_connection(bda)) {
-    log::debug("{} is in background connection", bda);
-    return true;
-  }
-
-  for (size_t i = 1; i <= GATT_MAX_APPS; i++) {
-    tGATT_REG* p_reg = &gatt_cb.cl_rcb[i - 1];
-    if (p_reg->in_use && p_reg->direct_connect_request.count(bda) > 0) {
-      log::debug("gatt_if {} interested in connection to {}", i, bda);
-      return true;
-    }
-  }
-  return false;
-}
-
 /** Cancel LE Create Connection request */
 bool gatt_cancel_open(tGATT_IF gatt_if, const RawAddress& bda) {
+  if (connection_manager::direct_connect_remove(gatt_if, bda)) {
+    log::info("{} was doing direct connect to {}, canceled", gatt_if, bda);
+  }
+  if (connection_manager::background_connect_remove(gatt_if, bda)) {
+    log::info("{} was doing background connect to {}, canceled", gatt_if, bda);
+  }
+
   tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(bda, BT_TRANSPORT_LE);
   if (!p_tcb) {
-    /* TCB is not allocated when trying to connect under this flag.
-     * but device address is storred in the tGATT_REG. Make sure to remove
-     * the address from the list when cancel is called.
-     */
-
-    tGATT_REG* p_reg = gatt_get_regcb(gatt_if);
-    if (!p_reg) {
-      log::error("Unable to find registered app gatt_if={}", gatt_if);
-    } else {
-      log::info("Removing {} from direct list", bda);
-      p_reg->direct_connect_request.erase(bda);
-    }
-    if (!gatt_is_anybody_interested_in_connection(bda)) {
-      gatt_cancel_connect(bda, static_cast<tBT_TRANSPORT>(BT_TRANSPORT_LE));
+    if (connection_manager::get_apps_connecting_to(bda).empty()) {
+      gatt_cleanup_upon_disc(bda, GATT_CONN_TERMINATE_LOCAL_HOST, BT_TRANSPORT_LE);
     }
     return true;
   }
 
   if (gatt_get_ch_state(p_tcb) == GATT_CH_OPEN) {
-    log::error("link connected Too late to cancel");
+    log::error("link connected too late to cancel {}", bda);
     return false;
   }
 
@@ -1630,24 +1622,6 @@ bool gatt_cancel_open(tGATT_IF gatt_if, const RawAddress& bda) {
     log::debug("Client reference count is zero disconnecting device gatt_if:{} peer:{}", gatt_if,
                bda);
     gatt_disconnect(p_tcb);
-  }
-
-  if (!connection_manager::direct_connect_remove(gatt_if, bda)) {
-    if (!connection_manager::is_background_connection(bda)) {
-      if (!com::android::bluetooth::flags::gatt_fix_multiple_direct_connect() ||
-          p_tcb->app_hold_link.empty()) {
-        bluetooth::shim::ACL_IgnoreLeConnectionFrom(BTM_Sec_GetAddressWithType(bda));
-      }
-      log::info(
-              "Gatt connection manager has no background record but  removed "
-              "filter acceptlist gatt_if:{} peer:{}",
-              gatt_if, bda);
-    } else {
-      log::info(
-              "Gatt connection manager maintains a background record preserving "
-              "filter acceptlist gatt_if:{} peer:{}",
-              gatt_if, bda);
-    }
   }
 
   return true;
@@ -1830,12 +1804,6 @@ static void gatt_disconnect_complete_notify_user(const RawAddress& bda, tGATT_DI
         (*p_reg->app_cb.p_conn_cb)(p_reg->gatt_if, bda, conn_id, kGattDisconnected, reason,
                                    transport);
       }
-
-      if (p_reg->direct_connect_request.count(bda) > 0) {
-        log::info("Removing device {} from the direct connect list of gatt_if {}", bda,
-                  p_reg->gatt_if);
-        p_reg->direct_connect_request.erase(bda);
-      }
     }
   } else {
     for (uint8_t i = 0; i < GATT_MAX_APPS; i++) {
@@ -1845,12 +1813,6 @@ static void gatt_disconnect_complete_notify_user(const RawAddress& bda, tGATT_DI
                 p_tcb ? gatt_create_conn_id(p_tcb->tcb_idx, p_reg->gatt_if) : GATT_INVALID_CONN_ID;
         (*p_reg->app_cb.p_conn_cb)(p_reg->gatt_if, bda, conn_id, kGattDisconnected, reason,
                                    transport);
-      }
-
-      if (p_reg->direct_connect_request.count(bda) > 0) {
-        log::info("Removing device {} from the direct connect list of gatt_if {}", bda,
-                  p_reg->gatt_if);
-        p_reg->direct_connect_request.erase(bda);
       }
     }
   }
@@ -1906,6 +1868,9 @@ void gatt_cleanup_upon_disc(const RawAddress& bda, tGATT_DISCONN_REASON reason,
   gatt_free_pending_ind(p_tcb);
   fixed_queue_free(p_tcb->sr_cmd.multi_rsp_q, NULL);
   p_tcb->sr_cmd.multi_rsp_q = NULL;
+  if (p_tcb->sr_cmd.p_rsp_msg) {
+    osi_free_and_reset((void**)&p_tcb->sr_cmd.p_rsp_msg);
+  }
 
   gatt_disconnect_complete_notify_user(bda, reason, transport);
 

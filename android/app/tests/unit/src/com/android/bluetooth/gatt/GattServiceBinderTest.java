@@ -88,7 +88,11 @@ public class GattServiceBinderTest {
 
         mBinder.unregisterClient(clientIf, mAttributionSource);
 
-        verify(mService).unregisterClient(clientIf, mAttributionSource);
+        verify(mService)
+                .unregisterClient(
+                        clientIf,
+                        mAttributionSource,
+                        ContextMap.RemoveReason.REASON_UNREGISTER_CLIENT);
     }
 
     @Test

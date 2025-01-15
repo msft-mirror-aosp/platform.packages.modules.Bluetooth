@@ -99,7 +99,7 @@ public class DipTest {
             boolean primaryRecord) {
         Intent intent = intentArgument.getValue();
 
-        assertThat(intent).isNotEqualTo(null);
+        assertThat(intent).isNotNull();
         assertThat(intent.getAction()).isEqualTo(BluetoothDevice.ACTION_SDP_RECORD);
         assertThat(device).isEqualTo(intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE));
         assertThat(Utils.byteArrayToUuid(uuid)[0])
@@ -108,7 +108,7 @@ public class DipTest {
                 .isEqualTo(intent.getIntExtra(BluetoothDevice.EXTRA_SDP_SEARCH_STATUS, -1));
 
         SdpDipRecord record = intent.getParcelableExtra(BluetoothDevice.EXTRA_SDP_RECORD);
-        assertThat(record).isNotEqualTo(null);
+        assertThat(record).isNotNull();
         assertThat(specificationId).isEqualTo(record.getSpecificationId());
         assertThat(vendorId).isEqualTo(record.getVendorId());
         assertThat(vendorIdSource).isEqualTo(record.getVendorIdSource());

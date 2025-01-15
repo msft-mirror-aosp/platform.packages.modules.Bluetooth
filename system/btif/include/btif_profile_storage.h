@@ -102,6 +102,9 @@ void btif_storage_set_leaudio_autoconnect(const RawAddress& addr, bool autoconne
 /** Store PACs information */
 void btif_storage_leaudio_update_pacs_bin(const RawAddress& addr);
 
+/** Store GMAP information */
+void btif_storage_leaudio_update_gmap_bin(const RawAddress& addr);
+
 /** Store ASEs information */
 void btif_storage_leaudio_update_ase_bin(const RawAddress& addr);
 
