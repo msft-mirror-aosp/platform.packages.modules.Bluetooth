@@ -45,6 +45,13 @@ namespace bluetooth {
 namespace hci {
 const ModuleFactory DistanceMeasurementManager::Factory =
         ModuleFactory([]() { return new DistanceMeasurementManager(); });
+// valid azimuth angle degree value is from 0 to 360.
+static constexpr int kInvalidAzimuthAngleDegree = -1;
+// valid altitude angle degree value is from -90 to 90
+static constexpr int kInvalidAltitudeAngleDegree = -91;
+static constexpr double kInvalidDelayedSpreadMeters = -1.0;
+static constexpr int8_t kInvalidConfidenceLevel = -1;
+static constexpr double kInvalidVelocityMetersPerSecond = -1.0;
 static constexpr uint16_t kIllegalConnectionHandle = 0xffff;
 static constexpr uint8_t kTxPowerNotAvailable = 0xfe;
 static constexpr int8_t kRSSIDropOffAt1M = 41;
@@ -283,10 +290,18 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     using namespace std::chrono;
     uint64_t elapsedRealtimeNanos =
             duration_cast<nanoseconds>(steady_clock::now().time_since_epoch()).count();
+    if (is_hal_v2()) {
+      elapsedRealtimeNanos = ranging_result.elapsed_timestamp_nanos_;
+    }
     distance_measurement_callbacks_->OnDistanceMeasurementResult(
             cs_requester_trackers_[connection_handle].address, ranging_result.result_meters_ * 100,
-            0.0, -1, -1, -1, -1, elapsedRealtimeNanos, ranging_result.confidence_level_,
-            DistanceMeasurementMethod::METHOD_CS);
+            ranging_result.error_meters_ * 100, kInvalidAzimuthAngleDegree,
+            kInvalidAzimuthAngleDegree, kInvalidAltitudeAngleDegree, kInvalidAltitudeAngleDegree,
+            elapsedRealtimeNanos, ranging_result.confidence_level_,
+            ranging_result.delay_spread_meters_,
+            static_cast<DistanceMeasurementDetectedAttackLevel>(
+                    ranging_result.detected_attack_level_),
+            ranging_result.velocity_meters_per_second_, DistanceMeasurementMethod::METHOD_CS);
   }
 
   ~impl() {}
@@ -2477,8 +2492,11 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     uint64_t elapsedRealtimeNanos =
             duration_cast<nanoseconds>(steady_clock::now().time_since_epoch()).count();
     distance_measurement_callbacks_->OnDistanceMeasurementResult(
-            address, distance * 100, distance * 100, -1, -1, -1, -1, elapsedRealtimeNanos, -1,
-            DistanceMeasurementMethod::METHOD_RSSI);
+            address, distance * 100, distance * 100, kInvalidAzimuthAngleDegree,
+            kInvalidAzimuthAngleDegree, kInvalidAltitudeAngleDegree, kInvalidAltitudeAngleDegree,
+            elapsedRealtimeNanos, kInvalidConfidenceLevel, kInvalidDelayedSpreadMeters,
+            DistanceMeasurementDetectedAttackLevel::NADM_ATTACK_UNKNOWN,
+            kInvalidVelocityMetersPerSecond, DistanceMeasurementMethod::METHOD_RSSI);
   }
 
   std::vector<uint8_t> builder_to_bytes(std::unique_ptr<PacketBuilder<true>> builder) {

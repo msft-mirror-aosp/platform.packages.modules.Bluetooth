@@ -210,18 +210,29 @@ public class DistanceMeasurementManagerTest {
                 IDENTITY_ADDRESS,
                 100,
                 0,
+                100,
                 0,
+                45,
                 0,
-                0,
-                0,
-                0,
+                10000,
                 1,
+                /* delayedSpreadMeters= */ 10.0,
+                /* detectedAttackLevel= */ DistanceMeasurementResult.NADM_ATTACK_IS_POSSIBLE,
+                /* velocityMetersPerSecond= */ 1.0,
                 DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING);
         ArgumentCaptor<DistanceMeasurementResult> result =
                 ArgumentCaptor.forClass(DistanceMeasurementResult.class);
 
         verify(mCallback).onResult(eq(mDevice), result.capture());
         assertThat(result.getValue().getResultMeters()).isEqualTo(1.00);
+        assertThat(result.getValue().getAzimuthAngle()).isEqualTo(100);
+        assertThat(result.getValue().getAltitudeAngle()).isEqualTo(45);
+        assertThat(result.getValue().getMeasurementTimestampNanos()).isEqualTo(10000);
+        assertThat(result.getValue().getConfidenceLevel()).isEqualTo(0.01);
+        assertThat(result.getValue().getDelaySpreadMeters()).isEqualTo(10.0);
+        assertThat(result.getValue().getDetectedAttackLevel())
+                .isEqualTo(DistanceMeasurementResult.NADM_ATTACK_IS_POSSIBLE);
+        assertThat(result.getValue().getVelocityMetersPerSecond()).isEqualTo(1.0);
     }
 
     @Test
@@ -267,6 +278,9 @@ public class DistanceMeasurementManagerTest {
                 -1,
                 1000L,
                 -1,
+                /* delayedSpreadMeters= */ 10.0,
+                /* detectedAttackLevel= */ DistanceMeasurementResult.NADM_ATTACK_IS_POSSIBLE,
+                /* velocityMetersPerSecond= */ 0.0,
                 DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_RSSI);
         ArgumentCaptor<DistanceMeasurementResult> result =
                 ArgumentCaptor.forClass(DistanceMeasurementResult.class);
@@ -278,6 +292,10 @@ public class DistanceMeasurementManagerTest {
         assertThat(result.getValue().getAltitudeAngle()).isEqualTo(Double.NaN);
         assertThat(result.getValue().getErrorAltitudeAngle()).isEqualTo(Double.NaN);
         assertThat(result.getValue().getMeasurementTimestampNanos()).isEqualTo(1000L);
+        assertThat(result.getValue().getDelaySpreadMeters()).isEqualTo(Double.NaN);
+        assertThat(result.getValue().getDetectedAttackLevel())
+                .isEqualTo(DistanceMeasurementResult.NADM_UNKNOWN);
+        assertThat(result.getValue().getVelocityMetersPerSecond()).isEqualTo(Double.NaN);
     }
 
     @Test
@@ -306,6 +324,9 @@ public class DistanceMeasurementManagerTest {
                 -1,
                 1000L,
                 -1,
+                /* delayedSpreadMeters= */ 10.0,
+                /* detectedAttackLevel= */ DistanceMeasurementResult.NADM_ATTACK_IS_POSSIBLE,
+                /* velocityMetersPerSecond= */ 0.0,
                 DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_RSSI);
         DistanceMeasurementResult result =
                 new DistanceMeasurementResult.Builder(1.00, 1.00).build();

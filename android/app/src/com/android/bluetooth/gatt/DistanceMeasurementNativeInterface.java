@@ -107,6 +107,9 @@ public class DistanceMeasurementNativeInterface {
             int errorAltitudeAngle,
             long elapsedRealtimeNanos,
             int confidenceLevel,
+            double delayedSpreadMeters,
+            int detectedAttackLevel,
+            double velocityMetersPerSecond,
             int method) {
         mDistanceMeasurementManager.onDistanceMeasurementResult(
                 address,
@@ -118,6 +121,9 @@ public class DistanceMeasurementNativeInterface {
                 errorAltitudeAngle,
                 elapsedRealtimeNanos,
                 confidenceLevel,
+                delayedSpreadMeters,
+                detectedAttackLevel,
+                velocityMetersPerSecond,
                 method);
     }
 
