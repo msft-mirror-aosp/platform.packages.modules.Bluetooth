@@ -76,7 +76,7 @@ tBTM_STATUS BTM_SetEncryption(const RawAddress& bd_addr, tBT_TRANSPORT transport
   return btm_interface->SetEncryption(bd_addr, transport, p_callback, p_ref_data, sec_act);
 }
 
-bool BTM_SecIsSecurityPending(const RawAddress& bd_addr) {
+bool BTM_SecIsLeSecurityPending(const RawAddress& bd_addr) {
   log::assert_that(btm_interface != nullptr, "Mock btm interface not set!");
   return btm_interface->SecIsSecurityPending(bd_addr);
 }
