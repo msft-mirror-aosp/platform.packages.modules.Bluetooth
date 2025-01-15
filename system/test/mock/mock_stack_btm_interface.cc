@@ -137,7 +137,7 @@ struct btm_client_interface_t default_btm_client_interface = {
                 },
                 .BTM_IsEncrypted = [](const RawAddress& /* bd_addr */,
                                       tBT_TRANSPORT /* transport */) -> bool { return false; },
-                .BTM_SecIsSecurityPending = [](const RawAddress& /* bd_addr */) -> bool {
+                .BTM_SecIsLeSecurityPending = [](const RawAddress& /* bd_addr */) -> bool {
                   return false;
                 },
                 .BTM_IsLinkKeyKnown = [](const RawAddress& /* bd_addr */,

@@ -2512,7 +2512,7 @@ public:
 
     /* Check if the device is in allow list and update the flag */
     leAudioDevice->UpdateDeviceAllowlistFlag();
-    if (BTM_SecIsSecurityPending(address)) {
+    if (BTM_SecIsLeSecurityPending(address)) {
       /* if security collision happened, wait for encryption done
        * (BTA_GATTC_ENC_CMPL_CB_EVT) */
       return;
