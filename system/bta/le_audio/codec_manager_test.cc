@@ -51,11 +51,6 @@ using bluetooth::le_audio::types::kLeAudioDirectionSource;
 
 void osi_property_set_bool(const char* key, bool value);
 
-template <typename T>
-T& bluetooth::le_audio::types::BidirectionalPair<T>::get(uint8_t direction) {
-  return (direction == bluetooth::le_audio::types::kLeAudioDirectionSink) ? sink : source;
-}
-
 static const std::vector<AudioSetConfiguration> offload_capabilities_none(0);
 
 const std::vector<AudioSetConfiguration>* offload_capabilities = &offload_capabilities_none;
