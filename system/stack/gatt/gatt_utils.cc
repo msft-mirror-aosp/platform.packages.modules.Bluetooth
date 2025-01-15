@@ -430,16 +430,26 @@ tGATT_TCB* gatt_find_tcb_by_addr(const RawAddress& bda, tBT_TRANSPORT transport)
   return p_tcb;
 }
 
+/* This is  for connection manager */
+std::string get_client_name(uint8_t gatt_if) {
+  if (gatt_if == CONN_MGR_ID_L2CAP) {
+    return "L2CAP";
+  }
+
+  tGATT_REG* reg = gatt_get_regcb(gatt_if);
+  return (reg == nullptr) ? "" : reg->name;
+}
+
 std::string gatt_tcb_get_holders_info_string(const tGATT_TCB* p_tcb) {
   std::stringstream stream;
 
   if (p_tcb->app_hold_link.size() == 0) {
     stream << "No ACL holders";
   } else {
-    stream << "ACL holders gatt_if:";
+    stream << "ACL holders gatt_if: ";
 
     for (auto gatt_if : p_tcb->app_hold_link) {
-      stream << static_cast<int>(gatt_if) << ",";
+      stream << get_client_name(gatt_if) << " (" << +gatt_if << "), ";
     }
   }
   return stream.str();

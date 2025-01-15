@@ -106,8 +106,8 @@ struct gatt_interface_t {
   void (*BTA_GATTC_Refresh)(const RawAddress& remote_bda);
   void (*BTA_GATTC_GetGattDb)(tCONN_ID conn_id, uint16_t start_handle, uint16_t end_handle,
                               btgatt_db_element_t** db, int* count);
-  void (*BTA_GATTC_AppRegister)(tBTA_GATTC_CBACK* p_client_cb, BtaAppRegisterCallback cb,
-                                bool eatt_support);
+  void (*BTA_GATTC_AppRegister)(const std::string& name, tBTA_GATTC_CBACK* p_client_cb,
+                                BtaAppRegisterCallback cb, bool eatt_support);
   void (*BTA_GATTC_Close)(tCONN_ID conn_id);
   void (*BTA_GATTC_ServiceSearchRequest)(tCONN_ID conn_id, const bluetooth::Uuid* p_srvc_uuid);
   void (*BTA_GATTC_Open)(tGATT_IF client_if, const RawAddress& remote_bda,
@@ -125,8 +125,9 @@ struct gatt_interface_t {
                   BTA_GATTC_GetGattDb(conn_id, start_handle, end_handle, db, count);
                 },
         .BTA_GATTC_AppRegister =
-                [](tBTA_GATTC_CBACK* p_client_cb, BtaAppRegisterCallback cb, bool eatt_support) {
-                  BTA_GATTC_AppRegister(p_client_cb, cb, eatt_support);
+                [](const std::string& name, tBTA_GATTC_CBACK* p_client_cb,
+                   BtaAppRegisterCallback cb, bool eatt_support) {
+                  BTA_GATTC_AppRegister(name, p_client_cb, cb, eatt_support);
                 },
         .BTA_GATTC_Close = [](tCONN_ID conn_id) { BTA_GATTC_Close(conn_id); },
         .BTA_GATTC_ServiceSearchRequest =
@@ -466,7 +467,8 @@ void bta_dm_disc_gattc_register(void) {
     return;
   }
   get_gatt_interface().BTA_GATTC_AppRegister(
-          bta_dm_gattc_callback, base::Bind([](uint8_t client_id, uint8_t status) {
+          "bta_dm_disc_gatt", bta_dm_gattc_callback,
+          base::Bind([](uint8_t client_id, uint8_t status) {
             tGATT_STATUS gatt_status = static_cast<tGATT_STATUS>(status);
             if (static_cast<tGATT_STATUS>(status) == GATT_SUCCESS) {
               log::info("Registered device discovery search gatt client tGATT_IF:{}", client_id);
