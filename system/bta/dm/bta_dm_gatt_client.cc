@@ -70,10 +70,11 @@ gatt_interface_t default_gatt_interface = {
                   BTA_GATTC_GetGattDb(conn_id, start_handle, end_handle, db, count);
                 },
         .BTA_GATTC_AppRegister =
-                [](tBTA_GATTC_CBACK* p_client_cb, BtaAppRegisterCallback cb, bool eatt_support) {
+                [](const std::string& name, tBTA_GATTC_CBACK* p_client_cb,
+                   BtaAppRegisterCallback cb, bool eatt_support) {
                   gatt_history_.Push(std::format("{:<32s} eatt_support:{:c}", "GATTC_AppRegister",
                                                  eatt_support ? 'T' : 'F'));
-                  BTA_GATTC_AppRegister(p_client_cb, cb, eatt_support);
+                  BTA_GATTC_AppRegister(name, p_client_cb, cb, eatt_support);
                 },
         .BTA_GATTC_Close =
                 [](tCONN_ID conn_id) {
