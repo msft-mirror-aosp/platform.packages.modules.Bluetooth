@@ -314,7 +314,10 @@ public class GattServiceTest {
         mService.registerClient(uuid, callback, eattSupport, mAttributionSource);
         verify(mNativeInterface)
                 .gattClientRegisterApp(
-                        uuid.getLeastSignificantBits(), uuid.getMostSignificantBits(), eattSupport);
+                        uuid.getLeastSignificantBits(),
+                        uuid.getMostSignificantBits(),
+                        mAttributionSource.getPackageName(),
+                        eattSupport);
     }
 
     @Test
@@ -326,7 +329,8 @@ public class GattServiceTest {
 
         mService.registerClient(uuid, callback, /* eattSupport= */ true, mAttributionSource);
         verify(mClientMap, never()).add(any(), any(), any(), any());
-        verify(mNativeInterface, never()).gattClientRegisterApp(anyLong(), anyLong(), anyBoolean());
+        verify(mNativeInterface, never())
+                .gattClientRegisterApp(anyLong(), anyLong(), anyString(), anyBoolean());
     }
 
     @Test

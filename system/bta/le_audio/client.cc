@@ -429,7 +429,7 @@ public:
     leAudioHealthStatus_->RegisterCallback(base::BindRepeating(le_audio_health_status_callback));
 
     BTA_GATTC_AppRegister(
-            le_audio_gattc_callback,
+            "le_audio", le_audio_gattc_callback,
             base::Bind(
                     [](base::Closure initCb, uint8_t client_id, uint8_t status) {
                       if (status != GATT_SUCCESS) {

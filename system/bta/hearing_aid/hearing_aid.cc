@@ -328,7 +328,7 @@ public:
               default_data_interval_ms, overwrite_min_ce_len, overwrite_max_ce_len);
 
     BTA_GATTC_AppRegister(
-            hearingaid_gattc_callback,
+            "asha", hearingaid_gattc_callback,
             base::Bind(
                     [](Closure initCb, uint8_t client_id, uint8_t status) {
                       if (status != GATT_SUCCESS) {

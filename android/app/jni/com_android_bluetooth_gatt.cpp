@@ -122,6 +122,16 @@ static std::vector<uint8_t> toVector(JNIEnv* env, jbyteArray ba) {
   return data_vec;
 }
 
+static std::string jstr_to_str(JNIEnv* env, jstring js) {
+  const char* cstr = env->GetStringUTFChars(js, NULL);
+  if (cstr == nullptr) {
+    return "";
+  }
+  std::string ret = std::string(cstr);
+  env->ReleaseStringUTFChars(js, cstr);
+  return ret;
+}
+
 namespace android {
 
 /**
@@ -1262,13 +1272,13 @@ static int gattClientGetDeviceTypeNative(JNIEnv* env, jobject /* object */, jstr
   return sGattIf->client->get_device_type(str2addr(env, address));
 }
 
-static void gattClientRegisterAppNative(JNIEnv* /* env */, jobject /* object */, jlong app_uuid_lsb,
-                                        jlong app_uuid_msb, jboolean eatt_support) {
+static void gattClientRegisterAppNative(JNIEnv* env, jobject /* object */, jlong app_uuid_lsb,
+                                        jlong app_uuid_msb, jstring name, jboolean eatt_support) {
   if (!sGattIf) {
     return;
   }
   Uuid uuid = from_java_uuid(app_uuid_msb, app_uuid_lsb);
-  sGattIf->client->register_client(uuid, eatt_support);
+  sGattIf->client->register_client(uuid, jstr_to_str(env, name).c_str(), eatt_support);
 }
 
 static void gattClientUnregisterAppNative(JNIEnv* /* env */, jobject /* object */, jint clientIf) {
@@ -2932,7 +2942,8 @@ static int register_com_android_bluetooth_gatt_(JNIEnv* env) {
           {"cleanupNative", "()V", (void*)cleanupNative},
           {"gattClientGetDeviceTypeNative", "(Ljava/lang/String;)I",
            (void*)gattClientGetDeviceTypeNative},
-          {"gattClientRegisterAppNative", "(JJZ)V", (void*)gattClientRegisterAppNative},
+          {"gattClientRegisterAppNative", "(JJLjava/lang/String;Z)V",
+           (void*)gattClientRegisterAppNative},
           {"gattClientUnregisterAppNative", "(I)V", (void*)gattClientUnregisterAppNative},
           {"gattClientConnectNative", "(ILjava/lang/String;IZIZII)V",
            (void*)gattClientConnectNative},

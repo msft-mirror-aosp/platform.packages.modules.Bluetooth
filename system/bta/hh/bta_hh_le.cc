@@ -202,7 +202,8 @@ void bta_hh_le_enable(void) {
     bta_hh_cb.le_cb_index[xx] = BTA_HH_IDX_INVALID;
   }
 
-  BTA_GATTC_AppRegister(bta_hh_gattc_callback, base::Bind([](tGATT_IF client_id, uint8_t r_status) {
+  BTA_GATTC_AppRegister("hid", bta_hh_gattc_callback,
+                        base::Bind([](tGATT_IF client_id, uint8_t r_status) {
                           tBTA_HH bta_hh;
                           bta_hh.status = BTA_HH_ERR;
 
