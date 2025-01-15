@@ -1744,7 +1744,7 @@ private:
   }
 
   void SetAseState(LeAudioDevice* leAudioDevice, struct ase* ase, AseState state) {
-    log::info("{}, ase_id: {}, {} -> {}", leAudioDevice->address_, ase->id, ToString(ase->state),
+    log::info("{} ({}), ase_id: {}, {} -> {}", leAudioDevice->address_, leAudioDevice->group_id_, ase->id, ToString(ase->state),
               ToString(state));
 
     log_history_->AddLogHistory(kLogStateMachineTag, leAudioDevice->group_id_,
