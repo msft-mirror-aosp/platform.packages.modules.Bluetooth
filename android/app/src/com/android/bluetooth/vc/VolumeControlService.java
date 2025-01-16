@@ -535,8 +535,8 @@ public class VolumeControlService extends ProfileService {
         mNativeInterface.setExtAudioOutVolumeOffset(device, instanceId, volumeOffset);
     }
 
-    public synchronized void setDeviceVolume(
-            BluetoothDevice device, int volume, boolean isGroupOp) {
+    @VisibleForTesting
+    synchronized void setDeviceVolume(BluetoothDevice device, int volume, boolean isGroupOp) {
         Log.d(
                 TAG,
                 "setDeviceVolume: " + device + ", volume: " + volume + ", isGroupOp: " + isGroupOp);
@@ -571,7 +571,7 @@ public class VolumeControlService extends ProfileService {
     private void adjustDeviceMute(BluetoothDevice device, int volume, Boolean isStreamMute) {
         Boolean isMute = getMute(device);
         if (!isMute.equals(isStreamMute)) {
-            Log.w(
+            Log.d(
                     TAG,
                     "Mute state mismatch, stream mute: "
                             + isStreamMute
@@ -627,7 +627,7 @@ public class VolumeControlService extends ProfileService {
          * have to explicitly unmute the remote device.
          */
         if (!isGroupMute.equals(isStreamMute)) {
-            Log.w(
+            Log.d(
                     TAG,
                     "Mute state mismatch, stream mute: "
                             + isStreamMute
@@ -663,7 +663,7 @@ public class VolumeControlService extends ProfileService {
                 if (volume != null) {
                     return volume;
                 }
-                Log.w(TAG, "No group volume available");
+                Log.d(TAG, "No group volume available");
                 for (BluetoothDevice device : getGroupDevices(groupId)) {
                     volume = mDeviceVolumeCache.get(device);
                     if (volume != null) {
