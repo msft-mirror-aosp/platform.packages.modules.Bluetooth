@@ -104,6 +104,7 @@ void btif_dm_clear_event_filter();
 void btif_dm_clear_event_mask();
 void btif_dm_clear_filter_accept_list();
 void btif_dm_disconnect_all_acls();
+void btif_dm_disconnect_acl(const RawAddress& bd_addr, tBT_TRANSPORT transport);
 
 void btif_dm_le_rand(bluetooth::hci::LeRandCallback callback);
 void btif_dm_set_event_filter_connection_setup_all_devices();
