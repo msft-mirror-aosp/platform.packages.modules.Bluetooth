@@ -138,6 +138,7 @@ public:
   CsisClientImpl(bluetooth::csis::CsisClientCallbacks* callbacks, Closure initCb)
       : gatt_if_(0), callbacks_(callbacks) {
     BTA_GATTC_AppRegister(
+            "csis",
             [](tBTA_GATTC_EVT event, tBTA_GATTC* p_data) {
               if (instance && p_data) {
                 instance->GattcCallback(event, p_data);
@@ -1923,7 +1924,7 @@ private:
       BtaGattQueue::Clean(evt.conn_id);
     }
     /* Verify bond */
-    if (BTM_SecIsSecurityPending(device->addr)) {
+    if (BTM_SecIsLeSecurityPending(device->addr)) {
       /* if security collision happened, wait for encryption done
        * (BTA_GATTC_ENC_CMPL_CB_EVT) */
       return;

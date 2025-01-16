@@ -23,6 +23,9 @@
 #include "types/ble_address_with_type.h"
 #include "types/raw_address.h"
 
+/* Must be provided by stack to connection manager, so it can dump nice client names in dumpsys */
+std::string get_client_name(uint8_t gatt_if);
+
 /* connection_manager takes care of all the low-level details of LE connection
  * initiation. It accept requests from multiple subsystems to connect to
  * devices, and multiplex them into acceptlist add/remove, and scan parameter

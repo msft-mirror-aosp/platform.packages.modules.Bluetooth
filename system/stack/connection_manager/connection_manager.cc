@@ -52,6 +52,8 @@ struct closure_data {
   base::Location posted_from;
 };
 
+extern std::string get_client_name(uint8_t gatt_if);
+
 static void alarm_closure_cb(void* p) {
   closure_data* data = (closure_data*)p;
   log::verbose("executing timer scheduled at {}", data->posted_from.ToString());
@@ -627,14 +629,14 @@ void dump(int fd) {
     if (!entry.second.doing_direct_conn.empty()) {
       dprintf(fd, "\n\t\tapps doing direct connect: ");
       for (const auto& id : entry.second.doing_direct_conn) {
-        dprintf(fd, "%d, ", id.first);
+        dprintf(fd, "%s (%d), ", get_client_name(id.first).c_str(), id.first);
       }
     }
 
     if (!entry.second.doing_bg_conn.empty()) {
       dprintf(fd, "\n\t\tapps doing background connect: ");
       for (const auto& id : entry.second.doing_bg_conn) {
-        dprintf(fd, "%d, ", id);
+        dprintf(fd, "%s (%d), ", get_client_name(id).c_str(), id);
       }
     }
   }

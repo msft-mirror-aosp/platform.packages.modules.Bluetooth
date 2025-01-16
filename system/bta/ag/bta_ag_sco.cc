@@ -122,24 +122,6 @@ static const char* bta_ag_sco_evt_str(uint8_t event) {
   }
 }
 
-static const char* bta_ag_sco_state_str(uint8_t state) {
-  switch (state) {
-    CASE_RETURN_STR(BTA_AG_SCO_SHUTDOWN_ST)
-    CASE_RETURN_STR(BTA_AG_SCO_LISTEN_ST)
-    CASE_RETURN_STR(BTA_AG_SCO_CODEC_ST)
-    CASE_RETURN_STR(BTA_AG_SCO_OPENING_ST)
-    CASE_RETURN_STR(BTA_AG_SCO_OPEN_CL_ST)
-    CASE_RETURN_STR(BTA_AG_SCO_OPEN_XFER_ST)
-    CASE_RETURN_STR(BTA_AG_SCO_OPEN_ST)
-    CASE_RETURN_STR(BTA_AG_SCO_CLOSING_ST)
-    CASE_RETURN_STR(BTA_AG_SCO_CLOSE_OP_ST)
-    CASE_RETURN_STR(BTA_AG_SCO_CLOSE_XFER_ST)
-    CASE_RETURN_STR(BTA_AG_SCO_SHUTTING_ST)
-    default:
-      return "Unknown SCO State";
-  }
-}
-
 static int codec_uuid_to_sample_rate(tBTA_AG_UUID_CODEC codec) {
   int sample_rate;
   switch (codec) {
@@ -223,8 +205,7 @@ static void bta_ag_sco_conn_cback(uint16_t sco_idx) {
 static void bta_ag_sco_disc_cback(uint16_t sco_idx) {
   uint16_t handle = 0;
 
-  log::debug("sco_idx: 0x{:x} sco.state:{}", sco_idx,
-             sco_state_text(static_cast<tSCO_STATE>(bta_ag_cb.sco.state)));
+  log::debug("sco_idx: 0x{:x} sco.state:{}", sco_idx, bta_ag_cb.sco.state);
   log::debug("scb[0] in_use:{} sco_idx: 0x{:x} ag state:{}", bta_ag_cb.scb[0].in_use,
              bta_ag_cb.scb[0].sco_idx, bta_ag_state_str(bta_ag_cb.scb[0].state));
   log::debug("scb[1] in_use:{} sco_idx:0x{:x} ag state:{}", bta_ag_cb.scb[1].in_use,
@@ -752,9 +733,10 @@ void bta_ag_codec_negotiate(tBTA_AG_SCB* p_scb) {
 
 static void bta_ag_sco_event(tBTA_AG_SCB* p_scb, uint8_t event) {
   tBTA_AG_SCO_CB* p_sco = &bta_ag_cb.sco;
-  uint8_t previous_state = p_sco->state;
-  log::info("device:{} index:0x{:04x} state:{}[{}] event:{}[{}]", p_scb->peer_addr, p_scb->sco_idx,
-            bta_ag_sco_state_str(p_sco->state), p_sco->state, bta_ag_sco_evt_str(event), event);
+  tBTA_AG_SCO previous_state = p_sco->state;
+  log::info("device:{} index:0x{:04x} state:{}[0x{:02x}] event:{}[{}]", p_scb->peer_addr,
+            p_scb->sco_idx, p_sco->state, static_cast<uint8_t>(p_sco->state),
+            bta_ag_sco_evt_str(event), event);
 
   switch (p_sco->state) {
     case BTA_AG_SCO_SHUTDOWN_ST:
@@ -1244,8 +1226,8 @@ static void bta_ag_sco_event(tBTA_AG_SCB* p_scb, uint8_t event) {
     log::warn(
             "SCO_state_change: [{}(0x{:02x})]->[{}(0x{:02x})] after event "
             "[{}(0x{:02x})]",
-            bta_ag_sco_state_str(previous_state), previous_state,
-            bta_ag_sco_state_str(p_sco->state), p_sco->state, bta_ag_sco_evt_str(event), event);
+            previous_state, static_cast<uint8_t>(previous_state), p_sco->state,
+            static_cast<uint8_t>(p_sco->state), bta_ag_sco_evt_str(event), event);
   }
 }
 
