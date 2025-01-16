@@ -936,9 +936,6 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       req_it->second.remote_support_phase_based_ranging =
               event_view.GetOptionalSubfeaturesSupported().phase_based_ranging_ == 0x01;
       req_it->second.remote_num_antennas_supported_ = event_view.GetNumAntennasSupported();
-      req_it->second.setup_complete = true;
-      log::info("Setup phase complete, connection_handle: {}, address: {}", connection_handle,
-                req_it->second.address);
       req_it->second.retry_counter_for_create_config = 0;
       req_it->second.remote_supported_sw_time_ = event_view.GetTSwTimeSupported();
       send_le_cs_create_config(connection_handle, req_it->second.requesting_config_id);
@@ -1037,6 +1034,10 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     if (!live_tracker->local_start) {
       // reset the responder state, as no other event to set the state.
       live_tracker->state = CsTrackerState::WAIT_FOR_CONFIG_COMPLETE;
+    } else {
+      live_tracker->setup_complete = true;
+      log::info("connection_handle: {}, address: {}, config_id: {}", connection_handle,
+                live_tracker->address, config_id);
     }
 
     live_tracker->used_config_id = config_id;
