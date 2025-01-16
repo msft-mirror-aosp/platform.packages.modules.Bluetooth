@@ -20,7 +20,8 @@ import itertools
 import logging
 import numpy as np
 
-from a2dp.packets import avdtp
+from a2dp.packets.avdtp import *
+from a2dp.signaling_channel import Any, SignalingChannel
 from avatar import BumblePandoraDevice, PandoraDevice, PandoraDevices, pandora_snippet, enableFlag
 from bumble.a2dp import (
     A2DP_MPEG_2_4_AAC_CODEC_TYPE,
@@ -40,8 +41,6 @@ from bumble.avctp import AVCTP_PSM
 from bumble.avdtp import (
     AVDTP_AUDIO_MEDIA_TYPE,
     AVDTP_BAD_STATE_ERROR,
-    AVDTP_CLOSING_STATE,
-    AVDTP_IDLE_STATE,
     AVDTP_OPEN_STATE,
     AVDTP_PSM,
     AVDTP_STREAMING_STATE,
@@ -290,6 +289,94 @@ class A2dpTest(base_test.BaseTestClass):  # type: ignore[misc]
         # Stop streaming to RD1.
         await self.dut.a2dp.Suspend(source=dut_ref1_source)
         assert_equal(self.ref1.a2dp_sink.stream.state, AVDTP_OPEN_STATE)
+
+    @avatar.asynchronous
+    async def test_signaling_channel_and_streaming(self) -> None:
+        """Basic A2DP connection and streaming with SignalingChannel used by acceptor device test.
+
+        1. Pair and Connect RD1
+        2. Setup the acceptor expectations on signalling channel
+        2. Start streaming
+        4. Stop streaming
+        """
+        any = Any()
+
+        # Connect and pair RD1.
+        dut_ref1, ref1_dut = await asyncio.gather(
+            initiate_pairing(self.dut, self.ref1.address),
+            accept_pairing(self.ref1, self.dut.address),
+        )
+
+        connection = pandora_snippet.get_raw_connection(device=self.ref1, connection=ref1_dut)
+        channel = SignalingChannel.accept(connection)
+
+        async def acceptor_avdt_open(channel: SignalingChannel):
+
+            avdtp_future = asyncio.get_running_loop().create_future()
+
+            def on_avdtp_connection():
+                logger.info(f"AVDTP Opened")
+                nonlocal avdtp_future
+                avdtp_future.set_result(None)
+
+            channel.on('connection', on_avdtp_connection)
+
+            cmd = await channel.expect_signal(DiscoverCommand(transaction_label=any))
+
+            seid_information = [SeidInformation(acp_seid=0x01, tsep=Tsep.SINK, media_type=AVDTP_AUDIO_MEDIA_TYPE)]
+
+            channel.send_signal(
+                DiscoverResponse(transaction_label=cmd.transaction_label, seid_information=seid_information))
+
+            cmd = await channel.expect_signal(GetAllCapabilitiesCommand(acp_seid=any, transaction_label=any))
+
+            acceptor_service_capabilities = [
+                MediaTransportCapability(),
+                MediaCodecCapability(service_category=ServiceCategory.MEDIA_CODEC,
+                                     media_codec_specific_information_elements=[255, 255, 2, 53])
+            ]
+
+            channel.send_signal(
+                GetAllCapabilitiesResponse(transaction_label=cmd.transaction_label,
+                                           service_capabilities=acceptor_service_capabilities))
+
+            cmd = await channel.expect_signal(
+                SetConfigurationCommand(transaction_label=any,
+                                        acp_seid=any,
+                                        int_seid=any,
+                                        service_capabilities=[MediaTransportCapability(), any]))
+
+            channel.send_signal(SetConfigurationResponse(transaction_label=cmd.transaction_label))
+
+            cmd = await channel.expect_signal(OpenCommand(transaction_label=any, acp_seid=any))
+
+            channel.send_signal(OpenResponse(transaction_label=cmd.transaction_label))
+
+            await asyncio.wait_for(avdtp_future, timeout=10.0)
+
+        # Connect AVDTP to RD1.
+        _, dut_ref1_source = await asyncio.gather(acceptor_avdt_open(channel), open_source(self.dut, dut_ref1))
+
+        async def acceptor_avdt_start(channel: SignalingChannel):
+            cmd = await channel.expect_signal(StartCommand(transaction_label=any, acp_seid=any))
+
+            channel.send_signal(StartResponse(transaction_label=cmd.transaction_label))
+
+        # Start streaming to RD1.
+        await asyncio.gather(self.dut.a2dp.Start(source=dut_ref1_source), acceptor_avdt_start(channel))
+
+        audio = AudioSignal(self.dut.a2dp, dut_ref1_source, 0.8, 44100)
+
+        # Verify that at least one audio frame is received on the transport channel.
+        await asyncio.wait_for(channel.expect_media(), 5.0)
+
+        async def acceptor_avdt_suspend(channel: SignalingChannel):
+            cmd = await channel.expect_signal(SuspendCommand(transaction_label=any, acp_seid=any))
+
+            channel.send_signal(SuspendResponse(transaction_label=cmd.transaction_label))
+
+        # Stop streaming to RD1.
+        await asyncio.gather(self.dut.a2dp.Suspend(source=dut_ref1_source), acceptor_avdt_suspend(channel))
 
     @avatar.asynchronous
     async def test_avdtp_autoconnect_when_only_avctp_connected(self) -> None:
