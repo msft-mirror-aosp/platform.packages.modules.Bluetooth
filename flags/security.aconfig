@@ -66,17 +66,6 @@ flag {
 }
 
 flag {
-  name: "btsec_le_oob_pairing"
-  namespace: "bluetooth"
-  description: "Drop connection if a peer claims it has OOB data but no local OOB data is stored"
-  bug: "374376990"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-
-flag {
   name: "opp_check_content_uri_permissions"
   namespace: "bluetooth"
   description: "Check that the launching application for OPP has read access to the given content URI, on Android V+"
