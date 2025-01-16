@@ -1115,24 +1115,18 @@ public:
   }
 
   /* Return true if stream is started */
-  bool GroupStream(int group_id, LeAudioContextType configuration_context_type,
+  bool GroupStream(LeAudioDeviceGroup* group, LeAudioContextType configuration_context_type,
                    BidirectionalPair<AudioContexts> remote_contexts) {
-    LeAudioDeviceGroup* group = aseGroups_.FindById(group_id);
+    log::assert_that(group != nullptr, "Group shall not be null");
 
     log::debug(
             "configuration_context_type= {}, remote sink contexts= {}, remote source contexts= {}",
             ToString(configuration_context_type), ToString(remote_contexts.sink),
             ToString(remote_contexts.source));
 
-    log::debug("");
     if (configuration_context_type >= LeAudioContextType::RFU) {
       log::error("stream context type is not supported: {}",
                  ToHexString(configuration_context_type));
-      return false;
-    }
-
-    if (!group) {
-      log::error("unknown group id: {}", group_id);
       return false;
     }
 
@@ -1140,7 +1134,7 @@ public:
                ToString(group->GetTargetState()));
 
     if (!group->IsAnyDeviceConnected()) {
-      log::error("group {} is not connected", group_id);
+      log::error("group {} is not connected", group->group_id_);
       return false;
     }
 
@@ -1200,7 +1194,13 @@ public:
   void GroupStream(const int group_id, uint16_t context_type) override {
     BidirectionalPair<AudioContexts> initial_contexts = {AudioContexts(context_type),
                                                          AudioContexts(context_type)};
-    GroupStream(group_id, LeAudioContextType(context_type), initial_contexts);
+    auto group = aseGroups_.FindById(group_id);
+    if (!group) {
+      log::error("unknown group id: {}", group_id);
+      return;
+    }
+
+    GroupStream(group, LeAudioContextType(context_type), initial_contexts);
   }
 
   void GroupSuspend(const int group_id) override {
@@ -4409,7 +4409,7 @@ public:
       return false;
     }
 
-    return GroupStream(active_group_id_, configuration_context_type_, remote_contexts);
+    return GroupStream(group, configuration_context_type_, remote_contexts);
   }
 
   void OnAudioSuspend() {
@@ -5537,7 +5537,7 @@ public:
     log::info("new_configuration_context= {}.", ToString(new_configuration_context));
     BidirectionalPair<AudioContexts> remote_contexts = {.sink = override_contexts,
                                                         .source = override_contexts};
-    return GroupStream(active_group_id_, new_configuration_context, remote_contexts);
+    return GroupStream(group, new_configuration_context, remote_contexts);
   }
 
   /* Return true if stream is started */
@@ -5666,7 +5666,7 @@ public:
               "Sink: " + ToString(remote_contexts.sink) +
                       "Source: " + ToString(remote_contexts.source));
 
-      return GroupStream(group->group_id_, configuration_context_type_, remote_contexts);
+      return GroupStream(group, configuration_context_type_, remote_contexts);
     }
     return false;
   }
@@ -6208,7 +6208,7 @@ public:
                     ToString(pre_configuration_context_type_),
                     ToString(configuration_context_type_));
             if ((configuration_context_type_ != pre_configuration_context_type_) &&
-                GroupStream(group->group_id_, configuration_context_type_, remote_contexts)) {
+                GroupStream(group, configuration_context_type_, remote_contexts)) {
               /* If configuration succeed wait for new status. */
               return;
             }
