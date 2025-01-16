@@ -19,7 +19,6 @@ package com.android.bluetooth.btservice;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothClass;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothHearingAid;
 import android.bluetooth.BluetoothLeAudio;
@@ -361,7 +360,7 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
                 if (mDbManager.getProfileConnectionPolicy(device, BluetoothProfile.A2DP)
                                 != BluetoothProfile.CONNECTION_POLICY_ALLOWED
                         || mAudioManager.getMode() != AudioManager.MODE_NORMAL) {
-                    if (isWatch(device)) {
+                    if (Utils.isWatch(mAdapterService, device)) {
                         Log.i(TAG, "Do not set hfp active for watch device " + device);
                         return;
                     }
@@ -867,9 +866,6 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
         @Override
         public void onAudioDevicesRemoved(AudioDeviceInfo[] removedDevices) {
             Log.d(TAG, "onAudioDevicesRemoved");
-            if (!Flags.admFallbackWhenWiredAudioDisconnected()) {
-                return;
-            }
             if (!Arrays.stream(removedDevices)
                     .anyMatch(AudioManagerAudioDeviceCallback::isWiredAudioHeadset)) {
                 return;
@@ -1236,15 +1232,7 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
             if (Objects.equals(a2dpFallbackDevice, device)) {
                 Log.d(TAG, "Found an A2DP fallback device: " + device);
                 setA2dpActiveDevice(device);
-                if (Flags.admAlwaysFallbackToAvailableDevice()) {
-                    setHfpActiveDevice(headsetFallbackDevice);
-                } else {
-                    if (Objects.equals(headsetFallbackDevice, device)) {
-                        setHfpActiveDevice(device);
-                    } else {
-                        setHfpActiveDevice(null);
-                    }
-                }
+                setHfpActiveDevice(headsetFallbackDevice);
                 /* If dual mode is enabled, LEA will be made active once all supported
                 classic audio profiles are made active for the device. */
                 if (!Utils.isDualModeAudioEnabled()) {
@@ -1275,15 +1263,7 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
             if (Objects.equals(headsetFallbackDevice, device)) {
                 Log.d(TAG, "Found a HFP fallback device: " + device);
                 setHfpActiveDevice(device);
-                if (Flags.admAlwaysFallbackToAvailableDevice()) {
-                    setA2dpActiveDevice(a2dpFallbackDevice);
-                } else {
-                    if (Objects.equals(a2dpFallbackDevice, device)) {
-                        setA2dpActiveDevice(a2dpFallbackDevice);
-                    } else {
-                        setA2dpActiveDevice(null, true);
-                    }
-                }
+                setA2dpActiveDevice(a2dpFallbackDevice);
                 if (!Utils.isDualModeAudioEnabled()) {
                     setLeAudioActiveDevice(null, true);
                 }
@@ -1364,32 +1344,6 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
             return hearingAidService.getHiSyncId(mHearingAidActiveDevices.iterator().next());
         }
         return BluetoothHearingAid.HI_SYNC_ID_INVALID;
-    }
-
-    /**
-     * Checks CoD and metadata to determine if the device is a watch
-     *
-     * @param device the remote device
-     * @return {@code true} if it's a watch, {@code false} otherwise
-     */
-    private boolean isWatch(BluetoothDevice device) {
-        // Check CoD
-        BluetoothClass deviceClass = new BluetoothClass(mAdapterService.getRemoteClass(device));
-        if (deviceClass.getDeviceClass() == BluetoothClass.Device.WEARABLE_WRIST_WATCH) {
-            return true;
-        }
-
-        // Check metadata
-        byte[] deviceType = mDbManager.getCustomMeta(device, BluetoothDevice.METADATA_DEVICE_TYPE);
-        if (deviceType == null) {
-            return false;
-        }
-        String deviceTypeStr = new String(deviceType);
-        if (deviceTypeStr.equals(BluetoothDevice.DEVICE_TYPE_WATCH)) {
-            return true;
-        }
-
-        return false;
     }
 
     /**

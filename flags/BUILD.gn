@@ -12,7 +12,6 @@ aconfig("bluetooth_flags_c_lib") {
     "btif_dm.aconfig",
     "btm_ble.aconfig",
     "connectivity.aconfig",
-    "device_iot_config.aconfig",
     "dis.aconfig",
     "framework.aconfig",
     "gap.aconfig",

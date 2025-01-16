@@ -15,6 +15,8 @@ use num_traits::cast::{FromPrimitive, ToPrimitive};
 use std::fmt::{Display, Formatter, Result};
 use std::sync::{Arc, Mutex};
 
+use std::ffi::CString;
+
 use topshim_macros::{cb_variant, gen_cxx_extern_trivial};
 
 pub type BtGattNotifyParams = bindings::btgatt_notify_params_t;
@@ -1165,7 +1167,8 @@ pub struct GattClient {
 
 impl GattClient {
     pub fn register_client(&self, uuid: &Uuid, eatt_support: bool) -> BtStatus {
-        BtStatus::from(ccall!(self, register_client, uuid, eatt_support))
+        let cname = CString::new("rust_client").expect("CString::new failed");
+        BtStatus::from(ccall!(self, register_client, uuid, cname.as_ptr(), eatt_support))
     }
 
     pub fn unregister_client(&self, client_if: i32) -> BtStatus {

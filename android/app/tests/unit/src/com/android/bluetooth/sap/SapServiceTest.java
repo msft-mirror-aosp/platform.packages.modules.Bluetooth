@@ -18,17 +18,16 @@ package com.android.bluetooth.sap;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
-import android.content.Context;
 import android.content.Intent;
 import android.os.Looper;
 
 import androidx.test.filters.MediumTest;
-import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestUtils;
@@ -47,40 +46,32 @@ import org.mockito.junit.MockitoRule;
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class SapServiceTest {
-    private SapService mService = null;
-    private BluetoothAdapter mAdapter = null;
-    private Context mTargetContext;
-
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
     @Mock private AdapterService mAdapterService;
     @Mock private DatabaseManager mDatabaseManager;
-    private BluetoothDevice mDevice;
+
+    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
+    private final BluetoothDevice mDevice = TestUtils.getTestDevice(mAdapter, 0);
+
+    private SapService mService;
 
     @Before
-    public void setUp() throws Exception {
-        mTargetContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
-        TestUtils.setAdapterService(mAdapterService);
+    public void setUp() {
+        doReturn(mDatabaseManager).when(mAdapterService).getDatabase();
 
         if (Looper.myLooper() == null) {
             Looper.prepare();
         }
 
-        mService = new SapService(mTargetContext);
-        mService.start();
+        mService = new SapService(mAdapterService);
         mService.setAvailable(true);
-        // Try getting the Bluetooth adapter
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
-        assertThat(mAdapter).isNotNull();
-        mDevice = TestUtils.getTestDevice(mAdapter, 0);
     }
 
     @After
-    public void tearDown() throws Exception {
+    public void tearDown() {
         mService.stop();
-        mService = SapService.getSapService();
-        assertThat(mService).isNull();
-        TestUtils.clearAdapterService(mAdapterService);
+        assertThat(SapService.getSapService()).isNull();
     }
 
     @Test
@@ -89,22 +80,9 @@ public class SapServiceTest {
         assertThat(mService.getConnectedDevices()).isEmpty();
     }
 
-    /** Test stop SAP Service */
-    @Test
-    public void testStopSapService() throws Exception {
-        // SAP Service is already running: test stop(). Note: must be done on the main thread
-        InstrumentationRegistry.getInstrumentation()
-                .runOnMainSync(
-                        () -> {
-                            mService.stop();
-                            mService.start();
-                        });
-    }
-
     /** Test get connection policy for BluetoothDevice */
     @Test
     public void testGetConnectionPolicy() {
-        when(mAdapterService.getDatabase()).thenReturn(mDatabaseManager);
         when(mDatabaseManager.getProfileConnectionPolicy(mDevice, BluetoothProfile.SAP))
                 .thenReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
         assertThat(mService.getConnectionPolicy(mDevice))
@@ -137,6 +115,6 @@ public class SapServiceTest {
         Intent intent = new Intent(BluetoothDevice.ACTION_CONNECTION_ACCESS_REPLY);
         intent.putExtra(
                 BluetoothDevice.EXTRA_ACCESS_REQUEST_TYPE, BluetoothDevice.REQUEST_TYPE_SIM_ACCESS);
-        mService.mSapReceiver.onReceive(mTargetContext, intent);
+        mService.mSapReceiver.onReceive(null, intent);
     }
 }

@@ -175,7 +175,7 @@ public class PbapClientAccountManagerTest {
 
         assertThat(fromAccounts).isNull();
         assertThat(toAccounts).isNotNull();
-        assertThat(toAccounts.size()).isEqualTo(2);
+        assertThat(toAccounts).hasSize(2);
         assertThat(toAccounts).contains(accounts[0]);
         assertThat(toAccounts).contains(accounts[1]);
     }
@@ -250,7 +250,7 @@ public class PbapClientAccountManagerTest {
         mTestLooper.dispatchAll();
 
         assertThat(mAccountManager.getAccounts()).isNotNull();
-        assertThat(mAccountManager.getAccounts().size()).isEqualTo(2);
+        assertThat(mAccountManager.getAccounts()).hasSize(2);
         assertThat(mAccountManager.getAccounts()).contains(accounts[0]);
         assertThat(mAccountManager.getAccounts()).contains(accounts[1]);
     }
@@ -289,7 +289,7 @@ public class PbapClientAccountManagerTest {
 
         // Add again once its already in there
         assertThat(mAccountManager.addAccount(account)).isTrue();
-        assertThat(mAccountManager.getAccounts().size()).isEqualTo(1);
+        assertThat(mAccountManager.getAccounts()).hasSize(1);
         assertThat(mAccountManager.getAccounts()).contains(account);
     }
 

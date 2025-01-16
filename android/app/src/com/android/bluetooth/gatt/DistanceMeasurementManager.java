@@ -52,14 +52,21 @@ public class DistanceMeasurementManager {
     private static final int CS_MEDIUM_FREQUENCY_INTERVAL_MS = 3000;
     private static final int CS_HIGH_FREQUENCY_INTERVAL_MS = 200;
 
+    // sync with system/gd/hic/DistanceMeasurementManager
+    private static final int INVALID_AZIMUTH_ANGLE_DEGREE = -1;
+    private static final int INVALID_ALTITUDE_ANGLE_DEGREE = -91;
+
     private final AdapterService mAdapterService;
     private final HandlerThread mHandlerThread;
-    DistanceMeasurementNativeInterface mDistanceMeasurementNativeInterface;
+    private final DistanceMeasurementNativeInterface mDistanceMeasurementNativeInterface;
+    private final DistanceMeasurementBinder mDistanceMeasurementBinder;
     private final ConcurrentHashMap<String, CopyOnWriteArraySet<DistanceMeasurementTracker>>
             mRssiTrackers = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, CopyOnWriteArraySet<DistanceMeasurementTracker>>
             mCsTrackers = new ConcurrentHashMap<>();
     private final boolean mHasChannelSoundingFeature;
+
+    private volatile boolean mIsTurnedOff = false;
 
     /** Constructor of {@link DistanceMeasurementManager}. */
     DistanceMeasurementManager(AdapterService adapterService) {
@@ -70,6 +77,7 @@ public class DistanceMeasurementManager {
         mHandlerThread.start();
         mDistanceMeasurementNativeInterface = DistanceMeasurementNativeInterface.getInstance();
         mDistanceMeasurementNativeInterface.init(this);
+        mDistanceMeasurementBinder = new DistanceMeasurementBinder(adapterService, this);
         if (Flags.channelSounding25q2Apis()) {
             mHasChannelSoundingFeature =
                     adapterService
@@ -81,7 +89,26 @@ public class DistanceMeasurementManager {
     }
 
     void cleanup() {
+        mIsTurnedOff = true;
+        mDistanceMeasurementBinder.cleanup();
         mDistanceMeasurementNativeInterface.cleanup();
+        Log.d(TAG, "stop all sessions as BT is off");
+        for (String addressForCs : mCsTrackers.keySet()) {
+            onDistanceMeasurementStopped(
+                    addressForCs,
+                    BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED,
+                    DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING);
+        }
+        for (String addressForRssi : mRssiTrackers.keySet()) {
+            onDistanceMeasurementStopped(
+                    addressForRssi,
+                    BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED,
+                    DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_RSSI);
+        }
+    }
+
+    DistanceMeasurementBinder getBinder() {
+        return mDistanceMeasurementBinder;
     }
 
     DistanceMeasurementMethod[] getSupportedDistanceMeasurementMethods() {
@@ -102,6 +129,12 @@ public class DistanceMeasurementManager {
 
     void startDistanceMeasurement(
             UUID uuid, DistanceMeasurementParams params, IDistanceMeasurementCallback callback) {
+        if (mIsTurnedOff) {
+            Log.d(TAG, "BT is turned off, no new request is allowed.");
+            invokeStartFail(
+                    callback, params.getDevice(), BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED);
+            return;
+        }
         Log.i(
                 TAG,
                 "startDistanceMeasurement:"
@@ -471,6 +504,9 @@ public class DistanceMeasurementManager {
             int errorAltitudeAngle,
             long elapsedRealtimeNanos,
             int confidenceLevel,
+            double delaySpreadMeters,
+            int detectedAttackLevel,
+            double velocityMetersPerSecond,
             int method) {
         logd(
                 "onDistanceMeasurementResult "
@@ -482,16 +518,31 @@ public class DistanceMeasurementManager {
         DistanceMeasurementResult.Builder builder =
                 new DistanceMeasurementResult.Builder(centimeter / 100.0, errorCentimeter / 100.0)
                         .setMeasurementTimestampNanos(elapsedRealtimeNanos);
-        if (confidenceLevel != -1) {
-            builder.setConfidenceLevel(confidenceLevel / 100.0);
-        }
-        DistanceMeasurementResult result = builder.build();
+
         switch (method) {
             case DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_RSSI:
-                handleRssiResult(address, result);
+                handleRssiResult(address, builder.build());
                 break;
             case DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING:
-                handleCsResult(address, result);
+                if (azimuthAngle != INVALID_AZIMUTH_ANGLE_DEGREE) {
+                    builder.setAzimuthAngle(azimuthAngle);
+                    builder.setErrorAzimuthAngle(errorAzimuthAngle);
+                }
+                if (altitudeAngle != INVALID_ALTITUDE_ANGLE_DEGREE) {
+                    builder.setAltitudeAngle(altitudeAngle);
+                    builder.setErrorAltitudeAngle(errorAltitudeAngle);
+                }
+                if (confidenceLevel != -1) {
+                    builder.setConfidenceLevel(confidenceLevel / 100.0);
+                }
+                if (delaySpreadMeters >= 0) {
+                    builder.setDelaySpreadMeters(delaySpreadMeters);
+                }
+                if (velocityMetersPerSecond >= 0) {
+                    builder.setVelocityMetersPerSecond(velocityMetersPerSecond);
+                }
+                builder.setDetectedAttackLevel(detectedAttackLevel);
+                handleCsResult(address, builder.build());
                 break;
             default:
                 Log.w(TAG, "onDistanceMeasurementResult: invalid method " + method);
@@ -538,4 +589,5 @@ public class DistanceMeasurementManager {
     private static void logd(String msg) {
         Log.d(TAG, msg);
     }
+
 }

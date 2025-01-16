@@ -437,8 +437,8 @@ protected:
 
   void TestAppRegister(void) {
     BtaAppRegisterCallback app_register_callback;
-    EXPECT_CALL(gatt_interface, AppRegister(_, _, _))
-            .WillOnce(DoAll(SaveArg<0>(&gatt_callback), SaveArg<1>(&app_register_callback)));
+    EXPECT_CALL(gatt_interface, AppRegister(_, _, _, _))
+            .WillOnce(DoAll(SaveArg<1>(&gatt_callback), SaveArg<2>(&app_register_callback)));
     CsisClient::Initialize(callbacks.get(), Bind(&btif_storage_load_bonded_csis_devices));
     ASSERT_TRUE(gatt_callback);
     ASSERT_TRUE(app_register_callback);

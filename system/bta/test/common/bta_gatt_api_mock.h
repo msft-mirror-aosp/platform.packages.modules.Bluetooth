@@ -27,8 +27,8 @@ namespace gatt {
 
 class BtaGattInterface {
 public:
-  virtual void AppRegister(tBTA_GATTC_CBACK* p_client_cb, BtaAppRegisterCallback cb,
-                           bool eatt_support) = 0;
+  virtual void AppRegister(const std::string& name, tBTA_GATTC_CBACK* p_client_cb,
+                           BtaAppRegisterCallback cb, bool eatt_support) = 0;
   virtual void AppDeregister(tGATT_IF client_if) = 0;
   virtual void Open(tGATT_IF client_if, const RawAddress& remote_bda,
                     tBTM_BLE_CONN_TYPE connection_type, tBT_TRANSPORT transport, bool opportunistic,
@@ -52,7 +52,8 @@ public:
 class MockBtaGattInterface : public BtaGattInterface {
 public:
   MOCK_METHOD((void), AppRegister,
-              (tBTA_GATTC_CBACK * p_client_cb, BtaAppRegisterCallback cb, bool eatt_support),
+              (const std::string& name, tBTA_GATTC_CBACK* p_client_cb, BtaAppRegisterCallback cb,
+               bool eatt_support),
               (override));
   MOCK_METHOD((void), AppDeregister, (tGATT_IF client_if), (override));
   MOCK_METHOD((void), Open,

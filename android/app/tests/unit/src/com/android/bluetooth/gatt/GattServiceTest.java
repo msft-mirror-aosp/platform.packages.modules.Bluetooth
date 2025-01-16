@@ -30,9 +30,6 @@ import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothStatusCodes;
 import android.bluetooth.IBluetoothGattCallback;
 import android.bluetooth.IBluetoothGattServerCallback;
-import android.bluetooth.le.DistanceMeasurementMethod;
-import android.bluetooth.le.DistanceMeasurementParams;
-import android.bluetooth.le.IDistanceMeasurementCallback;
 import android.companion.CompanionDeviceManager;
 import android.content.AttributionSource;
 import android.content.Context;
@@ -302,7 +299,7 @@ public class GattServiceTest {
                 mService.getDevicesMatchingConnectionStates(states, mAttributionSource);
 
         int expectedSize = 1;
-        assertThat(deviceList.size()).isEqualTo(expectedSize);
+        assertThat(deviceList).hasSize(expectedSize);
 
         BluetoothDevice bluetoothDevice = deviceList.get(0);
         assertThat(bluetoothDevice.getAddress()).isEqualTo(address);
@@ -317,7 +314,10 @@ public class GattServiceTest {
         mService.registerClient(uuid, callback, eattSupport, mAttributionSource);
         verify(mNativeInterface)
                 .gattClientRegisterApp(
-                        uuid.getLeastSignificantBits(), uuid.getMostSignificantBits(), eattSupport);
+                        uuid.getLeastSignificantBits(),
+                        uuid.getMostSignificantBits(),
+                        mAttributionSource.getPackageName(),
+                        eattSupport);
     }
 
     @Test
@@ -329,15 +329,17 @@ public class GattServiceTest {
 
         mService.registerClient(uuid, callback, /* eattSupport= */ true, mAttributionSource);
         verify(mClientMap, never()).add(any(), any(), any(), any());
-        verify(mNativeInterface, never()).gattClientRegisterApp(anyLong(), anyLong(), anyBoolean());
+        verify(mNativeInterface, never())
+                .gattClientRegisterApp(anyLong(), anyLong(), anyString(), anyBoolean());
     }
 
     @Test
     public void unregisterClient() {
         int clientIf = 3;
 
-        mService.unregisterClient(clientIf, mAttributionSource);
-        verify(mClientMap).remove(clientIf);
+        mService.unregisterClient(
+                clientIf, mAttributionSource, ContextMap.RemoveReason.REASON_UNREGISTER_CLIENT);
+        verify(mClientMap).remove(clientIf, ContextMap.RemoveReason.REASON_UNREGISTER_CLIENT);
         verify(mNativeInterface).gattClientUnregisterApp(clientIf);
     }
 
@@ -584,37 +586,8 @@ public class GattServiceTest {
         doReturn(appIds).when(mClientMap).getAllAppsIds();
 
         mService.unregAll(mAttributionSource);
-        verify(mClientMap).remove(appId);
+        verify(mClientMap).remove(appId, ContextMap.RemoveReason.REASON_UNREGISTER_ALL);
         verify(mNativeInterface).gattClientUnregisterApp(appId);
-    }
-
-    @Test
-    public void getSupportedDistanceMeasurementMethods() {
-        mService.getSupportedDistanceMeasurementMethods();
-        verify(mDistanceMeasurementManager).getSupportedDistanceMeasurementMethods();
-    }
-
-    @Test
-    public void startDistanceMeasurement() {
-        UUID uuid = UUID.randomUUID();
-        BluetoothDevice device = mAdapter.getRemoteDevice("00:01:02:03:04:05");
-        DistanceMeasurementParams params =
-                new DistanceMeasurementParams.Builder(device)
-                        .setDurationSeconds(123)
-                        .setFrequency(DistanceMeasurementParams.REPORT_FREQUENCY_LOW)
-                        .build();
-        IDistanceMeasurementCallback callback = mock(IDistanceMeasurementCallback.class);
-        mService.startDistanceMeasurement(uuid, params, callback);
-        verify(mDistanceMeasurementManager).startDistanceMeasurement(uuid, params, callback);
-    }
-
-    @Test
-    public void stopDistanceMeasurement() {
-        UUID uuid = UUID.randomUUID();
-        BluetoothDevice device = mAdapter.getRemoteDevice("00:01:02:03:04:05");
-        int method = DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_RSSI;
-        mService.stopDistanceMeasurement(uuid, device, method);
-        verify(mDistanceMeasurementManager).stopDistanceMeasurement(uuid, device, method, false);
     }
 
     @Test

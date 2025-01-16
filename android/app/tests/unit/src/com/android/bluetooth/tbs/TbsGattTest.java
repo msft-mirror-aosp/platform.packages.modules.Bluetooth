@@ -41,7 +41,6 @@ import com.android.bluetooth.btservice.AdapterService;
 import com.google.common.primitives.Bytes;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -189,13 +188,12 @@ public class TbsGattTest {
             } else {
                 assertThat(mTbsGatt.setBearerProviderName((String) value)).isFalse();
             }
-            Assert.assertEquals((String) value, characteristic.getStringValue(0));
+            assertThat(characteristic.getStringValue(0)).isEqualTo((String) value);
 
         } else if (characteristic.getUuid().equals(TbsGatt.UUID_BEARER_TECHNOLOGY)) {
             assertThat(mTbsGatt.setBearerTechnology((Integer) value)).isTrue();
-            Assert.assertEquals(
-                    (Integer) value,
-                    characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, 0));
+            assertThat(characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, 0))
+                    .isEqualTo((Integer) value);
 
         } else if (characteristic
                 .getUuid()
@@ -209,7 +207,7 @@ public class TbsGattTest {
                 assertThat(mTbsGatt.setBearerUriSchemesSupportedList((List<String>) value))
                         .isFalse();
             }
-            Assert.assertEquals(valueString, characteristic.getStringValue(0));
+            assertThat(characteristic.getStringValue(0)).isEqualTo(valueString);
 
         } else if (characteristic.getUuid().equals(TbsGatt.UUID_STATUS_FLAGS)) {
             Pair<Integer, Boolean> flagStatePair = (Pair<Integer, Boolean>) value;
@@ -252,14 +250,15 @@ public class TbsGattTest {
             assertThat(mTbsGatt.setTerminationReason(indexReasonPair.first, indexReasonPair.second))
                     .isTrue();
             assertThat(characteristic.getValue())
-                    .asList()
-                    .containsExactly(
-                            indexReasonPair.first.byteValue(), indexReasonPair.second.byteValue())
-                    .inOrder();
+                    .isEqualTo(
+                            new byte[] {
+                                indexReasonPair.first.byteValue(),
+                                indexReasonPair.second.byteValue()
+                            });
         } else if (characteristic.getUuid().equals(TbsGatt.UUID_INCOMING_CALL)) {
             if (value == null) {
                 assertThat(mTbsGatt.clearIncomingCall()).isTrue();
-                Assert.assertEquals(0, characteristic.getValue().length);
+                assertThat(characteristic.getValue()).isEmpty();
             } else {
                 Pair<Integer, String> indexStrPair = (Pair<Integer, String>) value;
                 assertThat(mTbsGatt.setIncomingCall(indexStrPair.first, indexStrPair.second))
@@ -274,7 +273,7 @@ public class TbsGattTest {
         } else if (characteristic.getUuid().equals(TbsGatt.UUID_CALL_FRIENDLY_NAME)) {
             if (value == null) {
                 assertThat(mTbsGatt.clearFriendlyName()).isTrue();
-                Assert.assertEquals(0, characteristic.getValue().length);
+                assertThat(characteristic.getValue()).isEmpty();
             } else {
                 Pair<Integer, String> indexNamePair = (Pair<Integer, String>) value;
                 assertThat(mTbsGatt.setCallFriendlyName(indexNamePair.first, indexNamePair.second))

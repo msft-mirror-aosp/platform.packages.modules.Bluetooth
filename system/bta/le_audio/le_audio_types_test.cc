@@ -840,5 +840,45 @@ TEST(CodecConfigTest, test_invalid_codec_bits_per_sample) {
             LE_AUDIO_BITS_PER_SAMPLE_INDEX_NONE);
 }
 
+TEST(CodecConfigTest, test_tmap_and_gmap_target_latency) {
+  /* TMAP: Media -> Higher reliability */
+  ASSERT_EQ(utils::GetTargetLatencyForAudioContext(LeAudioContextType::MEDIA),
+            types::kTargetLatencyHigherReliability);
+
+  /* TMAP: Live performance -> Low Latency */
+  ASSERT_EQ(utils::GetTargetLatencyForAudioContext(LeAudioContextType::LIVE),
+            types::kTargetLatencyLower);
+
+  /* TMAP: Call -> Balanced reliability */
+  ASSERT_EQ(utils::GetTargetLatencyForAudioContext(LeAudioContextType::RINGTONE),
+            types::kTargetLatencyBalancedLatencyReliability);
+  ASSERT_EQ(utils::GetTargetLatencyForAudioContext(LeAudioContextType::CONVERSATIONAL),
+            types::kTargetLatencyBalancedLatencyReliability);
+
+  /* GMAP: Game -> Low Latency */
+  ASSERT_EQ(utils::GetTargetLatencyForAudioContext(LeAudioContextType::GAME),
+            types::kTargetLatencyLower);
+
+  /* Undefined for the rest of contexts */
+  ASSERT_EQ(utils::GetTargetLatencyForAudioContext(LeAudioContextType::UNINITIALIZED),
+            types::kTargetLatencyUndefined);
+  ASSERT_EQ(utils::GetTargetLatencyForAudioContext(LeAudioContextType::UNSPECIFIED),
+            types::kTargetLatencyUndefined);
+  ASSERT_EQ(utils::GetTargetLatencyForAudioContext(LeAudioContextType::INSTRUCTIONAL),
+            types::kTargetLatencyUndefined);
+  ASSERT_EQ(utils::GetTargetLatencyForAudioContext(LeAudioContextType::VOICEASSISTANTS),
+            types::kTargetLatencyUndefined);
+  ASSERT_EQ(utils::GetTargetLatencyForAudioContext(LeAudioContextType::SOUNDEFFECTS),
+            types::kTargetLatencyUndefined);
+  ASSERT_EQ(utils::GetTargetLatencyForAudioContext(LeAudioContextType::NOTIFICATIONS),
+            types::kTargetLatencyUndefined);
+  ASSERT_EQ(utils::GetTargetLatencyForAudioContext(LeAudioContextType::ALERTS),
+            types::kTargetLatencyUndefined);
+  ASSERT_EQ(utils::GetTargetLatencyForAudioContext(LeAudioContextType::EMERGENCYALARM),
+            types::kTargetLatencyUndefined);
+  ASSERT_EQ(utils::GetTargetLatencyForAudioContext(LeAudioContextType::RFU),
+            types::kTargetLatencyUndefined);
+}
+
 }  // namespace types
 }  // namespace bluetooth::le_audio

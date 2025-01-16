@@ -168,9 +168,7 @@ cc_library_static {
             ],
         },
     },
-    apex_available: [
-        "com.android.btservices",
-    ],
+    apex_available: ["com.android.bt"],
     host_supported: true,
     min_sdk_version: "Tiramisu",
 }
@@ -225,9 +223,7 @@ cc_library_static {
     shared_libs: [
         "libcrypto",
     ],
-    apex_available: [
-        "com.android.btservices",
-    ],
+    apex_available: ["com.android.bt"],
     host_supported: true,
     min_sdk_version: "Tiramisu",
 }
@@ -816,7 +812,6 @@ cc_test {
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
         "libbluetooth_log",
-        "libbt-audio-hal-interface",
         "libbt-common",
         "libbt-platform-protos-lite",
         "libchrome",
@@ -825,6 +820,7 @@ cc_test {
         "libflatbuffers-cpp",
         "libgmock",
         "libosi",
+        "libudrv-uipc",
         "server_configurable_flags",
     ],
     sanitize: {
@@ -871,6 +867,7 @@ cc_test {
         ":TestMockStackL2cap",
         ":TestStubOsi",
         "gmap/gmap_client.cc",
+        "gmap/gmap_server.cc",
         "le_audio/audio_hal_client/audio_hal_client_test.cc",
         "le_audio/audio_hal_client/audio_sink_hal_client.cc",
         "le_audio/audio_hal_client/audio_source_hal_client.cc",

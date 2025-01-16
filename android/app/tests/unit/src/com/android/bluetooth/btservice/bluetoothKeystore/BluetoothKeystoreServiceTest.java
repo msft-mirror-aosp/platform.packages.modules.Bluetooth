@@ -155,14 +155,6 @@ public final class BluetoothKeystoreServiceTest {
                 "aec555555555555555555555555555555555555555555555");
     }
 
-    private boolean doCompareKeySet(Map<String, String> map1, Map<String, String> map2) {
-        return map1.keySet().equals(map2.keySet());
-    }
-
-    private boolean doCompareMap(Map<String, String> map1, Map<String, String> map2) {
-        return map1.equals(map2);
-    }
-
     private boolean parseConfigFile(String filePathString) {
         try {
             mBluetoothKeystoreService.parseConfigFile(filePathString);
@@ -205,11 +197,7 @@ public final class BluetoothKeystoreServiceTest {
         // load config file.
         assertThat(parseConfigFile(CONFIG_FILE_PATH)).isTrue();
         // make sure it is same with createNameDecryptKeyResult
-        assertThat(
-                        doCompareMap(
-                                mNameDecryptKeyResult,
-                                mBluetoothKeystoreService.getNameDecryptKey()))
-                .isTrue();
+        assertThat(mBluetoothKeystoreService.getNameDecryptKey()).isEqualTo(mNameDecryptKeyResult);
     }
 
     @Test
@@ -219,11 +207,8 @@ public final class BluetoothKeystoreServiceTest {
         // Wait for encryption to complete
         mBluetoothKeystoreService.stopThread();
 
-        assertThat(
-                        doCompareKeySet(
-                                mNameDecryptKeyResult,
-                                mBluetoothKeystoreService.getNameEncryptKey()))
-                .isTrue();
+        assertThat(mBluetoothKeystoreService.getNameDecryptKey().keySet())
+                .containsExactlyElementsIn(mNameDecryptKeyResult.keySet());
     }
 
     @Test
@@ -238,11 +223,7 @@ public final class BluetoothKeystoreServiceTest {
         // Wait for encryption to complete
         mBluetoothKeystoreService.stopThread();
 
-        assertThat(
-                        doCompareMap(
-                                mNameDecryptKeyResult,
-                                mBluetoothKeystoreService.getNameDecryptKey()))
-                .isTrue();
+        assertThat(mBluetoothKeystoreService.getNameDecryptKey()).isEqualTo(mNameDecryptKeyResult);
     }
 
     @Test
@@ -279,11 +260,7 @@ public final class BluetoothKeystoreServiceTest {
         // remove hash data avoid interfering result.
         mBluetoothKeystoreService.getNameDecryptKey().remove(CONFIG_FILE_PREFIX);
 
-        assertThat(
-                        doCompareMap(
-                                mNameDecryptKeyResult,
-                                mBluetoothKeystoreService.getNameDecryptKey()))
-                .isTrue();
+        assertThat(mBluetoothKeystoreService.getNameDecryptKey()).isEqualTo(mNameDecryptKeyResult);
     }
 
     @Test

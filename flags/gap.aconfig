@@ -1,5 +1,5 @@
 package: "com.android.bluetooth.flags"
-container: "com.android.btservices"
+container: "com.android.bt"
 
 flag {
     name: "encrypted_advertising_data"
@@ -41,26 +41,6 @@ flag {
     namespace: "bluetooth"
     description: "Reimplement BLE scan and advertisement metrics logging."
     bug: "328303508"
-}
-
-flag {
-    name: "ble_context_map_remove_fix"
-    namespace: "bluetooth"
-    description: "Fix connection removal logic in ContextMap class"
-    bug: "329154715"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "scan_record_manufacturer_data_merge"
-    namespace: "bluetooth"
-    description: "If a scan record has multiple datas under same manufacturer id, merge the values"
-    bug: "331723396"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
 }
 
 flag {
@@ -277,6 +257,26 @@ flag {
     namespace: "bluetooth"
     description: "Send ATT_EXECUTE_WRITE_RSP when no pending write requests"
     bug: "385118069"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "change_default_trackable_adv_number"
+    namespace: "bluetooth"
+    description: "Change the default value for number of trackable advertisements for onFound"
+    bug: "389568695"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "fix_unusable_adv_slot_due_to_map_access"
+    namespace: "bluetooth"
+    description: "Fixes the advertising slot becoming unusable due to incorrect map access via [] operator."
+    bug: "388615378"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

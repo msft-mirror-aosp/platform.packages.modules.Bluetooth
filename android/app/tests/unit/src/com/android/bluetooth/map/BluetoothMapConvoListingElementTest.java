@@ -124,13 +124,13 @@ public class BluetoothMapConvoListingElementTest {
     @Test
     public void removeContactWithObject() {
         mListingElement.removeContact(TEST_CONTACT_ELEMENT_TWO);
-        assertThat(mListingElement.getContacts().size()).isEqualTo(1);
+        assertThat(mListingElement.getContacts()).hasSize(1);
     }
 
     @Test
     public void removeContactWithIndex() {
         mListingElement.removeContact(1);
-        assertThat(mListingElement.getContacts().size()).isEqualTo(1);
+        assertThat(mListingElement.getContacts()).hasSize(1);
     }
 
     @Test

@@ -38,6 +38,8 @@ public:
   virtual ~MockCodecManager() = default;
 
   MOCK_METHOD((bluetooth::le_audio::types::CodecLocation), GetCodecLocation, (), (const));
+  MOCK_METHOD(std::optional<bluetooth::le_audio::ProviderInfo>, GetCodecConfigProviderInfo, (),
+              (const));
   MOCK_METHOD((bool), IsDualBiDirSwbSupported, (), (const));
 
   MOCK_METHOD((bool), UpdateActiveUnicastAudioHalClient,

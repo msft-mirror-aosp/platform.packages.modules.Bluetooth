@@ -25,6 +25,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <sstream>
 #include <string>
@@ -39,6 +40,8 @@
 #include "broadcaster/broadcaster_types.h"
 #include "bta_le_audio_api.h"
 #include "btm_iso_api_types.h"
+#include "gmap_client.h"
+#include "gmap_server.h"
 #include "hardware/bt_le_audio.h"
 #include "hci/controller_interface.h"
 #include "hci/hci_packets.h"
@@ -137,6 +140,19 @@ public:
             osi_property_get_bool("bluetooth.leaudio.dual_bidirection_swb.supported", false);
     bluetooth::le_audio::AudioSetConfigurationProvider::Initialize(GetCodecLocation());
     UpdateOffloadCapability(offloading_preference);
+
+    if (IsUsingCodecExtensibility()) {
+      codec_provider_info_ =
+              audio::le_audio::LeAudioClientInterface::Get()->GetCodecConfigProviderInfo();
+      if (codec_provider_info_.has_value() && codec_provider_info_->allowAsymmetric &&
+          codec_provider_info_->lowLatency) {
+        GmapClient::UpdateGmapOffloaderSupport(true);
+        GmapServer::UpdateGmapOffloaderSupport(true);
+        log::debug("Asymmetric configuration supported. Enabling offloader GMAP support.");
+      } else {
+        log::debug("Asymmetric configurations not supported. Not enabling offloader GMAP support.");
+      }
+    }
   }
   ~codec_manager_impl() {
     if (GetCodecLocation() != CodecLocation::HOST) {
@@ -148,6 +164,10 @@ public:
     bluetooth::le_audio::AudioSetConfigurationProvider::Cleanup();
   }
   CodecLocation GetCodecLocation(void) const { return codec_location_; }
+
+  std::optional<ProviderInfo> GetCodecConfigProviderInfo(void) const {
+    return codec_provider_info_;
+  }
 
   bool IsDualBiDirSwbSupported(void) const {
     if (GetCodecLocation() == CodecLocation::ADSP) {
@@ -1094,6 +1114,8 @@ private:
   std::unordered_map<btle_audio_codec_index_t, uint8_t> btle_audio_codec_type_map_ = {
           {::bluetooth::le_audio::LE_AUDIO_CODEC_INDEX_SOURCE_LC3, types::kLeAudioCodingFormatLC3}};
 
+  std::optional<ProviderInfo> codec_provider_info_;
+
   std::vector<btle_audio_codec_config_t> codec_input_capa = {};
   std::vector<btle_audio_codec_config_t> codec_output_capa = {};
   int broadcast_target_config = -1;
@@ -1138,26 +1160,24 @@ std::ostream& operator<<(std::ostream& os,
 
   if (req.sink_requirements.has_value()) {
     for (auto const& sink_req : req.sink_requirements.value()) {
-      os << "sink_req: {";
+      os << ", sink_req: {";
       os << ", target_latency: " << +sink_req.target_latency;
       os << ", target_Phy: " << +sink_req.target_Phy;
-      // os << sink_req.params.GetAsCoreCodecCapabilities();
       os << "}";
     }
   } else {
-    os << "sink_req: None";
+    os << ", sink_req: None";
   }
 
   if (req.source_requirements.has_value()) {
     for (auto const& source_req : req.source_requirements.value()) {
-      os << "source_req: {";
+      os << ", source_req: {";
       os << ", target_latency: " << +source_req.target_latency;
       os << ", target_Phy: " << +source_req.target_Phy;
-      // os << source_req.params.GetAsCoreCodecCapabilities();
       os << "}";
     }
   } else {
-    os << "source_req: None";
+    os << ", source_req: None";
   }
 
   os << "}";
@@ -1205,6 +1225,14 @@ types::CodecLocation CodecManager::GetCodecLocation(void) const {
   }
 
   return pimpl_->codec_manager_impl_->GetCodecLocation();
+}
+
+std::optional<ProviderInfo> CodecManager::GetCodecConfigProviderInfo(void) const {
+  if (!pimpl_->IsRunning()) {
+    return std::nullopt;
+  }
+
+  return pimpl_->codec_manager_impl_->GetCodecConfigProviderInfo();
 }
 
 bool CodecManager::IsDualBiDirSwbSupported(void) const {

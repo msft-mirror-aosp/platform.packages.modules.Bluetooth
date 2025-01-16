@@ -725,30 +725,34 @@ static void CategorizeBqrEvent(uint8_t length, const uint8_t* p_bqr_event) {
       break;
 
     case QUALITY_REPORT_ID_ENERGY_MONITOR:
-      if (length < kEnergyMonitorParamTotalLen) {
-        log::fatal(
-                "Parameter total length: {} is abnormal. It shall be not shorter "
-                "than: {}",
-                length, kEnergyMonitorParamTotalLen);
-        return;
-      }
-
       if (com::android::bluetooth::flags::support_bluetooth_quality_report_v6()) {
-        AddEnergyMonitorEventToQueue(length, p_bqr_event);
+        if (vendor_cap_supported_version >= kBqrVersion6_0) {
+          if (length < kEnergyMonitorParamTotalLen) {
+            log::fatal(
+                    "Event {} Parameter total length: {} is abnormal. It shall be not shorter "
+                    "than: {}",
+                    quality_report_id, length, kEnergyMonitorParamTotalLen);
+            return;
+          }
+
+          AddEnergyMonitorEventToQueue(length, p_bqr_event);
+        }
       }
       break;
 
     case QUALITY_REPORT_ID_RF_STATS:
-      if (length < kRFStatsParamTotalLen) {
-        log::fatal(
-                "Parameter total length: {} is abnormal. It shall be not shorter "
-                "than: {}",
-                length, kRFStatsParamTotalLen);
-        return;
-      }
-
       if (com::android::bluetooth::flags::support_bluetooth_quality_report_v6()) {
-        AddRFStatsEventToQueue(length, p_bqr_event);
+        if (vendor_cap_supported_version >= kBqrVersion6_0) {
+          if (length < kRFStatsParamTotalLen) {
+            log::fatal(
+                    "Event {} Parameter total length: {} is abnormal. It shall be not shorter "
+                    "than: {}",
+                    quality_report_id, length, kEnergyMonitorParamTotalLen);
+            return;
+          }
+
+          AddRFStatsEventToQueue(length, p_bqr_event);
+        }
       }
       break;
 

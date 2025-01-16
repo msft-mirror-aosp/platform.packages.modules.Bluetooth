@@ -1029,7 +1029,7 @@ tBTM_STATUS BTM_SetEncryption(const RawAddress& bd_addr, tBT_TRANSPORT transport
                                                           : p_dev_rec->sec_rec.classic_link;
 
   /* Enqueue security request if security is active */
-  if (!com::android::bluetooth::flags::le_enc_on_reconnection()) {
+  if (!com::android::bluetooth::flags::le_enc_on_reconnect()) {
     if (p_dev_rec->sec_rec.p_callback ||
         (p_dev_rec->sec_rec.le_link != tSECURITY_STATE::IDLE &&
          p_dev_rec->sec_rec.classic_link != tSECURITY_STATE::IDLE)) {
@@ -1099,9 +1099,9 @@ tBTM_STATUS BTM_SetEncryption(const RawAddress& bd_addr, tBT_TRANSPORT transport
   return rc;
 }
 
-bool BTM_SecIsSecurityPending(const RawAddress& bd_addr) {
+bool BTM_SecIsLeSecurityPending(const RawAddress& bd_addr) {
   tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bd_addr);
-  return p_dev_rec && (p_dev_rec->sec_rec.is_security_state_encrypting() ||
+  return p_dev_rec && (p_dev_rec->sec_rec.is_security_state_le_encrypting() ||
                        p_dev_rec->sec_rec.le_link == tSECURITY_STATE::AUTHENTICATING);
 }
 
@@ -4974,7 +4974,7 @@ static void btm_sec_check_pending_enc_req(tBTM_SEC_DEV_REC* p_dev_rec, tBT_TRANS
     node = list_next(node);
     log::debug("btm_sec_check_pending_enc_req : sec_act=0x{:x}", p_e->sec_act);
     if (p_e->bd_addr == p_dev_rec->bd_addr && p_e->psm == 0 && p_e->transport == transport) {
-      if (!com::android::bluetooth::flags::le_enc_on_reconnection()) {
+      if (!com::android::bluetooth::flags::le_enc_on_reconnect()) {
         if (encr_enable == 0 || transport == BT_TRANSPORT_BR_EDR ||
             p_e->sec_act == BTM_BLE_SEC_ENCRYPT || p_e->sec_act == BTM_BLE_SEC_ENCRYPT_NO_MITM ||
             (p_e->sec_act == BTM_BLE_SEC_ENCRYPT_MITM &&

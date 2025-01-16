@@ -246,16 +246,16 @@ struct BTM_SecGetDeviceLinkKeyType {
 };
 extern struct BTM_SecGetDeviceLinkKeyType BTM_SecGetDeviceLinkKeyType;
 
-// Name: BTM_SecIsSecurityPending
+// Name: BTM_SecIsLeSecurityPending
 // Params: const RawAddress& bd_addr
 // Return: bool
-struct BTM_SecIsSecurityPending {
+struct BTM_SecIsLeSecurityPending {
   static bool return_value;
   std::function<bool(const RawAddress& bd_addr)> body{
           [](const RawAddress& /* bd_addr */) { return return_value; }};
   bool operator()(const RawAddress& bd_addr) { return body(bd_addr); }
 };
-extern struct BTM_SecIsSecurityPending BTM_SecIsSecurityPending;
+extern struct BTM_SecIsLeSecurityPending BTM_SecIsLeSecurityPending;
 
 // Name: BTM_SecRegister
 // Params: const tBTM_APPL_INFO* p_cb_info

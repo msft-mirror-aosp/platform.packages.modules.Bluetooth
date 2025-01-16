@@ -328,7 +328,7 @@ public:
               default_data_interval_ms, overwrite_min_ce_len, overwrite_max_ce_len);
 
     BTA_GATTC_AppRegister(
-            hearingaid_gattc_callback,
+            "asha", hearingaid_gattc_callback,
             base::Bind(
                     [](Closure initCb, uint8_t client_id, uint8_t status) {
                       if (status != GATT_SUCCESS) {
@@ -559,7 +559,7 @@ public:
       log::warn("Unable to set BLE data length peer:{} size:{}", address, 167);
     }
 
-    if (BTM_SecIsSecurityPending(address)) {
+    if (BTM_SecIsLeSecurityPending(address)) {
       /* if security collision happened, wait for encryption done
        * (BTA_GATTC_ENC_CMPL_CB_EVT) */
       return;

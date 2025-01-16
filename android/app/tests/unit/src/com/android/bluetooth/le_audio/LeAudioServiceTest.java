@@ -1404,7 +1404,7 @@ public class LeAudioServiceTest {
                         eq(mLeftDevice), eq(null), connectionInfoArgumentCaptor.capture());
         List<BluetoothProfileConnectionInfo> connInfos =
                 connectionInfoArgumentCaptor.getAllValues();
-        assertThat(connInfos.size()).isEqualTo(2);
+        assertThat(connInfos).hasSize(2);
         assertThat(connInfos.get(0).isLeOutput()).isEqualTo(true);
         assertThat(connInfos.get(1).isLeOutput()).isEqualTo(false);
 
@@ -1415,7 +1415,7 @@ public class LeAudioServiceTest {
                 .handleBluetoothActiveDeviceChanged(
                         any(), any(), any(BluetoothProfileConnectionInfo.class));
         connInfos = connectionInfoArgumentCaptor.getAllValues();
-        assertThat(connInfos.size()).isEqualTo(2);
+        assertThat(connInfos).hasSize(2);
     }
 
     /** Test setting active device group with not available contexts */
@@ -1868,7 +1868,7 @@ public class LeAudioServiceTest {
         reset(mAudioManager);
         /* Verify input and output has been connected to AF*/
         List<BluetoothProfileConnectionInfo> connInfos = testConnectioInfoCapture.getAllValues();
-        assertThat(connInfos.size()).isEqualTo(2);
+        assertThat(connInfos).hasSize(2);
         assertThat(connInfos.get(0).isLeOutput()).isEqualTo(true);
         assertThat(connInfos.get(1).isLeOutput()).isEqualTo(false);
 
@@ -1889,7 +1889,7 @@ public class LeAudioServiceTest {
         reset(mAudioManager);
 
         connInfos = testConnectioInfoCapture.getAllValues();
-        assertThat(connInfos.size()).isEqualTo(3);
+        assertThat(connInfos).hasSize(3);
         assertThat(connInfos.get(2).isLeOutput()).isEqualTo(false);
 
         // remove Sink and add Source back
@@ -1913,7 +1913,7 @@ public class LeAudioServiceTest {
         reset(mAudioManager);
 
         connInfos = testConnectioInfoCapture.getAllValues();
-        assertThat(connInfos.size()).isEqualTo(5);
+        assertThat(connInfos).hasSize(5);
         assertThat(connInfos.get(3).isLeOutput()).isEqualTo(true);
         assertThat(connInfos.get(4).isLeOutput()).isEqualTo(false);
     }
@@ -2886,7 +2886,7 @@ public class LeAudioServiceTest {
         List<BluetoothDevice> firstGroupDevicesByRightDevice =
                 mService.getGroupDevices(mRightDevice);
 
-        assertThat(firstGroupDevicesById.size()).isEqualTo(2);
+        assertThat(firstGroupDevicesById).hasSize(2);
         assertThat(firstGroupDevicesById.contains(mLeftDevice)).isTrue();
         assertThat(firstGroupDevicesById.contains(mRightDevice)).isTrue();
         assertThat(firstGroupDevicesById.contains(mSingleDevice)).isFalse();
@@ -2897,7 +2897,7 @@ public class LeAudioServiceTest {
         List<BluetoothDevice> secondGroupDevicesById = mService.getGroupDevices(secondGroupId);
         List<BluetoothDevice> secondGroupDevicesByDevice = mService.getGroupDevices(mSingleDevice);
 
-        assertThat(secondGroupDevicesById.size()).isEqualTo(1);
+        assertThat(secondGroupDevicesById).hasSize(1);
         assertThat(secondGroupDevicesById.contains(mSingleDevice)).isTrue();
         assertThat(secondGroupDevicesById.contains(mLeftDevice)).isFalse();
         assertThat(secondGroupDevicesById.contains(mRightDevice)).isFalse();
@@ -2984,7 +2984,7 @@ public class LeAudioServiceTest {
         // Checks group device lists for groupId 1
         List<BluetoothDevice> groupDevicesById = mService.getGroupDevices(groupId);
 
-        assertThat(groupDevicesById.size()).isEqualTo(2);
+        assertThat(groupDevicesById).hasSize(2);
         assertThat(groupDevicesById.contains(mLeftDevice)).isTrue();
         assertThat(groupDevicesById.contains(mRightDevice)).isTrue();
 
@@ -3077,7 +3077,7 @@ public class LeAudioServiceTest {
         // Checks group device lists for groupId 1
         List<BluetoothDevice> groupDevicesById = mService.getGroupDevices(groupId);
 
-        assertThat(groupDevicesById.size()).isEqualTo(2);
+        assertThat(groupDevicesById).hasSize(2);
         assertThat(groupDevicesById.contains(mLeftDevice)).isTrue();
         assertThat(groupDevicesById.contains(mRightDevice)).isTrue();
 
@@ -3172,7 +3172,7 @@ public class LeAudioServiceTest {
         // Checks group device lists for groupId 1
         List<BluetoothDevice> groupDevicesById = mService.getGroupDevices(groupId);
 
-        assertThat(groupDevicesById.size()).isEqualTo(2);
+        assertThat(groupDevicesById).hasSize(2);
         assertThat(groupDevicesById.contains(mLeftDevice)).isTrue();
         assertThat(groupDevicesById.contains(mRightDevice)).isTrue();
 
@@ -3288,7 +3288,7 @@ public class LeAudioServiceTest {
         // Checks group device lists for groupId 1
         List<BluetoothDevice> groupDevicesById = mService.getGroupDevices(groupId);
 
-        assertThat(groupDevicesById.size()).isEqualTo(2);
+        assertThat(groupDevicesById).hasSize(2);
         assertThat(groupDevicesById.contains(mLeftDevice)).isTrue();
         assertThat(groupDevicesById.contains(mRightDevice)).isTrue();
 

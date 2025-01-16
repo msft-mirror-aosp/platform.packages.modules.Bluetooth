@@ -55,6 +55,7 @@ struct btif_storage_leaudio_clear_service_data btif_storage_leaudio_clear_servic
 struct btif_storage_leaudio_update_ase_bin btif_storage_leaudio_update_ase_bin;
 struct btif_storage_leaudio_update_handles_bin btif_storage_leaudio_update_handles_bin;
 struct btif_storage_leaudio_update_pacs_bin btif_storage_leaudio_update_pacs_bin;
+struct btif_storage_leaudio_update_gmap_bin btif_storage_leaudio_update_gmap_bin;
 struct btif_storage_load_bonded_csis_devices btif_storage_load_bonded_csis_devices;
 struct btif_storage_load_bonded_groups btif_storage_load_bonded_groups;
 struct btif_storage_load_bonded_hearing_aids btif_storage_load_bonded_hearing_aids;
@@ -182,6 +183,10 @@ void btif_storage_leaudio_update_handles_bin(const RawAddress& addr) {
 void btif_storage_leaudio_update_pacs_bin(const RawAddress& addr) {
   inc_func_call_count(__func__);
   test::mock::btif_profile_storage::btif_storage_leaudio_update_pacs_bin(addr);
+}
+void btif_storage_leaudio_update_gmap_bin(const RawAddress& addr) {
+  inc_func_call_count(__func__);
+  test::mock::btif_profile_storage::btif_storage_leaudio_update_gmap_bin(addr);
 }
 void btif_storage_load_bonded_csis_devices(void) {
   inc_func_call_count(__func__);
