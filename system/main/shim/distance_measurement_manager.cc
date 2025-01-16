@@ -252,9 +252,10 @@ public:
             bluetooth::ToGdAddress(address), GetConnectionHandleAndRole(address), conn_interval);
   }
 
-  void OnDisconnected(const RawAddress& address) {
+  void OnDisconnected(const RawAddress& address,
+                      const ras::RasDisconnectReason& ras_disconnect_reason) {
     bluetooth::shim::GetDistanceMeasurementManager()->HandleRasClientDisconnectedEvent(
-            bluetooth::ToGdAddress(address));
+            bluetooth::ToGdAddress(address), ras_disconnect_reason);
   }
 
   // Must be called from main_thread
