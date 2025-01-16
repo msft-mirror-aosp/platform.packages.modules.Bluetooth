@@ -23,11 +23,11 @@
  *
  ******************************************************************************/
 
-#ifndef BTM_BLE_INT_H
-#define BTM_BLE_INT_H
+#pragma once
 
 #include "stack/btm/btm_ble_int_types.h"
 #include "stack/btm/security_device_record.h"
+#include "stack/include/ble_hci_link_interface.h"
 #include "stack/include/hci_error_code.h"
 #include "types/ble_address_with_type.h"
 #include "types/raw_address.h"
@@ -53,8 +53,10 @@ void btm_ble_adv_filter_init(void);
 bool btm_ble_topology_check(tBTM_BLE_STATE_MASK request);
 bool btm_ble_clear_topology_mask(tBTM_BLE_STATE_MASK request_state);
 bool btm_ble_set_topology_mask(tBTM_BLE_STATE_MASK request_state);
+tBTM_STATUS btm_ble_start_inquiry(uint8_t duration);
+void btm_ble_stop_inquiry(void);
+tBTM_STATUS btm_ble_set_connectability(uint16_t combined_mode);
+tBTM_STATUS btm_ble_set_discoverability(uint16_t combined_mode);
 
 void btm_ble_scanner_init(void);
 void btm_ble_scanner_cleanup(void);
-
-#endif

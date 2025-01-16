@@ -81,8 +81,6 @@ struct btm_ble_update_sec_key_size btm_ble_update_sec_key_size;
 struct btm_get_local_div btm_get_local_div;
 struct btm_proc_smp_cback btm_proc_smp_cback;
 struct btm_sec_save_le_key btm_sec_save_le_key;
-struct doNothing doNothing;
-struct read_phy_cb read_phy_cb;
 
 }  // namespace stack_btm_ble
 }  // namespace mock
@@ -291,15 +289,6 @@ void btm_sec_save_le_key(const RawAddress& bd_addr, tBTM_LE_KEY_TYPE key_type,
                          tBTM_LE_KEY_VALUE* p_keys, bool pass_to_application) {
   inc_func_call_count(__func__);
   test::mock::stack_btm_ble::btm_sec_save_le_key(bd_addr, key_type, p_keys, pass_to_application);
-}
-void doNothing(uint8_t* data, uint16_t len) {
-  inc_func_call_count(__func__);
-  test::mock::stack_btm_ble::doNothing(data, len);
-}
-void read_phy_cb(base::Callback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t status)> cb,
-                 uint8_t* data, uint16_t len) {
-  inc_func_call_count(__func__);
-  test::mock::stack_btm_ble::read_phy_cb(cb, data, len);
 }
 // Mocked functions complete
 // END mockcify generation

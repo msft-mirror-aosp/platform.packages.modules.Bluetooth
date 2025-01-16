@@ -58,12 +58,10 @@
 #include "stack/include/hci_error_code.h"
 #include "stack/include/hcimsgs.h"
 #include "stack/include/main_thread.h"
+#include "stack/include/sco_hci_link_interface.h"
 #include "stack/include/sdpdefs.h"
 #include "stack/include/stack_metrics_logging.h"
 #include "types/raw_address.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 extern tBTM_CB btm_cb;
 
@@ -92,11 +90,15 @@ constexpr char kBtmLogTag[] = "SCO";
 using namespace bluetooth;
 using bluetooth::legacy::hci::GetInterface;
 
-// forward declaration for dequeueing packets
+/******************************************************************************/
+/*            L O C A L    F U N C T I O N     P R O T O T Y P E S            */
+/******************************************************************************/
+static tBTM_STATUS BTM_ChangeEScoLinkParms(uint16_t sco_inx, tBTM_CHG_ESCO_PARAMS* p_parms);
+
+static void btm_sco_on_disconnected(uint16_t hci_handle, tHCI_REASON reason);
+static uint16_t btm_sco_voice_settings_to_legacy(enh_esco_params_t* p_parms);
 static void btm_route_sco_data(bluetooth::hci::ScoView valid_packet);
-void btm_sco_conn_req(const RawAddress& bda, const DEV_CLASS& dev_class, uint8_t link_type);
-void btm_sco_on_disconnected(uint16_t hci_handle, tHCI_REASON reason);
-bool btm_sco_removed(uint16_t hci_handle, tHCI_REASON reason);
+static bool btm_sco_removed(uint16_t hci_handle, tHCI_REASON reason);
 
 namespace cpp {
 bluetooth::common::BidiQueueEnd<bluetooth::hci::ScoBuilder, bluetooth::hci::ScoView>*
@@ -214,7 +216,7 @@ enum btm_pcm_buf_state {
   DECODE_BUF_PARTIAL,
 };
 
-void incr_btm_pcm_buf_offset(size_t& offset, bool& mirror, size_t amount) {
+static void incr_btm_pcm_buf_offset(size_t& offset, bool& mirror, size_t amount) {
   size_t bytes_remaining = BTM_SCO_DATA_SIZE_MAX - offset;
   if (bytes_remaining > amount) {
     offset += amount;
@@ -225,7 +227,7 @@ void incr_btm_pcm_buf_offset(size_t& offset, bool& mirror, size_t amount) {
   offset = amount - bytes_remaining;
 }
 
-btm_pcm_buf_state btm_pcm_buf_status() {
+static btm_pcm_buf_state btm_pcm_buf_status() {
   if (btm_pcm_buf_read_offset == btm_pcm_buf_write_offset) {
     if (btm_pcm_buf_read_mirror == btm_pcm_buf_write_mirror) {
       return DECODE_BUF_EMPTY;
@@ -235,7 +237,7 @@ btm_pcm_buf_state btm_pcm_buf_status() {
   return DECODE_BUF_PARTIAL;
 }
 
-size_t btm_pcm_buf_data_len() {
+static size_t btm_pcm_buf_data_len() {
   switch (btm_pcm_buf_status()) {
     case DECODE_BUF_EMPTY:
       return 0;
@@ -250,9 +252,9 @@ size_t btm_pcm_buf_data_len() {
   };
 }
 
-size_t btm_pcm_buf_avail_len() { return BTM_SCO_DATA_SIZE_MAX - btm_pcm_buf_data_len(); }
+static size_t btm_pcm_buf_avail_len() { return BTM_SCO_DATA_SIZE_MAX - btm_pcm_buf_data_len(); }
 
-size_t write_btm_pcm_buf(uint8_t* source, size_t amount) {
+static size_t write_btm_pcm_buf(uint8_t* source, size_t amount) {
   if (btm_pcm_buf_avail_len() < amount) {
     return 0;
   }
@@ -268,13 +270,6 @@ size_t write_btm_pcm_buf(uint8_t* source, size_t amount) {
   incr_btm_pcm_buf_offset(btm_pcm_buf_write_offset, btm_pcm_buf_write_mirror, amount);
   return amount;
 }
-
-/******************************************************************************/
-/*            L O C A L    F U N C T I O N     P R O T O T Y P E S            */
-/******************************************************************************/
-static tBTM_STATUS BTM_ChangeEScoLinkParms(uint16_t sco_inx, tBTM_CHG_ESCO_PARAMS* p_parms);
-
-static uint16_t btm_sco_voice_settings_to_legacy(enh_esco_params_t* p_parms);
 
 /*******************************************************************************
  *
@@ -1226,7 +1221,7 @@ void BTM_RemoveScoByBdaddr(const RawAddress& bda) {
  * Returns          true if the link is known about, else false
  *
  ******************************************************************************/
-bool btm_sco_removed(uint16_t hci_handle, tHCI_REASON reason) {
+static bool btm_sco_removed(uint16_t hci_handle, tHCI_REASON reason) {
   tSCO_CONN* p = &btm_cb.sco_cb.sco_db[0];
   uint16_t xx;
 
@@ -1255,7 +1250,7 @@ bool btm_sco_removed(uint16_t hci_handle, tHCI_REASON reason) {
   return false;
 }
 
-void btm_sco_on_disconnected(uint16_t hci_handle, tHCI_REASON reason) {
+static void btm_sco_on_disconnected(uint16_t hci_handle, tHCI_REASON reason) {
   tSCO_CONN* p_sco = btm_cb.sco_cb.get_sco_connection_from_handle(hci_handle);
   if (p_sco == nullptr) {
     log::debug("Unable to find sco connection");

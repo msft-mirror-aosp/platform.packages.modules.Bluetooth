@@ -545,32 +545,6 @@ struct btm_sec_save_le_key {
 };
 extern struct btm_sec_save_le_key btm_sec_save_le_key;
 
-// Name: doNothing
-// Params: uint8_t* data, uint16_t len
-// Return: void
-struct doNothing {
-  std::function<void(uint8_t* data, uint16_t len)> body{
-          [](uint8_t* /* data */, uint16_t /* len */) {}};
-  void operator()(uint8_t* data, uint16_t len) { body(data, len); }
-};
-extern struct doNothing doNothing;
-
-// Name: read_phy_cb
-// Params: base::Callback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t status
-// Return: void
-struct read_phy_cb {
-  std::function<void(base::Callback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t status)> callback,
-                     uint8_t* data, uint16_t len)>
-          body{[](base::Callback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t status)>
-                  /* callback */,
-                  uint8_t* /* data */, uint16_t /* len */) {}};
-  void operator()(base::Callback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t status)> callback,
-                  uint8_t* data, uint16_t len) {
-    body(callback, data, len);
-  }
-};
-extern struct read_phy_cb read_phy_cb;
-
 }  // namespace stack_btm_ble
 }  // namespace mock
 }  // namespace test

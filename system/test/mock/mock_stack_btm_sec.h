@@ -331,15 +331,6 @@ struct BTM_update_version_info {
 };
 extern struct BTM_update_version_info BTM_update_version_info;
 
-// Name: NotifyBondingCanceled
-// Params: tBTM_STATUS btm_status
-// Return: void
-struct NotifyBondingCanceled {
-  std::function<void(tBTM_STATUS btm_status)> body{[](tBTM_STATUS /* btm_status */) {}};
-  void operator()(tBTM_STATUS btm_status) { body(btm_status); }
-};
-extern struct NotifyBondingCanceled NotifyBondingCanceled;
-
 // Name: btm_create_conn_cancel_complete
 // Params: uint8_t status, RawAddress bd_addr
 // Return: void
