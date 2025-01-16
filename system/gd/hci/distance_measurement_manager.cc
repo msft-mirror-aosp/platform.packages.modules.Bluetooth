@@ -542,7 +542,8 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     }
   }
 
-  void handle_ras_client_disconnected_event(const Address address) {
+  void handle_ras_client_disconnected_event(const Address address,
+                                            const ras::RasDisconnectReason& ras_disconnect_reason) {
     log::info("address:{}", address);
     for (auto it = cs_requester_trackers_.begin(); it != cs_requester_trackers_.end();) {
       if (it->second.address == address) {
@@ -550,8 +551,13 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
           it->second.repeating_alarm->Cancel();
           it->second.repeating_alarm.reset();
         }
-        distance_measurement_callbacks_->OnDistanceMeasurementStopped(
-                address, REASON_NO_LE_CONNECTION, METHOD_CS);
+        DistanceMeasurementErrorCode reason = REASON_NO_LE_CONNECTION;
+        if (ras_disconnect_reason == ras::RasDisconnectReason::SERVER_NOT_AVAILABLE) {
+          reason = REASON_FEATURE_NOT_SUPPORTED_REMOTE;
+        } else if (ras_disconnect_reason == ras::RasDisconnectReason::FATAL_ERROR) {
+          reason = REASON_INTERNAL_ERROR;
+        }
+        distance_measurement_callbacks_->OnDistanceMeasurementStopped(address, reason, METHOD_CS);
         gatt_mtus_.erase(it->first);
         it = cs_requester_trackers_.erase(it);  // erase and get the next iterator
       } else {
@@ -2596,8 +2602,9 @@ void DistanceMeasurementManager::HandleConnIntervalUpdated(const Address& addres
          conn_interval);
 }
 
-void DistanceMeasurementManager::HandleRasClientDisconnectedEvent(const Address& address) {
-  CallOn(pimpl_.get(), &impl::handle_ras_client_disconnected_event, address);
+void DistanceMeasurementManager::HandleRasClientDisconnectedEvent(
+        const Address& address, const ras::RasDisconnectReason& ras_disconnect_reason) {
+  CallOn(pimpl_.get(), &impl::handle_ras_client_disconnected_event, address, ras_disconnect_reason);
 }
 
 void DistanceMeasurementManager::HandleVendorSpecificReply(
