@@ -814,6 +814,16 @@ static int disconnect_all_acls() {
   return BT_STATUS_SUCCESS;
 }
 
+static int disconnect_acl(const RawAddress& bd_addr, int transport) {
+  log::verbose("{}", bd_addr);
+  if (!interface_ready()) {
+    return BT_STATUS_NOT_READY;
+  }
+
+  do_in_main_thread(base::BindOnce(btif_dm_disconnect_acl, bd_addr, to_bt_transport(transport)));
+  return BT_STATUS_SUCCESS;
+}
+
 static void le_rand_btif_cb(uint64_t random_number) {
   log::verbose("");
   do_in_jni_thread(base::BindOnce(
@@ -1286,6 +1296,7 @@ EXPORT_SYMBOL bt_interface_t bluetoothInterface = {
         .clear_event_mask = clear_event_mask,
         .clear_filter_accept_list = clear_filter_accept_list,
         .disconnect_all_acls = disconnect_all_acls,
+        .disconnect_acl = disconnect_acl,
         .le_rand = le_rand,
         .set_event_filter_inquiry_result_all_devices = set_event_filter_inquiry_result_all_devices,
         .set_default_event_mask_except = set_default_event_mask_except,
