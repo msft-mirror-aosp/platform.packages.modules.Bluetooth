@@ -1947,34 +1947,44 @@ protected:
     UpdateLocalSourceMetadata(tracks, reconfigure_existing_stream);
   }
 
-  void UpdateLocalSinkMetadata(audio_source_t audio_source,
-                               audio_source_t additional_audio_source = AUDIO_SOURCE_INVALID) {
+  void UpdateLocalSinkMetadata(
+          std::optional<audio_source_t> audio_source,
+          std::optional<audio_source_t> additional_audio_source = std::nullopt) {
     std::vector<struct record_track_metadata> tracks = {
-            {{AUDIO_SOURCE_INVALID, 0.5, AUDIO_DEVICE_NONE, "00:11:22:33:44:55"},
-             {AUDIO_SOURCE_MIC, 0.7, AUDIO_DEVICE_OUT_BLE_HEADSET, "AA:BB:CC:DD:EE:FF"},
-             {AUDIO_SOURCE_INVALID, 0.5, AUDIO_DEVICE_NONE, "00:11:22:33:44:55"}}};
+            {{AUDIO_SOURCE_INVALID, 0.5, AUDIO_DEVICE_NONE, "00:11:22:33:44:55"}}};
 
-    tracks[1].source = audio_source;
-    tracks[2].source = additional_audio_source;
-
-    std::vector<record_track_metadata_v7> tracks_vec;
-    tracks_vec.reserve(tracks.size());
-    for (const auto& track : tracks) {
-      record_track_metadata_v7 desc_track = {
-              .base =
-                      {
-                              .source = static_cast<audio_source_t>(track.source),
-                              .gain = track.gain,
-                              .dest_device = static_cast<audio_devices_t>(track.dest_device),
-                      },
-      };
-
-      strcpy(desc_track.base.dest_device_address, track.dest_device_address);
-      tracks_vec.push_back(desc_track);
+    if (audio_source.has_value() && (audio_source.value() != AUDIO_SOURCE_INVALID)) {
+      tracks.push_back(
+              {audio_source.value(), 0.7, AUDIO_DEVICE_OUT_BLE_HEADSET, "AA:BB:CC:DD:EE:FF"});
+    }
+    if (additional_audio_source.has_value() &&
+        (additional_audio_source.value() != AUDIO_SOURCE_INVALID)) {
+      tracks.push_back({additional_audio_source.value(), 0.7, AUDIO_DEVICE_OUT_BLE_HEADSET,
+                        "AA:BB:CC:DD:EE:FF"});
     }
 
-    ASSERT_NE(nullptr, unicast_sink_hal_cb_);
-    unicast_sink_hal_cb_->OnAudioMetadataUpdate(std::move(tracks_vec));
+    // Call the callback if we have added a valid track or we explicitly want to send no tracks
+    if (!audio_source.has_value() || tracks.size() > 1) {
+      std::vector<record_track_metadata_v7> tracks_vec;
+      tracks_vec.reserve(tracks.size());
+      for (const auto& track : tracks) {
+        record_track_metadata_v7 desc_track = {
+                .base =
+                        {
+                                .source = static_cast<audio_source_t>(track.source),
+                                .gain = track.gain,
+                                .dest_device = static_cast<audio_devices_t>(track.dest_device),
+                        },
+        };
+
+        snprintf(desc_track.base.dest_device_address, AUDIO_DEVICE_MAX_ADDRESS_LEN, "%s",
+                 track.dest_device_address);
+        tracks_vec.push_back(desc_track);
+      }
+
+      ASSERT_NE(nullptr, unicast_sink_hal_cb_);
+      unicast_sink_hal_cb_->OnAudioMetadataUpdate(std::move(tracks_vec));
+    }
   }
 
   void LocalAudioSourceSuspend(void) {
@@ -2030,9 +2040,7 @@ protected:
     ASSERT_NE(unicast_source_hal_cb_, nullptr);
 
     UpdateLocalSourceMetadata(usage, content_type, reconfigure_existing_stream);
-    if (audio_source != AUDIO_SOURCE_INVALID) {
-      UpdateLocalSinkMetadata(audio_source);
-    }
+    UpdateLocalSinkMetadata(audio_source);
 
     /* Stream has been automatically restarted on UpdateLocalSourceMetadata */
     if (reconfigure_existing_stream) {
@@ -8733,6 +8741,8 @@ TEST_F(UnicastTest, TwoEarbudsStreamingContextSwitchReconfigure) {
 
   log::info("End call");
   LeAudioClient::Get()->SetInCall(false);
+  UpdateLocalSourceMetadata(AUDIO_USAGE_UNKNOWN, AUDIO_CONTENT_TYPE_UNKNOWN, false);
+  UpdateLocalSinkMetadata(std::nullopt);
   // Stop
   StopStreaming(group_id, true);
 
@@ -9058,9 +9068,6 @@ TEST_F(UnicastTest, TwoReconfigureAndVerifyEnableContextType) {
   LeAudioClient::Get()->SetCcidInformation(gtbs_ccid, 2 /* Phone */);
   LeAudioClient::Get()->GroupSetActive(group_id);
   SyncOnMainLoop();
-
-  // Update metadata on local audio sink
-  UpdateLocalSinkMetadata(AUDIO_SOURCE_MIC);
 
   types::BidirectionalPair<std::vector<uint8_t>> ccids = {.sink = {gmcs_ccid}, .source = {}};
   EXPECT_CALL(mock_state_machine_, StartStream(_, _, _, ccids)).Times(1);
@@ -10677,6 +10684,7 @@ TEST_F(UnicastTest, UpdateNotSupportedContextTypeUnspecifiedAvailable) {
 
   LeAudioClient::Get()->SetInCall(false);
   LocalAudioSinkSuspend();
+  UpdateLocalSinkMetadata(std::nullopt);
 
   /* We should use GAME configuration, but do not send the GAME context type, as
    * it is not available on the remote device.
@@ -11235,6 +11243,7 @@ TEST_F(UnicastTest, MusicDuringCallContextTypes) {
   // ---------------------------------------
   // Suspend should stop the stream
   EXPECT_CALL(mock_state_machine_, StopStream(_)).Times(1);
+  UpdateLocalSinkMetadata(std::nullopt);
   LocalAudioSourceSuspend();
   LocalAudioSinkSuspend();
   // simulate suspend timeout passed, alarm executing

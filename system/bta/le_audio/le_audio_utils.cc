@@ -247,14 +247,6 @@ AudioContexts GetAudioContextsFromSinkMetadata(
     all_track_contexts.set(track_context);
   }
 
-  if (all_track_contexts.none()) {
-    all_track_contexts = AudioContexts(static_cast<std::underlying_type<LeAudioContextType>::type>(
-            LeAudioContextType::UNSPECIFIED));
-    log::debug(
-            "Unable to find supported audio source context for the remote audio "
-            "sink device. This may result in voice back channel malfunction.");
-  }
-
   log::info("Allowed contexts from sink metadata: {} (0x{:08x})",
             bluetooth::common::ToString(all_track_contexts), all_track_contexts.value());
   return all_track_contexts;

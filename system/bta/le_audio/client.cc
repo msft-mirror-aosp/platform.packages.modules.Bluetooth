@@ -5552,6 +5552,10 @@ public:
      * or source metadata update event.
      */
     auto remote_metadata = DirectionalRealignMetadataAudioContexts(group, remote_direction);
+    if (!remote_metadata.sink.any() && !remote_metadata.source.any()) {
+      log::warn("No valid metadata to update or reconfigure to.");
+      return false;
+    }
 
     /* Choose the right configuration context */
     auto config_context_candids = get_bidirectional(remote_metadata);

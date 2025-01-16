@@ -189,11 +189,6 @@ bool LeAudioTransport::GetPresentationPosition(uint64_t* remote_delay_report_ns,
 void LeAudioTransport::SourceMetadataChanged(const source_metadata_v7_t& source_metadata) {
   auto track_count = source_metadata.track_count;
 
-  if (track_count == 0) {
-    log::warn(", invalid number of metadata changed tracks");
-    return;
-  }
-
   if (cached_source_metadata_.tracks != nullptr) {
     free(cached_source_metadata_.tracks);
     cached_source_metadata_.tracks = nullptr;
@@ -201,9 +196,11 @@ void LeAudioTransport::SourceMetadataChanged(const source_metadata_v7_t& source_
 
   log::info(", caching source metadata");
 
-  playback_track_metadata_v7* tracks;
-  tracks = (playback_track_metadata_v7*)malloc(sizeof(*tracks) * track_count);
-  memcpy(tracks, source_metadata.tracks, sizeof(*tracks) * track_count);
+  playback_track_metadata_v7* tracks = nullptr;
+  if (track_count != 0) {
+    tracks = (playback_track_metadata_v7*)malloc(sizeof(*tracks) * track_count);
+    memcpy(tracks, source_metadata.tracks, sizeof(*tracks) * track_count);
+  }
 
   cached_source_metadata_.track_count = track_count;
   cached_source_metadata_.tracks = tracks;
@@ -213,11 +210,6 @@ void LeAudioTransport::SourceMetadataChanged(const source_metadata_v7_t& source_
 
 void LeAudioTransport::SinkMetadataChanged(const sink_metadata_v7_t& sink_metadata) {
   auto track_count = sink_metadata.track_count;
-
-  if (track_count == 0) {
-    log::warn(", invalid number of metadata changed tracks");
-    return;
-  }
 
   if (stream_cb_.on_sink_metadata_update_) {
     stream_cb_.on_sink_metadata_update_(sink_metadata);

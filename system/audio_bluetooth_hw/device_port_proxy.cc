@@ -688,17 +688,17 @@ void BluetoothAudioPortAidl::UpdateSourceMetadata(const source_metadata_v7* sour
              << ", cookie=" << StringPrintf("%#hx", cookie_) << ", state=" << state_ << ", "
              << source_metadata->track_count << " track(s)";
   ssize_t track_count = source_metadata->track_count;
-  if (track_count == 0) {
-    return;
-  }
   SourceMetadata hal_source_metadata;
-  hal_source_metadata.tracks.resize(track_count);
-  for (int i = 0; i < track_count; i++) {
-    hal_source_metadata.tracks[i].usage =
-            static_cast<AudioUsage>(source_metadata->tracks[i].base.usage);
-    hal_source_metadata.tracks[i].contentType =
-            static_cast<AudioContentType>(source_metadata->tracks[i].base.content_type);
-    hal_source_metadata.tracks[i].tags = CovertAudioTagFromV7(source_metadata->tracks[i].tags);
+
+  if (track_count != 0) {
+    hal_source_metadata.tracks.resize(track_count);
+    for (int i = 0; i < track_count; i++) {
+      hal_source_metadata.tracks[i].usage =
+              static_cast<AudioUsage>(source_metadata->tracks[i].base.usage);
+      hal_source_metadata.tracks[i].contentType =
+              static_cast<AudioContentType>(source_metadata->tracks[i].base.content_type);
+      hal_source_metadata.tracks[i].tags = CovertAudioTagFromV7(source_metadata->tracks[i].tags);
+    }
   }
 
   BluetoothAudioSessionControl::UpdateSourceMetadata(session_type_, hal_source_metadata);
@@ -713,16 +713,16 @@ void BluetoothAudioPortAidl::UpdateSinkMetadata(const sink_metadata_v7* sink_met
              << ", cookie=" << StringPrintf("%#hx", cookie_) << ", state=" << state_ << ", "
              << sink_metadata->track_count << " track(s)";
   ssize_t track_count = sink_metadata->track_count;
-  if (track_count == 0) {
-    return;
-  }
   SinkMetadata hal_sink_metadata;
-  hal_sink_metadata.tracks.resize(track_count);
-  for (int i = 0; i < track_count; i++) {
-    hal_sink_metadata.tracks[i].source =
-            static_cast<AudioSource>(sink_metadata->tracks[i].base.source);
-    hal_sink_metadata.tracks[i].gain = sink_metadata->tracks[i].base.gain;
-    hal_sink_metadata.tracks[i].tags = CovertAudioTagFromV7(sink_metadata->tracks[i].tags);
+
+  if (track_count != 0) {
+    hal_sink_metadata.tracks.resize(track_count);
+    for (int i = 0; i < track_count; i++) {
+      hal_sink_metadata.tracks[i].source =
+              static_cast<AudioSource>(sink_metadata->tracks[i].base.source);
+      hal_sink_metadata.tracks[i].gain = sink_metadata->tracks[i].base.gain;
+      hal_sink_metadata.tracks[i].tags = CovertAudioTagFromV7(sink_metadata->tracks[i].tags);
+    }
   }
 
   BluetoothAudioSessionControl::UpdateSinkMetadata(session_type_, hal_sink_metadata);
