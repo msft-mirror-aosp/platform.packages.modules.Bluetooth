@@ -27,15 +27,6 @@
 using namespace bluetooth::common;
 
 // Test hooks
-namespace bluetooth {
-namespace legacy {
-namespace testing {
-
-std::vector<TimestampedEntry<std::string>> PullCopyOfGattHistory();
-
-}  // namespace testing
-}  // namespace legacy
-}  // namespace bluetooth
 
 class BtaDiscTest : public testing::Test {
 protected:
@@ -61,7 +52,7 @@ TEST_F(BtaDiscTest, gatt_history_callback) {
   gatt_history_callback(std::format("{}", a[2].c_str()));
 
   std::vector<bluetooth::common::TimestampedEntry<std::string>> history =
-          bluetooth::legacy::testing::PullCopyOfGattHistory();
+          bluetooth::testing::PullCopyOfGattHistory();
   ASSERT_EQ(3UL, history.size());
   ASSERT_STREQ(a[0].c_str(), history[0].entry.c_str());
   ASSERT_STREQ(a[1].c_str(), history[1].entry.c_str());
