@@ -79,7 +79,7 @@ impl<T: ?Sized> Clone for WeakBox<T> {
 /// A strong reference to the contents within a SharedBox<>.
 pub struct WeakBoxRef<'a, T: ?Sized>(&'a T, Weak<T>);
 
-impl<'a, T: ?Sized> WeakBoxRef<'a, T> {
+impl<T: ?Sized> WeakBoxRef<'_, T> {
     /// Downgrade to a weak reference (with static lifetime) to the contents
     /// within the underlying SharedBox<>
     pub fn downgrade(&self) -> WeakBox<T> {
@@ -87,7 +87,7 @@ impl<'a, T: ?Sized> WeakBoxRef<'a, T> {
     }
 }
 
-impl<'a, T: ?Sized> Deref for WeakBoxRef<'a, T> {
+impl<T: ?Sized> Deref for WeakBoxRef<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -95,7 +95,7 @@ impl<'a, T: ?Sized> Deref for WeakBoxRef<'a, T> {
     }
 }
 
-impl<'a, T: ?Sized> Clone for WeakBoxRef<'a, T> {
+impl<T: ?Sized> Clone for WeakBoxRef<'_, T> {
     fn clone(&self) -> Self {
         Self(self.0, self.1.clone())
     }
