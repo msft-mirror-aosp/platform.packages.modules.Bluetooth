@@ -44,16 +44,6 @@ flag {
 }
 
 flag {
-    name: "ble_context_map_remove_fix"
-    namespace: "bluetooth"
-    description: "Fix connection removal logic in ContextMap class"
-    bug: "329154715"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "msft_addr_tracking_quirk"
     namespace: "bluetooth"
     description: "Scanning with MSFT paddress tracking for Realtek BT controllers"
