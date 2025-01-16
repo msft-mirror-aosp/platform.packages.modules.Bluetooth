@@ -498,15 +498,6 @@ struct bta_dm_set_encryption {
 };
 extern struct bta_dm_set_encryption bta_dm_set_encryption;
 
-// Name: handle_remote_features_complete
-// Params: const RawAddress& bd_addr
-// Return: void
-struct handle_remote_features_complete {
-  std::function<void(const RawAddress& bd_addr)> body{[](const RawAddress& /* bd_addr */) {}};
-  void operator()(const RawAddress& bd_addr) { body(bd_addr); }
-};
-extern struct handle_remote_features_complete handle_remote_features_complete;
-
 }  // namespace bta_dm_act
 }  // namespace mock
 }  // namespace test

@@ -102,9 +102,6 @@ static_assert(BTA_HH_INCLUDED,
 // TODO(b/369381361) Enfore -Wmissing-prototypes
 #pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
-void BTA_dm_on_hw_on();
-void BTA_dm_on_hw_off();
-
 using bluetooth::common::MessageLoopThread;
 using bluetooth::log::error;
 using bluetooth::log::fatal;
