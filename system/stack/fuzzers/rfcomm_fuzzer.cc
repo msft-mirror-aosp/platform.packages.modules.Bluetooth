@@ -39,10 +39,6 @@
 #include "test/mock/mock_stack_l2cap_interface.h"
 #include "test/rfcomm/stack_rfcomm_test_utils.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-
 using ::testing::_;
 using ::testing::NiceMock;
 using ::testing::Return;
