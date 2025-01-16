@@ -3920,6 +3920,30 @@ void btif_dm_clear_filter_accept_list() { BTA_DmClearFilterAcceptList(); }
 
 void btif_dm_disconnect_all_acls() { BTA_DmDisconnectAllAcls(); }
 
+void btif_dm_disconnect_acl(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
+  log::debug(" {}, transport {}", bd_addr, transport);
+
+  if (transport == BT_TRANSPORT_LE || transport == BT_TRANSPORT_AUTO) {
+    uint16_t acl_handle =
+            get_btm_client_interface().peer.BTM_GetHCIConnHandle(bd_addr, BT_TRANSPORT_LE);
+
+    log::debug("{}, le_acl_handle: {:#x}", bd_addr, acl_handle);
+    if (acl_handle != HCI_INVALID_HANDLE) {
+      acl_disconnect_from_handle(acl_handle, HCI_ERR_PEER_USER, "bt_btif_dm disconnect");
+    }
+  }
+
+  if (transport == BT_TRANSPORT_BR_EDR || transport == BT_TRANSPORT_AUTO) {
+    uint16_t acl_handle =
+            get_btm_client_interface().peer.BTM_GetHCIConnHandle(bd_addr, BT_TRANSPORT_BR_EDR);
+
+    log::debug("{}, bredr_acl_handle: {:#x}", bd_addr, acl_handle);
+    if (acl_handle != HCI_INVALID_HANDLE) {
+      acl_disconnect_from_handle(acl_handle, HCI_ERR_PEER_USER, "bt_btif_dm disconnect");
+    }
+  }
+}
+
 void btif_dm_le_rand(bluetooth::hci::LeRandCallback callback) { BTA_DmLeRand(std::move(callback)); }
 
 void btif_dm_set_event_filter_connection_setup_all_devices() {
