@@ -30,9 +30,6 @@
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 namespace {
 TimestampedStringCircularBuffer gatt_history_{50};
 constexpr char kTimeFormatString[] = "%Y-%m-%d %H:%M:%S";
@@ -119,18 +116,10 @@ void DumpsysBtaDmGattClient(int fd) {
 }
 #undef DUMPSYS_TAG
 
-void bluetooth::testing::set_gatt_interface(const gatt_interface_t& interface) {
-  *gatt_interface = interface;
-}
-
-namespace bluetooth {
-namespace legacy {
-namespace testing {
+namespace bluetooth::testing {
 
 std::vector<bluetooth::common::TimestampedEntry<std::string>> PullCopyOfGattHistory() {
   return gatt_history_.Pull();
 }
 
-}  // namespace testing
-}  // namespace legacy
-}  // namespace bluetooth
+}  // namespace bluetooth::testing

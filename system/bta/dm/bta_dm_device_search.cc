@@ -29,6 +29,7 @@
 #include <vector>
 
 #include "bta/dm/bta_dm_device_search_int.h"
+#include "bta/dm/bta_dm_disc_int.h"
 #include "common/circular_buffer.h"
 #include "common/strings.h"
 #include "device/include/interop.h"
@@ -44,9 +45,6 @@
 #include "stack/include/main_thread.h"
 #include "stack/include/rnr_interface.h"
 #include "types/raw_address.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 
@@ -888,8 +886,6 @@ static void bta_dm_search_reset() {
 
 void bta_dm_search_stop() { bta_dm_search_reset(); }
 
-void bta_dm_disc_discover_next_device() { bta_dm_discover_next_device(); }
-
 #define DUMPSYS_TAG "shim::legacy::bta::dm"
 void DumpsysBtaDmSearch(int fd) {
   auto copy = search_state_history_.Pull();
@@ -912,11 +908,6 @@ void bta_dm_disc_init_search_cb(tBTA_DM_SEARCH_CB& bta_dm_search_cb) {
 }
 void bta_dm_discover_next_device() { ::bta_dm_discover_next_device(); }
 
-tBTA_DM_SEARCH_CB bta_dm_disc_get_search_cb() {
-  tBTA_DM_SEARCH_CB search_cb = {};
-  ::bta_dm_disc_init_search_cb(search_cb);
-  return search_cb;
-}
 tBTA_DM_SEARCH_CB& bta_dm_disc_search_cb() { return ::bta_dm_search_cb; }
 bool bta_dm_read_remote_device_name(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
   return ::bta_dm_read_remote_device_name(bd_addr, transport);
