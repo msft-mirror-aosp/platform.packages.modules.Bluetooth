@@ -34,6 +34,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothClass;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothHeadset;
 import android.bluetooth.BluetoothProfile;
@@ -1225,6 +1226,27 @@ public class HeadsetServiceTest {
                 .thenReturn(BluetoothDevice.DEVICE_TYPE_WATCH.getBytes());
         when(mDatabaseManager.getCustomMeta(deviceRegular, BluetoothDevice.METADATA_DEVICE_TYPE))
                 .thenReturn(null);
+
+        // Has a connected watch device
+        addConnectedDeviceHelper(deviceWatch);
+        assertThat(mHeadsetService.getFallbackCandidates(mDatabaseManager)).isEmpty();
+
+        // Two connected devices with one watch
+        addConnectedDeviceHelper(deviceRegular);
+        assertThat(mHeadsetService.getFallbackCandidates(mDatabaseManager))
+                .containsExactly(deviceRegular);
+    }
+
+    @Test
+    public void testGetFallbackCandidates_HasWatchDeviceWithCod() {
+        BluetoothDevice deviceWatch = TestUtils.getTestDevice(mAdapter, 0);
+        BluetoothDevice deviceRegular = TestUtils.getTestDevice(mAdapter, 1);
+
+        // Make deviceWatch as watch with COD
+        when(mAdapterService.getRemoteClass(deviceWatch))
+                .thenReturn(BluetoothClass.Device.WEARABLE_WRIST_WATCH);
+        when(mAdapterService.getRemoteClass(deviceRegular))
+                .thenReturn(BluetoothClass.Device.AUDIO_VIDEO_HANDSFREE);
 
         // Has a connected watch device
         addConnectedDeviceHelper(deviceWatch);
