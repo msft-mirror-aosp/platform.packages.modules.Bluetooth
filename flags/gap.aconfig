@@ -111,16 +111,6 @@ flag {
 }
 
 flag {
-    name: "le_inquiry_duration"
-    namespace: "bluetooth"
-    description: "Use the same duration for LE inquiry scan that classic discovery uses"
-    bug: "357894405"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "non_wake_alarm_for_rpa_rotation"
     namespace: "bluetooth"
     description: "Use non-wake alarm for LE RPA rotation. go/non-wake-alarm-for-rpa-rotation"
