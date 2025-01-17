@@ -20,6 +20,8 @@ package com.android.bluetooth.tbs;
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 
+import static java.util.Objects.requireNonNull;
+
 import android.annotation.RequiresPermission;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothLeCall;
@@ -27,13 +29,13 @@ import android.bluetooth.BluetoothProfile;
 import android.bluetooth.IBluetoothLeCallControl;
 import android.bluetooth.IBluetoothLeCallControlCallback;
 import android.content.AttributionSource;
-import android.content.Context;
 import android.os.ParcelUuid;
 import android.os.RemoteException;
 import android.sysprop.BluetoothProperties;
 import android.util.Log;
 
 import com.android.bluetooth.Utils;
+import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.ProfileService;
 import com.android.bluetooth.le_audio.LeAudioService;
 import com.android.internal.annotations.VisibleForTesting;
@@ -44,16 +46,20 @@ import java.util.Map;
 import java.util.UUID;
 
 public class TbsService extends ProfileService {
-
-    private static final String TAG = "TbsService";
+    private static final String TAG = TbsService.class.getSimpleName();
 
     private static TbsService sTbsService;
+
     private final Map<BluetoothDevice, Integer> mDeviceAuthorizations = new HashMap<>();
+    private final TbsGeneric mTbsGeneric;
 
-    private final TbsGeneric mTbsGeneric = new TbsGeneric();
+    public TbsService(AdapterService adapterService) {
+        super(requireNonNull(adapterService));
 
-    public TbsService(Context ctx) {
-        super(ctx);
+        // Mark service as started
+        setTbsService(this);
+
+        mTbsGeneric = new TbsGeneric(adapterService, new TbsGatt(adapterService, this));
     }
 
     public static boolean isEnabled() {
@@ -63,19 +69,6 @@ public class TbsService extends ProfileService {
     @Override
     protected IProfileServiceBinder initBinder() {
         return new TbsServerBinder(this);
-    }
-
-    @Override
-    public void start() {
-        Log.d(TAG, "start()");
-        if (sTbsService != null) {
-            throw new IllegalStateException("start() called twice");
-        }
-
-        // Mark service as started
-        setTbsService(this);
-
-        mTbsGeneric.init(new TbsGatt(this));
     }
 
     @Override
