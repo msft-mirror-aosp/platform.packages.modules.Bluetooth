@@ -32,6 +32,7 @@
 #include "hci/event_checkers.h"
 #include "hci/hci_layer.h"
 #include "module.h"
+#include "os/alarm.h"
 #include "os/handler.h"
 #include "os/repeating_alarm.h"
 #include "packet/packet_view.h"
@@ -84,6 +85,7 @@ static constexpr uint16_t kInvalidConnInterval = 0;  // valid value is from 0x00
 static constexpr uint16_t kDefaultRasMtu = 247;      // Section 3.1.2 of RAP 1.0
 static constexpr uint8_t kAttHeaderSize = 5;         // Section 3.2.2.1 of RAS 1.0
 static constexpr uint8_t kRasSegmentHeaderSize = 1;
+static constexpr uint16_t kEnableSecurityTimeoutMs = 10000;  // 10s
 
 struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
   struct CsProcedureData {
@@ -216,6 +218,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     PacketViewForRecombination segment_data_;
     uint16_t conn_interval_ = kInvalidConnInterval;
     uint8_t procedure_sequence_after_enable = -1;
+    std::unique_ptr<os::Alarm> enable_security_timeout_alarm = nullptr;
   };
 
   bool get_free_config_id(uint16_t connection_handle, uint8_t& config_id) {
@@ -969,13 +972,21 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       return;
     }
     uint16_t connection_handle = event_view.GetConnectionHandle();
+    auto req_it = cs_requester_trackers_.find(connection_handle);
+    if (req_it != cs_requester_trackers_.end() &&
+        req_it->second.state == CsTrackerState::WAIT_FOR_SECURITY_ENABLED &&
+        req_it->second.enable_security_timeout_alarm != nullptr) {
+      log::debug("cancel alarm for security enable cmd.");
+      req_it->second.enable_security_timeout_alarm->Cancel();
+      req_it->second.enable_security_timeout_alarm = nullptr;
+    }
     if (event_view.GetStatus() != ErrorCode::SUCCESS) {
       std::string error_code = ErrorCodeText(event_view.GetStatus());
       log::warn("Received LeCsSecurityEnableCompleteView with error code {}", error_code);
       handle_cs_setup_failure(connection_handle, REASON_INTERNAL_ERROR);
       return;
     }
-    auto req_it = cs_requester_trackers_.find(connection_handle);
+
     if (req_it != cs_requester_trackers_.end() &&
         req_it->second.state == CsTrackerState::WAIT_FOR_SECURITY_ENABLED) {
       send_le_cs_set_procedure_parameters(event_view.GetConnectionHandle(),
@@ -1055,8 +1066,25 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       // send the cmd from the BLE central only.
       send_le_cs_security_enable(connection_handle, live_tracker->local_start);
     } else {
-      // TODO: else set a timeout alarm to make sure the remote would trigger the cmd.
       live_tracker->state = CsTrackerState::WAIT_FOR_SECURITY_ENABLED;
+      if (live_tracker->local_start) {
+        if (live_tracker->enable_security_timeout_alarm == nullptr) {
+          live_tracker->enable_security_timeout_alarm = std::make_unique<os::Alarm>(handler_);
+        }
+        live_tracker->enable_security_timeout_alarm->Schedule(
+                common::Bind(&impl::le_cs_enable_security_timeout, common::Unretained(this),
+                             connection_handle),
+                std::chrono::milliseconds(kEnableSecurityTimeoutMs));
+      }
+    }
+  }
+
+  void le_cs_enable_security_timeout(uint16_t connection_handle) {
+    auto req_it = cs_requester_trackers_.find(connection_handle);
+    if (req_it != cs_requester_trackers_.end()) {
+      log::info("security enable cmd is timeout, stop current session.");
+      handle_cs_setup_failure(connection_handle,
+                              DistanceMeasurementErrorCode::REASON_INTERNAL_ERROR);
     }
   }
 
