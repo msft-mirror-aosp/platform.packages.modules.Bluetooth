@@ -531,9 +531,15 @@ bool btif_a2dp_source_restart_session(const RawAddress& old_peer_address,
 
 bool btif_a2dp_source_end_session(const RawAddress& peer_address) {
   log::info("peer_address={} state={}", peer_address, btif_a2dp_source_cb.StateStr());
-  local_thread()->DoInThread(FROM_HERE,
-                             base::BindOnce(&btif_a2dp_source_end_session_delayed, peer_address));
-  btif_a2dp_source_cleanup_codec();
+  if (com::android::bluetooth::flags::a2dp_source_threading_fix()) {
+    btif_a2dp_source_cleanup_codec();
+    btif_a2dp_source_end_session_delayed(peer_address);
+  } else {
+
+    local_thread()->DoInThread(FROM_HERE,
+                               base::BindOnce(&btif_a2dp_source_end_session_delayed, peer_address));
+    btif_a2dp_source_cleanup_codec();
+  }
   return true;
 }
 
