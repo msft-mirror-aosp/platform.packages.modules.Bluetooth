@@ -16,7 +16,10 @@
 
 #pragma once
 
-#include <format>
+#include <fmt/core.h>
+#include <fmt/format.h>
+#include <fmt/printf.h>
+
 #include <optional>
 
 namespace rootcanal::log {
@@ -32,18 +35,18 @@ enum Verbosity {
 void SetLogColorEnable(bool);
 
 void VLog(Verbosity verb, char const* file, int line, std::optional<int> instance,
-          char const* format, std::format_args args);
+          char const* format, fmt::format_args args);
 
 template <typename... Args>
 static void Log(Verbosity verb, char const* file, int line, int instance, char const* format,
                 const Args&... args) {
-  VLog(verb, file, line, instance, format, std::make_format_args(args...));
+  VLog(verb, file, line, instance, format, fmt::make_format_args(args...));
 }
 
 template <typename... Args>
 static void Log(Verbosity verb, char const* file, int line, char const* format,
                 const Args&... args) {
-  VLog(verb, file, line, {}, format, std::make_format_args(args...));
+  VLog(verb, file, line, {}, format, fmt::make_format_args(args...));
 }
 
 #define DEBUG(...) \
@@ -67,10 +70,10 @@ static void Log(Verbosity verb, char const* file, int line, char const* format,
                                "Check failed: {}", #x),                               \
            false)
 
-#define ASSERT_LOG(x, ...)                                                            \
-  __builtin_expect((x) != 0, true) ||                                                 \
-          (rootcanal::log::Log(rootcanal::log::Verbosity::kFatal, __FILE__, __LINE__, \
-                               "Check failed: {}, {}", #x, std::format(__VA_ARGS__)), \
+#define ASSERT_LOG(x, ...)                                                             \
+  __builtin_expect((x) != 0, true) ||                                                  \
+          (rootcanal::log::Log(rootcanal::log::Verbosity::kFatal, __FILE__, __LINE__,  \
+                               "Check failed: {}, {}", #x, fmt::sprintf(__VA_ARGS__)), \
            false)
 
 }  // namespace rootcanal::log
