@@ -1084,7 +1084,7 @@ public:
       /* Note, that this type is actually LONG WRITE.
        * Meaning all the Prepare Writes plus Execute is handled in the stack
        */
-      write_type = GATT_WRITE_PREPARE;
+      write_type = GATT_WRITE;
     }
 
     BtaGattQueue::WriteCharacteristic(leAudioDevice->conn_id_, leAudioDevice->ctp_hdls_.val_hdl,
