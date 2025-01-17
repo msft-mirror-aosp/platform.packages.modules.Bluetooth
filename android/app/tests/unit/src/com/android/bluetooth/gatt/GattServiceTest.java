@@ -269,6 +269,94 @@ public class GattServiceTest {
     }
 
     @Test
+    public void clientConnectOverLeFailed() throws Exception {
+        int clientIf = 1;
+        String address = REMOTE_DEVICE_ADDRESS;
+        int addressType = BluetoothDevice.ADDRESS_TYPE_RANDOM;
+        boolean isDirect = true;
+        int transport = BluetoothDevice.TRANSPORT_LE;
+        boolean opportunistic = false;
+        int phy = 3;
+
+        mService.clientConnect(
+                clientIf,
+                address,
+                addressType,
+                isDirect,
+                transport,
+                opportunistic,
+                phy,
+                mAttributionSource);
+
+        verify(mAdapterService).notifyDirectLeGattClientConnect(anyInt(), any());
+        verify(mNativeInterface)
+                .gattClientConnect(
+                        clientIf, address, addressType, isDirect, transport, opportunistic, phy, 0);
+        mService.onConnected(clientIf, 0, BluetoothGatt.GATT_CONNECTION_TIMEOUT, address);
+        verify(mAdapterService).notifyGattClientConnectFailed(anyInt(), any());
+    }
+
+    @Test
+    public void clientConnectDisconnectOverLe() throws Exception {
+        int clientIf = 1;
+        String address = REMOTE_DEVICE_ADDRESS;
+        int addressType = BluetoothDevice.ADDRESS_TYPE_RANDOM;
+        boolean isDirect = true;
+        int transport = BluetoothDevice.TRANSPORT_LE;
+        boolean opportunistic = false;
+        int phy = 3;
+
+        mService.clientConnect(
+                clientIf,
+                address,
+                addressType,
+                isDirect,
+                transport,
+                opportunistic,
+                phy,
+                mAttributionSource);
+
+        verify(mAdapterService).notifyDirectLeGattClientConnect(anyInt(), any());
+        verify(mNativeInterface)
+                .gattClientConnect(
+                        clientIf, address, addressType, isDirect, transport, opportunistic, phy, 0);
+        mService.onConnected(clientIf, 15, BluetoothGatt.GATT_SUCCESS, address);
+        mService.clientDisconnect(clientIf, address, mAttributionSource);
+
+        verify(mAdapterService).notifyGattClientDisconnect(anyInt(), any());
+    }
+
+    @Test
+    public void clientConnectOverLeDisconnectedByRemote() throws Exception {
+        int clientIf = 1;
+        String address = REMOTE_DEVICE_ADDRESS;
+        int addressType = BluetoothDevice.ADDRESS_TYPE_RANDOM;
+        boolean isDirect = true;
+        int transport = BluetoothDevice.TRANSPORT_LE;
+        boolean opportunistic = false;
+        int phy = 3;
+
+        mService.clientConnect(
+                clientIf,
+                address,
+                addressType,
+                isDirect,
+                transport,
+                opportunistic,
+                phy,
+                mAttributionSource);
+
+        verify(mAdapterService).notifyDirectLeGattClientConnect(anyInt(), any());
+        verify(mNativeInterface)
+                .gattClientConnect(
+                        clientIf, address, addressType, isDirect, transport, opportunistic, phy, 0);
+        mService.onConnected(clientIf, 15, BluetoothGatt.GATT_SUCCESS, address);
+        mService.onDisconnected(clientIf, 15, 1, address);
+
+        verify(mAdapterService).notifyGattClientDisconnect(anyInt(), any());
+    }
+
+    @Test
     public void disconnectAll() {
         Map<Integer, String> connMap = new HashMap<>();
         int clientIf = 1;
