@@ -60,6 +60,7 @@ import android.bluetooth.BluetoothAdapter.ActiveDeviceUse;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothDevice.BluetoothAddress;
 import android.bluetooth.BluetoothFrameworkInitializer;
+import android.bluetooth.BluetoothLeAudio;
 import android.bluetooth.BluetoothMap;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothProtoEnums;
@@ -117,6 +118,7 @@ import android.sysprop.BluetoothProperties;
 import android.text.TextUtils;
 import android.util.Base64;
 import android.util.Log;
+import android.util.Pair;
 import android.util.SparseArray;
 
 import com.android.bluetooth.BluetoothMetricsProto;
@@ -290,6 +292,11 @@ public class AdapterService extends Service {
     private long mIdleTimeTotalMs;
     private long mEnergyUsedTotalVoltAmpSecMicro;
     private HashSet<String> mLeAudioAllowDevices = new HashSet<>();
+
+    /* List of pairs of gatt clients which controls AutoActiveMode on the device.*/
+    @VisibleForTesting
+    final List<Pair<Integer, BluetoothDevice>> mLeGattClientsControllingAutoActiveMode =
+            new ArrayList<>();
 
     private BluetoothAdapter mAdapter;
     @VisibleForTesting AdapterProperties mAdapterProperties;
@@ -5154,6 +5161,192 @@ public class AdapterService extends Service {
         return getConnectionState(device) != BluetoothDevice.CONNECTION_STATE_DISCONNECTED;
     }
 
+    private void addGattClientToControlAutoActiveMode(int clientIf, BluetoothDevice device) {
+        if (!Flags.allowGattConnectFromTheAppsWithoutMakingLeaudioDeviceActive()) {
+            Log.i(
+                    TAG,
+                    "flag: allowGattConnectFromTheAppsWithoutMakingLeaudioDeviceActive is not"
+                            + " enabled");
+            return;
+        }
+
+        /* When GATT client is connecting to LeAudio device, stack should not assume that
+         * LeAudio device should be automatically connected to Audio Framework.
+         * e.g. given LeAudio device might be busy with audio streaming from another device.
+         * LeAudio shall be automatically connected to Audio Framework when
+         * 1. Remote device expects that - Targeted Announcements are used
+         * 2. User is connecting device from Settings application.
+         *
+         * Above conditions are tracked by LeAudioService. In here, there is need to notify
+         * LeAudioService that connection is made for GATT purposes, so LeAudioService can
+         * disable AutoActiveMode and make sure to not make device Active just after connection
+         * is created.
+         *
+         * Note: AutoActiveMode is by default set to true and it means that LeAudio device is ready
+         * to streaming just after connection is created. That implies that device will be connected
+         * to Audio Framework (is made Active) when connection is created.
+         */
+
+        int groupId = mLeAudioService.getGroupId(device);
+        if (groupId == BluetoothLeAudio.GROUP_ID_INVALID) {
+            /* If this is not a LeAudio device, there is nothing to do here. */
+            return;
+        }
+
+        if (mLeAudioService.getConnectionPolicy(device)
+                != BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
+            Log.d(
+                    TAG,
+                    "addGattClientToControlAutoActiveMode: "
+                            + device
+                            + " LeAudio connection policy is not allowed");
+            return;
+        }
+
+        Log.i(
+                TAG,
+                "addGattClientToControlAutoActiveMode: clientIf: "
+                        + clientIf
+                        + ", "
+                        + device
+                        + ", groupId: "
+                        + groupId);
+
+        synchronized (mLeGattClientsControllingAutoActiveMode) {
+            Pair newPair = new Pair<>(clientIf, device);
+            if (mLeGattClientsControllingAutoActiveMode.contains(newPair)) {
+                return;
+            }
+
+            for (Pair<Integer, BluetoothDevice> pair : mLeGattClientsControllingAutoActiveMode) {
+                if (pair.second.equals(device)
+                        || groupId == mLeAudioService.getGroupId(pair.second)) {
+                    Log.i(TAG, "addGattClientToControlAutoActiveMode: adding new client");
+                    mLeGattClientsControllingAutoActiveMode.add(newPair);
+                    return;
+                }
+            }
+
+            if (mLeAudioService.setAutoActiveModeState(mLeAudioService.getGroupId(device), false)) {
+                Log.i(
+                        TAG,
+                        "addGattClientToControlAutoActiveMode: adding new client and notifying"
+                                + " leAudioService");
+                mLeGattClientsControllingAutoActiveMode.add(newPair);
+            }
+        }
+    }
+
+    /**
+     * When this is called, AdapterService is aware of user doing GATT connection over LE. Adapter
+     * service will use this information to manage internal GATT services if needed. For now,
+     * AdapterService is using this information to control Auto Active Mode for LeAudio devices.
+     *
+     * @param clientIf clientIf ClientIf which was doing GATT connection attempt
+     * @param device device Remote device to connect
+     */
+    public void notifyDirectLeGattClientConnect(int clientIf, BluetoothDevice device) {
+        if (mLeAudioService != null) {
+            addGattClientToControlAutoActiveMode(clientIf, device);
+        }
+    }
+
+    private void removeGattClientFromControlAutoActiveMode(int clientIf, BluetoothDevice device) {
+        if (mLeGattClientsControllingAutoActiveMode.isEmpty()) {
+            return;
+        }
+
+        int groupId = mLeAudioService.getGroupId(device);
+        if (groupId == BluetoothLeAudio.GROUP_ID_INVALID) {
+            /* If this is not a LeAudio device, there is nothing to do here. */
+            return;
+        }
+
+        /* Remember if auto active mode is still disabled.
+         * If it is disabled, it means, that either User or remote device did not make an
+         * action to make LeAudio device Active.
+         * That means, AdapterService should disconnect ACL when all the clients are disconnected
+         * from the group to which the device belongs.
+         */
+        boolean isAutoActiveModeDisabled = !mLeAudioService.isAutoActiveModeEnabled(groupId);
+
+        synchronized (mLeGattClientsControllingAutoActiveMode) {
+            Log.d(
+                    TAG,
+                    "removeGattClientFromControlAutoActiveMode: removing clientIf:"
+                            + clientIf
+                            + ", "
+                            + device
+                            + ", groupId: "
+                            + groupId);
+
+            mLeGattClientsControllingAutoActiveMode.remove(new Pair<>(clientIf, device));
+
+            if (!mLeGattClientsControllingAutoActiveMode.isEmpty()) {
+                for (Pair<Integer, BluetoothDevice> pair :
+                        mLeGattClientsControllingAutoActiveMode) {
+                    if (pair.second.equals(device)
+                            || groupId == mLeAudioService.getGroupId(pair.second)) {
+                        Log.d(
+                                TAG,
+                                "removeGattClientFromControlAutoActiveMode:"
+                                        + device
+                                        + " or groupId: "
+                                        + groupId
+                                        + " is still in use by clientif: "
+                                        + pair.first);
+                        return;
+                    }
+                }
+            }
+
+            /* Back auto active mode to default. */
+            mLeAudioService.setAutoActiveModeState(groupId, true);
+        }
+
+        int leConnectedState =
+                BluetoothDevice.CONNECTION_STATE_ENCRYPTED_LE
+                        | BluetoothDevice.CONNECTION_STATE_CONNECTED;
+
+        /* If auto active mode was disabled for the given group and is still connected
+         * make sure to disconnected all the devices from the group
+         */
+        if (isAutoActiveModeDisabled && ((getConnectionState(device) & leConnectedState) != 0)) {
+            for (BluetoothDevice dev : mLeAudioService.getGroupDevices(groupId)) {
+                /* Need to disconnect all the devices from the group as those might be connected
+                 * as well especially those which migh keep the connection
+                 */
+                if ((getConnectionState(dev) & leConnectedState) != 0) {
+                    mNativeInterface.disconnectAcl(dev, BluetoothDevice.TRANSPORT_LE);
+                }
+            }
+        }
+    }
+
+    /**
+     * Notify AdapterService about failed GATT connection attempt.
+     *
+     * @param clientIf ClientIf which was doing GATT connection attempt
+     * @param device Remote device to which connection attpemt failed
+     */
+    public void notifyGattClientConnectFailed(int clientIf, BluetoothDevice device) {
+        if (mLeAudioService != null) {
+            removeGattClientFromControlAutoActiveMode(clientIf, device);
+        }
+    }
+
+    /**
+     * Notify AdapterService about GATT connection being disconnecting or disconnected.
+     *
+     * @param clientIf ClientIf which is disconnecting or is already disconnected
+     * @param device Remote device which is disconnecting or is disconnected
+     */
+    public void notifyGattClientDisconnect(int clientIf, BluetoothDevice device) {
+        if (mLeAudioService != null) {
+            removeGattClientFromControlAutoActiveMode(clientIf, device);
+        }
+    }
+
     public int getConnectionState(BluetoothDevice device) {
         final String address = device.getAddress();
         if (Flags.apiGetConnectionStateUsingIdentityAddress()) {
@@ -6582,6 +6775,12 @@ public class AdapterService extends Service {
         writer.println("Enabled Profile Services:");
         for (int profileId : Config.getSupportedProfiles()) {
             writer.println("  " + BluetoothProfile.getProfileName(profileId));
+        }
+        writer.println();
+
+        writer.println("LE Gatt clients controlling AutoActiveMode:");
+        for (Pair<Integer, BluetoothDevice> pair : mLeGattClientsControllingAutoActiveMode) {
+            writer.println("   clientIf:" + pair.first + " " + pair.second);
         }
         writer.println();
 
