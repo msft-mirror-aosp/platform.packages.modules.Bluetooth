@@ -210,12 +210,12 @@ std::optional<uint16_t> AclConnectionHandler::GetAclConnectionHandle(
 }
 
 AclConnection& AclConnectionHandler::GetAclConnection(uint16_t handle) {
-  ASSERT_LOG(HasHandle(handle), "Unknown handle {}", handle);
+  ASSERT_LOG(HasHandle(handle), "Unknown handle %d", handle);
   return acl_connections_.at(handle);
 }
 
 AddressWithType AclConnectionHandler::GetAddress(uint16_t handle) const {
-  ASSERT_LOG(HasHandle(handle), "Unknown handle {}", handle);
+  ASSERT_LOG(HasHandle(handle), "Unknown handle %hd", handle);
   return acl_connections_.at(handle).GetAddress();
 }
 
@@ -225,17 +225,17 @@ std::optional<AddressWithType> AclConnectionHandler::GetAddressSafe(uint16_t han
 }
 
 Address AclConnectionHandler::GetScoAddress(uint16_t handle) const {
-  ASSERT_LOG(HasScoHandle(handle), "Unknown SCO handle {}", handle);
+  ASSERT_LOG(HasScoHandle(handle), "Unknown SCO handle %hd", handle);
   return sco_connections_.at(handle).GetAddress();
 }
 
 AddressWithType AclConnectionHandler::GetOwnAddress(uint16_t handle) const {
-  ASSERT_LOG(HasHandle(handle), "Unknown handle {}", handle);
+  ASSERT_LOG(HasHandle(handle), "Unknown handle %hd", handle);
   return acl_connections_.at(handle).GetOwnAddress();
 }
 
 AddressWithType AclConnectionHandler::GetResolvedAddress(uint16_t handle) const {
-  ASSERT_LOG(HasHandle(handle), "Unknown handle {}", handle);
+  ASSERT_LOG(HasHandle(handle), "Unknown handle %hd", handle);
   return acl_connections_.at(handle).GetResolvedAddress();
 }
 

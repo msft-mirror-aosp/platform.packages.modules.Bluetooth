@@ -16,8 +16,6 @@
 
 #include "hci_socket_transport.h"
 
-#include <utility>
-
 #include "log.h"
 
 namespace rootcanal {
@@ -58,7 +56,7 @@ void HciSocketTransport::Tick() { h4_.OnDataReady(socket_); }
 
 void HciSocketTransport::Send(PacketType packet_type, const std::vector<uint8_t>& packet) {
   if (!socket_ || !socket_->Connected()) {
-    INFO("Closed socket. Dropping packet of type {}", std::to_underlying(packet_type));
+    INFO("Closed socket. Dropping packet of type {}", fmt::underlying(packet_type));
     return;
   }
   uint8_t type = static_cast<uint8_t>(packet_type);

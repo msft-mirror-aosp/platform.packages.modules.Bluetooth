@@ -106,9 +106,9 @@ void TestChannelTransport::SendResponse(std::shared_ptr<AsyncDataChannel> socket
     WARNING("Unable to send a response.  EBADF");
     return;
   }
-  ASSERT_LOG(written == 4, "What happened? written = {} errno = {}", written, errno);
+  ASSERT_LOG(written == 4, "What happened? written = %zd errno = %d", written, errno);
   written = socket->Send(reinterpret_cast<const uint8_t*>(response.c_str()), size);
-  ASSERT_LOG(written == static_cast<int>(size), "What happened? written = {} errno = {}", written,
+  ASSERT_LOG(written == static_cast<int>(size), "What happened? written = %zd errno = %d", written,
              errno);
 }
 
