@@ -4954,7 +4954,7 @@ struct CsOptionalCsSyncPhysSupported {
 
 struct CsOptionalSubfeaturesSupported {
   _reserved_ : 1,
-  frequency_actuation_error : 1,
+  no_frequency_actuation_error : 1,
   channel_selection_algorithm : 1,
   phase_based_ranging : 1,
   _reserved_ : 12,

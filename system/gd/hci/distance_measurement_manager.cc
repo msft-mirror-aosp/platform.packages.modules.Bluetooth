@@ -683,9 +683,11 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       return;
     }
     switch (event.GetSubeventCode()) {
-      case hci::SubeventCode::LE_CS_TEST_END_COMPLETE:
-      case hci::SubeventCode::LE_CS_READ_REMOTE_FAE_TABLE_COMPLETE: {
+      case hci::SubeventCode::LE_CS_TEST_END_COMPLETE: {
         log::warn("Unhandled subevent {}", hci::SubeventCodeText(event.GetSubeventCode()));
+      } break;
+      case hci::SubeventCode::LE_CS_READ_REMOTE_FAE_TABLE_COMPLETE: {
+        on_cs_read_remote_fae_table_complete(LeCsReadRemoteFaeTableCompleteView::Create(event));
       } break;
       case hci::SubeventCode::LE_CS_SUBEVENT_RESULT_CONTINUE:
       case hci::SubeventCode::LE_CS_SUBEVENT_RESULT: {
@@ -745,6 +747,11 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
             LeCsSetDefaultSettingsBuilder::Create(connection_handle, role_enable,
                                                   kCsSyncAntennaSelection, kCsMaxTxPower),
             handler_->BindOnceOn(this, &impl::on_cs_set_default_settings_complete));
+  }
+
+  void send_le_cs_read_remote_fae_table(uint16_t connection_handle) const {
+    hci_layer_->EnqueueCommand(LeCsReadRemoteFaeTableBuilder::Create(connection_handle),
+                               handler_->BindOnce(check_status<LeCsReadRemoteFaeTableStatusView>));
   }
 
   void send_le_cs_create_config(uint16_t connection_handle, uint8_t config_id) {
@@ -938,6 +945,12 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       req_it->second.remote_num_antennas_supported_ = event_view.GetNumAntennasSupported();
       req_it->second.retry_counter_for_create_config = 0;
       req_it->second.remote_supported_sw_time_ = event_view.GetTSwTimeSupported();
+
+      if (event_view.GetOptionalSubfeaturesSupported().no_frequency_actuation_error_ == 0) {
+        log::debug("read remote fae as the no_fae is false.");
+        send_le_cs_read_remote_fae_table(connection_handle);
+      }
+
       send_le_cs_create_config(connection_handle, req_it->second.requesting_config_id);
     }
     log::info(
@@ -960,6 +973,18 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       uint16_t connection_handle = complete_view.GetConnectionHandle();
       handle_cs_setup_failure(connection_handle, REASON_INTERNAL_ERROR);
       return;
+    }
+  }
+
+  static void on_cs_read_remote_fae_table_complete(LeCsReadRemoteFaeTableCompleteView event_view) {
+    if (!event_view.IsValid()) {
+      log::warn("Get invalid LeCsReadRemoteFaeTableCompleteView");
+      return;
+    }
+    if (event_view.GetStatus() != ErrorCode::SUCCESS) {
+      log::warn("Received LeCsReadRemoteFaeTableCompleteView with error code {}",
+                ErrorCodeText(event_view.GetStatus()));
+      // not critical, do nothing here.
     }
   }
 
