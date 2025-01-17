@@ -349,6 +349,10 @@ cc_defaults {
     defaults: [
         "bluetooth_cflags",
     ],
+    cflags: [
+        "-Wno-missing-prototypes",
+        "-Wno-unused-parameter",
+    ],
     include_dirs: [
         "packages/modules/Bluetooth/system",
         "packages/modules/Bluetooth/system/gd",
