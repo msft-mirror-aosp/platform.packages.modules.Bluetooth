@@ -59,7 +59,7 @@ constexpr bool kLeApcfAdTypeFilterSupported = true;
 #define CHECK_PACKET_VIEW(view)                                                                    \
   do {                                                                                             \
     if (!CheckPacketView(                                                                          \
-                view, fmt::format("{}:{} - {}() invalid packet", __FILE__, __LINE__, __func__))) { \
+                view, std::format("{}:{} - {}() invalid packet", __FILE__, __LINE__, __func__))) { \
       return;                                                                                      \
     }                                                                                              \
   } while (0)
@@ -2874,7 +2874,7 @@ void DualModeController::LeApcf(CommandView command) {
               command_view.GetApcfOpcode(), std::vector<uint8_t>{}));
 
       invalid_packet_handler_(id_, InvalidPacketReason::kUnsupported,
-                              fmt::format("unsupported APCF opcode {:#x}",
+                              std::format("unsupported APCF opcode {:#x}",
                                           static_cast<uint8_t>(command_view.GetApcfOpcode())),
                               command_view.bytes().bytes());
   }
