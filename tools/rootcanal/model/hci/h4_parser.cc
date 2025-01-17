@@ -83,7 +83,7 @@ void H4Parser::OnPacketReady() {
       iso_cb_(packet_);
       break;
     default:
-      FATAL("Unimplemented packet type {}", fmt::underlying(hci_packet_type_));
+      FATAL("Unimplemented packet type {}", std::to_underlying(hci_packet_type_));
   }
   // Get ready for the next type byte.
   hci_packet_type_ = PacketType::UNKNOWN;
