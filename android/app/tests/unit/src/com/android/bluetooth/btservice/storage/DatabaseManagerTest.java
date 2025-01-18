@@ -18,6 +18,7 @@ package com.android.bluetooth.btservice.storage;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
@@ -788,16 +789,16 @@ public final class DatabaseManagerTest {
         preferences.putInt(BluetoothAdapter.AUDIO_MODE_DUPLEX, BluetoothProfile.LE_AUDIO);
 
         // TEST 1: If input is invalid, throws the right Exception
-        Assert.assertThrows(
+        assertThrows(
                 NullPointerException.class,
                 () -> mDatabaseManager.setPreferredAudioProfiles(null, preferences));
-        Assert.assertThrows(
+        assertThrows(
                 NullPointerException.class,
                 () -> mDatabaseManager.setPreferredAudioProfiles(new ArrayList<>(), null));
-        Assert.assertThrows(
+        assertThrows(
                 IllegalArgumentException.class,
                 () -> mDatabaseManager.setPreferredAudioProfiles(new ArrayList<>(), preferences));
-        Assert.assertThrows(
+        assertThrows(
                 IllegalArgumentException.class,
                 () -> mDatabaseManager.getPreferredAudioProfiles(null));
 
@@ -1748,7 +1749,7 @@ public final class DatabaseManagerTest {
 
         // Check whether the value is saved in database
         restartDatabaseManagerHelper();
-        Assert.assertArrayEquals(value, mDatabaseManager.getCustomMeta(mTestDevice, key));
+        assertThat(mDatabaseManager.getCustomMeta(mTestDevice, key)).isEqualTo(value);
 
         mDatabaseManager.factoryReset();
         mDatabaseManager.mMetadataCache.clear();

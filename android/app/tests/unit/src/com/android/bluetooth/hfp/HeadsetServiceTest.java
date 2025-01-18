@@ -18,6 +18,7 @@ package com.android.bluetooth.hfp;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.anyInt;
@@ -60,7 +61,6 @@ import com.android.bluetooth.btservice.storage.DatabaseManager;
 import com.android.bluetooth.flags.Flags;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -397,12 +397,9 @@ public class HeadsetServiceTest {
                         HeadsetStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED,
                         HeadsetHalConstants.CONNECTION_STATE_DISCONNECTED,
                         mCurrentDevice);
-        try {
-            mHeadsetService.messageFromNative(connectingEvent);
-            Assert.fail("Expect an IllegalStateException");
-        } catch (IllegalStateException exception) {
-            // Do nothing
-        }
+        assertThrows(
+                IllegalStateException.class,
+                () -> mHeadsetService.messageFromNative(connectingEvent));
         verifyNoMoreInteractions(mObjectsFactory);
     }
 
