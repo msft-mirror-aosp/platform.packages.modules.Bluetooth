@@ -22,6 +22,7 @@ import static android.bluetooth.IBluetoothLeAudio.LE_AUDIO_GROUP_ID_INVALID;
 import static com.android.bluetooth.bass_client.BassConstants.INVALID_BROADCAST_ID;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 
 import static org.mockito.Mockito.*;
 
@@ -57,7 +58,6 @@ import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.tbs.TbsService;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -750,10 +750,8 @@ public class LeAudioBroadcastServiceTest {
 
         TestUtils.waitForLooperToFinishScheduledTask(mService.getMainLooper());
 
-        List<BluetoothLeBroadcastMetadata> meta_list = mService.getAllBroadcastMetadata();
-        assertThat(meta_list).isNotNull();
-        Assert.assertNotEquals(meta_list.size(), 0);
-        assertThat(meta_list.get(0)).isEqualTo(state_event.broadcastMetadata);
+        assertThat(mService.getAllBroadcastMetadata())
+                .containsExactly(state_event.broadcastMetadata);
     }
 
     @Test
@@ -1674,7 +1672,7 @@ public class LeAudioBroadcastServiceTest {
 
         reset(mAudioManager);
 
-        Assert.assertTrue(mService.setActiveDevice(mDevice2));
+        assertThat(mService.setActiveDevice(mDevice2)).isTrue();
 
         if (!Flags.leaudioUseAudioRecordingListener()) {
             /* Update fallback active device (only input is active) */
@@ -1759,7 +1757,7 @@ public class LeAudioBroadcastServiceTest {
             try {
                 mIntentQueue.put(intent);
             } catch (InterruptedException e) {
-                Assert.fail("Cannot add Intent to the queue: " + e.getMessage());
+                assertWithMessage("Cannot add Intent to the queue: " + e.toString()).fail();
             }
         }
     }
@@ -1802,11 +1800,11 @@ public class LeAudioBroadcastServiceTest {
                             eq(mDevice2), eq(mDevice), connectionInfoArgumentCaptor.capture());
             List<BluetoothProfileConnectionInfo> connInfos =
                     connectionInfoArgumentCaptor.getAllValues();
-            Assert.assertEquals(connInfos.size(), 1);
+            assertThat(connInfos.size()).isEqualTo(1);
             assertThat(connInfos.get(0).isLeOutput()).isFalse();
         }
 
-        Assert.assertEquals(mService.getBroadcastToUnicastFallbackGroup(), groupId2);
+        assertThat(mService.getBroadcastToUnicastFallbackGroup()).isEqualTo(groupId2);
     }
 
     private void disconnectDevice(BluetoothDevice device) {
@@ -1819,8 +1817,8 @@ public class LeAudioBroadcastServiceTest {
                 device,
                 BluetoothProfile.STATE_DISCONNECTING,
                 BluetoothProfile.STATE_CONNECTED);
-        Assert.assertEquals(
-                BluetoothProfile.STATE_DISCONNECTING, mService.getConnectionState(device));
+        assertThat(mService.getConnectionState(device))
+                .isEqualTo(BluetoothProfile.STATE_DISCONNECTING);
 
         LeAudioStackEvent create_event =
                 new LeAudioStackEvent(LeAudioStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED);
@@ -1833,8 +1831,8 @@ public class LeAudioBroadcastServiceTest {
                 device,
                 BluetoothProfile.STATE_DISCONNECTED,
                 BluetoothProfile.STATE_DISCONNECTING);
-        Assert.assertEquals(
-                BluetoothProfile.STATE_DISCONNECTED, mService.getConnectionState(device));
+        assertThat(mService.getConnectionState(device))
+                .isEqualTo(BluetoothProfile.STATE_DISCONNECTED);
         mService.deviceDisconnected(device, false);
         TestUtils.waitForLooperToFinishScheduledTask(mService.getMainLooper());
     }
@@ -1854,8 +1852,8 @@ public class LeAudioBroadcastServiceTest {
 
         when(mDatabaseManager.getMostRecentlyConnectedDevices()).thenReturn(devices);
 
-        Assert.assertEquals(
-                mService.getBroadcastToUnicastFallbackGroup(), LE_AUDIO_GROUP_ID_INVALID);
+        assertThat(mService.getBroadcastToUnicastFallbackGroup())
+                .isEqualTo(LE_AUDIO_GROUP_ID_INVALID);
 
         initializeNative();
         devices.add(mDevice);
@@ -1871,7 +1869,7 @@ public class LeAudioBroadcastServiceTest {
         mService.messageFromNative(stackEvent);
 
         /* First connected group become fallback group */
-        Assert.assertEquals(mService.mUnicastGroupIdDeactivatedForBroadcastTransition, groupId);
+        assertThat(mService.mUnicastGroupIdDeactivatedForBroadcastTransition).isEqualTo(groupId);
 
         reset(mAudioManager);
 
