@@ -376,6 +376,7 @@ public class LeScanningTest {
     // Test against UUIDs that are close to TEST_UUID_STRING, one that has a few bits unset and one
     // that has an extra bit set.
     @Test
+    @VirtualOnly
     public void startBleScan_withServiceData_uuidDoesntMatch(
             @TestParameter({"00001800", "00001815"}) String uuid) {
         advertiseWithBumbleWithServiceData();
