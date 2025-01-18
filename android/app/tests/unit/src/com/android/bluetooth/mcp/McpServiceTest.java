@@ -34,7 +34,6 @@ import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -88,7 +87,7 @@ public class McpServiceTest {
     public void testGetService() {
         McpService mMcpServiceDuplicate = McpService.getMcpService();
         assertThat(mMcpServiceDuplicate).isNotNull();
-        Assert.assertSame(mMcpServiceDuplicate, mMcpService);
+        assertThat(mMcpServiceDuplicate).isSameInstanceAs(mMcpService);
     }
 
     @Test
