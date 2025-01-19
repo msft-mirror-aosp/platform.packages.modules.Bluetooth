@@ -6,7 +6,7 @@ package {
 aconfig_declarations {
     name: "bluetooth_aconfig_flags",
     package: "com.android.bluetooth.flags",
-    container: "com.android.btservices",
+    container: "com.android.bt",
     visibility: ["//packages/modules/Bluetooth/framework"],
     // LINT.IfChange
     srcs: [
@@ -19,7 +19,6 @@ aconfig_declarations {
         "btif_dm.aconfig",
         "btm_ble.aconfig",
         "connectivity.aconfig",
-        "device_iot_config.aconfig",
         "dis.aconfig",
         "framework.aconfig",
         "gap.aconfig",
@@ -59,7 +58,7 @@ java_aconfig_library {
     name: "bluetooth_flags_java_lib",
     aconfig_declarations: "bluetooth_aconfig_flags",
     visibility: ["//packages/modules/Bluetooth:__subpackages__"],
-    apex_available: ["com.android.btservices"],
+    apex_available: ["com.android.bt"],
     libs: ["framework-configinfrastructure.stubs.module_lib"],
     sdk_version: "module_current",
     min_sdk_version: "Tiramisu",
@@ -83,7 +82,7 @@ cc_aconfig_library {
     aconfig_declarations: "bluetooth_aconfig_flags",
     host_supported: true,
     visibility: ["//packages/modules/Bluetooth:__subpackages__"],
-    apex_available: ["com.android.btservices"],
+    apex_available: ["com.android.bt"],
     min_sdk_version: "Tiramisu",
 }
 
@@ -101,7 +100,7 @@ rust_aconfig_library {
     host_supported: true,
     crate_name: "bluetooth_aconfig_flags_rust",
     aconfig_declarations: "bluetooth_aconfig_flags",
-    apex_available: ["com.android.btservices"],
+    apex_available: ["com.android.bt"],
     min_sdk_version: "Tiramisu",
     visibility: ["//packages/modules/Bluetooth/system:__subpackages__"],
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 The Android Open Source Project
+ * Copyright (C) 2013 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,21 +14,9 @@
  * limitations under the License.
  */
 
-package com.android.bluetooth.channelsoundingtestapp;
+package com.android.bluetooth.gatt
 
-import static com.google.common.truth.Truth.assertThat;
-
-import org.junit.Test;
-
-/**
- * Example local unit test, which will execute on the development machine (host).
- *
- * @see <a href="http://d.android.com/tools/testing">Testing documentation</a>
- */
-public class ExampleUnitTest {
-
-    @Test
-    public void addition_isCorrect() {
-        assertThat(2 + 2).isEqualTo(4);
-    }
+object GattServiceConfig {
+    @JvmField val TAG_PREFIX = "BtGatt."
+    @JvmField val DEBUG_ADMIN = false
 }

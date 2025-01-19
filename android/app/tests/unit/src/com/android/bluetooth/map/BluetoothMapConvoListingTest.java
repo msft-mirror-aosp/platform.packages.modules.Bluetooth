@@ -74,19 +74,19 @@ public class BluetoothMapConvoListingTest {
     @Test
     public void segment_whenCountIsLessThanOne_returnsOffsetToEnd() {
         mListing.segment(0, 1);
-        assertThat(mListing.getList().size()).isEqualTo(2);
+        assertThat(mListing.getList()).hasSize(2);
     }
 
     @Test
     public void segment_whenOffsetIsBiggerThanSize_returnsEmptyList() {
         mListing.segment(1, 4);
-        assertThat(mListing.getList().size()).isEqualTo(0);
+        assertThat(mListing.getList()).isEmpty();
     }
 
     @Test
     public void segment_whenOffsetCountCombinationIsValid_returnsCorrectly() {
         mListing.segment(1, 1);
-        assertThat(mListing.getList().size()).isEqualTo(1);
+        assertThat(mListing.getList()).hasSize(1);
     }
 
     @Test
@@ -173,7 +173,7 @@ public class BluetoothMapConvoListingTest {
 
         BluetoothMapConvoListing listing = new BluetoothMapConvoListing();
         listing.appendFromXml(listingStream);
-        assertThat(listing.getList().size()).isEqualTo(2);
+        assertThat(listing.getList()).hasSize(2);
         assertThat(listing.getList().get(0).getConvoId())
                 .isEqualTo(signedLongLongIdOne.toHexString());
         assertThat(listing.getList().get(1).getConvoId())

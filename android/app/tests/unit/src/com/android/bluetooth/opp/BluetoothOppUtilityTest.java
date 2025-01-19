@@ -319,7 +319,7 @@ public class BluetoothOppUtilityTest {
         assertThat(info.mCurrentBytes).isEqualTo(currentBytesValue);
         assertThat(info.mTimeStamp).isEqualTo(timestampValue);
         assertThat(info.mDestAddr).isEqualTo(destinationValue);
-        assertThat(info.mFileUri).isEqualTo(null);
+        assertThat(info.mFileUri).isNull();
         assertThat(info.mFileType).isEqualTo(fileTypeValue);
         assertThat(info.mDeviceName).isEqualTo(deviceNameValue);
         assertThat(info.mHandoverInitiated).isEqualTo(false);

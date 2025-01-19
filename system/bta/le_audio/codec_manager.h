@@ -60,8 +60,28 @@ struct broadcast_offload_config {
   uint16_t max_transport_latency;
 };
 
+struct ProviderInfo {
+  bool allowAsymmetric = false;
+  bool lowLatency = false;
+
+  inline std::string toString() const {
+    std::ostringstream _aidl_os;
+    _aidl_os << "ProviderInfo{";
+    _aidl_os << "allowAsymmetric: " << allowAsymmetric;
+    _aidl_os << ", lowLatency: " << lowLatency;
+    _aidl_os << "}";
+    return _aidl_os.str();
+  }
+};
+
 class CodecManager {
 public:
+  enum Flags {
+    NONE = 0x00,
+    LOW_LATENCY,
+    ALLOW_ASYMMETRIC,
+  };
+
   struct UnicastConfigurationRequirements {
     ::bluetooth::le_audio::types::LeAudioContextType audio_context_type;
     std::optional<std::vector<types::acs_ac_record>> sink_pacs;
@@ -75,6 +95,8 @@ public:
 
     std::optional<std::vector<DeviceDirectionRequirements>> sink_requirements;
     std::optional<std::vector<DeviceDirectionRequirements>> source_requirements;
+
+    Flags flags;
   };
 
   /* The provider function checks each possible configuration (from the set of
@@ -103,6 +125,7 @@ public:
           const std::vector<bluetooth::le_audio::btle_audio_codec_config_t>& offloading_preference);
   void Stop(void);
   virtual types::CodecLocation GetCodecLocation(void) const;
+  virtual std::optional<ProviderInfo> GetCodecConfigProviderInfo(void) const;
   virtual bool IsDualBiDirSwbSupported(void) const;
   virtual bool UpdateCisConfiguration(const std::vector<struct types::cis>& cises,
                                       const stream_parameters& stream_params, uint8_t direction);

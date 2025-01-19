@@ -67,6 +67,7 @@
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_log_history.h"
+#include "stack/include/btm_sec_api.h"
 #include "types/raw_address.h"
 
 #define PRIVATE_CELL(number)                                        \
@@ -471,7 +472,9 @@ static void btif_hf_upstreams_evt(uint16_t event, char* p_param) {
         log_counter_metrics_btif(
                 android::bluetooth::CodePathCounterKeyEnum::HFP_SELF_INITIATED_AG_FAILED, 1);
         btif_queue_advance();
-        DEVICE_IOT_CONFIG_ADDR_INT_ADD_ONE(connected_bda, IOT_CONF_KEY_HFP_SLC_CONN_FAIL_COUNT);
+        if (btm_sec_is_a_bonded_dev(connected_bda)) {
+          DEVICE_IOT_CONFIG_ADDR_INT_ADD_ONE(connected_bda, IOT_CONF_KEY_HFP_SLC_CONN_FAIL_COUNT);
+        }
       }
       break;
     case BTA_AG_CLOSE_EVT: {

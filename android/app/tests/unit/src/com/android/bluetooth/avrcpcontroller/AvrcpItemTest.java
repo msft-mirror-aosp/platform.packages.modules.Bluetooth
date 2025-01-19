@@ -29,7 +29,6 @@ import android.support.v4.media.MediaMetadataCompat;
 import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -92,19 +91,19 @@ public final class AvrcpItemTest {
 
         AvrcpItem item = builder.build();
 
-        Assert.assertEquals(mDevice, item.getDevice());
-        Assert.assertEquals(true, item.isPlayable());
-        Assert.assertEquals(false, item.isBrowsable());
-        Assert.assertEquals(0, item.getUid());
-        Assert.assertEquals(UUID, item.getUuid());
-        Assert.assertEquals(null, item.getDisplayableName());
-        Assert.assertEquals(title, item.getTitle());
-        Assert.assertEquals(artist, item.getArtistName());
-        Assert.assertEquals(album, item.getAlbumName());
-        Assert.assertEquals(trackNumber, item.getTrackNumber());
-        Assert.assertEquals(totalTracks, item.getTotalNumberOfTracks());
-        Assert.assertEquals(artHandle, item.getCoverArtHandle());
-        Assert.assertEquals(uri, item.getCoverArtLocation());
+        assertThat(item.getDevice()).isEqualTo(mDevice);
+        assertThat(item.isPlayable()).isTrue();
+        assertThat(item.isBrowsable()).isFalse();
+        assertThat(item.getUid()).isEqualTo(0);
+        assertThat(item.getUuid()).isEqualTo(UUID);
+        assertThat(item.getDisplayableName()).isNull();
+        assertThat(item.getTitle()).isEqualTo(title);
+        assertThat(item.getArtistName()).isEqualTo(artist);
+        assertThat(item.getAlbumName()).isEqualTo(album);
+        assertThat(item.getTrackNumber()).isEqualTo(trackNumber);
+        assertThat(item.getTotalNumberOfTracks()).isEqualTo(totalTracks);
+        assertThat(item.getCoverArtHandle()).isEqualTo(artHandle);
+        assertThat(item.getCoverArtLocation()).isEqualTo(uri);
     }
 
     @Test
@@ -139,19 +138,19 @@ public final class AvrcpItemTest {
         builder.fromAvrcpAttributeArray(attrIds, attrMap);
         AvrcpItem item = builder.build();
 
-        Assert.assertEquals(null, item.getDevice());
-        Assert.assertEquals(false, item.isPlayable());
-        Assert.assertEquals(false, item.isBrowsable());
-        Assert.assertEquals(0, item.getUid());
-        Assert.assertEquals(null, item.getUuid());
-        Assert.assertEquals(null, item.getDisplayableName());
-        Assert.assertEquals(title, item.getTitle());
-        Assert.assertEquals(artist, item.getArtistName());
-        Assert.assertEquals(album, item.getAlbumName());
-        Assert.assertEquals(1, item.getTrackNumber());
-        Assert.assertEquals(12, item.getTotalNumberOfTracks());
-        Assert.assertEquals(artHandle, item.getCoverArtHandle());
-        Assert.assertEquals(null, item.getCoverArtLocation());
+        assertThat(item.getDevice()).isNull();
+        assertThat(item.isPlayable()).isFalse();
+        assertThat(item.isBrowsable()).isFalse();
+        assertThat(item.getUid()).isEqualTo(0);
+        assertThat(item.getUuid()).isNull();
+        assertThat(item.getDisplayableName()).isNull();
+        assertThat(item.getTitle()).isEqualTo(title);
+        assertThat(item.getArtistName()).isEqualTo(artist);
+        assertThat(item.getAlbumName()).isEqualTo(album);
+        assertThat(item.getTrackNumber()).isEqualTo(1);
+        assertThat(item.getTotalNumberOfTracks()).isEqualTo(12);
+        assertThat(item.getCoverArtHandle()).isEqualTo(artHandle);
+        assertThat(item.getCoverArtLocation()).isNull();
     }
 
     @Test
@@ -201,19 +200,19 @@ public final class AvrcpItemTest {
         builder.fromAvrcpAttributeArray(attrIds, attrMap);
         AvrcpItem item = builder.build();
 
-        Assert.assertEquals(null, item.getDevice());
-        Assert.assertEquals(false, item.isPlayable());
-        Assert.assertEquals(false, item.isBrowsable());
-        Assert.assertEquals(0, item.getUid());
-        Assert.assertEquals(null, item.getUuid());
-        Assert.assertEquals(null, item.getDisplayableName());
-        Assert.assertEquals(title, item.getTitle());
-        Assert.assertEquals(artist, item.getArtistName());
-        Assert.assertEquals(album, item.getAlbumName());
-        Assert.assertEquals(1, item.getTrackNumber());
-        Assert.assertEquals(12, item.getTotalNumberOfTracks());
-        Assert.assertEquals(artHandle, item.getCoverArtHandle());
-        Assert.assertEquals(null, item.getCoverArtLocation());
+        assertThat(item.getDevice()).isNull();
+        assertThat(item.isPlayable()).isFalse();
+        assertThat(item.isBrowsable()).isFalse();
+        assertThat(item.getUid()).isEqualTo(0);
+        assertThat(item.getUuid()).isNull();
+        assertThat(item.getDisplayableName()).isNull();
+        assertThat(item.getTitle()).isEqualTo(title);
+        assertThat(item.getArtistName()).isEqualTo(artist);
+        assertThat(item.getAlbumName()).isEqualTo(album);
+        assertThat(item.getTrackNumber()).isEqualTo(1);
+        assertThat(item.getTotalNumberOfTracks()).isEqualTo(12);
+        assertThat(item.getCoverArtHandle()).isEqualTo(artHandle);
+        assertThat(item.getCoverArtLocation()).isNull();
     }
 
     @Test
@@ -248,19 +247,19 @@ public final class AvrcpItemTest {
         builder.fromAvrcpAttributeArray(attrIds, attrMap);
         AvrcpItem item = builder.build();
 
-        Assert.assertEquals(null, item.getDevice());
-        Assert.assertEquals(false, item.isPlayable());
-        Assert.assertEquals(false, item.isBrowsable());
-        Assert.assertEquals(0, item.getUid());
-        Assert.assertEquals(null, item.getUuid());
-        Assert.assertEquals(null, item.getDisplayableName());
-        Assert.assertEquals(title, item.getTitle());
-        Assert.assertEquals(artist, item.getArtistName());
-        Assert.assertEquals(album, item.getAlbumName());
-        Assert.assertEquals(1, item.getTrackNumber());
-        Assert.assertEquals(12, item.getTotalNumberOfTracks());
-        Assert.assertEquals(null, item.getCoverArtHandle());
-        Assert.assertEquals(null, item.getCoverArtLocation());
+        assertThat(item.getDevice()).isNull();
+        assertThat(item.isPlayable()).isFalse();
+        assertThat(item.isBrowsable()).isFalse();
+        assertThat(item.getUid()).isEqualTo(0);
+        assertThat(item.getUuid()).isNull();
+        assertThat(item.getDisplayableName()).isNull();
+        assertThat(item.getTitle()).isEqualTo(title);
+        assertThat(item.getArtistName()).isEqualTo(artist);
+        assertThat(item.getAlbumName()).isEqualTo(album);
+        assertThat(item.getTrackNumber()).isEqualTo(1);
+        assertThat(item.getTotalNumberOfTracks()).isEqualTo(12);
+        assertThat(item.getCoverArtHandle()).isNull();
+        assertThat(item.getCoverArtLocation()).isNull();
     }
 
     @Test
@@ -295,19 +294,19 @@ public final class AvrcpItemTest {
         builder.fromAvrcpAttributeArray(attrIds, attrMap);
         AvrcpItem item = builder.build();
 
-        Assert.assertEquals(null, item.getDevice());
-        Assert.assertEquals(false, item.isPlayable());
-        Assert.assertEquals(false, item.isBrowsable());
-        Assert.assertEquals(0, item.getUid());
-        Assert.assertEquals(null, item.getUuid());
-        Assert.assertEquals(null, item.getDisplayableName());
-        Assert.assertEquals(title, item.getTitle());
-        Assert.assertEquals(artist, item.getArtistName());
-        Assert.assertEquals(album, item.getAlbumName());
-        Assert.assertEquals(1, item.getTrackNumber());
-        Assert.assertEquals(12, item.getTotalNumberOfTracks());
-        Assert.assertEquals(null, item.getCoverArtHandle());
-        Assert.assertEquals(null, item.getCoverArtLocation());
+        assertThat(item.getDevice()).isNull();
+        assertThat(item.isPlayable()).isFalse();
+        assertThat(item.isBrowsable()).isFalse();
+        assertThat(item.getUid()).isEqualTo(0);
+        assertThat(item.getUuid()).isNull();
+        assertThat(item.getDisplayableName()).isNull();
+        assertThat(item.getTitle()).isEqualTo(title);
+        assertThat(item.getArtistName()).isEqualTo(artist);
+        assertThat(item.getAlbumName()).isEqualTo(album);
+        assertThat(item.getTrackNumber()).isEqualTo(1);
+        assertThat(item.getTotalNumberOfTracks()).isEqualTo(12);
+        assertThat(item.getCoverArtHandle()).isNull();
+        assertThat(item.getCoverArtLocation()).isNull();
     }
 
     @Test
@@ -342,19 +341,19 @@ public final class AvrcpItemTest {
         builder.fromAvrcpAttributeArray(attrIds, attrMap);
         AvrcpItem item = builder.build();
 
-        Assert.assertEquals(null, item.getDevice());
-        Assert.assertEquals(false, item.isPlayable());
-        Assert.assertEquals(false, item.isBrowsable());
-        Assert.assertEquals(0, item.getUid());
-        Assert.assertEquals(null, item.getUuid());
-        Assert.assertEquals(null, item.getDisplayableName());
-        Assert.assertEquals(title, item.getTitle());
-        Assert.assertEquals(artist, item.getArtistName());
-        Assert.assertEquals(album, item.getAlbumName());
-        Assert.assertEquals(1, item.getTrackNumber());
-        Assert.assertEquals(12, item.getTotalNumberOfTracks());
-        Assert.assertEquals(null, item.getCoverArtHandle());
-        Assert.assertEquals(null, item.getCoverArtLocation());
+        assertThat(item.getDevice()).isNull();
+        assertThat(item.isPlayable()).isFalse();
+        assertThat(item.isBrowsable()).isFalse();
+        assertThat(item.getUid()).isEqualTo(0);
+        assertThat(item.getUuid()).isNull();
+        assertThat(item.getDisplayableName()).isNull();
+        assertThat(item.getTitle()).isEqualTo(title);
+        assertThat(item.getArtistName()).isEqualTo(artist);
+        assertThat(item.getAlbumName()).isEqualTo(album);
+        assertThat(item.getTrackNumber()).isEqualTo(1);
+        assertThat(item.getTotalNumberOfTracks()).isEqualTo(12);
+        assertThat(item.getCoverArtHandle()).isNull();
+        assertThat(item.getCoverArtLocation()).isNull();
     }
 
     @Test
@@ -389,19 +388,19 @@ public final class AvrcpItemTest {
         builder.fromAvrcpAttributeArray(attrIds, attrMap);
         AvrcpItem item = builder.build();
 
-        Assert.assertEquals(null, item.getDevice());
-        Assert.assertEquals(false, item.isPlayable());
-        Assert.assertEquals(false, item.isBrowsable());
-        Assert.assertEquals(0, item.getUid());
-        Assert.assertEquals(null, item.getUuid());
-        Assert.assertEquals(null, item.getDisplayableName());
-        Assert.assertEquals(title, item.getTitle());
-        Assert.assertEquals(artist, item.getArtistName());
-        Assert.assertEquals(album, item.getAlbumName());
-        Assert.assertEquals(1, item.getTrackNumber());
-        Assert.assertEquals(12, item.getTotalNumberOfTracks());
-        Assert.assertEquals(null, item.getCoverArtHandle());
-        Assert.assertEquals(null, item.getCoverArtLocation());
+        assertThat(item.getDevice()).isNull();
+        assertThat(item.isPlayable()).isFalse();
+        assertThat(item.isBrowsable()).isFalse();
+        assertThat(item.getUid()).isEqualTo(0);
+        assertThat(item.getUuid()).isNull();
+        assertThat(item.getDisplayableName()).isNull();
+        assertThat(item.getTitle()).isEqualTo(title);
+        assertThat(item.getArtistName()).isEqualTo(artist);
+        assertThat(item.getAlbumName()).isEqualTo(album);
+        assertThat(item.getTrackNumber()).isEqualTo(1);
+        assertThat(item.getTotalNumberOfTracks()).isEqualTo(12);
+        assertThat(item.getCoverArtHandle()).isNull();
+        assertThat(item.getCoverArtLocation()).isNull();
     }
 
     @Test
@@ -413,10 +412,10 @@ public final class AvrcpItemTest {
         builder.setCoverArtLocation(uri);
 
         AvrcpItem item = builder.build();
-        Assert.assertEquals(uri, item.getCoverArtLocation());
+        assertThat(item.getCoverArtLocation()).isEqualTo(uri);
 
         item.setCoverArtLocation(uri2);
-        Assert.assertEquals(uri2, item.getCoverArtLocation());
+        assertThat(item.getCoverArtLocation()).isEqualTo(uri2);
     }
 
     @Test
@@ -452,30 +451,28 @@ public final class AvrcpItemTest {
         AvrcpItem item = builder.build();
         MediaMetadataCompat metadata = item.toMediaMetadata();
 
-        Assert.assertEquals(UUID, metadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID));
-        Assert.assertEquals(
-                title, metadata.getString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE));
-        Assert.assertEquals(title, metadata.getString(MediaMetadataCompat.METADATA_KEY_TITLE));
-        Assert.assertEquals(artist, metadata.getString(MediaMetadataCompat.METADATA_KEY_ARTIST));
-        Assert.assertEquals(album, metadata.getString(MediaMetadataCompat.METADATA_KEY_ALBUM));
-        Assert.assertEquals(
-                trackNumber, metadata.getLong(MediaMetadataCompat.METADATA_KEY_TRACK_NUMBER));
-        Assert.assertEquals(
-                totalTracks, metadata.getLong(MediaMetadataCompat.METADATA_KEY_NUM_TRACKS));
-        Assert.assertEquals(genre, metadata.getString(MediaMetadataCompat.METADATA_KEY_GENRE));
-        Assert.assertEquals(
-                playingTime, metadata.getLong(MediaMetadataCompat.METADATA_KEY_DURATION));
-        Assert.assertEquals(
-                uri,
-                Uri.parse(metadata.getString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI)));
-        Assert.assertEquals(
-                uri, Uri.parse(metadata.getString(MediaMetadataCompat.METADATA_KEY_ART_URI)));
-        Assert.assertEquals(
-                uri, Uri.parse(metadata.getString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI)));
-        Assert.assertEquals(
-                null, metadata.getBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON));
-        Assert.assertEquals(null, metadata.getBitmap(MediaMetadataCompat.METADATA_KEY_ART));
-        Assert.assertEquals(null, metadata.getBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART));
+        assertThat(metadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID)).isEqualTo(UUID);
+        assertThat(metadata.getString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE))
+                .isEqualTo(title);
+        assertThat(metadata.getString(MediaMetadataCompat.METADATA_KEY_TITLE)).isEqualTo(title);
+        assertThat(metadata.getString(MediaMetadataCompat.METADATA_KEY_ARTIST)).isEqualTo(artist);
+        assertThat(metadata.getString(MediaMetadataCompat.METADATA_KEY_ALBUM)).isEqualTo(album);
+        assertThat(metadata.getLong(MediaMetadataCompat.METADATA_KEY_TRACK_NUMBER))
+                .isEqualTo(trackNumber);
+        assertThat(metadata.getLong(MediaMetadataCompat.METADATA_KEY_NUM_TRACKS))
+                .isEqualTo(totalTracks);
+        assertThat(metadata.getString(MediaMetadataCompat.METADATA_KEY_GENRE)).isEqualTo(genre);
+        assertThat(metadata.getLong(MediaMetadataCompat.METADATA_KEY_DURATION))
+                .isEqualTo(playingTime);
+        assertThat(Uri.parse(metadata.getString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI)))
+                .isEqualTo(uri);
+        assertThat(Uri.parse(metadata.getString(MediaMetadataCompat.METADATA_KEY_ART_URI)))
+                .isEqualTo(uri);
+        assertThat(Uri.parse(metadata.getString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI)))
+                .isEqualTo(uri);
+        assertThat(metadata.getBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON)).isNull();
+        assertThat(metadata.getBitmap(MediaMetadataCompat.METADATA_KEY_ART)).isNull();
+        assertThat(metadata.getBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART)).isNull();
         assertThat(metadata.containsKey(MediaMetadataCompat.METADATA_KEY_BT_FOLDER_TYPE)).isFalse();
     }
 
@@ -507,30 +504,28 @@ public final class AvrcpItemTest {
         AvrcpItem item = builder.build();
         MediaMetadataCompat metadata = item.toMediaMetadata();
 
-        Assert.assertEquals(UUID, metadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID));
-        Assert.assertEquals(
-                title, metadata.getString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE));
-        Assert.assertEquals(title, metadata.getString(MediaMetadataCompat.METADATA_KEY_TITLE));
-        Assert.assertEquals(artist, metadata.getString(MediaMetadataCompat.METADATA_KEY_ARTIST));
-        Assert.assertEquals(null, metadata.getString(MediaMetadataCompat.METADATA_KEY_ALBUM));
-        Assert.assertEquals(
-                totalTracks, metadata.getLong(MediaMetadataCompat.METADATA_KEY_NUM_TRACKS));
-        Assert.assertEquals(genre, metadata.getString(MediaMetadataCompat.METADATA_KEY_GENRE));
-        Assert.assertEquals(
-                playingTime, metadata.getLong(MediaMetadataCompat.METADATA_KEY_DURATION));
-        Assert.assertEquals(
-                uri,
-                Uri.parse(metadata.getString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI)));
-        Assert.assertEquals(
-                uri, Uri.parse(metadata.getString(MediaMetadataCompat.METADATA_KEY_ART_URI)));
-        Assert.assertEquals(
-                uri, Uri.parse(metadata.getString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI)));
-        Assert.assertEquals(
-                null, metadata.getBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON));
-        Assert.assertEquals(null, metadata.getBitmap(MediaMetadataCompat.METADATA_KEY_ART));
-        Assert.assertEquals(null, metadata.getBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART));
-        Assert.assertEquals(
-                type, metadata.getLong(MediaMetadataCompat.METADATA_KEY_BT_FOLDER_TYPE));
+        assertThat(metadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID)).isEqualTo(UUID);
+        assertThat(metadata.getString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE))
+                .isEqualTo(title);
+        assertThat(metadata.getString(MediaMetadataCompat.METADATA_KEY_TITLE)).isEqualTo(title);
+        assertThat(metadata.getString(MediaMetadataCompat.METADATA_KEY_ARTIST)).isEqualTo(artist);
+        assertThat(metadata.getString(MediaMetadataCompat.METADATA_KEY_ALBUM)).isNull();
+        assertThat(metadata.getLong(MediaMetadataCompat.METADATA_KEY_NUM_TRACKS))
+                .isEqualTo(totalTracks);
+        assertThat(metadata.getString(MediaMetadataCompat.METADATA_KEY_GENRE)).isEqualTo(genre);
+        assertThat(metadata.getLong(MediaMetadataCompat.METADATA_KEY_DURATION))
+                .isEqualTo(playingTime);
+        assertThat(Uri.parse(metadata.getString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI)))
+                .isEqualTo(uri);
+        assertThat(Uri.parse(metadata.getString(MediaMetadataCompat.METADATA_KEY_ART_URI)))
+                .isEqualTo(uri);
+        assertThat(Uri.parse(metadata.getString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI)))
+                .isEqualTo(uri);
+        assertThat(metadata.getBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON)).isNull();
+        assertThat(metadata.getBitmap(MediaMetadataCompat.METADATA_KEY_ART)).isNull();
+        assertThat(metadata.getBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART)).isNull();
+        assertThat(metadata.getLong(MediaMetadataCompat.METADATA_KEY_BT_FOLDER_TYPE))
+                .isEqualTo(type);
     }
 
     @Test
@@ -550,14 +545,14 @@ public final class AvrcpItemTest {
 
         assertThat(mediaItem.isPlayable()).isTrue();
         assertThat(mediaItem.isBrowsable()).isFalse();
-        Assert.assertEquals(UUID, mediaItem.getMediaId());
+        assertThat(mediaItem.getMediaId()).isEqualTo(UUID);
 
-        Assert.assertEquals(UUID, desc.getMediaId());
-        Assert.assertEquals(null, desc.getMediaUri());
-        Assert.assertEquals(title, desc.getTitle().toString());
+        assertThat(desc.getMediaId()).isEqualTo(UUID);
+        assertThat(desc.getMediaUri()).isNull();
+        assertThat(desc.getTitle().toString()).isEqualTo(title);
         assertThat(desc.getSubtitle()).isNull();
-        Assert.assertEquals(uri, desc.getIconUri());
-        Assert.assertEquals(null, desc.getIconBitmap());
+        assertThat(desc.getIconUri()).isEqualTo(uri);
+        assertThat(desc.getIconBitmap()).isNull();
     }
 
     @Test
@@ -579,14 +574,14 @@ public final class AvrcpItemTest {
 
         assertThat(mediaItem.isPlayable()).isTrue();
         assertThat(mediaItem.isBrowsable()).isFalse();
-        Assert.assertEquals(UUID, mediaItem.getMediaId());
+        assertThat(mediaItem.getMediaId()).isEqualTo(UUID);
 
-        Assert.assertEquals(UUID, desc.getMediaId());
-        Assert.assertEquals(null, desc.getMediaUri());
-        Assert.assertEquals(displayName, desc.getTitle().toString());
+        assertThat(desc.getMediaId()).isEqualTo(UUID);
+        assertThat(desc.getMediaUri()).isNull();
+        assertThat(desc.getTitle().toString()).isEqualTo(displayName);
         assertThat(desc.getSubtitle()).isNull();
-        Assert.assertEquals(uri, desc.getIconUri());
-        Assert.assertEquals(null, desc.getIconBitmap());
+        assertThat(desc.getIconUri()).isEqualTo(uri);
+        assertThat(desc.getIconBitmap()).isNull();
     }
 
     @Test
@@ -606,14 +601,14 @@ public final class AvrcpItemTest {
 
         assertThat(mediaItem.isPlayable()).isFalse();
         assertThat(mediaItem.isBrowsable()).isTrue();
-        Assert.assertEquals(UUID, mediaItem.getMediaId());
+        assertThat(mediaItem.getMediaId()).isEqualTo(UUID);
 
-        Assert.assertEquals(UUID, desc.getMediaId());
-        Assert.assertEquals(null, desc.getMediaUri());
-        Assert.assertEquals(title, desc.getTitle().toString());
+        assertThat(desc.getMediaId()).isEqualTo(UUID);
+        assertThat(desc.getMediaUri()).isNull();
+        assertThat(desc.getTitle().toString()).isEqualTo(title);
         assertThat(desc.getSubtitle()).isNull();
-        Assert.assertEquals(uri, desc.getIconUri());
-        Assert.assertEquals(null, desc.getIconBitmap());
+        assertThat(desc.getIconUri()).isEqualTo(uri);
+        assertThat(desc.getIconBitmap()).isNull();
     }
 
     @Test

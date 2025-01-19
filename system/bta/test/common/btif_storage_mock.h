@@ -28,6 +28,7 @@ class BtifStorageInterface {
 public:
   virtual void AddLeaudioAutoconnect(RawAddress const& addr, bool autoconnect) = 0;
   virtual void LeAudioUpdatePacs(RawAddress const& addr) = 0;
+  virtual void LeAudioUpdateGmap(RawAddress const& addr) = 0;
   virtual void LeAudioUpdateAses(RawAddress const& addr) = 0;
   virtual void LeAudioUpdateHandles(RawAddress const& addr) = 0;
   virtual void SetLeAudioLocations(RawAddress const& addr, uint32_t sink_location,
@@ -57,6 +58,7 @@ public:
   MOCK_METHOD((void), AddLeaudioAutoconnect, (RawAddress const& addr, bool autoconnect),
               (override));
   MOCK_METHOD((void), LeAudioUpdatePacs, (RawAddress const& addr), (override));
+  MOCK_METHOD((void), LeAudioUpdateGmap, (RawAddress const& addr), (override));
   MOCK_METHOD((void), LeAudioUpdateAses, (RawAddress const& addr), (override));
   MOCK_METHOD((void), LeAudioUpdateHandles, (RawAddress const& addr), (override));
   MOCK_METHOD((void), SetLeAudioLocations,

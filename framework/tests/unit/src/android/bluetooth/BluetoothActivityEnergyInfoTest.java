@@ -74,7 +74,7 @@ public class BluetoothActivityEnergyInfoTest {
         traffics.add(traffic);
         info.setUidTraffic(traffics);
 
-        assertThat(info.getUidTraffic().size()).isEqualTo(1);
+        assertThat(info.getUidTraffic()).hasSize(1);
         assertThat(info.getUidTraffic().get(0)).isEqualTo(traffic);
     }
 

@@ -1029,7 +1029,7 @@ public class HeadsetClientStateMachineTest {
         mHeadsetClientStateMachine.setAudioPolicyRemoteSupported(true);
         mHeadsetClientStateMachine.setAudioPolicy(dummyAudioPolicy);
         verify(mNativeInterface).sendAndroidAt(mTestDevice, "+ANDROID=SINKAUDIOPOLICY,1,2,1");
-        assertThat(mHeadsetClientStateMachine.mQueuedActions.size()).isEqualTo(1);
+        assertThat(mHeadsetClientStateMachine.mQueuedActions).hasSize(1);
         mHeadsetClientStateMachine.mQueuedActions.clear();
 
         // Test if fail to sendAndroidAt

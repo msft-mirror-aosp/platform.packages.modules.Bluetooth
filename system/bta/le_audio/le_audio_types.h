@@ -503,8 +503,19 @@ struct BidirectionalPair {
   T sink;
   T source;
 
-  const T& get(uint8_t direction) const;
-  T& get(uint8_t direction);
+  const T& get(uint8_t direction) const {
+    log::assert_that(direction < types::kLeAudioDirectionBoth,
+                     "Unsupported complex direction. Consider using "
+                     "get_bidirectional<>() instead.");
+    return (direction == types::kLeAudioDirectionSink) ? sink : source;
+  }
+
+  T& get(uint8_t direction) {
+    log::assert_that(direction < types::kLeAudioDirectionBoth,
+                     "Unsupported complex direction. Reference to a single "
+                     "complex direction value is not supported.");
+    return (direction == types::kLeAudioDirectionSink) ? sink : source;
+  }
 };
 
 template <typename T>

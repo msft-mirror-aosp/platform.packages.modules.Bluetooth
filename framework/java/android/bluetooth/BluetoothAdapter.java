@@ -4223,6 +4223,26 @@ public final class BluetoothAdapter {
         return null;
     }
 
+    /**
+     * Return a binder to DistanceMeasurement
+     *
+     * @hide
+     */
+    @RequiresNoPermission
+    public @Nullable IDistanceMeasurement getDistanceMeasurement() {
+        mServiceLock.readLock().lock();
+        try {
+            if (mService != null) {
+                return IDistanceMeasurement.Stub.asInterface(mService.getDistanceMeasurement());
+            }
+        } catch (RemoteException e) {
+            logRemoteException(TAG, e);
+        } finally {
+            mServiceLock.readLock().unlock();
+        }
+        return null;
+    }
+
     /** Return a binder to a Profile service */
     private @Nullable IBinder getProfile(int profile) {
         mServiceLock.readLock().lock();

@@ -79,6 +79,7 @@ class MediaBrowserWrapper {
     private final Looper mLooper;
     private final String mPackageName;
     private final Handler mRunHandler;
+    private final String mClassName;
 
     private ConnectionState mBrowserConnectionState = ConnectionState.DISCONNECTED;
 
@@ -94,6 +95,7 @@ class MediaBrowserWrapper {
             Context context, Looper looper, String packageName, String className) {
         mContext = context;
         mPackageName = packageName;
+        mClassName = className;
         mLooper = looper;
         mRunHandler = new Handler(mLooper);
         mWrappedBrowser =
@@ -382,5 +384,10 @@ class MediaBrowserWrapper {
         public Handler getTimeoutHandler() {
             return mRunHandler;
         }
+    }
+
+    @Override
+    public String toString() {
+        return "Browsable Package & Class Name: " + mPackageName + " " + mClassName + "\n";
     }
 }

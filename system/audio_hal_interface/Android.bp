@@ -79,9 +79,7 @@ cc_library_static {
     cflags: [
         "-Wthread-safety",
     ],
-    apex_available: [
-        "com.android.btservices",
-    ],
+    apex_available: ["com.android.bt"],
     min_sdk_version: "Tiramisu",
     header_libs: ["libbluetooth_headers"],
 }

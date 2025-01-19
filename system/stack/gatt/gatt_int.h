@@ -193,7 +193,6 @@ typedef struct {
   uint8_t listening{0}; /* if adv for all has been enabled */
   bool eatt_support{false};
   std::string name;
-  std::set<RawAddress> direct_connect_request;
   std::map<RawAddress, uint16_t> mtu_prefs;
 } tGATT_REG;
 
@@ -490,7 +489,6 @@ extern bluetooth::common::TimestampedCircularBuffer<tTCB_STATE_HISTORY> tcb_stat
 
 /* from gatt_main.cc */
 bool gatt_disconnect(tGATT_TCB* p_tcb);
-void gatt_cancel_connect(const RawAddress& bd_addr, tBT_TRANSPORT transport);
 bool gatt_act_connect(tGATT_REG* p_reg, const RawAddress& bd_addr, tBT_TRANSPORT transport,
                       int8_t initiating_phys);
 bool gatt_act_connect(tGATT_REG* p_reg, const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type,
@@ -613,7 +611,7 @@ bool gatt_is_pending_mtu_exchange(tGATT_TCB* p_tcb);
 void gatt_set_conn_id_waiting_for_mtu_exchange(tGATT_TCB* p_tcb, tCONN_ID conn_id);
 
 void gatt_sr_copy_prep_cnt_to_cback_cnt(tGATT_TCB& p_tcb);
-bool gatt_sr_is_cback_cnt_zero(tGATT_TCB& p_tcb);
+bool gatt_sr_is_cback_cnt_zero(tGATT_TCB& p_tcb, uint16_t cid);
 bool gatt_sr_is_prep_cnt_zero(tGATT_TCB& p_tcb);
 void gatt_sr_reset_cback_cnt(tGATT_TCB& p_tcb, uint16_t cid);
 void gatt_sr_reset_prep_cnt(tGATT_TCB& tcb);

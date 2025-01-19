@@ -4416,6 +4416,12 @@ public class AdapterService extends Service {
             AdapterService service = getService();
             return service == null ? null : service.getBluetoothAdvertise();
         }
+
+        @Override
+        public IBinder getDistanceMeasurement() {
+            AdapterService service = getService();
+            return service == null ? null : service.getDistanceMeasurement();
+        }
     }
 
     /**
@@ -6156,6 +6162,11 @@ public class AdapterService extends Service {
     @Nullable
     IBinder getBluetoothAdvertise() {
         return mGattService == null ? null : mGattService.getBluetoothAdvertise();
+    }
+
+    @Nullable
+    IBinder getDistanceMeasurement() {
+        return mGattService == null ? null : mGattService.getDistanceMeasurement();
     }
 
     @RequiresPermission(BLUETOOTH_CONNECT)

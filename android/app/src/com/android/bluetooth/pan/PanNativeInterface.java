@@ -22,41 +22,19 @@ import android.bluetooth.BluetoothPan;
 import android.bluetooth.BluetoothProfile;
 import android.util.Log;
 
-import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 
 /** Provides Bluetooth Pan native interface for the Pan service */
 public class PanNativeInterface {
     private static final String TAG = PanNativeInterface.class.getSimpleName();
-    private PanService mPanService;
 
-    @GuardedBy("INSTANCE_LOCK")
-    private static PanNativeInterface sInstance;
+    private final PanService mPanService;
 
-    private static final Object INSTANCE_LOCK = new Object();
-
-    private PanNativeInterface() {}
-
-    /** Get singleton instance. */
-    public static PanNativeInterface getInstance() {
-        synchronized (INSTANCE_LOCK) {
-            if (sInstance == null) {
-                sInstance = new PanNativeInterface();
-            }
-            return sInstance;
-        }
-    }
-
-    /** Set singleton instance. */
-    @VisibleForTesting
-    public static void setInstance(PanNativeInterface instance) {
-        synchronized (INSTANCE_LOCK) {
-            sInstance = instance;
-        }
-    }
-
-    void init(PanService panService) {
+    PanNativeInterface(PanService panService) {
         mPanService = panService;
+    }
+
+    void init() {
         initializeNative();
     }
 
