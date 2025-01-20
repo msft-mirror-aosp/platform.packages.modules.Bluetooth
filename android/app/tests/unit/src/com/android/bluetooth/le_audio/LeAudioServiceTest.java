@@ -1631,21 +1631,34 @@ public class LeAudioServiceTest {
     @Test
     @DisableFlags(Flags.FLAG_LEAUDIO_BROADCAST_PRIMARY_GROUP_SELECTION)
     public void testUpdateUnicastFallbackActiveDeviceGroupDuringBroadcast() {
+        List<BluetoothDevice> devices = new ArrayList<>();
         int groupId = 1;
-        int preGroupId = 2;
+        int groupId_2 = 2;
         /* AUDIO_DIRECTION_OUTPUT_BIT = 0x01 */
         int direction = 1;
+        int snkAudioLocation = 3;
+        int srcAudioLocation = 4;
         int availableContexts = 5 + BluetoothLeAudio.CONTEXT_TYPE_RINGTONE;
         int broadcastId = 243;
         byte[] code = {0x00, 0x01, 0x00, 0x02};
 
+        when(mDatabaseManager.getMostRecentlyConnectedDevices()).thenReturn(devices);
+
         // Not connected device
         assertThat(mService.setActiveDevice(mSingleDevice)).isFalse();
 
-        // Connect device
-        connectTestDevice(mSingleDevice, testGroupId);
+        // Connect devices
+        doReturn(true).when(mNativeInterface).connectLeAudio(any(BluetoothDevice.class));
+        devices.add(mSingleDevice);
+        connectTestDevice(mSingleDevice, groupId);
+        devices.add(mSingleDevice_2);
+        connectTestDevice(mSingleDevice_2, groupId_2);
 
-        mService.mUnicastGroupIdDeactivatedForBroadcastTransition = preGroupId;
+        // Default fallback group is LE_AUDIO_GROUP_ID_INVALID
+        assertThat(mService.mUnicastGroupIdDeactivatedForBroadcastTransition)
+                .isEqualTo(LE_AUDIO_GROUP_ID_INVALID);
+
+        mService.mUnicastGroupIdDeactivatedForBroadcastTransition = groupId_2;
         // mock create broadcast and currentlyActiveGroupId remains LE_AUDIO_GROUP_ID_INVALID
         BluetoothLeAudioContentMetadata.Builder meta_builder =
                 new BluetoothLeAudioContentMetadata.Builder();
@@ -1657,16 +1670,31 @@ public class LeAudioServiceTest {
 
         LeAudioStackEvent broadcastCreatedEvent =
                 new LeAudioStackEvent(LeAudioStackEvent.EVENT_TYPE_BROADCAST_CREATED);
-        broadcastCreatedEvent.device = mSingleDevice;
         broadcastCreatedEvent.valueInt1 = broadcastId;
         broadcastCreatedEvent.valueBool1 = true;
         mService.messageFromNative(broadcastCreatedEvent);
 
+        LeAudioStackEvent broadcastStateStreamingEvent =
+                new LeAudioStackEvent(LeAudioStackEvent.EVENT_TYPE_BROADCAST_STATE);
+        broadcastStateStreamingEvent.valueInt1 = broadcastId;
+        broadcastStateStreamingEvent.valueInt2 = LeAudioStackEvent.BROADCAST_STATE_STREAMING;
+        mService.messageFromNative(broadcastStateStreamingEvent);
+
         injectAudioConfChanged(groupId, availableContexts, direction);
 
+        LeAudioStackEvent audioConfChangedEvent =
+                new LeAudioStackEvent(LeAudioStackEvent.EVENT_TYPE_AUDIO_CONF_CHANGED);
+        audioConfChangedEvent.device = mSingleDevice_2;
+        audioConfChangedEvent.valueInt1 = direction;
+        audioConfChangedEvent.valueInt2 = groupId_2;
+        audioConfChangedEvent.valueInt3 = snkAudioLocation;
+        audioConfChangedEvent.valueInt4 = srcAudioLocation;
+        audioConfChangedEvent.valueInt5 = availableContexts;
+        mService.messageFromNative(audioConfChangedEvent);
+
         // Verify only update the fallback group and not proceed to change active
-        assertThat(mService.setActiveDevice(mSingleDevice)).isTrue();
-        assertThat(mService.mUnicastGroupIdDeactivatedForBroadcastTransition).isEqualTo(groupId);
+        assertThat(mService.setActiveDevice(mSingleDevice_2)).isTrue();
+        assertThat(mService.mUnicastGroupIdDeactivatedForBroadcastTransition).isEqualTo(groupId_2);
 
         // Verify only update the fallback group to INVALID and not proceed to change active
         assertThat(mService.setActiveDevice(null)).isTrue();
