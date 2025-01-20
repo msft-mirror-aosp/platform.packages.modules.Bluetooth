@@ -1124,6 +1124,8 @@ public class LeAudioServiceTest {
         int direction = 1;
         int availableContexts = 5 + BluetoothLeAudio.CONTEXT_TYPE_RINGTONE;
 
+        InOrder tbsOrder = inOrder(mTbsService);
+
         // Not connected device
         assertThat(mService.setActiveDevice(mSingleDevice)).isFalse();
 
@@ -1148,7 +1150,9 @@ public class LeAudioServiceTest {
         groupStatusChangedEvent.valueInt2 = LeAudioStackEvent.GROUP_STATUS_ACTIVE;
         mService.messageFromNative(groupStatusChangedEvent);
 
-        verify(mTbsService).setInbandRingtoneSupport(mSingleDevice);
+        tbsOrder.verify(mTbsService).setInbandRingtoneSupport(mSingleDevice);
+        tbsOrder.verify(mTbsService, never()).setInbandRingtoneSupport(mSingleDevice_2);
+        tbsOrder.verify(mTbsService, never()).clearInbandRingtoneSupport(any());
 
         ArgumentCaptor<BluetoothProfileConnectionInfo> connectionInfoArgumentCaptor =
                 ArgumentCaptor.forClass(BluetoothProfileConnectionInfo.class);
@@ -1176,6 +1180,10 @@ public class LeAudioServiceTest {
         activeGroupState.valueInt2 = LeAudioStackEvent.GROUP_STATUS_ACTIVE;
         activeGroupState.valueInt3 = groupId_1;
         mService.messageFromNative(activeGroupState);
+
+        tbsOrder.verify(mTbsService).setInbandRingtoneSupport(mSingleDevice_2);
+        tbsOrder.verify(mTbsService).clearInbandRingtoneSupport(mSingleDevice);
+        tbsOrder.verify(mTbsService, never()).setInbandRingtoneSupport(mSingleDevice);
 
         verify(mAudioManager)
                 .handleBluetoothActiveDeviceChanged(
