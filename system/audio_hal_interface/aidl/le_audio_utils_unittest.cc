@@ -152,11 +152,10 @@ static auto PrepareStackPacRecord(::bluetooth::le_audio::types::LeAudioCodecId c
   auto ltv_map =
           PrepareStackCapability(capa_sampling_frequency, capa_frame_duration, audio_channel_counts,
                                  octets_per_frame_min, octets_per_frame_max, codec_frames_per_sdu);
-  return ::bluetooth::le_audio::types::acs_ac_record(
-          {.codec_id = codec_id,
-           .codec_spec_caps = ltv_map,
-           .codec_spec_caps_raw = ltv_map.RawPacket(),
-           .metadata = PrepareStackMetadataLtv().RawPacket()});
+  return ::bluetooth::le_audio::types::acs_ac_record({.codec_id = codec_id,
+                                                      .codec_spec_caps = ltv_map,
+                                                      .codec_spec_caps_raw = ltv_map.RawPacket(),
+                                                      .metadata = PrepareStackMetadataLtv()});
 }
 
 std::pair<aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::
@@ -753,7 +752,7 @@ static void verifyMetadata(
 
 TEST(BluetoothAudioClientInterfaceAidlTest, testGetAidlMetadataFromStackFormat) {
   ::bluetooth::le_audio::types::LeAudioLtvMap metadata_ltvs = test_utils::PrepareStackMetadataLtv();
-  auto aidl_metadata = GetAidlMetadataFromStackFormat(metadata_ltvs.RawPacket());
+  auto aidl_metadata = GetAidlMetadataFromStackFormat(metadata_ltvs);
   ASSERT_TRUE(aidl_metadata.has_value());
 
   /* Only kLeAudioMetadataTypePreferredAudioContext,
@@ -867,10 +866,9 @@ TEST(BluetoothAudioClientInterfaceAidlTest, testGetAidlLeAudioDeviceCapabilities
     bool matched_streamingAudioContexts = false;
     bool matched_vendorSpecific = false;
     for (auto const& meta : *aidl_pac->metadata) {
-      ::bluetooth::le_audio::types::LeAudioLtvMap stack_meta;
-      ASSERT_TRUE(stack_meta.Parse(stack_record.metadata.data(), stack_record.metadata.size()));
-      verifyMetadata(meta, stack_meta.GetAsLeAudioMetadata(), matched_preferredAudioContexts,
-                     matched_streamingAudioContexts, matched_vendorSpecific);
+      verifyMetadata(meta, stack_record.metadata.GetAsLeAudioMetadata(),
+                     matched_preferredAudioContexts, matched_streamingAudioContexts,
+                     matched_vendorSpecific);
     }
 
     ASSERT_TRUE(matched_preferredAudioContexts);

@@ -802,8 +802,9 @@ public:
   const struct LeAudioMetadata& GetAsLeAudioMetadata() const;
   LeAudioLtvMap GetIntersection(const LeAudioLtvMap& other) const;
 
-  std::string ToString(const std::string& indent_string,
-                       std::string (*format)(const uint8_t&, const std::vector<uint8_t>&)) const;
+  std::string ToString(const std::string& indent_string = "",
+                       std::string (*format)(const uint8_t&,
+                                             const std::vector<uint8_t>&) = nullptr) const;
   size_t RawPacketSize() const;
   uint8_t* RawPacket(uint8_t* p_buf) const;
   std::vector<uint8_t> RawPacket() const;
@@ -1158,7 +1159,7 @@ struct ase {
   /* QoS requirements in Codec Configured state */
   AseQosPreferences qos_preferences;
 
-  std::vector<uint8_t> metadata;
+  LeAudioLtvMap metadata;
 
   AseState state;
 };
@@ -1167,7 +1168,7 @@ struct acs_ac_record {
   LeAudioCodecId codec_id;
   LeAudioLtvMap codec_spec_caps;
   std::vector<uint8_t> codec_spec_caps_raw;
-  std::vector<uint8_t> metadata;
+  LeAudioLtvMap metadata;
 };
 
 using PublishedAudioCapabilities = std::vector<std::tuple<hdl_pair, std::vector<acs_ac_record>>>;

@@ -36,7 +36,7 @@ namespace aidl {
         const ::aidl::android::hardware::bluetooth::audio::CodecId& codec_id);
 
 std::optional<std::vector<std::optional<::aidl::android::hardware::bluetooth::audio::MetadataLtv>>>
-GetAidlMetadataFromStackFormat(const std::vector<uint8_t>& vec);
+GetAidlMetadataFromStackFormat(const ::bluetooth::le_audio::types::LeAudioLtvMap& ltvs);
 
 bluetooth::le_audio::types::LeAudioLtvMap GetStackMetadataFromAidlFormat(
         const std::vector<std::optional<::aidl::android::hardware::bluetooth::audio::MetadataLtv>>&

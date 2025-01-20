@@ -2429,7 +2429,7 @@ private:
       log::debug("device: {}, ase_id: {}, cis_id: {}, ase state: {}", leAudioDevice->address_,
                  ase->id, ase->cis_id, ToString(ase->state));
       conf.ase_id = ase->id;
-      conf.metadata = ase->metadata;
+      conf.metadata = ase->metadata.RawPacket();
       confs.push_back(conf);
 
       /* Below is just for log history */
@@ -2668,7 +2668,7 @@ private:
       auto directional_audio_context = context_types.get(ase->direction) &
                                        leAudioDevice->GetAvailableContexts(ase->direction);
 
-      std::vector<uint8_t> new_metadata;
+      bluetooth::le_audio::types::LeAudioLtvMap new_metadata;
       if (directional_audio_context.any()) {
         new_metadata = leAudioDevice->GetMetadata(directional_audio_context,
                                                   ccid_lists.get(ase->direction));
@@ -2687,7 +2687,7 @@ private:
       struct bluetooth::le_audio::client_parser::ascs::ctp_update_metadata conf;
 
       conf.ase_id = ase->id;
-      conf.metadata = ase->metadata;
+      conf.metadata = ase->metadata.RawPacket();
       confs.push_back(conf);
 
       extra_stream << "meta: " << base::HexEncode(conf.metadata.data(), conf.metadata.size())
@@ -2871,8 +2871,10 @@ private:
         /* Cache current set up metadata values for for further possible
          * reconfiguration
          */
-        if (!rsp.metadata.empty()) {
-          ase->metadata = rsp.metadata;
+        if (!rsp.metadata.empty() &&
+            !ase->metadata.Parse(rsp.metadata.data(), rsp.metadata.size())) {
+          log::error("Error while parsing metadata: {}",
+                     bluetooth::common::ToHexString(rsp.metadata));
         }
 
         break;

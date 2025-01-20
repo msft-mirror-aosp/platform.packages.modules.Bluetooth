@@ -83,7 +83,7 @@ bool serializePacs(const bluetooth::le_audio::types::PublishedAudioCapabilities&
     pac_bin_size += LEAUDIO_PACS_ENTRY_HDR_SZ;
     for (const auto& pac : pac_recs) {
       pac_bin_size += LEAUDIO_PACS_ENTRY_SZ;
-      pac_bin_size += pac.metadata.size();
+      pac_bin_size += pac.metadata.RawPacketSize();
       pac_bin_size += pac.codec_spec_caps_raw.size();
     }
   }
@@ -110,7 +110,8 @@ bool serializePacs(const bluetooth::le_audio::types::PublishedAudioCapabilities&
 
     for (const auto& pac : pac_recs) {
       /* Pac len */
-      auto pac_len = LEAUDIO_PACS_ENTRY_SZ + pac.codec_spec_caps_raw.size() + pac.metadata.size();
+      auto pac_len =
+              LEAUDIO_PACS_ENTRY_SZ + pac.codec_spec_caps_raw.size() + pac.metadata.RawPacketSize();
       log::verbose("Pac size {}", static_cast<int>(pac_len));
       UINT8_TO_STREAM(ptr, pac_len - 1 /* Minus size */);
 
@@ -128,10 +129,11 @@ bool serializePacs(const bluetooth::le_audio::types::PublishedAudioCapabilities&
       }
 
       /* Metadata */
-      log::verbose("Metadata size {}", static_cast<int>(pac.metadata.size()));
-      UINT8_TO_STREAM(ptr, pac.metadata.size());
-      if (pac.metadata.size() > 0) {
-        ARRAY_TO_STREAM(ptr, pac.metadata.data(), (int)pac.metadata.size());
+      auto raw_metadata = pac.metadata.RawPacket();
+      log::verbose("Metadata size {}", static_cast<int>(raw_metadata.size()));
+      UINT8_TO_STREAM(ptr, raw_metadata.size());
+      if (raw_metadata.size() > 0) {
+        ARRAY_TO_STREAM(ptr, raw_metadata.data(), (int)raw_metadata.size());
       }
     }
   }

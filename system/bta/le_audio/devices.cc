@@ -494,7 +494,7 @@ void LeAudioDevice::ParseHeadtrackingCodec(const struct types::acs_ac_record& pa
      *     }
      *   }
      */
-    std::vector<uint8_t> ltv = pac.metadata;
+    std::vector<uint8_t> ltv = pac.metadata.RawPacket();
     if (ltv.size() < 7) {
       log::info("{}, headtracker codec does not have metadata", address_);
       return;
@@ -552,7 +552,8 @@ void LeAudioDevice::RegisterPACs(std::vector<struct types::acs_ac_record>* pac_d
     } else {
       debug_str << base::HexEncode(pac.codec_spec_caps_raw.data(), pac.codec_spec_caps_raw.size());
     }
-    debug_str << "\n\tMetadata: " << base::HexEncode(pac.metadata.data(), pac.metadata.size());
+
+    debug_str << "\n\tMetadata: " << pac.metadata.ToString();
     log::debug("{}", debug_str.str());
 
     ParseHeadtrackingCodec(pac);
@@ -1015,8 +1016,7 @@ void LeAudioDevice::DumpPacsDebugState(std::stringstream& stream,
                                     record.codec_spec_caps_raw.size())
                  << "\n";
         }
-        stream << "\t\t    Metadata: "
-               << base::HexEncode(record.metadata.data(), record.metadata.size());
+        stream << "\t\t    Metadata: " << record.metadata.ToString();
       }
       stream << "\n";
     }
@@ -1179,13 +1179,11 @@ void LeAudioDevice::DeactivateAllAses(void) {
   }
 }
 
-std::vector<uint8_t> LeAudioDevice::GetMetadata(AudioContexts context_type,
+types::LeAudioLtvMap LeAudioDevice::GetMetadata(AudioContexts context_type,
                                                 const std::vector<uint8_t>& ccid_list) {
-  std::vector<uint8_t> metadata;
-
-  AppendMetadataLtvEntryForStreamingContext(metadata, context_type);
-  AppendMetadataLtvEntryForCcidList(metadata, ccid_list);
-
+  types::LeAudioLtvMap metadata;
+  metadata.Add(types::kLeAudioMetadataTypeStreamingAudioContext, context_type.value());
+  metadata.Add(types::kLeAudioMetadataTypeCcidList, ccid_list);
   return metadata;
 }
 

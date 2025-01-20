@@ -1131,7 +1131,7 @@ std::ostream& operator<<(std::ostream& os,
       os << ", codec_id: " << pac.codec_id;
       os << ", caps size: " << pac.codec_spec_caps.Size();
       os << ", caps_raw size: " << pac.codec_spec_caps_raw.size();
-      os << ", caps_raw size: " << pac.metadata.size();
+      os << ", metadata size: " << pac.metadata.Size();
       os << "}, ";
     }
     os << "\b\b]";
@@ -1146,7 +1146,7 @@ std::ostream& operator<<(std::ostream& os,
       os << ", codec_id: " << pac.codec_id;
       os << ", caps size: " << pac.codec_spec_caps.Size();
       os << ", caps_raw size: " << pac.codec_spec_caps_raw.size();
-      os << ", caps_raw size: " << pac.metadata.size();
+      os << ", metadata size: " << pac.metadata.Size();
       os << "}, ";
     }
     os << "\b\b]";

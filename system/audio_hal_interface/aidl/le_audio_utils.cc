@@ -183,50 +183,46 @@ GetAidlCodecSpecificConfigurationFromStack(
 }
 
 std::optional<std::vector<std::optional<::aidl::android::hardware::bluetooth::audio::MetadataLtv>>>
-GetAidlMetadataFromStackFormat(const std::vector<uint8_t>& vec) {
-  if (vec.empty()) {
+GetAidlMetadataFromStackFormat(const ::bluetooth::le_audio::types::LeAudioLtvMap& ltvs) {
+  if (ltvs.Size() == 0) {
     return std::nullopt;
   }
   std::vector<std::optional<::aidl::android::hardware::bluetooth::audio::MetadataLtv>> out_ltvs;
+  auto stackMetadata = ltvs.GetAsLeAudioMetadata();
 
-  auto ltvs = ::bluetooth::le_audio::types::LeAudioLtvMap();
-  if (ltvs.Parse(vec.data(), vec.size())) {
-    auto stackMetadata = ltvs.GetAsLeAudioMetadata();
-
-    if (stackMetadata.preferred_audio_context) {
-      out_ltvs.push_back(
-              ::aidl::android::hardware::bluetooth::audio::MetadataLtv::PreferredAudioContexts{
-                      .values = ::aidl::android::hardware::bluetooth::audio::AudioContext{
-                              .bitmask = stackMetadata.preferred_audio_context.value()}});
-    }
-    if (stackMetadata.streaming_audio_context) {
-      out_ltvs.push_back(
-              ::aidl::android::hardware::bluetooth::audio::MetadataLtv::StreamingAudioContexts{
-                      .values = ::aidl::android::hardware::bluetooth::audio::AudioContext{
-                              .bitmask = stackMetadata.streaming_audio_context.value()}});
-    }
-    if (stackMetadata.vendor_specific) {
-      if (stackMetadata.vendor_specific->size() >= 2) {
-        out_ltvs.push_back(::aidl::android::hardware::bluetooth::audio::MetadataLtv::VendorSpecific{
-                /* Two octets for the company identifier */
-                stackMetadata.vendor_specific->at(0) | (stackMetadata.vendor_specific->at(1) << 8),
-                /* The rest is a payload */
-                .opaqueValue = std::vector<uint8_t>(stackMetadata.vendor_specific->begin() + 2,
-                                                    stackMetadata.vendor_specific->end())});
-      }
-    }
-    /* Note: stackMetadata.program_info
-     *       stackMetadata.language
-     *       stackMetadata.ccid_list
-     *       stackMetadata.parental_rating
-     *       stackMetadata.program_info_uri
-     *       stackMetadata.extended_metadata
-     *       stackMetadata.audio_active_state
-     *       stackMetadata.broadcast_audio_immediate_rendering
-     *       are not sent over the AIDL interface as they are considered as
-     *       irrelevant for the configuration process.
-     */
+  if (stackMetadata.preferred_audio_context) {
+    out_ltvs.push_back(
+            ::aidl::android::hardware::bluetooth::audio::MetadataLtv::PreferredAudioContexts{
+                    .values = ::aidl::android::hardware::bluetooth::audio::AudioContext{
+                            .bitmask = stackMetadata.preferred_audio_context.value()}});
   }
+  if (stackMetadata.streaming_audio_context) {
+    out_ltvs.push_back(
+            ::aidl::android::hardware::bluetooth::audio::MetadataLtv::StreamingAudioContexts{
+                    .values = ::aidl::android::hardware::bluetooth::audio::AudioContext{
+                            .bitmask = stackMetadata.streaming_audio_context.value()}});
+  }
+  if (stackMetadata.vendor_specific) {
+    if (stackMetadata.vendor_specific->size() >= 2) {
+      out_ltvs.push_back(::aidl::android::hardware::bluetooth::audio::MetadataLtv::VendorSpecific{
+              /* Two octets for the company identifier */
+              stackMetadata.vendor_specific->at(0) | (stackMetadata.vendor_specific->at(1) << 8),
+              /* The rest is a payload */
+              .opaqueValue = std::vector<uint8_t>(stackMetadata.vendor_specific->begin() + 2,
+                                                  stackMetadata.vendor_specific->end())});
+    }
+  }
+  /* Note: stackMetadata.program_info
+   *       stackMetadata.language
+   *       stackMetadata.ccid_list
+   *       stackMetadata.parental_rating
+   *       stackMetadata.program_info_uri
+   *       stackMetadata.extended_metadata
+   *       stackMetadata.audio_active_state
+   *       stackMetadata.broadcast_audio_immediate_rendering
+   *       are not sent over the AIDL interface as they are considered as
+   *       irrelevant for the configuration process.
+   */
   return out_ltvs;
 }
 

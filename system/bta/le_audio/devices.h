@@ -223,7 +223,7 @@ public:
   void Dump(std::stringstream& stream);
 
   void DisconnectAcl(void);
-  std::vector<uint8_t> GetMetadata(types::AudioContexts context_type,
+  types::LeAudioLtvMap GetMetadata(types::AudioContexts context_type,
                                    const std::vector<uint8_t>& ccid_list);
   bool IsMetadataChanged(const types::BidirectionalPair<types::AudioContexts>& context_types,
                          const types::BidirectionalPair<std::vector<uint8_t>>& ccid_lists);

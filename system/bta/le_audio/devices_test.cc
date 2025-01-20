@@ -430,7 +430,7 @@ public:
                                          ? ltv_map
                                          : LeAudioLtvMap()),
              .codec_spec_caps_raw = ltv_map.RawPacket(),
-             .metadata = std::vector<uint8_t>(0)});
+             .metadata = LeAudioLtvMap()});
     pac_records_.push_back(record);
   }
 
@@ -456,7 +456,7 @@ public:
                                                       ? ltv_map
                                                       : LeAudioLtvMap(),
                            .codec_spec_caps_raw = ltv_map.RawPacket(),
-                           .metadata = std::vector<uint8_t>(0)}));
+                           .metadata = LeAudioLtvMap()}));
   }
 
   void Add(LeAudioCodecId codec_id, const std::vector<uint8_t>& vendor_data,
@@ -470,7 +470,7 @@ public:
                            // For now assume that vendor representation of codec capabilities
                            // equals the representation of codec settings
                            .codec_spec_caps_raw = vendor_data,
-                           .metadata = std::vector<uint8_t>(0)}));
+                           .metadata = LeAudioLtvMap()}));
   }
 
   void Add(const CodecConfigSetting& setting, uint8_t audio_channel_counts) {
