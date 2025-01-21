@@ -20,3 +20,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "adm_remove_handling_wired"
+    namespace: "bluetooth"
+    description: "ActiveDeviceManager doesn't need to handle adding and removing wired devices."
+    bug: "390372480"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
