@@ -724,8 +724,9 @@ public class BluetoothOppService extends ProfileService implements IObexConnecti
                     mPendingUpdate = false;
                 }
                 Cursor cursor =
-                        getContentResolver()
-                                .query(
+                        BluetoothMethodProxy.getInstance()
+                                .contentResolverQuery(
+                                        getContentResolver(),
                                         BluetoothShare.CONTENT_URI,
                                         null,
                                         null,
