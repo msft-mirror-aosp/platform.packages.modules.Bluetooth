@@ -162,6 +162,8 @@ static BtLeAudioGroupStreamStatus to_rust_btle_audio_group_stream_status(
       return BtLeAudioGroupStreamStatus::Streaming;
     case le_audio::GroupStreamStatus::RELEASING:
       return BtLeAudioGroupStreamStatus::Releasing;
+    case le_audio::GroupStreamStatus::RELEASING_AUTONOMOUS:
+      return BtLeAudioGroupStreamStatus::ReleasingAutonomous;
     case le_audio::GroupStreamStatus::SUSPENDING:
       return BtLeAudioGroupStreamStatus::Suspending;
     case le_audio::GroupStreamStatus::SUSPENDED:

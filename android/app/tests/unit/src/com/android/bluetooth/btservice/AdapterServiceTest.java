@@ -81,6 +81,7 @@ import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.gatt.AdvertiseManagerNativeInterface;
 import com.android.bluetooth.gatt.DistanceMeasurementNativeInterface;
 import com.android.bluetooth.gatt.GattNativeInterface;
+import com.android.bluetooth.le_audio.LeAudioService;
 import com.android.bluetooth.le_scan.PeriodicScanNativeInterface;
 import com.android.bluetooth.le_scan.ScanNativeInterface;
 import com.android.bluetooth.sdp.SdpManagerNativeInterface;
@@ -93,6 +94,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
@@ -144,6 +146,7 @@ public class AdapterServiceTest {
 
     private @Mock Context mMockContext;
     private @Mock ApplicationInfo mMockApplicationInfo;
+    private @Mock LeAudioService mMockLeAudioService;
     private @Mock Resources mMockResources;
     private @Mock ProfileService mMockGattService;
     private @Mock ProfileService mMockService;
@@ -185,6 +188,10 @@ public class AdapterServiceTest {
     private int mForegroundUserId;
     private TestLooper mLooper;
 
+    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
+    private final BluetoothDevice mDevice = TestUtils.getTestDevice(mAdapter, 0);
+    private final BluetoothDevice mDeviceTwo = TestUtils.getTestDevice(mAdapter, 2);
+
     static void configureEnabledProfiles() {
         Log.e(TAG, "configureEnabledProfiles");
 
@@ -223,6 +230,12 @@ public class AdapterServiceTest {
         Handler handler = new Handler(mLooper.getLooper());
 
         doReturn(mJniCallbacks).when(mNativeInterface).getCallbacks();
+
+        doReturn(true).when(mMockLeAudioService).isAvailable();
+        LeAudioService.setLeAudioService(mMockLeAudioService);
+        doReturn(BluetoothProfile.CONNECTION_POLICY_ALLOWED)
+                .when(mMockLeAudioService)
+                .getConnectionPolicy(any());
 
         AdapterNativeInterface.setInstance(mNativeInterface);
         BluetoothKeystoreNativeInterface.setInstance(mKeystoreNativeInterface);
@@ -351,6 +364,7 @@ public class AdapterServiceTest {
         // Restores the foregroundUserId to the ID prior to the test setup
         Utils.setForegroundUserId(mForegroundUserId);
 
+        LeAudioService.setLeAudioService(null);
         mAdapterService.cleanup();
         mAdapterService.unregisterRemoteCallback(mIBluetoothCallback);
         AdapterNativeInterface.setInstance(null);
@@ -1120,5 +1134,334 @@ public class AdapterServiceTest {
             Files.deleteIfExists(randomFileUnderBluetoothPath);
         }
         assertThat(mLooper.nextMessage()).isNull();
+    }
+
+    InOrder prepareLeAudioWithConnectedDevices(
+            List<BluetoothDevice> devices,
+            int groupId,
+            boolean returnOnSetAutoActiveModeState,
+            int returnOnGetConnectionStateLeAudio,
+            int returnOnGetConnectionStateAdapter) {
+        doEnable(false);
+
+        doReturn(groupId).when(mMockLeAudioService).getGroupId(any());
+
+        doReturn(returnOnGetConnectionStateLeAudio)
+                .when(mMockLeAudioService)
+                .getConnectionState(any());
+        doReturn(returnOnGetConnectionStateAdapter)
+                .when(mNativeInterface)
+                .getConnectionState(any());
+
+        doReturn(returnOnSetAutoActiveModeState)
+                .when(mMockLeAudioService)
+                .setAutoActiveModeState(groupId, false);
+        doReturn(devices).when(mMockLeAudioService).getGroupDevices(groupId);
+
+        return inOrder(mMockLeAudioService);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ALLOW_GATT_CONNECT_FROM_THE_APPS_WITHOUT_MAKING_LEAUDIO_DEVICE_ACTIVE)
+    public void testGattConnectionToLeAudioDevice_whenDeviceIsNotConnected_success() {
+        int groupId = 1;
+        int getConnectionState_LeAudioService = BluetoothProfile.STATE_CONNECTED;
+        int getConnectionState_AdapterService =
+                BluetoothDevice.CONNECTION_STATE_ENCRYPTED_LE
+                        | BluetoothDevice.CONNECTION_STATE_CONNECTED;
+        InOrder order =
+                prepareLeAudioWithConnectedDevices(
+                        List.of(mDevice),
+                        groupId,
+                        true,
+                        getConnectionState_LeAudioService,
+                        getConnectionState_AdapterService);
+
+        mAdapterService.notifyDirectLeGattClientConnect(1, mDevice);
+
+        order.verify(mMockLeAudioService).setAutoActiveModeState(groupId, false);
+        assertThat(mAdapterService.mLeGattClientsControllingAutoActiveMode.size()).isEqualTo(1);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ALLOW_GATT_CONNECT_FROM_THE_APPS_WITHOUT_MAKING_LEAUDIO_DEVICE_ACTIVE)
+    public void testGattConnectionToLeAudioDevice_whenDeviceIsConnected_ignore() {
+        int groupId = 1;
+        int getConnectionState_LeAudioService = BluetoothProfile.STATE_CONNECTED;
+        int getConnectionState_AdapterService =
+                BluetoothDevice.CONNECTION_STATE_ENCRYPTED_LE
+                        | BluetoothDevice.CONNECTION_STATE_CONNECTED;
+        InOrder order =
+                prepareLeAudioWithConnectedDevices(
+                        List.of(mDevice),
+                        groupId,
+                        false,
+                        getConnectionState_LeAudioService,
+                        getConnectionState_AdapterService);
+
+        mAdapterService.notifyDirectLeGattClientConnect(1, mDevice);
+
+        order.verify(mMockLeAudioService).setAutoActiveModeState(groupId, false);
+        assertThat(mAdapterService.mLeGattClientsControllingAutoActiveMode).isEmpty();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ALLOW_GATT_CONNECT_FROM_THE_APPS_WITHOUT_MAKING_LEAUDIO_DEVICE_ACTIVE)
+    public void testGattConnectionToLeAudioDevice_whenLeAudioIsNotAllowed_ignore() {
+        int groupId = 1;
+        int getConnectionState_LeAudioService = BluetoothProfile.STATE_DISCONNECTED;
+        int getConnectionState_AdapterService =
+                BluetoothDevice.CONNECTION_STATE_ENCRYPTED_LE
+                        | BluetoothDevice.CONNECTION_STATE_CONNECTED;
+        InOrder order =
+                prepareLeAudioWithConnectedDevices(
+                        List.of(mDevice),
+                        groupId,
+                        false,
+                        getConnectionState_LeAudioService,
+                        getConnectionState_AdapterService);
+
+        doReturn(BluetoothProfile.CONNECTION_POLICY_FORBIDDEN)
+                .when(mMockLeAudioService)
+                .getConnectionPolicy(any());
+        mAdapterService.notifyDirectLeGattClientConnect(1, mDevice);
+
+        order.verify(mMockLeAudioService, never()).setAutoActiveModeState(groupId, false);
+        assertThat(mAdapterService.mLeGattClientsControllingAutoActiveMode).isEmpty();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ALLOW_GATT_CONNECT_FROM_THE_APPS_WITHOUT_MAKING_LEAUDIO_DEVICE_ACTIVE)
+    public void testGattConnectionToLeAudioDevice_failedToConnect() {
+        int groupId = 1;
+        int clientIf = 1;
+
+        int getConnectionState_LeAudioService = BluetoothProfile.STATE_CONNECTED;
+        int getConnectionState_AdapterService =
+                BluetoothDevice.CONNECTION_STATE_ENCRYPTED_LE
+                        | BluetoothDevice.CONNECTION_STATE_CONNECTED;
+        InOrder order =
+                prepareLeAudioWithConnectedDevices(
+                        List.of(mDevice),
+                        groupId,
+                        true,
+                        getConnectionState_LeAudioService,
+                        getConnectionState_AdapterService);
+
+        mAdapterService.notifyDirectLeGattClientConnect(clientIf, mDevice);
+
+        order.verify(mMockLeAudioService).setAutoActiveModeState(groupId, false);
+        assertThat(mAdapterService.mLeGattClientsControllingAutoActiveMode.size()).isEqualTo(1);
+
+        mAdapterService.notifyGattClientConnectFailed(clientIf, mDevice);
+        order.verify(mMockLeAudioService).setAutoActiveModeState(groupId, true);
+        assertThat(mAdapterService.mLeGattClientsControllingAutoActiveMode).isEmpty();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ALLOW_GATT_CONNECT_FROM_THE_APPS_WITHOUT_MAKING_LEAUDIO_DEVICE_ACTIVE)
+    public void testGattConnectionToLeAudioDevice_triggerDisconnected() {
+        int groupId = 1;
+        int clientIf = 1;
+
+        int getConnectionState_LeAudioService = BluetoothProfile.STATE_DISCONNECTED;
+        int getConnectionState_AdapterService = BluetoothDevice.CONNECTION_STATE_DISCONNECTED;
+        InOrder order =
+                prepareLeAudioWithConnectedDevices(
+                        List.of(mDevice),
+                        groupId,
+                        true,
+                        getConnectionState_LeAudioService,
+                        getConnectionState_AdapterService);
+        InOrder orderNative = inOrder(mNativeInterface);
+
+        mAdapterService.notifyDirectLeGattClientConnect(clientIf, mDevice);
+
+        order.verify(mMockLeAudioService).setAutoActiveModeState(groupId, false);
+        assertThat(mAdapterService.mLeGattClientsControllingAutoActiveMode.size()).isEqualTo(1);
+
+        mAdapterService.notifyGattClientDisconnect(clientIf, mDevice);
+        orderNative.verify(mNativeInterface, never()).disconnectAcl(any(), anyInt());
+        order.verify(mMockLeAudioService).setAutoActiveModeState(groupId, true);
+        assertThat(mAdapterService.mLeGattClientsControllingAutoActiveMode).isEmpty();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ALLOW_GATT_CONNECT_FROM_THE_APPS_WITHOUT_MAKING_LEAUDIO_DEVICE_ACTIVE)
+    public void testGattConnectionToLeAudioDevice_triggerDisconnecting() {
+        int groupId = 1;
+        int clientIf = 1;
+        int getConnectionState_LeAudioService = BluetoothProfile.STATE_CONNECTED;
+        int getConnectionState_AdapterService =
+                BluetoothDevice.CONNECTION_STATE_ENCRYPTED_LE
+                        | BluetoothDevice.CONNECTION_STATE_CONNECTED;
+        InOrder order =
+                prepareLeAudioWithConnectedDevices(
+                        List.of(mDevice),
+                        groupId,
+                        true,
+                        getConnectionState_LeAudioService,
+                        getConnectionState_AdapterService);
+
+        InOrder orderNative = inOrder(mNativeInterface);
+
+        mAdapterService.notifyDirectLeGattClientConnect(clientIf, mDevice);
+
+        order.verify(mMockLeAudioService).setAutoActiveModeState(groupId, false);
+        assertThat(mAdapterService.mLeGattClientsControllingAutoActiveMode.size()).isEqualTo(1);
+
+        mAdapterService.notifyGattClientDisconnect(clientIf, mDevice);
+        order.verify(mMockLeAudioService).setAutoActiveModeState(groupId, true);
+        orderNative.verify(mNativeInterface).disconnectAcl(any(), eq(BluetoothDevice.TRANSPORT_LE));
+        assertThat(mAdapterService.mLeGattClientsControllingAutoActiveMode).isEmpty();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ALLOW_GATT_CONNECT_FROM_THE_APPS_WITHOUT_MAKING_LEAUDIO_DEVICE_ACTIVE)
+    public void testGattConnectionToLeAudioDevice_connectingMultipleClients() {
+        int groupId = 1;
+        int clientIf = 1;
+        int clientIfTwo = 2;
+
+        int getConnectionState_LeAudioService = BluetoothProfile.STATE_CONNECTED;
+        int getConnectionState_AdapterService =
+                BluetoothDevice.CONNECTION_STATE_ENCRYPTED_LE
+                        | BluetoothDevice.CONNECTION_STATE_CONNECTED;
+        InOrder order =
+                prepareLeAudioWithConnectedDevices(
+                        List.of(mDevice),
+                        groupId,
+                        true,
+                        getConnectionState_LeAudioService,
+                        getConnectionState_AdapterService);
+
+        InOrder orderNative = inOrder(mNativeInterface);
+
+        // Connect first client to device
+        mAdapterService.notifyDirectLeGattClientConnect(clientIf, mDevice);
+
+        order.verify(mMockLeAudioService).setAutoActiveModeState(groupId, false);
+        assertThat(mAdapterService.mLeGattClientsControllingAutoActiveMode.size()).isEqualTo(1);
+
+        // Connect second client to device
+        mAdapterService.notifyDirectLeGattClientConnect(clientIfTwo, mDevice);
+
+        order.verify(mMockLeAudioService, never()).setAutoActiveModeState(groupId, false);
+        assertThat(mAdapterService.mLeGattClientsControllingAutoActiveMode.size()).isEqualTo(2);
+
+        // Disconnect first client to device
+        mAdapterService.notifyGattClientDisconnect(clientIf, mDevice);
+        order.verify(mMockLeAudioService, never()).setAutoActiveModeState(groupId, true);
+        orderNative.verify(mNativeInterface, never()).disconnectAcl(any(), anyInt());
+        assertThat(mAdapterService.mLeGattClientsControllingAutoActiveMode.size()).isEqualTo(1);
+
+        // Disconnect second client to device
+        mAdapterService.notifyGattClientDisconnect(clientIfTwo, mDevice);
+        order.verify(mMockLeAudioService).setAutoActiveModeState(groupId, true);
+        orderNative
+                .verify(mNativeInterface, times(1))
+                .disconnectAcl(any(), eq(BluetoothDevice.TRANSPORT_LE));
+        assertThat(mAdapterService.mLeGattClientsControllingAutoActiveMode).isEmpty();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ALLOW_GATT_CONNECT_FROM_THE_APPS_WITHOUT_MAKING_LEAUDIO_DEVICE_ACTIVE)
+    public void testGattConnectionToLeAudioDevice_connectingMultipleDevicesInSameGroup() {
+        int groupId = 1;
+        int clientIf = 1;
+        int clientIfTwo = 2;
+
+        int getConnectionState_LeAudioService = BluetoothProfile.STATE_CONNECTED;
+        int getConnectionState_AdapterService =
+                BluetoothDevice.CONNECTION_STATE_ENCRYPTED_LE
+                        | BluetoothDevice.CONNECTION_STATE_CONNECTED;
+        InOrder order =
+                prepareLeAudioWithConnectedDevices(
+                        List.of(mDevice, mDeviceTwo),
+                        groupId,
+                        true,
+                        getConnectionState_LeAudioService,
+                        getConnectionState_AdapterService);
+
+        InOrder orderNative = inOrder(mNativeInterface);
+
+        // Connecting device one
+        when(mMockLeAudioService.setAutoActiveModeState(groupId, false)).thenReturn(true);
+        mAdapterService.notifyDirectLeGattClientConnect(clientIf, mDevice);
+
+        order.verify(mMockLeAudioService).setAutoActiveModeState(groupId, false);
+        assertThat(mAdapterService.mLeGattClientsControllingAutoActiveMode.size()).isEqualTo(1);
+
+        // Connecting device two
+        mAdapterService.notifyDirectLeGattClientConnect(clientIfTwo, mDeviceTwo);
+
+        order.verify(mMockLeAudioService, never()).setAutoActiveModeState(groupId, false);
+        assertThat(mAdapterService.mLeGattClientsControllingAutoActiveMode.size()).isEqualTo(2);
+
+        // Disconnect first device
+        mAdapterService.notifyGattClientDisconnect(clientIf, mDevice);
+        order.verify(mMockLeAudioService, never()).setAutoActiveModeState(groupId, true);
+        orderNative.verify(mNativeInterface, never()).disconnectAcl(any(), anyInt());
+        assertThat(mAdapterService.mLeGattClientsControllingAutoActiveMode.size()).isEqualTo(1);
+
+        // Disconnect second device
+        mAdapterService.notifyGattClientDisconnect(clientIfTwo, mDeviceTwo);
+        order.verify(mMockLeAudioService).setAutoActiveModeState(groupId, true);
+        orderNative
+                .verify(mNativeInterface, times(2))
+                .disconnectAcl(any(), eq(BluetoothDevice.TRANSPORT_LE));
+        assertThat(mAdapterService.mLeGattClientsControllingAutoActiveMode).isEmpty();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ALLOW_GATT_CONNECT_FROM_THE_APPS_WITHOUT_MAKING_LEAUDIO_DEVICE_ACTIVE)
+    public void testGattConnectionToLeAudioDevice_remoteSwitchesToActiveBeforeDisconnect() {
+        int groupId = 1;
+        int clientIf = 1;
+        int clientIfTwo = 2;
+
+        int getConnectionState_LeAudioService = BluetoothProfile.STATE_CONNECTED;
+        int getConnectionState_AdapterService =
+                BluetoothDevice.CONNECTION_STATE_ENCRYPTED_LE
+                        | BluetoothDevice.CONNECTION_STATE_CONNECTED;
+        InOrder order =
+                prepareLeAudioWithConnectedDevices(
+                        List.of(mDevice, mDeviceTwo),
+                        groupId,
+                        true,
+                        getConnectionState_LeAudioService,
+                        getConnectionState_AdapterService);
+
+        InOrder orderNative = inOrder(mNativeInterface);
+
+        // Connecting device one
+        when(mMockLeAudioService.setAutoActiveModeState(groupId, false)).thenReturn(true);
+        mAdapterService.notifyDirectLeGattClientConnect(clientIf, mDevice);
+
+        order.verify(mMockLeAudioService).setAutoActiveModeState(groupId, false);
+        assertThat(mAdapterService.mLeGattClientsControllingAutoActiveMode.size()).isEqualTo(1);
+
+        // Connecting device two
+        mAdapterService.notifyDirectLeGattClientConnect(clientIfTwo, mDeviceTwo);
+
+        order.verify(mMockLeAudioService, never()).setAutoActiveModeState(groupId, false);
+        assertThat(mAdapterService.mLeGattClientsControllingAutoActiveMode.size()).isEqualTo(2);
+
+        // Remote switches to Active
+        when(mMockLeAudioService.isAutoActiveModeEnabled(groupId)).thenReturn(true);
+
+        // Disconnect first device
+        mAdapterService.notifyGattClientDisconnect(clientIf, mDevice);
+        order.verify(mMockLeAudioService, never()).setAutoActiveModeState(groupId, true);
+        orderNative.verify(mNativeInterface, never()).disconnectAcl(any(), anyInt());
+        assertThat(mAdapterService.mLeGattClientsControllingAutoActiveMode.size()).isEqualTo(1);
+
+        // Disconnect second device
+        mAdapterService.notifyGattClientDisconnect(clientIfTwo, mDeviceTwo);
+
+        // Verify devices will not be disconnected
+        order.verify(mMockLeAudioService).setAutoActiveModeState(groupId, true);
+        orderNative.verify(mNativeInterface, never()).disconnectAcl(any(), anyInt());
+        assertThat(mAdapterService.mLeGattClientsControllingAutoActiveMode).isEmpty();
     }
 }

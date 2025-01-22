@@ -36,6 +36,7 @@ import android.content.Context;
 import android.content.res.Resources;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.os.Process;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.Settings;
 import android.test.mock.MockContentProvider;
@@ -266,6 +267,118 @@ public class GattServiceTest {
         verify(mNativeInterface)
                 .gattClientConnect(
                         clientIf, address, addressType, isDirect, transport, opportunistic, phy, 0);
+    }
+
+    @Test
+    public void clientConnectOverLeFailed() throws Exception {
+        int clientIf = 1;
+        String address = REMOTE_DEVICE_ADDRESS;
+        int addressType = BluetoothDevice.ADDRESS_TYPE_RANDOM;
+        boolean isDirect = true;
+        int transport = BluetoothDevice.TRANSPORT_LE;
+        boolean opportunistic = false;
+        int phy = 3;
+
+        AttributionSource testAttributeSource =
+                new AttributionSource.Builder(Process.SYSTEM_UID)
+                        .setPid(Process.myPid())
+                        .setDeviceId(Context.DEVICE_ID_DEFAULT)
+                        .setPackageName("com.google.android.gms")
+                        .setAttributionTag("com.google.android.gms.findmydevice")
+                        .build();
+
+        mService.clientConnect(
+                clientIf,
+                address,
+                addressType,
+                isDirect,
+                transport,
+                opportunistic,
+                phy,
+                testAttributeSource);
+
+        verify(mAdapterService).notifyDirectLeGattClientConnect(anyInt(), any());
+        verify(mNativeInterface)
+                .gattClientConnect(
+                        clientIf, address, addressType, isDirect, transport, opportunistic, phy, 0);
+        mService.onConnected(clientIf, 0, BluetoothGatt.GATT_CONNECTION_TIMEOUT, address);
+        verify(mAdapterService).notifyGattClientConnectFailed(anyInt(), any());
+    }
+
+    @Test
+    public void clientConnectDisconnectOverLe() throws Exception {
+        int clientIf = 1;
+        String address = REMOTE_DEVICE_ADDRESS;
+        int addressType = BluetoothDevice.ADDRESS_TYPE_RANDOM;
+        boolean isDirect = true;
+        int transport = BluetoothDevice.TRANSPORT_LE;
+        boolean opportunistic = false;
+        int phy = 3;
+
+        AttributionSource testAttributeSource =
+                new AttributionSource.Builder(Process.SYSTEM_UID)
+                        .setPid(Process.myPid())
+                        .setDeviceId(Context.DEVICE_ID_DEFAULT)
+                        .setPackageName("com.google.android.gms")
+                        .setAttributionTag("com.google.android.gms.findmydevice")
+                        .build();
+
+        mService.clientConnect(
+                clientIf,
+                address,
+                addressType,
+                isDirect,
+                transport,
+                opportunistic,
+                phy,
+                testAttributeSource);
+
+        verify(mAdapterService).notifyDirectLeGattClientConnect(anyInt(), any());
+        verify(mNativeInterface)
+                .gattClientConnect(
+                        clientIf, address, addressType, isDirect, transport, opportunistic, phy, 0);
+        mService.onConnected(clientIf, 15, BluetoothGatt.GATT_SUCCESS, address);
+        mService.clientDisconnect(clientIf, address, mAttributionSource);
+
+        verify(mAdapterService).notifyGattClientDisconnect(anyInt(), any());
+    }
+
+    @Test
+    public void clientConnectOverLeDisconnectedByRemote() throws Exception {
+        int clientIf = 1;
+        String address = REMOTE_DEVICE_ADDRESS;
+        int addressType = BluetoothDevice.ADDRESS_TYPE_RANDOM;
+        boolean isDirect = true;
+        int transport = BluetoothDevice.TRANSPORT_LE;
+        boolean opportunistic = false;
+        int phy = 3;
+
+        AttributionSource testAttributeSource =
+                new AttributionSource.Builder(Process.SYSTEM_UID)
+                        .setPid(Process.myPid())
+                        .setDeviceId(Context.DEVICE_ID_DEFAULT)
+                        .setPackageName("com.google.android.gms")
+                        .setAttributionTag("com.google.android.gms.findmydevice")
+                        .build();
+
+        mService.clientConnect(
+                clientIf,
+                address,
+                addressType,
+                isDirect,
+                transport,
+                opportunistic,
+                phy,
+                testAttributeSource);
+
+        verify(mAdapterService).notifyDirectLeGattClientConnect(anyInt(), any());
+        verify(mNativeInterface)
+                .gattClientConnect(
+                        clientIf, address, addressType, isDirect, transport, opportunistic, phy, 0);
+        mService.onConnected(clientIf, 15, BluetoothGatt.GATT_SUCCESS, address);
+        mService.onDisconnected(clientIf, 15, 1, address);
+
+        verify(mAdapterService).notifyGattClientDisconnect(anyInt(), any());
     }
 
     @Test

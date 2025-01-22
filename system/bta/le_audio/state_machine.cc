@@ -3045,7 +3045,7 @@ private:
             log::info("Group {} is doing autonomous release", group->group_id_);
             SetTargetState(group, AseState::BTA_LE_AUDIO_ASE_STATE_IDLE);
             state_machine_callbacks_->StatusReportCb(group->group_id_,
-                                                     GroupStreamStatus::RELEASING);
+                                                     GroupStreamStatus::RELEASING_AUTONOMOUS);
           }
         }
 

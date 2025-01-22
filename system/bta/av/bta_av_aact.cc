@@ -26,6 +26,7 @@
 
 #define LOG_TAG "bluetooth-a2dp"
 
+#include <android_bluetooth_sysprop.h>
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
@@ -1134,7 +1135,11 @@ void bta_av_setconfig_rsp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
       if (!p_scb->accept_open_timer) {
         p_scb->accept_open_timer = alarm_new("accept_open_timer");
       }
-      alarm_set_on_mloop(p_scb->accept_open_timer, BTA_AV_ACCEPT_OPEN_TIMEOUT_MS,
+      const uint64_t accept_open_timeout =
+              android::sysprop::bluetooth::A2dp::avdt_accept_open_timeout_ms().value_or(
+                      BTA_AV_ACCEPT_OPEN_TIMEOUT_MS);
+      log::debug("accept_open_timeout = {} ms", accept_open_timeout);
+      alarm_set_on_mloop(p_scb->accept_open_timer, accept_open_timeout,
                          bta_av_accept_open_timer_cback, UINT_TO_PTR(p_scb->hdi));
     }
   }

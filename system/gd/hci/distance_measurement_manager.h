@@ -18,6 +18,7 @@
 #include <bluetooth/log.h>
 
 #include "address.h"
+#include "bta/include/bta_ras_api.h"
 #include "hal/ranging_hal.h"
 #include "hci/hci_packets.h"
 #include "module.h"
@@ -92,7 +93,8 @@ public:
           const Address& address, uint16_t connection_handle, uint16_t att_handle,
           const std::vector<hal::VendorSpecificCharacteristic>& vendor_specific_data,
           uint16_t conn_interval);
-  void HandleRasClientDisconnectedEvent(const Address& address);
+  void HandleRasClientDisconnectedEvent(const Address& address,
+                                        const ras::RasDisconnectReason& ras_disconnect_reason);
   void HandleVendorSpecificReply(
           const Address& address, uint16_t connection_handle,
           const std::vector<hal::VendorSpecificCharacteristic>& vendor_specific_reply);

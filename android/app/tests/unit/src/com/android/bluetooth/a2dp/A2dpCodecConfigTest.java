@@ -17,6 +17,7 @@
 package com.android.bluetooth.a2dp;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 
 import static org.mockito.Mockito.*;
 
@@ -33,7 +34,6 @@ import androidx.test.runner.AndroidJUnit4;
 import com.android.bluetooth.R;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -787,10 +787,12 @@ public class A2dpCodecConfigTest {
                     codecConfig.getCodecSpecific3(),
                     codecConfig.getCodecSpecific4());
         }
-        Assert.fail(
-                "getDefaultCodecConfigByType: No such codecType="
-                        + codecType
-                        + " in sDefaultCodecConfigs");
+        assertWithMessage(
+                        "Default codec ("
+                                + Arrays.toString(sDefaultCodecConfigs)
+                                + ") does not contains "
+                                + codecType)
+                .fail();
         return null;
     }
 
@@ -810,10 +812,12 @@ public class A2dpCodecConfigTest {
                     codecCapabilities.getCodecSpecific3(),
                     codecCapabilities.getCodecSpecific4());
         }
-        Assert.fail(
-                "getCodecCapabilitiesByType: No such codecType="
-                        + codecType
-                        + " in sCodecCapabilities");
+        assertWithMessage(
+                        "Codec capabilities ("
+                                + Arrays.toString(sCodecCapabilities)
+                                + ") does not contains "
+                                + codecType)
+                .fail();
         return null;
     }
 

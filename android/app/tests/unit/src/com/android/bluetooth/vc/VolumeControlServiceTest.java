@@ -77,7 +77,6 @@ import com.android.bluetooth.le_audio.LeAudioService;
 import org.hamcrest.Matcher;
 import org.hamcrest.core.AllOf;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -1125,13 +1124,13 @@ public class VolumeControlServiceTest {
         mBinder.setDeviceVolume(mDevice, deviceOneVolume, false, mAttributionSource);
         inOrderNative.verify(mNativeInterface).setVolume(mDevice, deviceOneVolume);
         assertThat(mService.getDeviceVolume(mDevice)).isEqualTo(deviceOneVolume);
-        Assert.assertNotEquals(deviceOneVolume, mService.getDeviceVolume(mDeviceTwo));
+        assertThat(mService.getDeviceVolume(mDeviceTwo)).isNotEqualTo(deviceOneVolume);
         inOrderNative.verify(mNativeInterface, never()).setGroupVolume(anyInt(), anyInt());
 
         mBinder.setDeviceVolume(mDeviceTwo, deviceTwoVolume, false, mAttributionSource);
         inOrderNative.verify(mNativeInterface).setVolume(mDeviceTwo, deviceTwoVolume);
         assertThat(mService.getDeviceVolume(mDeviceTwo)).isEqualTo(deviceTwoVolume);
-        Assert.assertNotEquals(deviceTwoVolume, mService.getDeviceVolume(mDevice));
+        assertThat(mService.getDeviceVolume(mDevice)).isNotEqualTo(deviceTwoVolume);
         inOrderNative.verify(mNativeInterface, never()).setGroupVolume(anyInt(), anyInt());
     }
 
