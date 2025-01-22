@@ -1219,20 +1219,29 @@ public class BassClientService extends ProfileService {
     private void localNotifyReceiveStateChanged(
             BluetoothDevice sink, BluetoothLeBroadcastReceiveState receiveState) {
         int broadcastId = receiveState.getBroadcastId();
+        // If sink has external broadcast synced && not paused by the host
         if (leaudioBroadcastResyncHelper()
                 && !isLocalBroadcast(receiveState)
                 && !isEmptyBluetoothDevice(receiveState.getSourceDevice())
                 && !isHostPauseType(broadcastId)) {
 
+            // If sink actively synced (PA or BIG) or waiting for PA
             if (isReceiverActive(receiveState)
                     || receiveState.getPaSyncState()
                             == BluetoothLeBroadcastReceiveState.PA_SYNC_STATE_SYNCINFO_REQUEST) {
+                // Clear paused broadcast sink (not need to resume manually)
                 mPausedBroadcastSinks.remove(sink);
+
+                // If all sinks for this broadcast are actively synced (PA or BIG) and there is no
+                // more sinks to resume then stop monitoring
                 if (isAllReceiversActive(broadcastId) && mPausedBroadcastSinks.isEmpty()) {
                     stopBigMonitoring(broadcastId, false);
                 }
+                // If broadcast not paused (monitored) yet
             } else if (!mPausedBroadcastIds.containsKey(broadcastId)) {
+                // And BASS has data to start synchronization
                 if (mCachedBroadcasts.containsKey(broadcastId)) {
+                    // Try to sync to it and start BIG monitoring
                     addSelectSourceRequest(broadcastId, true);
                     mPausedBroadcastIds.put(broadcastId, PauseType.SINK_UNINTENTIONAL);
                     cacheSuspendingSources(broadcastId);
@@ -1242,6 +1251,13 @@ public class BassClientService extends ProfileService {
                             broadcastId, MESSAGE_BIG_MONITOR_TIMEOUT, sBigMonitorTimeout);
                 }
             }
+            // If paused by host then stop active sync, it could be not stopped, if during previous
+            // stop there was pending past request
+        } else if (leaudioMonitorUnicastSourceWhenManagedByBroadcastDelegator()
+                && isHostPauseType(broadcastId)) {
+            stopActiveSync(broadcastId);
+            // If sink unsynced then remove potentially waiting past and check if any broadcast
+            // monitoring should be stopped for all broadcast Ids
         } else if (isEmptyBluetoothDevice(receiveState.getSourceDevice())) {
             synchronized (mSinksWaitingForPast) {
                 mSinksWaitingForPast.remove(sink);
@@ -4182,13 +4198,29 @@ public class BassClientService extends ProfileService {
             mPausedBroadcastIds.remove(broadcastId);
             mPausedBroadcastSinks.clear();
         }
+        stopActiveSync(broadcastId);
+        logPausedBroadcastsAndSinks();
+    }
+
+    private void stopActiveSync(int broadcastId) {
         synchronized (mSearchScanCallbackLock) {
             // when searching is stopped then stop active sync
             if (!isSearchInProgress()) {
-                cancelActiveSync(getSyncHandleForBroadcastId(broadcastId));
+                if (leaudioMonitorUnicastSourceWhenManagedByBroadcastDelegator()) {
+                    boolean waitingForPast = false;
+                    synchronized (mSinksWaitingForPast) {
+                        waitingForPast =
+                                mSinksWaitingForPast.entrySet().stream()
+                                        .anyMatch(entry -> entry.getValue().first == broadcastId);
+                    }
+                    if (!waitingForPast) {
+                        cancelActiveSync(getSyncHandleForBroadcastId(broadcastId));
+                    }
+                } else {
+                    cancelActiveSync(getSyncHandleForBroadcastId(broadcastId));
+                }
             }
         }
-        logPausedBroadcastsAndSinks();
     }
 
     /** Cache suspending sources when broadcast paused */
