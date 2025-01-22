@@ -18,3 +18,14 @@ flag {
     bug: "384794418"
     is_exported: true
 }
+
+flag {
+    name: "advertise_thread"
+    namespace: "bluetooth"
+    description: "Run all advertise functions on a single thread"
+    bug: "391508617"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
