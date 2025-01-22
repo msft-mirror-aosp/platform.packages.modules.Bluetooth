@@ -79,6 +79,9 @@
       "name": "bluetooth_le_audio_test"
     },
     {
+      "name": "bluetooth_ras_test"
+    },
+    {
       "name": "bluetooth_packet_parser_test"
     },
     {
@@ -273,6 +276,9 @@
     },
     {
       "name": "bluetooth_le_audio_test"
+    },
+    {
+      "name": "bluetooth_ras_test"
     },
     {
       "name": "bluetooth_packet_parser_test"
