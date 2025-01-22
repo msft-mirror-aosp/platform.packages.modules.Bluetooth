@@ -847,7 +847,8 @@ class BassClientStateMachine extends StateMachine {
                                 recvState.getSourceDevice(), broadcastId);
                 if (result != null) {
                     int syncHandle = result.getSyncHandle();
-                    if (syncHandle != BassConstants.INVALID_SYNC_HANDLE) {
+                    if (syncHandle != BassConstants.INVALID_SYNC_HANDLE
+                            && syncHandle != BassConstants.PENDING_SYNC_HANDLE) {
                         initiatePaSyncTransfer(syncHandle, sourceId);
                         return;
                     }

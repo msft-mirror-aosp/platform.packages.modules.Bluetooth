@@ -649,7 +649,7 @@ public class BassClientService extends ProfileService {
             if (bId == BassConstants.INVALID_BROADCAST_ID) {
                 // Update when onSyncEstablished, try to retrieve valid broadcast id
                 if (leaudioBroadcastExtractPeriodicScannerFromStateMachine()) {
-                    bId = getBroadcastIdForSyncHandle(BassConstants.INVALID_SYNC_HANDLE);
+                    bId = getBroadcastIdForSyncHandle(BassConstants.PENDING_SYNC_HANDLE);
 
                     if (bId == BassConstants.INVALID_BROADCAST_ID || !paResMap.containsKey(bId)) {
                         Log.e(TAG, "PAResmap: error! no valid broadcast id found>>>");
@@ -688,7 +688,8 @@ public class BassClientService extends ProfileService {
             if (advSid != BassConstants.INVALID_ADV_SID) {
                 paRes.updateAdvSid(advSid);
             }
-            if (syncHandle != BassConstants.INVALID_SYNC_HANDLE) {
+            if (syncHandle != BassConstants.INVALID_SYNC_HANDLE
+                    && syncHandle != BassConstants.PENDING_SYNC_HANDLE) {
                 mSyncHandleToDeviceMap
                         .entrySet()
                         .removeIf(entry -> entry.getValue().equals(device));
@@ -2297,7 +2298,7 @@ public class BassClientService extends ProfileService {
                 int skip,
                 int timeout,
                 int status) {
-            int broadcastId = getBroadcastIdForSyncHandle(BassConstants.INVALID_SYNC_HANDLE);
+            int broadcastId = getBroadcastIdForSyncHandle(BassConstants.PENDING_SYNC_HANDLE);
             log(
                     "onSyncEstablished syncHandle: "
                             + syncHandle
@@ -2346,11 +2347,11 @@ public class BassClientService extends ProfileService {
                     }
 
                     // update valid sync handle in mPeriodicAdvCallbacksMap
-                    if (mPeriodicAdvCallbacksMap.containsKey(BassConstants.INVALID_SYNC_HANDLE)) {
+                    if (mPeriodicAdvCallbacksMap.containsKey(BassConstants.PENDING_SYNC_HANDLE)) {
                         PeriodicAdvertisingCallback paCb =
-                                mPeriodicAdvCallbacksMap.get(BassConstants.INVALID_SYNC_HANDLE);
+                                mPeriodicAdvCallbacksMap.get(BassConstants.PENDING_SYNC_HANDLE);
                         mPeriodicAdvCallbacksMap.put(syncHandle, paCb);
-                        mPeriodicAdvCallbacksMap.remove(BassConstants.INVALID_SYNC_HANDLE);
+                        mPeriodicAdvCallbacksMap.remove(BassConstants.PENDING_SYNC_HANDLE);
                     }
 
                     mBisDiscoveryCounterMap.put(syncHandle, MAX_BIS_DISCOVERY_TRIES_NUM);
@@ -2446,7 +2447,7 @@ public class BassClientService extends ProfileService {
                         }
                     }
                 }
-                clearAllDataForSyncHandle(BassConstants.INVALID_SYNC_HANDLE);
+                clearAllDataForSyncHandle(BassConstants.PENDING_SYNC_HANDLE);
             }
             handleSelectSourceRequest();
         }
@@ -2725,13 +2726,17 @@ public class BassClientService extends ProfileService {
         return metaData.build();
     }
 
+    /**
+     * @param syncHandle syncHandle to unsync source and clean up all data for it. Null is used to
+     *     clean up all pending and established broadcast syncs.
+     */
     private void cancelActiveSync(Integer syncHandle) {
         log("cancelActiveSync: syncHandle = " + syncHandle);
         if (syncHandle == null
                 || (leaudioBroadcastResyncHelper()
-                        && syncHandle == BassConstants.INVALID_SYNC_HANDLE)) {
-            // clean up the pending sync request if syncHandle is null
-            unsyncSource(BassConstants.INVALID_SYNC_HANDLE);
+                        && syncHandle == BassConstants.PENDING_SYNC_HANDLE)) {
+            // cancel the pending sync request
+            unsyncSource(BassConstants.PENDING_SYNC_HANDLE);
         }
         List<Integer> activeSyncedSrc = new ArrayList<>(getActiveSyncedSources());
 
@@ -2742,7 +2747,7 @@ public class BassClientService extends ProfileService {
                 // only one source needs to be unsynced
                 unsyncSource(syncHandle);
             } else {
-                // remove all the sources
+                // unsync all the sources
                 for (int handle : activeSyncedSrc) {
                     unsyncSource(handle);
                 }
@@ -2881,7 +2886,7 @@ public class BassClientService extends ProfileService {
         synchronized (mSourceSyncRequestsQueue) {
             if (mSourceSyncRequestsQueue.isEmpty()) {
                 return;
-            } else if (mPeriodicAdvCallbacksMap.containsKey(BassConstants.INVALID_SYNC_HANDLE)) {
+            } else if (mPeriodicAdvCallbacksMap.containsKey(BassConstants.PENDING_SYNC_HANDLE)) {
                 log("handleSelectSourceRequest: already pending sync");
                 return;
             }
@@ -2924,13 +2929,12 @@ public class BassClientService extends ProfileService {
             broadcastName = checkAndParseBroadcastName(scanRecord);
 
             paCb = new PACallback();
-            // put INVALID_SYNC_HANDLE and update in onSyncEstablished
-            mPeriodicAdvCallbacksMap.put(BassConstants.INVALID_SYNC_HANDLE, paCb);
-
+            // put PENDING_SYNC_HANDLE and update it in onSyncEstablished
+            mPeriodicAdvCallbacksMap.put(BassConstants.PENDING_SYNC_HANDLE, paCb);
             updatePeriodicAdvertisementResultMap(
                     scanRes.getDevice(),
                     scanRes.getDevice().getAddressType(),
-                    BassConstants.INVALID_SYNC_HANDLE,
+                    BassConstants.PENDING_SYNC_HANDLE,
                     BassConstants.INVALID_ADV_SID,
                     scanRes.getPeriodicAdvertisingInterval(),
                     broadcastId,
@@ -2978,7 +2982,7 @@ public class BassClientService extends ProfileService {
                             null);
         } catch (IllegalArgumentException ex) {
             Log.e(TAG, "registerSync:IllegalArgumentException");
-            clearAllDataForSyncHandle(BassConstants.INVALID_SYNC_HANDLE);
+            clearAllDataForSyncHandle(BassConstants.PENDING_SYNC_HANDLE);
             handleSelectSourceRequest();
             return;
         }
@@ -3208,7 +3212,7 @@ public class BassClientService extends ProfileService {
 
     private Boolean isAddedToSelectSourceRequest(int broadcastId, boolean priorityImportant) {
         synchronized (mSourceSyncRequestsQueue) {
-            if (getBroadcastIdForSyncHandle(BassConstants.INVALID_SYNC_HANDLE) == broadcastId) {
+            if (getBroadcastIdForSyncHandle(BassConstants.PENDING_SYNC_HANDLE) == broadcastId) {
                 return true;
             }
 
