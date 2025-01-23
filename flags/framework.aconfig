@@ -86,3 +86,13 @@ flag {
     description: "Make BluetoothDevice.ACTION_KEY_MISSING into public API"
     bug: "379729762"
 }
+
+flag {
+    name: "set_component_available_fix"
+    namespace: "bluetooth"
+    description: "Ensure the state in PackageManager has DISABLED to ENABLED to trigger PACKAGE_CHANGED"
+    bug: "391084450"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
