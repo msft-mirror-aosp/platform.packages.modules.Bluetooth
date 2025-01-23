@@ -196,7 +196,7 @@ static rfc_slot_t* find_rfc_slot_by_pending_sdp(void) {
 static bool is_requesting_sdp(void) {
   for (size_t i = 0; i < ARRAY_SIZE(rfc_slots); ++i) {
     if (rfc_slots[i].id && rfc_slots[i].f.doing_sdp_request) {
-      log::info("slot id {} is doing sdp request", rfc_slots[i].id);
+      log::info("slot_id {} is doing sdp request", rfc_slots[i].id);
       return true;
     }
   }
@@ -467,7 +467,7 @@ bt_status_t btsock_rfc_connect(const RawAddress* bd_addr, const Uuid* service_uu
     }
 
     if (!send_app_scn(slot)) {
-      log::error("send_app_scn() failed, closing slot->id:{}", slot->id);
+      log::error("send_app_scn() failed, closing slot_id:{}", slot->id);
       cleanup_rfc_slot(slot);
       return BT_STATUS_SOCKET_ERROR;
     }
@@ -536,7 +536,7 @@ static void cleanup_rfc_slot(rfc_slot_t* slot) {
     close(slot->fd);
     log::info(
             "disconnected from RFCOMM socket connections for device: {}, scn: {}, "
-            "app_uid: {}, id: {}, socket_id: {}",
+            "app_uid: {}, slot_id: {}, socket_id: {}",
             slot->addr, slot->scn, slot->app_uid, slot->id, slot->socket_id);
     btif_sock_connection_logger(
             slot->addr, slot->id, BTSOCK_RFCOMM, SOCKET_CONNECTION_STATE_DISCONNECTED,
@@ -586,7 +586,7 @@ static bool send_app_scn(rfc_slot_t* slot) {
     // already sent, just return success.
     return true;
   }
-  log::debug("Sending scn for slot {}. bd_addr:{}", slot->id, slot->addr);
+  log::debug("Sending scn for slot_id {}. bd_addr:{}", slot->id, slot->addr);
   slot->scn_notified = true;
   return sock_send_all(slot->fd, (const uint8_t*)&slot->scn, sizeof(slot->scn)) ==
          sizeof(slot->scn);
@@ -615,10 +615,10 @@ static void on_cl_rfc_init(tBTA_JV_RFCOMM_CL_INIT* p_init, uint32_t id) {
   std::unique_lock<std::recursive_mutex> lock(slot_lock);
   rfc_slot_t* slot = find_rfc_slot_by_id(id);
   if (!slot) {
-    log::error("RFCOMM slot with id {} not found. p_init->status={}", id,
+    log::error("RFCOMM slot_id {} not found. p_init->status={}", id,
                bta_jv_status_text(p_init->status));
   } else if (p_init->status != tBTA_JV_STATUS::SUCCESS) {
-    log::warn("INIT unsuccessful, status {}. Cleaning up slot with id {}",
+    log::warn("INIT unsuccessful, status {}. Cleaning up slot_id {}",
               bta_jv_status_text(p_init->status), slot->id);
     cleanup_rfc_slot(slot);
   } else {
@@ -630,10 +630,10 @@ static void on_srv_rfc_listen_started(tBTA_JV_RFCOMM_START* p_start, uint32_t id
   std::unique_lock<std::recursive_mutex> lock(slot_lock);
   rfc_slot_t* slot = find_rfc_slot_by_id(id);
   if (!slot) {
-    log::error("RFCOMM slot with id {} not found", id);
+    log::error("RFCOMM slot_id {} not found", id);
     return;
   } else if (p_start->status != tBTA_JV_STATUS::SUCCESS) {
-    log::warn("START unsuccessful, status {}. Cleaning up slot with id {}",
+    log::warn("START unsuccessful, status {}. Cleaning up slot_id {}",
               bta_jv_status_text(p_start->status), slot->id);
     cleanup_rfc_slot(slot);
     return;
@@ -702,7 +702,7 @@ static uint32_t on_srv_rfc_connect(tBTA_JV_RFCOMM_SRV_OPEN* p_open, uint32_t id)
   rfc_slot_t* accept_rs;
   rfc_slot_t* srv_rs = find_rfc_slot_by_id(id);
   if (!srv_rs) {
-    log::error("RFCOMM slot with id {} not found.", id);
+    log::error("RFCOMM slot_id {} not found.", id);
     return 0;
   }
 
@@ -719,7 +719,7 @@ static uint32_t on_srv_rfc_connect(tBTA_JV_RFCOMM_SRV_OPEN* p_open, uint32_t id)
 
   log::info(
           "connected to RFCOMM socket connections for device: {}, scn: {}, "
-          "app_uid: {}, id: {}, socket_id: {}",
+          "app_uid: {}, slot_id: {}, socket_id: {}",
           accept_rs->addr, accept_rs->scn, accept_rs->app_uid, id, accept_rs->socket_id);
   btif_sock_connection_logger(accept_rs->addr, accept_rs->id, BTSOCK_RFCOMM,
                               SOCKET_CONNECTION_STATE_CONNECTED,
@@ -779,12 +779,12 @@ static void on_cli_rfc_connect(tBTA_JV_RFCOMM_OPEN* p_open, uint32_t id) {
   std::unique_lock<std::recursive_mutex> lock(slot_lock);
   rfc_slot_t* slot = find_rfc_slot_by_id(id);
   if (!slot) {
-    log::error("RFCOMM slot with id {} not found.", id);
+    log::error("RFCOMM slot_id {} not found.", id);
     return;
   }
 
   if (p_open->status != tBTA_JV_STATUS::SUCCESS) {
-    log::warn("CONNECT unsuccessful, status {}. Cleaning up slot with id {}",
+    log::warn("CONNECT unsuccessful, status {}. Cleaning up slot_id {}",
               bta_jv_status_text(p_open->status), slot->id);
     cleanup_rfc_slot(slot);
     return;
@@ -906,7 +906,7 @@ static void on_rfc_close(tBTA_JV_RFCOMM_CLOSE* /* p_close */, uint32_t id) {
 
 static void on_rfc_write_done(tBTA_JV_RFCOMM_WRITE* p, uint32_t id) {
   if (p->status != tBTA_JV_STATUS::SUCCESS) {
-    log::error("error writing to RFCOMM socket with slot {}.", p->req_id);
+    log::error("error writing to RFCOMM socket, req_id:{}.", p->req_id);
     return;
   }
 
@@ -915,7 +915,7 @@ static void on_rfc_write_done(tBTA_JV_RFCOMM_WRITE* p, uint32_t id) {
 
   rfc_slot_t* slot = find_rfc_slot_by_id(id);
   if (!slot) {
-    log::error("RFCOMM slot with id {} not found.", id);
+    log::error("RFCOMM slot_id {} not found.", id);
     return;
   }
   app_uid = slot->app_uid;
@@ -931,7 +931,7 @@ static void on_rfc_outgoing_congest(tBTA_JV_RFCOMM_CONG* p, uint32_t id) {
 
   rfc_slot_t* slot = find_rfc_slot_by_id(id);
   if (!slot) {
-    log::error("RFCOMM slot with id {} not found.", id);
+    log::error("RFCOMM slot_id {} not found.", id);
     return;
   }
 
@@ -946,39 +946,39 @@ static uint32_t rfcomm_cback(tBTA_JV_EVT event, tBTA_JV* p_data, uint32_t rfcomm
 
   switch (event) {
     case BTA_JV_RFCOMM_START_EVT:
-      log::info("handling {}, rfcomm_slot_id:{}", bta_jv_event_text(event), rfcomm_slot_id);
+      log::info("handling {}, slot_id:{}", bta_jv_event_text(event), rfcomm_slot_id);
       on_srv_rfc_listen_started(&p_data->rfc_start, rfcomm_slot_id);
       break;
 
     case BTA_JV_RFCOMM_CL_INIT_EVT:
-      log::info("handling {}, rfcomm_slot_id:{}", bta_jv_event_text(event), rfcomm_slot_id);
+      log::info("handling {}, slot_id:{}", bta_jv_event_text(event), rfcomm_slot_id);
       on_cl_rfc_init(&p_data->rfc_cl_init, rfcomm_slot_id);
       break;
 
     case BTA_JV_RFCOMM_OPEN_EVT:
-      log::info("handling {}, rfcomm_slot_id:{}", bta_jv_event_text(event), rfcomm_slot_id);
+      log::info("handling {}, slot_id:{}", bta_jv_event_text(event), rfcomm_slot_id);
       BTA_JvSetPmProfile(p_data->rfc_open.handle, BTA_JV_PM_ID_1, BTA_JV_CONN_OPEN);
       on_cli_rfc_connect(&p_data->rfc_open, rfcomm_slot_id);
       break;
 
     case BTA_JV_RFCOMM_SRV_OPEN_EVT:
-      log::info("handling {}, rfcomm_slot_id:{}", bta_jv_event_text(event), rfcomm_slot_id);
+      log::info("handling {}, slot_id:{}", bta_jv_event_text(event), rfcomm_slot_id);
       BTA_JvSetPmProfile(p_data->rfc_srv_open.handle, BTA_JV_PM_ALL, BTA_JV_CONN_OPEN);
       id = on_srv_rfc_connect(&p_data->rfc_srv_open, rfcomm_slot_id);
       break;
 
     case BTA_JV_RFCOMM_CLOSE_EVT:
-      log::info("handling {}, rfcomm_slot_id:{}", bta_jv_event_text(event), rfcomm_slot_id);
+      log::info("handling {}, slot_id:{}", bta_jv_event_text(event), rfcomm_slot_id);
       on_rfc_close(&p_data->rfc_close, rfcomm_slot_id);
       break;
 
     case BTA_JV_RFCOMM_WRITE_EVT:
-      log::verbose("handling {}, rfcomm_slot_id:{}", bta_jv_event_text(event), rfcomm_slot_id);
+      log::verbose("handling {}, slot_id:{}", bta_jv_event_text(event), rfcomm_slot_id);
       on_rfc_write_done(&p_data->rfc_write, rfcomm_slot_id);
       break;
 
     case BTA_JV_RFCOMM_CONG_EVT:
-      log::verbose("handling {}, rfcomm_slot_id:{}", bta_jv_event_text(event), rfcomm_slot_id);
+      log::verbose("handling {}, slot_id:{}", bta_jv_event_text(event), rfcomm_slot_id);
       on_rfc_outgoing_congest(&p_data->rfc_cong, rfcomm_slot_id);
       break;
 
@@ -987,20 +987,20 @@ static uint32_t rfcomm_cback(tBTA_JV_EVT event, tBTA_JV* p_data, uint32_t rfcomm
       break;
 
     default:
-      log::warn("unhandled event {}, slot id: {}", bta_jv_event_text(event), rfcomm_slot_id);
+      log::warn("unhandled event {}, slot_id: {}", bta_jv_event_text(event), rfcomm_slot_id);
       break;
   }
   return id;
 }
 
 static void jv_dm_cback(tBTA_JV_EVT event, tBTA_JV* p_data, uint32_t id) {
-  log::info("handling event:{}, id:{}", bta_jv_event_text(event), id);
+  log::info("handling event:{}, slot_id:{}", bta_jv_event_text(event), id);
   switch (event) {
     case BTA_JV_GET_SCN_EVT: {
       std::unique_lock<std::recursive_mutex> lock(slot_lock);
       rfc_slot_t* rs = find_rfc_slot_by_id(id);
       if (!rs) {
-        log::error("RFCOMM slot with id {} not found. event:{}", id, bta_jv_event_text(event));
+        log::error("RFCOMM slot with slot_id {} not found. event:{}", id, bta_jv_event_text(event));
         break;
       }
       if (p_data->scn == 0) {
@@ -1061,7 +1061,7 @@ static void jv_dm_cback(tBTA_JV_EVT event, tBTA_JV* p_data, uint32_t id) {
       rfc_slot_t* slot = find_rfc_slot_by_id(id);
 
       if (!slot) {
-        log::error("RFCOMM slot with id {} not found. event:{}", id, bta_jv_event_text(event));
+        log::error("RFCOMM slot_id {} not found. event:{}", id, bta_jv_event_text(event));
         break;
       }
 
@@ -1104,7 +1104,7 @@ static void jv_dm_cback(tBTA_JV_EVT event, tBTA_JV* p_data, uint32_t id) {
     }
 
     default:
-      log::debug("unhandled event:{}, slot id:{}", bta_jv_event_text(event), id);
+      log::debug("unhandled event:{}, slot_id:{}", bta_jv_event_text(event), id);
       break;
   }
 }
@@ -1112,18 +1112,18 @@ static void jv_dm_cback(tBTA_JV_EVT event, tBTA_JV* p_data, uint32_t id) {
 static void handle_discovery_comp(tBTA_JV_STATUS status, int scn, uint32_t id) {
   rfc_slot_t* slot = find_rfc_slot_by_id(id);
   if (!slot) {
-    log::error("RFCOMM slot with id {} not found. event: BTA_JV_DISCOVERY_COMP_EVT", id);
+    log::error("RFCOMM slot_id {} not found. event: BTA_JV_DISCOVERY_COMP_EVT", id);
     return;
   }
 
   if (!slot->f.doing_sdp_request) {
-    log::error("SDP response returned but RFCOMM slot {} did not request SDP record.", id);
+    log::error("SDP response returned but RFCOMM slot_id {} did not request SDP record.", id);
     return;
   }
 
   if (status != tBTA_JV_STATUS::SUCCESS || !scn) {
     log::error(
-            "SDP service discovery completed for slot id: {} with the result "
+            "SDP service discovery completed for slot_id: {} with the result "
             "status: {}, scn: {}",
             id, bta_jv_status_text(status), scn);
     cleanup_rfc_slot(slot);
@@ -1146,10 +1146,7 @@ static void handle_discovery_comp(tBTA_JV_STATUS status, int scn, uint32_t id) {
 
   if (BTA_JvRfcommConnect(slot->security, scn, slot->addr, rfcomm_cback, slot->id, cfg,
                           slot->app_uid) != tBTA_JV_STATUS::SUCCESS) {
-    log::warn(
-            "BTA_JvRfcommConnect() returned BTA_JV_FAILURE for RFCOMM slot with "
-            "id: {}",
-            id);
+    log::warn("BTA_JvRfcommConnect() returned BTA_JV_FAILURE for RFCOMM slot_id:{}", id);
     cleanup_rfc_slot(slot);
     return;
   }
@@ -1158,7 +1155,7 @@ static void handle_discovery_comp(tBTA_JV_STATUS status, int scn, uint32_t id) {
   slot->f.doing_sdp_request = false;
 
   if (!send_app_scn(slot)) {
-    log::warn("send_app_scn() failed, closing slot->id {}", slot->id);
+    log::warn("send_app_scn() failed, closing slot_id {}", slot->id);
     cleanup_rfc_slot(slot);
     return;
   }
@@ -1233,7 +1230,7 @@ static bool flush_incoming_que_on_wr_signal(rfc_slot_t* slot) {
 static bool btsock_rfc_read_signaled_on_connected_socket(int /* fd */, int flags, uint32_t /* id */,
                                                          rfc_slot_t* slot) {
   if (!slot->f.connected) {
-    log::error("socket signaled for read while disconnected, slot: {}, channel: {}", slot->id,
+    log::error("socket signaled for read while disconnected, slot_id: {}, channel: {}", slot->id,
                slot->scn);
     return false;
   }
@@ -1260,7 +1257,7 @@ static bool btsock_rfc_read_signaled_on_listen_socket(int fd, int /* flags */, u
       return false;
     }
     slot->is_accepting = accept_signal.is_accepting;
-    log::info("Server socket: {}, is_accepting: {}", slot->id, slot->is_accepting);
+    log::info("Server socket slot_id: {}, is_accepting: {}", slot->id, slot->is_accepting);
   }
   return true;
 }
@@ -1270,7 +1267,7 @@ static void btsock_rfc_signaled_flagged(int fd, int flags, uint32_t id) {
   std::unique_lock<std::recursive_mutex> lock(slot_lock);
   rfc_slot_t* slot = find_rfc_slot_by_id(id);
   if (!slot) {
-    log::warn("RFCOMM slot with id {} not found.", id);
+    log::warn("RFCOMM slot_id {} not found.", id);
     return;
   }
 
@@ -1294,7 +1291,7 @@ static void btsock_rfc_signaled_flagged(int fd, int flags, uint32_t id) {
     if (!slot->f.connected || !flush_incoming_que_on_wr_signal(slot)) {
       log::error(
               "socket signaled for write while disconnected (or write failure), "
-              "slot: {}, channel: {}",
+              "slot_id: {}, channel: {}",
               slot->id, slot->scn);
       need_close = true;
     }
@@ -1335,7 +1332,7 @@ void btsock_rfc_signaled(int fd, int flags, uint32_t id) {
         BTA_JvRfcommWrite(slot->rfc_handle, slot->id);
       }
     } else {
-      log::error("socket signaled for read while disconnected, slot: {}, channel: {}", slot->id,
+      log::error("socket signaled for read while disconnected, slot_id: {}, channel: {}", slot->id,
                  slot->scn);
       need_close = true;
     }
@@ -1346,7 +1343,7 @@ void btsock_rfc_signaled(int fd, int flags, uint32_t id) {
     if (!slot->f.connected || !flush_incoming_que_on_wr_signal(slot)) {
       log::error(
               "socket signaled for write while disconnected (or write failure), "
-              "slot: {}, channel: {}",
+              "slot_id: {}, channel: {}",
               slot->id, slot->scn);
       need_close = true;
     }
@@ -1372,7 +1369,7 @@ int bta_co_rfc_data_incoming(uint32_t id, BT_HDR* p_buf) {
   std::unique_lock<std::recursive_mutex> lock(slot_lock);
   rfc_slot_t* slot = find_rfc_slot_by_id(id);
   if (!slot) {
-    log::error("RFCOMM slot with id {} not found.", id);
+    log::error("RFCOMM slot_id {} not found.", id);
     return 0;
   }
 
@@ -1412,7 +1409,7 @@ int bta_co_rfc_data_outgoing_size(uint32_t id, int* size) {
   std::unique_lock<std::recursive_mutex> lock(slot_lock);
   rfc_slot_t* slot = find_rfc_slot_by_id(id);
   if (!slot) {
-    log::error("RFCOMM slot with id {} not found.", id);
+    log::error("RFCOMM slot_id {} not found.", id);
     return false;
   }
 
@@ -1430,7 +1427,7 @@ int bta_co_rfc_data_outgoing(uint32_t id, uint8_t* buf, uint16_t size) {
   std::unique_lock<std::recursive_mutex> lock(slot_lock);
   rfc_slot_t* slot = find_rfc_slot_by_id(id);
   if (!slot) {
-    log::error("RFCOMM slot with id {} not found.", id);
+    log::error("RFCOMM slot_id {} not found.", id);
     return false;
   }
 
