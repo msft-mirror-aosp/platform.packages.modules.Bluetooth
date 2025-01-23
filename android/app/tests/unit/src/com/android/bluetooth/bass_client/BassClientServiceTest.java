@@ -7511,6 +7511,111 @@ public class BassClientServiceTest {
         }
     }
 
+    @Test
+    @EnableFlags({
+        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
+        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
+    })
+    public void clearPendingSourceToAdd_oneByOne_whenDisconnected() {
+        prepareConnectedDeviceGroup();
+        startSearchingForSources();
+        onScanResult(mSourceDevice, TEST_BROADCAST_ID);
+        onSyncEstablished(mSourceDevice, TEST_SYNC_HANDLE);
+
+        // Sync lost without triggering timeout to remain cache
+        onSyncLost();
+
+        // Add source force syncing to broadcaster and add sinks to pendingSourcesToAdd
+        BluetoothLeBroadcastMetadata meta = createBroadcastMetadata(TEST_BROADCAST_ID);
+        mBassClientService.addSource(mCurrentDevice, meta, false);
+        mBassClientService.addSource(mCurrentDevice1, meta, false);
+
+        // Disconnect first sink should remove pendingSourceToAdd for it
+        doReturn(BluetoothProfile.STATE_DISCONNECTED)
+                .when(mStateMachines.get(mCurrentDevice))
+                .getConnectionState();
+        doReturn(false).when(mStateMachines.get(mCurrentDevice)).isConnected();
+        mBassClientService.connectionStateChanged(
+                mCurrentDevice,
+                BluetoothProfile.STATE_CONNECTED,
+                BluetoothProfile.STATE_DISCONNECTED);
+        injectRemoteSourceStateRemoval(mStateMachines.get(mCurrentDevice), TEST_SOURCE_ID);
+
+        // Sync established should add source on only one sink
+        onSyncEstablished(mSourceDevice, TEST_SYNC_HANDLE);
+        assertThat(mStateMachines.size()).isEqualTo(2);
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            if (sm.getDevice().equals(mCurrentDevice)) {
+                verify(sm, never()).sendMessage(any());
+            } else if (sm.getDevice().equals(mCurrentDevice1)) {
+                ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+                verify(sm, atLeast(1)).sendMessage(messageCaptor.capture());
+
+                Message msg =
+                        messageCaptor.getAllValues().stream()
+                                .filter(m -> (m.what == BassClientStateMachine.ADD_BCAST_SOURCE))
+                                .findFirst()
+                                .orElse(null);
+                assertThat(msg).isNotNull();
+                clearInvocations(sm);
+            } else {
+                throw new AssertionError("Unexpected device");
+            }
+        }
+    }
+
+    @Test
+    @EnableFlags({
+        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
+        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
+    })
+    public void clearPendingSourceToAdd_group_whenDisconnected() {
+        prepareConnectedDeviceGroup();
+        startSearchingForSources();
+        onScanResult(mSourceDevice, TEST_BROADCAST_ID);
+        onSyncEstablished(mSourceDevice, TEST_SYNC_HANDLE);
+
+        // Sync lost without triggering timeout to remain cache
+        onSyncLost();
+
+        // Add source force syncing to broadcaster and add sinks to pendingSourcesToAdd
+        BluetoothLeBroadcastMetadata meta = createBroadcastMetadata(TEST_BROADCAST_ID);
+        mBassClientService.addSource(mCurrentDevice, meta, true);
+
+        // Disconnect first sink should remove pendingSourceToAdd for it
+        doReturn(BluetoothProfile.STATE_DISCONNECTED)
+                .when(mStateMachines.get(mCurrentDevice))
+                .getConnectionState();
+        doReturn(false).when(mStateMachines.get(mCurrentDevice)).isConnected();
+        mBassClientService.connectionStateChanged(
+                mCurrentDevice,
+                BluetoothProfile.STATE_CONNECTED,
+                BluetoothProfile.STATE_DISCONNECTED);
+        injectRemoteSourceStateRemoval(mStateMachines.get(mCurrentDevice), TEST_SOURCE_ID);
+
+        // Sync established should add source on only one sink
+        onSyncEstablished(mSourceDevice, TEST_SYNC_HANDLE);
+        assertThat(mStateMachines.size()).isEqualTo(2);
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            if (sm.getDevice().equals(mCurrentDevice)) {
+                verify(sm, never()).sendMessage(any());
+            } else if (sm.getDevice().equals(mCurrentDevice1)) {
+                ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+                verify(sm, atLeast(1)).sendMessage(messageCaptor.capture());
+
+                Message msg =
+                        messageCaptor.getAllValues().stream()
+                                .filter(m -> (m.what == BassClientStateMachine.ADD_BCAST_SOURCE))
+                                .findFirst()
+                                .orElse(null);
+                assertThat(msg).isNotNull();
+                clearInvocations(sm);
+            } else {
+                throw new AssertionError("Unexpected device");
+            }
+        }
+    }
+
     private void verifyConnectionStateIntent(BluetoothDevice device, int newState, int prevState) {
         verifyIntentSent(
                 hasAction(BluetoothLeBroadcastAssistant.ACTION_CONNECTION_STATE_CHANGED),
