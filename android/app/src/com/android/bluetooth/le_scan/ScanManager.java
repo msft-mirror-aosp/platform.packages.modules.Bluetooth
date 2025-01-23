@@ -208,7 +208,6 @@ public class ScanManager {
         mRegularScanClients.clear();
         mBatchClients.clear();
         mSuspendedScanClients.clear();
-        mScanNative.cleanup();
 
         if (mActivityManager != null) {
             try {
@@ -224,6 +223,8 @@ public class ScanManager {
 
         // Shut down the thread
         mHandler.removeCallbacksAndMessages(null);
+
+        mScanNative.cleanup();
 
         try {
             mAdapterService.unregisterReceiver(mLocationReceiver);

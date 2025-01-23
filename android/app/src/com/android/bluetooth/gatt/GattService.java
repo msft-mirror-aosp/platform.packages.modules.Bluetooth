@@ -1505,6 +1505,10 @@ public class GattService extends ProfileService {
             unregisterClient(
                     appId, attributionSource, ContextMap.RemoveReason.REASON_UNREGISTER_ALL);
         }
+        for (Integer appId : mServerMap.getAllAppsIds()) {
+            Log.d(TAG, "unreg:" + appId);
+            unregisterServer(appId, attributionSource);
+        }
     }
 
     /**************************************************************************
