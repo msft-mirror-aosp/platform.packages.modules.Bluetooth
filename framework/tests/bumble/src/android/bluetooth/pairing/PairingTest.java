@@ -22,12 +22,8 @@ import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import android.bluetooth.BluetoothA2dp;
 import android.bluetooth.BluetoothAdapter;
@@ -43,10 +39,8 @@ import android.bluetooth.StreamObserverSpliterator;
 import android.bluetooth.Utils;
 import android.bluetooth.test_utils.BlockingBluetoothAdapter;
 import android.bluetooth.test_utils.EnableBluetoothRule;
-import android.content.BroadcastReceiver;
+import android.bluetooth.pairing.utils.IntentReceiver;
 import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.os.ParcelUuid;
 import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
@@ -63,19 +57,15 @@ import com.google.testing.junit.testparameterinjector.TestParameterInjector;
 
 import io.grpc.stub.StreamObserver;
 
-import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
-import org.hamcrest.core.AllOf;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.mockito.hamcrest.MockitoHamcrest;
 
 import pandora.GattProto;
 import pandora.HostProto.AdvertiseRequest;
@@ -90,9 +80,6 @@ import pandora.SecurityProto.SecureRequest;
 import pandora.SecurityProto.SecureResponse;
 
 import java.time.Duration;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -127,12 +114,9 @@ public class PairingTest {
     public final EnableBluetoothRule mEnableBluetoothRule =
             new EnableBluetoothRule(false /* enableTestMode */, true /* toggleBluetooth */);
 
-    private final Map<String, Integer> mActionRegistrationCounts = new HashMap<>();
     private final StreamObserverSpliterator<PairingEvent> mPairingEventStreamObserver =
             new StreamObserverSpliterator<>();
-    @Mock private BroadcastReceiver mReceiver;
     @Mock private BluetoothProfile.ServiceListener mProfileServiceListener;
-    private InOrder mInOrder = null;
     private BluetoothDevice mBumbleDevice;
     private BluetoothDevice mRemoteLeDevice;
     private BluetoothHidHost mHidService;
@@ -141,30 +125,6 @@ public class PairingTest {
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
-
-        doAnswer(
-                        inv -> {
-                            Log.d(
-                                    TAG,
-                                    "onReceive(): intent=" + Arrays.toString(inv.getArguments()));
-                            Intent intent = inv.getArgument(1);
-                            String action = intent.getAction();
-                            if (BluetoothDevice.ACTION_UUID.equals(action)) {
-                                ParcelUuid[] uuids =
-                                        intent.getParcelableArrayExtra(
-                                                BluetoothDevice.EXTRA_UUID, ParcelUuid.class);
-                                Log.d(TAG, "onReceive(): UUID=" + Arrays.toString(uuids));
-                            } else if (BluetoothDevice.ACTION_BOND_STATE_CHANGED.equals(action)) {
-                                int bondState =
-                                        intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, -1);
-                                Log.d(TAG, "onReceive(): bondState=" + bondState);
-                            }
-                            return null;
-                        })
-                .when(mReceiver)
-                .onReceive(any(), any());
-
-        mInOrder = inOrder(mReceiver);
 
         // Get profile proxies
         mHidService = (BluetoothHidHost) getProfileProxy(BluetoothProfile.HID_HOST);
@@ -175,27 +135,53 @@ public class PairingTest {
                 sAdapter.getRemoteLeDevice(
                         Utils.BUMBLE_RANDOM_ADDRESS, BluetoothDevice.ADDRESS_TYPE_RANDOM);
 
+        /*
+         * Note: Since there was no IntentReceiver registered, passing the instance as
+         *  NULL in testStep_RemoveBond(). But, if there is an instance already present, that
+         *  must be passed instead of NULL.
+         */
         for (BluetoothDevice device : sAdapter.getBondedDevices()) {
-            removeBond(device);
+            testStep_RemoveBond(null, device);
         }
     }
 
     @After
     public void tearDown() throws Exception {
         Set<BluetoothDevice> bondedDevices = sAdapter.getBondedDevices();
+
+        /*
+         * Note: Since there was no IntentReceiver registered, passing the instance as
+         *  NULL in testStep_RemoveBond(). But, if there is an instance already present, that
+         *  must be passed instead of NULL.
+         */
         if (bondedDevices.contains(mBumbleDevice)) {
-            removeBond(mBumbleDevice);
+            testStep_RemoveBond(null, mBumbleDevice);
         }
         if (bondedDevices.contains(mRemoteLeDevice)) {
-            removeBond(mRemoteLeDevice);
+            testStep_RemoveBond(null, mRemoteLeDevice);
         }
         mBumbleDevice = null;
         mRemoteLeDevice = null;
-        if (getTotalActionRegistrationCounts() > 0) {
-            sTargetContext.unregisterReceiver(mReceiver);
-            mActionRegistrationCounts.clear();
-        }
     }
+
+    /** All the test function goes here */
+
+    /**
+     * Process of writing a test function
+     *
+     * 1. Create an IntentReceiver object first with following way:
+     *      IntentReceiver intentReceiver = new IntentReceiver.Builder(sTargetContext,
+     *          BluetoothDevice.ACTION_1,
+     *          BluetoothDevice.ACTION_2)
+     *          .setIntentListener(--) // optional
+     *          .setIntentTimeout(--)  // optional
+     *          .build();
+     * 2. Use the intentReceiver instance for all Intent related verification, and pass
+     *     the same instance to all the helper/testStep functions which has similar Intent
+     *     requirements.
+     * 3. Once all the verification is done, call `intentReceiver.close()` before returning
+     *     from the function.
+     */
 
     /**
      * Test a simple BR/EDR just works pairing flow in the follow steps:
@@ -211,8 +197,10 @@ public class PairingTest {
      */
     @Test
     public void testBrEdrPairing_phoneInitiatedBrEdrInquiryOnlyJustWorks() {
-        registerIntentActions(
-                BluetoothDevice.ACTION_BOND_STATE_CHANGED, BluetoothDevice.ACTION_PAIRING_REQUEST);
+        IntentReceiver intentReceiver = new IntentReceiver.Builder(sTargetContext,
+                BluetoothDevice.ACTION_BOND_STATE_CHANGED,
+                BluetoothDevice.ACTION_PAIRING_REQUEST)
+                .build();
 
         StreamObserver<PairingEventAnswer> pairingEventAnswerObserver =
                 mBumble.security()
@@ -220,12 +208,12 @@ public class PairingTest {
                         .onPairing(mPairingEventStreamObserver);
 
         assertThat(mBumbleDevice.createBond()).isTrue();
-        verifyIntentReceived(
+        intentReceiver.verifyReceivedOrdered(
                 hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
                 hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
                 hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_BONDING));
 
-        verifyIntentReceived(
+        intentReceiver.verifyReceivedOrdered(
                 hasAction(BluetoothDevice.ACTION_PAIRING_REQUEST),
                 hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
                 hasExtra(
@@ -238,15 +226,12 @@ public class PairingTest {
         pairingEventAnswerObserver.onNext(
                 PairingEventAnswer.newBuilder().setEvent(pairingEvent).setConfirm(true).build());
 
-        verifyIntentReceived(
+        intentReceiver.verifyReceivedOrdered(
                 hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
                 hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
                 hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_BONDED));
 
-        verifyNoMoreInteractions(mReceiver);
-
-        unregisterIntentActions(
-                BluetoothDevice.ACTION_BOND_STATE_CHANGED, BluetoothDevice.ACTION_PAIRING_REQUEST);
+        intentReceiver.close();
     }
 
     /**
@@ -266,8 +251,10 @@ public class PairingTest {
     @Test
     @RequiresFlagsEnabled({Flags.FLAG_IGNORE_UNRELATED_CANCEL_BOND})
     public void testBrEdrPairing_cancelBond_forUnrelatedDevice() {
-        registerIntentActions(
-                BluetoothDevice.ACTION_BOND_STATE_CHANGED, BluetoothDevice.ACTION_PAIRING_REQUEST);
+        IntentReceiver intentReceiver = new IntentReceiver.Builder(sTargetContext,
+                BluetoothDevice.ACTION_BOND_STATE_CHANGED,
+                BluetoothDevice.ACTION_PAIRING_REQUEST)
+                .build();
 
         StreamObserver<PairingEventAnswer> pairingEventAnswerObserver =
                 mBumble.security()
@@ -275,12 +262,12 @@ public class PairingTest {
                         .onPairing(mPairingEventStreamObserver);
 
         assertThat(mBumbleDevice.createBond()).isTrue();
-        verifyIntentReceived(
+        intentReceiver.verifyReceivedOrdered(
                 hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
                 hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
                 hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_BONDING));
 
-        verifyIntentReceived(
+        intentReceiver.verifyReceivedOrdered(
                 hasAction(BluetoothDevice.ACTION_PAIRING_REQUEST),
                 hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
                 hasExtra(
@@ -296,15 +283,12 @@ public class PairingTest {
         pairingEventAnswerObserver.onNext(
                 PairingEventAnswer.newBuilder().setEvent(pairingEvent).setConfirm(true).build());
 
-        verifyIntentReceived(
+        intentReceiver.verifyReceivedOrdered(
                 hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
                 hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
                 hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_BONDED));
 
-        verifyNoMoreInteractions(mReceiver);
-
-        unregisterIntentActions(
-                BluetoothDevice.ACTION_BOND_STATE_CHANGED, BluetoothDevice.ACTION_PAIRING_REQUEST);
+        intentReceiver.close();
     }
 
     /**
@@ -322,10 +306,11 @@ public class PairingTest {
      */
     @Test
     public void testBrEdrPairing_phoneInitiatedBrEdrInquiryOnlyJustWorksWhileSdpConnected() {
-        registerIntentActions(
+        IntentReceiver intentReceiver = new IntentReceiver.Builder(sTargetContext,
                 BluetoothDevice.ACTION_ACL_CONNECTED,
                 BluetoothDevice.ACTION_BOND_STATE_CHANGED,
-                BluetoothDevice.ACTION_PAIRING_REQUEST);
+                BluetoothDevice.ACTION_PAIRING_REQUEST)
+                .build();
 
         StreamObserver<PairingEventAnswer> pairingEventAnswerObserver =
                 mBumble.security()
@@ -335,17 +320,17 @@ public class PairingTest {
         // Start SDP.  This will create an ACL connection before the bonding starts.
         assertThat(mBumbleDevice.fetchUuidsWithSdp(BluetoothDevice.TRANSPORT_BREDR)).isTrue();
 
-        verifyIntentReceived(
+        intentReceiver.verifyReceivedOrdered(
                 hasAction(BluetoothDevice.ACTION_ACL_CONNECTED),
                 hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice));
 
         assertThat(mBumbleDevice.createBond()).isTrue();
-        verifyIntentReceived(
+        intentReceiver.verifyReceivedOrdered(
                 hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
                 hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
                 hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_BONDING));
 
-        verifyIntentReceived(
+        intentReceiver.verifyReceivedOrdered(
                 hasAction(BluetoothDevice.ACTION_PAIRING_REQUEST),
                 hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
                 hasExtra(
@@ -358,17 +343,12 @@ public class PairingTest {
         pairingEventAnswerObserver.onNext(
                 PairingEventAnswer.newBuilder().setEvent(pairingEvent).setConfirm(true).build());
 
-        verifyIntentReceived(
+        intentReceiver.verifyReceivedOrdered(
                 hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
                 hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
                 hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_BONDED));
 
-        verifyNoMoreInteractions(mReceiver);
-
-        unregisterIntentActions(
-                BluetoothDevice.ACTION_ACL_CONNECTED,
-                BluetoothDevice.ACTION_BOND_STATE_CHANGED,
-                BluetoothDevice.ACTION_PAIRING_REQUEST);
+        intentReceiver.close();
     }
 
     /**
@@ -398,11 +378,13 @@ public class PairingTest {
     @Test
     @RequiresFlagsEnabled({Flags.FLAG_PREVENT_DUPLICATE_UUID_INTENT})
     public void testCancelBondLe_WithGattServiceDiscovery() {
-        registerIntentActions(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
+        IntentReceiver intentReceiver = new IntentReceiver.Builder(sTargetContext,
+                BluetoothDevice.ACTION_BOND_STATE_CHANGED)
+                .build();
 
         // Outgoing GATT service discovery and incoming LE pairing in parallel
         StreamObserverSpliterator<SecureResponse> responseObserver =
-                helper_OutgoingGattServiceDiscoveryWithIncomingLePairing();
+                helper_OutgoingGattServiceDiscoveryWithIncomingLePairing(intentReceiver);
 
         // Cancel pairing from Android
         assertThat(mBumbleDevice.cancelBondProcess()).isTrue();
@@ -412,14 +394,12 @@ public class PairingTest {
 
         // Pairing should be cancelled in a moment instead of timing out in 30
         // seconds
-        verifyIntentReceived(
+        intentReceiver.verifyReceivedOrdered(
                 hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
                 hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
                 hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_NONE));
 
-        verifyNoMoreInteractions(mReceiver);
-
-        unregisterIntentActions(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
+        intentReceiver.close();
     }
 
     /**
@@ -449,11 +429,13 @@ public class PairingTest {
     @Test
     @RequiresFlagsEnabled({Flags.FLAG_PREVENT_DUPLICATE_UUID_INTENT})
     public void testBondLe_WithGattServiceDiscovery() {
-        registerIntentActions(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
+        IntentReceiver intentReceiver = new IntentReceiver.Builder(sTargetContext,
+                BluetoothDevice.ACTION_BOND_STATE_CHANGED)
+                .build();
 
         // Outgoing GATT service discovery and incoming LE pairing in parallel
         StreamObserverSpliterator<SecureResponse> responseObserver =
-                helper_OutgoingGattServiceDiscoveryWithIncomingLePairing();
+                helper_OutgoingGattServiceDiscoveryWithIncomingLePairing(intentReceiver);
 
         // Approve pairing from Android
         assertThat(mBumbleDevice.setPairingConfirmation(true)).isTrue();
@@ -462,14 +444,12 @@ public class PairingTest {
         assertThat(secureResponse.hasSuccess()).isTrue();
 
         // Ensure that pairing succeeds
-        verifyIntentReceived(
+        intentReceiver.verifyReceivedOrdered(
                 hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
                 hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
                 hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_BONDED));
 
-        verifyNoMoreInteractions(mReceiver);
-
-        unregisterIntentActions(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
+        intentReceiver.close();
     }
 
     /**
@@ -495,9 +475,11 @@ public class PairingTest {
      */
     @Test
     public void testBondLe_Reconnect() {
-        registerIntentActions(BluetoothDevice.ACTION_ACL_CONNECTED);
+        IntentReceiver intentReceiver = new IntentReceiver.Builder(sTargetContext,
+                BluetoothDevice.ACTION_ACL_CONNECTED)
+                .build();
 
-        testStep_BondLe(mBumbleDevice, OwnAddressType.PUBLIC);
+        testStep_BondLe(intentReceiver, mBumbleDevice, OwnAddressType.PUBLIC);
         assertThat(sAdapter.getBondedDevices()).contains(mBumbleDevice);
 
         testStep_restartBt();
@@ -521,12 +503,12 @@ public class PairingTest {
                                 .build());
 
         assertThat(mBumbleDevice.connect()).isEqualTo(BluetoothStatusCodes.SUCCESS);
-        verifyIntentReceived(
+        intentReceiver.verifyReceivedOrdered(
                 hasAction(BluetoothDevice.ACTION_ACL_CONNECTED),
                 hasExtra(BluetoothDevice.EXTRA_TRANSPORT, BluetoothDevice.TRANSPORT_LE),
                 hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice));
-        verifyNoMoreInteractions(mReceiver);
-        unregisterIntentActions(BluetoothDevice.ACTION_ACL_CONNECTED);
+
+        intentReceiver.close();
     }
 
     /**
@@ -559,27 +541,510 @@ public class PairingTest {
         }
     }
 
-    private void doTestIdentityAddressWithType(
-            BluetoothDevice device, OwnAddressType ownAddressType) {
-        BluetoothAddress identityAddress = device.getIdentityAddressWithType();
-        assertThat(identityAddress.getAddress()).isNull();
-        assertThat(identityAddress.getAddressType())
-                .isEqualTo(BluetoothDevice.ADDRESS_TYPE_UNKNOWN);
+    /**
+     * Test if bonded BR/EDR device can reconnect after BT restart
+     *
+     * <p>Prerequisites:
+     *
+     * <ol>
+     *   <li>Bumble and Android are not bonded
+     * </ol>
+     *
+     * <p>Steps:
+     *
+     * <ol>
+     *   <li>Bumble is discoverable and connectable over BR/EDR
+     *   <li>Android pairs with Bumble over BR/EDR
+     *   <li>Android restarts
+     *   <li>Bumble is connectable over BR/EDR
+     *   <li>Android reconnects to Bumble successfully and re-encrypts the link
+     * </ol>
+     *
+     * <p>Expectation: Pairing succeeds
+     */
+    @Test
+    public void testBondBredr_Reconnect() {
+        IntentReceiver intentReceiver = new IntentReceiver.Builder(sTargetContext,
+                BluetoothDevice.ACTION_ACL_CONNECTED)
+                .build();
 
-        testStep_BondLe(device, ownAddressType);
-        assertThat(sAdapter.getBondedDevices()).contains(device);
+        testStep_BondBredr(intentReceiver);
+        assertThat(sAdapter.getBondedDevices()).contains(mBumbleDevice);
 
-        identityAddress = device.getIdentityAddressWithType();
-        assertThat(identityAddress.getAddress()).isEqualTo(device.getAddress());
-        assertThat(identityAddress.getAddressType())
-                .isEqualTo(
-                        ownAddressType == OwnAddressType.RANDOM
-                                ? BluetoothDevice.ADDRESS_TYPE_RANDOM
-                                : BluetoothDevice.ADDRESS_TYPE_PUBLIC);
+        testStep_restartBt();
+
+        assertThat(sAdapter.getBondedDevices()).contains(mBumbleDevice);
+
+        SetConnectabilityModeRequest request =
+                SetConnectabilityModeRequest.newBuilder()
+                        .setMode(ConnectabilityMode.CONNECTABLE)
+                        .build();
+        mBumble.hostBlocking().setConnectabilityMode(request);
+        assertThat(mBumbleDevice.connect()).isEqualTo(BluetoothStatusCodes.SUCCESS);
+        intentReceiver.verifyReceivedOrdered(
+                hasAction(BluetoothDevice.ACTION_ACL_CONNECTED),
+                hasExtra(BluetoothDevice.EXTRA_TRANSPORT, BluetoothDevice.TRANSPORT_BREDR),
+                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice));
+
+        intentReceiver.close();
     }
 
-    private void testStep_BondLe(BluetoothDevice device, OwnAddressType ownAddressType) {
-        registerIntentActions(
+    /**
+     * Test removeDevice API when connected over LE
+     *
+     * <p>Prerequisites:
+     *
+     * <ol>
+     *   <li>Bumble and Android are not bonded
+     * </ol>
+     *
+     * <p>Steps:
+     *
+     * <ol>
+     *   <li>Bumble is connectable over LE
+     *   <li>Android pairs with Bumble over LE
+     *   <li>Call BluetoothDevice.removeBond() API
+     *   <li>Android disconnects the ACL and removes the bond
+     * </ol>
+     *
+     * <p>Expectation: Bumble is not bonded
+     */
+    @Test
+    @RequiresFlagsEnabled({Flags.FLAG_WAIT_FOR_DISCONNECT_BEFORE_UNBOND})
+    public void testRemoveBondLe_WhenConnected() {
+        IntentReceiver intentReceiver = new IntentReceiver.Builder(sTargetContext,
+                BluetoothDevice.ACTION_ACL_DISCONNECTED,
+                BluetoothDevice.ACTION_BOND_STATE_CHANGED)
+                .build();
+
+        testStep_BondLe(intentReceiver, mBumbleDevice, OwnAddressType.PUBLIC);
+        assertThat(sAdapter.getBondedDevices()).contains(mBumbleDevice);
+
+        assertThat(mBumbleDevice.removeBond()).isTrue();
+        intentReceiver.verifyReceivedOrdered(
+                hasAction(BluetoothDevice.ACTION_ACL_DISCONNECTED),
+                hasExtra(BluetoothDevice.EXTRA_TRANSPORT, BluetoothDevice.TRANSPORT_LE),
+                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice));
+        intentReceiver.verifyReceivedOrdered(
+                hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
+                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
+                hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_NONE));
+
+        assertThat(sAdapter.getBondedDevices()).doesNotContain(mBumbleDevice);
+
+        intentReceiver.close();
+    }
+
+    /**
+     * Test removeDevice API when connected over BR/EDR
+     *
+     * <p>Prerequisites:
+     *
+     * <ol>
+     *   <li>Bumble and Android are not bonded
+     * </ol>
+     *
+     * <p>Steps:
+     *
+     * <ol>
+     *   <li>Bumble is connectable over BR/EDR
+     *   <li>Android pairs with Bumble over BR/EDR
+     *   <li>Call BluetoothDevice.removeBond() API
+     *   <li>Android disconnects the ACL and removes the bond
+     * </ol>
+     *
+     * <p>Expectation: Bumble is not bonded
+     */
+    @Test
+    @RequiresFlagsEnabled({Flags.FLAG_WAIT_FOR_DISCONNECT_BEFORE_UNBOND})
+    public void testRemoveBondBredr_WhenConnected() {
+        IntentReceiver intentReceiver = new IntentReceiver.Builder(sTargetContext,
+                BluetoothDevice.ACTION_ACL_DISCONNECTED,
+                BluetoothDevice.ACTION_BOND_STATE_CHANGED)
+                .build();
+
+        testStep_BondBredr(intentReceiver);
+        assertThat(sAdapter.getBondedDevices()).contains(mBumbleDevice);
+
+        assertThat(mBumbleDevice.removeBond()).isTrue();
+        intentReceiver.verifyReceivedOrdered(
+                hasAction(BluetoothDevice.ACTION_ACL_DISCONNECTED),
+                hasExtra(BluetoothDevice.EXTRA_TRANSPORT, BluetoothDevice.TRANSPORT_BREDR),
+                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice));
+        intentReceiver.verifyReceivedOrdered(
+                hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
+                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
+                hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_NONE));
+
+        assertThat(sAdapter.getBondedDevices()).doesNotContain(mBumbleDevice);
+
+        intentReceiver.close();
+    }
+
+    /**
+     * Test removeDevice API when not connected
+     *
+     * <p>Prerequisites:
+     *
+     * <ol>
+     *   <li>Bumble and Android are not bonded
+     *   <li>Bumble supports HOGP
+     * </ol>
+     *
+     * <p>Steps:
+     *
+     * <ol>
+     *   <li>Bumble is connectable over LE
+     *   <li>Android pairs with Bumble over LE
+     *   <li>Disconnect the Bumble
+     *   <li>Call BluetoothDevice.removeBond() API
+     *   <li>Removes the bond
+     * </ol>
+     *
+     * <p>Expectation: Bumble is not bonded
+     */
+    @Test
+    public void testRemoveBondLe_WhenDisconnected() {
+        IntentReceiver intentReceiver = new IntentReceiver.Builder(sTargetContext,
+                BluetoothDevice.ACTION_ACL_DISCONNECTED,
+                BluetoothDevice.ACTION_BOND_STATE_CHANGED,
+                BluetoothHidHost.ACTION_CONNECTION_STATE_CHANGED)
+                .build();
+
+        testStep_BondLe(intentReceiver, mBumbleDevice, OwnAddressType.PUBLIC);
+        assertThat(sAdapter.getBondedDevices()).contains(mBumbleDevice);
+
+        // Wait for profiles to get connected
+        intentReceiver.verifyReceivedOrdered(
+                hasAction(BluetoothHidHost.ACTION_CONNECTION_STATE_CHANGED),
+                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
+                hasExtra(BluetoothHidHost.EXTRA_STATE, BluetoothHidHost.STATE_CONNECTING));
+        intentReceiver.verifyReceivedOrdered(
+                hasAction(BluetoothHidHost.ACTION_CONNECTION_STATE_CHANGED),
+                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
+                hasExtra(BluetoothHidHost.EXTRA_STATE, BluetoothHidHost.STATE_CONNECTED));
+
+        // Disconnect Bumble
+        assertThat(mBumbleDevice.disconnect()).isEqualTo(BluetoothStatusCodes.SUCCESS);
+        intentReceiver.verifyReceivedOrdered(
+                hasAction(BluetoothHidHost.ACTION_CONNECTION_STATE_CHANGED),
+                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
+                hasExtra(BluetoothHidHost.EXTRA_STATE, BluetoothHidHost.STATE_DISCONNECTING));
+        intentReceiver.verifyReceivedOrdered(
+                hasAction(BluetoothHidHost.ACTION_CONNECTION_STATE_CHANGED),
+                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
+                hasExtra(BluetoothHidHost.EXTRA_STATE, BluetoothHidHost.STATE_DISCONNECTED));
+
+        // Wait for ACL to get disconnected
+        intentReceiver.verifyReceivedOrdered(
+                hasAction(BluetoothDevice.ACTION_ACL_DISCONNECTED),
+                hasExtra(BluetoothDevice.EXTRA_TRANSPORT, BluetoothDevice.TRANSPORT_LE),
+                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice));
+
+        // Remove bond
+        assertThat(mBumbleDevice.removeBond()).isTrue();
+        intentReceiver.verifyReceivedOrdered(
+                hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
+                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
+                hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_NONE));
+        assertThat(sAdapter.getBondedDevices()).doesNotContain(mBumbleDevice);
+
+        intentReceiver.close();
+    }
+
+    /**
+     * Test removeDevice API when not connected
+     *
+     * <p>Prerequisites:
+     *
+     * <ol>
+     *   <li>Bumble and Android are not bonded
+     *   <li>Bumble supports HID device role
+     * </ol>
+     *
+     * <p>Steps:
+     *
+     * <ol>
+     *   <li>Bumble is connectable over BR/EDR
+     *   <li>Android pairs with Bumble over BR/EDR
+     *   <li>Disconnect the Bumble
+     *   <li>Call BluetoothDevice.removeBond() API
+     *   <li>Removes the bond
+     * </ol>
+     *
+     * <p>Expectation: Bumble is not bonded
+     */
+    @Test
+    public void testRemoveBondBredr_WhenDisconnected() {
+        IntentReceiver intentReceiver = new IntentReceiver.Builder(sTargetContext,
+                BluetoothDevice.ACTION_ACL_DISCONNECTED,
+                BluetoothDevice.ACTION_BOND_STATE_CHANGED,
+                BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED)
+                .build();
+
+        // Disable all profiles other than A2DP as profile connections take too long
+        assertThat(
+                        mHfpService.setConnectionPolicy(
+                                mBumbleDevice, BluetoothProfile.CONNECTION_POLICY_FORBIDDEN))
+                .isTrue();
+        assertThat(
+                        mHidService.setConnectionPolicy(
+                                mBumbleDevice, BluetoothProfile.CONNECTION_POLICY_FORBIDDEN))
+                .isTrue();
+
+        testStep_BondBredr(intentReceiver);
+        assertThat(sAdapter.getBondedDevices()).contains(mBumbleDevice);
+
+        // Wait for profiles to get connected
+        intentReceiver.verifyReceivedOrdered(
+                hasAction(BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED),
+                hasExtra(BluetoothA2dp.EXTRA_STATE, BluetoothA2dp.STATE_CONNECTING),
+                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice));
+        intentReceiver.verifyReceivedOrdered(
+                hasAction(BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED),
+                hasExtra(BluetoothA2dp.EXTRA_STATE, BluetoothA2dp.STATE_CONNECTED),
+                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice));
+
+        // Todo: b/382118305 - due to settings app interference, profile connection initiate twice
+        // after bonding. Introduced 1 second delay after first profile connection success
+        final CompletableFuture<Integer> future = new CompletableFuture<>();
+        future.completeOnTimeout(null, TEST_DELAY_MS, TimeUnit.MILLISECONDS).join();
+        // Disconnect all profiles
+        assertThat(mBumbleDevice.disconnect()).isEqualTo(BluetoothStatusCodes.SUCCESS);
+        intentReceiver.verifyReceivedOrdered(
+                hasAction(BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED),
+                hasExtra(BluetoothA2dp.EXTRA_STATE, BluetoothA2dp.STATE_DISCONNECTING),
+                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice));
+        intentReceiver.verifyReceivedOrdered(
+                hasAction(BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED),
+                hasExtra(BluetoothA2dp.EXTRA_STATE, BluetoothA2dp.STATE_DISCONNECTED),
+                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice));
+
+        // Wait for the ACL to get disconnected
+        intentReceiver.verifyReceivedOrdered(
+                hasAction(BluetoothDevice.ACTION_ACL_DISCONNECTED),
+                hasExtra(BluetoothDevice.EXTRA_TRANSPORT, BluetoothDevice.TRANSPORT_BREDR),
+                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice));
+
+        // Remove bond
+        assertThat(mBumbleDevice.removeBond()).isTrue();
+        intentReceiver.verifyReceivedOrdered(
+                hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
+                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
+                hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_NONE));
+        assertThat(sAdapter.getBondedDevices()).doesNotContain(mBumbleDevice);
+
+        intentReceiver.close();
+    }
+
+    /** Helper/testStep functions goes here */
+
+    /**
+     * Process of writing a helper/test_step function.
+     *
+     * 1. All the helper functions should have IntentReceiver instance passed as an
+     *  argument to them (if any intents needs to be registered).
+     * 2. The caller (if a test function) can initiate a fresh instance of IntentReceiver
+     *  and use it for all subsequent helper/testStep functions.
+     * 3. The helper function should first register all required intent actions through the
+     *  helper -> IntentReceiver.updateNewIntentActionsInParentReceiver()
+     *  which either modifies the intentReceiver instance, or creates
+     *  one (if the caller has passed a `null`).
+     * 4. At the end, all functions should call `intentReceiver.close()` which either
+     *  unregisters the recent actions, or frees the original instance as per the call.
+     */
+
+    private void testStep_BondBredr(IntentReceiver parentIntentReceiver) {
+        IntentReceiver intentReceiver =
+            IntentReceiver.updateNewIntentActionsInParentReceiver(
+                parentIntentReceiver,
+                sTargetContext,
+                BluetoothDevice.ACTION_BOND_STATE_CHANGED,
+                BluetoothDevice.ACTION_ACL_CONNECTED,
+                BluetoothDevice.ACTION_PAIRING_REQUEST);
+
+        StreamObserver<PairingEventAnswer> pairingEventAnswerObserver =
+                mBumble.security()
+                        .withDeadlineAfter(BOND_INTENT_TIMEOUT.toMillis(),
+                            TimeUnit.MILLISECONDS)
+                        .onPairing(mPairingEventStreamObserver);
+
+        assertThat(mBumbleDevice.createBond(BluetoothDevice.TRANSPORT_BREDR)).
+            isTrue();
+
+        intentReceiver.verifyReceived(
+                hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
+                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
+                hasExtra(BluetoothDevice.EXTRA_BOND_STATE,
+                    BluetoothDevice.BOND_BONDING));
+        intentReceiver.verifyReceivedOrdered(
+                hasAction(BluetoothDevice.ACTION_ACL_CONNECTED),
+                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
+                hasExtra(BluetoothDevice.EXTRA_TRANSPORT,
+                    BluetoothDevice.TRANSPORT_BREDR));
+        intentReceiver.verifyReceived(
+                hasAction(BluetoothDevice.ACTION_PAIRING_REQUEST),
+                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
+                hasExtra(
+                        BluetoothDevice.EXTRA_PAIRING_VARIANT,
+                        BluetoothDevice.PAIRING_VARIANT_CONSENT));
+
+        // Approve pairing from Android
+        assertThat(mBumbleDevice.setPairingConfirmation(true)).isTrue();
+
+        PairingEvent pairingEvent = mPairingEventStreamObserver.iterator().next();
+        assertThat(pairingEvent.hasJustWorks()).isTrue();
+        pairingEventAnswerObserver.onNext(
+                PairingEventAnswer.newBuilder().setEvent(pairingEvent)
+                    .setConfirm(true).build());
+
+        // Ensure that pairing succeeds
+        intentReceiver.verifyReceivedOrdered(
+                hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
+                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
+                hasExtra(BluetoothDevice.EXTRA_BOND_STATE,
+                    BluetoothDevice.BOND_BONDED));
+
+        /* Unregisters all intent actions registered in this function */
+        intentReceiver.close();
+    }
+
+    private void testStep_restartBt() {
+        assertThat(BlockingBluetoothAdapter.disable(true)).isTrue();
+        assertThat(BlockingBluetoothAdapter.enable()).isTrue();
+    }
+
+    /* Starts outgoing GATT service discovery and incoming LE pairing in parallel */
+    private StreamObserverSpliterator<SecureResponse>
+            helper_OutgoingGattServiceDiscoveryWithIncomingLePairing(
+                IntentReceiver parentIntentReceiver) {
+        // Register new actions specific to this helper function
+        IntentReceiver intentReceiver =
+            IntentReceiver.updateNewIntentActionsInParentReceiver(
+                parentIntentReceiver,
+                sTargetContext,
+                BluetoothDevice.ACTION_BOND_STATE_CHANGED,
+                BluetoothDevice.ACTION_PAIRING_REQUEST,
+                BluetoothDevice.ACTION_UUID,
+                BluetoothDevice.ACTION_ACL_CONNECTED);
+
+        // Register lots of interesting GATT services on Bumble
+        for (int i = 0; i < 40; i++) {
+            mBumble.gattBlocking()
+                    .registerService(
+                            GattProto.RegisterServiceRequest.newBuilder()
+                                    .setService(
+                                            GattProto.GattServiceParams.newBuilder()
+                                                    .setUuid(BATTERY_UUID.toString())
+                                                    .build())
+                                    .build());
+        }
+
+        // Start GATT service discovery, this will establish LE ACL
+        assertThat(mBumbleDevice.fetchUuidsWithSdp(BluetoothDevice.TRANSPORT_LE))
+            .isTrue();
+
+        // Make Bumble connectable
+        AdvertiseResponse advertiseResponse =
+                mBumble.hostBlocking()
+                        .advertise(
+                                AdvertiseRequest.newBuilder()
+                                        .setLegacy(true)
+                                        .setConnectable(true)
+                                        .setOwnAddressType(OwnAddressType.PUBLIC)
+                                        .build())
+                        .next();
+
+        // Todo: Unexpected empty ACTION_UUID intent is generated
+        intentReceiver.verifyReceived(hasAction(BluetoothDevice.ACTION_UUID));
+
+        // Wait for connection on Android
+        intentReceiver.verifyReceived(
+                hasAction(BluetoothDevice.ACTION_ACL_CONNECTED),
+                hasExtra(BluetoothDevice.EXTRA_TRANSPORT,
+                    BluetoothDevice.TRANSPORT_LE));
+
+        // Start pairing from Bumble
+        StreamObserverSpliterator<SecureResponse> responseObserver =
+                new StreamObserverSpliterator<>();
+        mBumble.security()
+                .secure(
+                        SecureRequest.newBuilder()
+                                .setConnection(advertiseResponse.getConnection())
+                                .setLe(LESecurityLevel.LE_LEVEL3)
+                                .build(),
+                        responseObserver);
+
+        // Wait for incoming pairing notification on Android
+        // TODO: Order of these events is not deterministic
+        intentReceiver.verifyReceived(
+                hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
+                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
+                hasExtra(BluetoothDevice.EXTRA_BOND_STATE,
+                    BluetoothDevice.BOND_BONDING));
+        intentReceiver.verifyReceived(
+                hasAction(BluetoothDevice.ACTION_PAIRING_REQUEST),
+                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
+                hasExtra(
+                        BluetoothDevice.EXTRA_PAIRING_VARIANT,
+                        BluetoothDevice.PAIRING_VARIANT_CONSENT));
+
+        // Allow participating in the incoming pairing on Android
+        assertThat(mBumbleDevice.setPairingConfirmation(true)).isTrue();
+
+        // Wait for pairing approval notification on Android
+        intentReceiver.verifyReceived(
+                2,
+                hasAction(BluetoothDevice.ACTION_PAIRING_REQUEST),
+                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
+                hasExtra(
+                        BluetoothDevice.EXTRA_PAIRING_VARIANT,
+                        BluetoothDevice.PAIRING_VARIANT_CONSENT));
+
+        // Wait for GATT service discovery to complete on Android
+        // so that ACTION_UUID is received here.
+        intentReceiver.verifyReceived(
+                hasAction(BluetoothDevice.ACTION_UUID),
+                hasExtra(BluetoothDevice.EXTRA_UUID,
+                    Matchers.hasItemInArray(BATTERY_UUID)));
+
+        intentReceiver.close();
+        return responseObserver;
+    }
+
+    private void testStep_RemoveBond(IntentReceiver parentIntentReceiver,
+        BluetoothDevice device) {
+        IntentReceiver intentReceiver =
+            IntentReceiver.updateNewIntentActionsInParentReceiver(
+                parentIntentReceiver,
+                sTargetContext,
+                BluetoothDevice.ACTION_BOND_STATE_CHANGED);
+
+        assertThat(device.removeBond()).isTrue();
+        intentReceiver.verifyReceivedOrdered(
+                hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
+                hasExtra(BluetoothDevice.EXTRA_DEVICE, device),
+                hasExtra(BluetoothDevice.EXTRA_BOND_STATE,
+                    BluetoothDevice.BOND_NONE));
+
+        intentReceiver.close();
+    }
+
+    private BluetoothProfile getProfileProxy(int profile) {
+        sAdapter.getProfileProxy(sTargetContext, mProfileServiceListener, profile);
+        ArgumentCaptor<BluetoothProfile> proxyCaptor =
+                ArgumentCaptor.forClass(BluetoothProfile.class);
+        verify(mProfileServiceListener, timeout(BOND_INTENT_TIMEOUT.toMillis()))
+                .onServiceConnected(eq(profile), proxyCaptor.capture());
+        return proxyCaptor.getValue();
+    }
+
+    private void testStep_BondLe(IntentReceiver parentIntentReceiver,
+        BluetoothDevice device, OwnAddressType ownAddressType) {
+        IntentReceiver intentReceiver =
+            IntentReceiver.updateNewIntentActionsInParentReceiver(
+                parentIntentReceiver,
+                sTargetContext,
                 BluetoothDevice.ACTION_BOND_STATE_CHANGED,
                 BluetoothDevice.ACTION_ACL_CONNECTED,
                 BluetoothDevice.ACTION_PAIRING_REQUEST);
@@ -611,20 +1076,23 @@ public class PairingTest {
 
         StreamObserver<PairingEventAnswer> pairingEventAnswerObserver =
                 mBumble.security()
-                        .withDeadlineAfter(BOND_INTENT_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)
+                        .withDeadlineAfter(BOND_INTENT_TIMEOUT.toMillis(),
+                            TimeUnit.MILLISECONDS)
                         .onPairing(mPairingEventStreamObserver);
 
         assertThat(device.createBond(BluetoothDevice.TRANSPORT_LE)).isTrue();
 
-        verifyIntentReceivedUnordered(
+        intentReceiver.verifyReceived(
                 hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
                 hasExtra(BluetoothDevice.EXTRA_DEVICE, device),
-                hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_BONDING));
-        verifyIntentReceived(
+                hasExtra(BluetoothDevice.EXTRA_BOND_STATE,
+                    BluetoothDevice.BOND_BONDING));
+        intentReceiver.verifyReceivedOrdered(
                 hasAction(BluetoothDevice.ACTION_ACL_CONNECTED),
                 hasExtra(BluetoothDevice.EXTRA_DEVICE, device),
-                hasExtra(BluetoothDevice.EXTRA_TRANSPORT, BluetoothDevice.TRANSPORT_LE));
-        verifyIntentReceivedUnordered(
+                hasExtra(BluetoothDevice.EXTRA_TRANSPORT,
+                    BluetoothDevice.TRANSPORT_LE));
+        intentReceiver.verifyReceived(
                 hasAction(BluetoothDevice.ACTION_PAIRING_REQUEST),
                 hasExtra(BluetoothDevice.EXTRA_DEVICE, device),
                 hasExtra(
@@ -637,583 +1105,40 @@ public class PairingTest {
         PairingEvent pairingEvent = mPairingEventStreamObserver.iterator().next();
         assertThat(pairingEvent.hasJustWorks()).isTrue();
         pairingEventAnswerObserver.onNext(
-                PairingEventAnswer.newBuilder().setEvent(pairingEvent).setConfirm(true).build());
+                PairingEventAnswer.newBuilder().setEvent(pairingEvent)
+                    .setConfirm(true).build());
 
         // Ensure that pairing succeeds
-        verifyIntentReceived(
+        intentReceiver.verifyReceivedOrdered(
                 hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
                 hasExtra(BluetoothDevice.EXTRA_DEVICE, device),
-                hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_BONDED));
+                hasExtra(BluetoothDevice.EXTRA_BOND_STATE,
+                    BluetoothDevice.BOND_BONDED));
 
-        unregisterIntentActions(
-                BluetoothDevice.ACTION_BOND_STATE_CHANGED,
-                BluetoothDevice.ACTION_ACL_CONNECTED,
-                BluetoothDevice.ACTION_PAIRING_REQUEST);
+        intentReceiver.close();
     }
 
-    /**
-     * Test if bonded BR/EDR device can reconnect after BT restart
-     *
-     * <p>Prerequisites:
-     *
-     * <ol>
-     *   <li>Bumble and Android are not bonded
-     * </ol>
-     *
-     * <p>Steps:
-     *
-     * <ol>
-     *   <li>Bumble is discoverable and connectable over BR/EDR
-     *   <li>Android pairs with Bumble over BR/EDR
-     *   <li>Android restarts
-     *   <li>Bumble is connectable over BR/EDR
-     *   <li>Android reconnects to Bumble successfully and re-encrypts the link
-     * </ol>
-     *
-     * <p>Expectation: Pairing succeeds
-     */
-    @Test
-    public void testBondBredr_Reconnect() {
-        registerIntentActions(BluetoothDevice.ACTION_ACL_CONNECTED);
+    private void doTestIdentityAddressWithType(BluetoothDevice device,
+            OwnAddressType ownAddressType) {
+        BluetoothAddress identityAddress = device.getIdentityAddressWithType();
+        assertThat(identityAddress.getAddress()).isNull();
+        assertThat(identityAddress.getAddressType())
+                .isEqualTo(BluetoothDevice.ADDRESS_TYPE_UNKNOWN);
 
-        testStep_BondBredr();
-        assertThat(sAdapter.getBondedDevices()).contains(mBumbleDevice);
+        /*
+         * Note: Since there was no IntentReceiver registered, passing the
+         *  instance as NULL. But, if there is an instance already present, that
+         *  must be passed instead of NULL.
+         */
+        testStep_BondLe(null, device, ownAddressType);
+        assertThat(sAdapter.getBondedDevices()).contains(device);
 
-        testStep_restartBt();
-
-        assertThat(sAdapter.getBondedDevices()).contains(mBumbleDevice);
-
-        SetConnectabilityModeRequest request =
-                SetConnectabilityModeRequest.newBuilder()
-                        .setMode(ConnectabilityMode.CONNECTABLE)
-                        .build();
-        mBumble.hostBlocking().setConnectabilityMode(request);
-        assertThat(mBumbleDevice.connect()).isEqualTo(BluetoothStatusCodes.SUCCESS);
-        verifyIntentReceived(
-                hasAction(BluetoothDevice.ACTION_ACL_CONNECTED),
-                hasExtra(BluetoothDevice.EXTRA_TRANSPORT, BluetoothDevice.TRANSPORT_BREDR),
-                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice));
-        verifyNoMoreInteractions(mReceiver);
-        unregisterIntentActions(BluetoothDevice.ACTION_ACL_CONNECTED);
-    }
-
-    /**
-     * Test removeDevice API when connected over LE
-     *
-     * <p>Prerequisites:
-     *
-     * <ol>
-     *   <li>Bumble and Android are not bonded
-     * </ol>
-     *
-     * <p>Steps:
-     *
-     * <ol>
-     *   <li>Bumble is connectable over LE
-     *   <li>Android pairs with Bumble over LE
-     *   <li>Call BluetoothDevice.removeBond() API
-     *   <li>Android disconnects the ACL and removes the bond
-     * </ol>
-     *
-     * <p>Expectation: Bumble is not bonded
-     */
-    @Test
-    @RequiresFlagsEnabled({Flags.FLAG_WAIT_FOR_DISCONNECT_BEFORE_UNBOND})
-    public void testRemoveBondLe_WhenConnected() {
-        registerIntentActions(
-                BluetoothDevice.ACTION_ACL_DISCONNECTED, BluetoothDevice.ACTION_BOND_STATE_CHANGED);
-
-        testStep_BondLe(mBumbleDevice, OwnAddressType.PUBLIC);
-        assertThat(sAdapter.getBondedDevices()).contains(mBumbleDevice);
-
-        assertThat(mBumbleDevice.removeBond()).isTrue();
-        verifyIntentReceived(
-                hasAction(BluetoothDevice.ACTION_ACL_DISCONNECTED),
-                hasExtra(BluetoothDevice.EXTRA_TRANSPORT, BluetoothDevice.TRANSPORT_LE),
-                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice));
-        verifyIntentReceived(
-                hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
-                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
-                hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_NONE));
-
-        assertThat(sAdapter.getBondedDevices()).doesNotContain(mBumbleDevice);
-
-        verifyNoMoreInteractions(mReceiver);
-        unregisterIntentActions(
-                BluetoothDevice.ACTION_ACL_DISCONNECTED, BluetoothDevice.ACTION_BOND_STATE_CHANGED);
-    }
-
-    /**
-     * Test removeDevice API when connected over BR/EDR
-     *
-     * <p>Prerequisites:
-     *
-     * <ol>
-     *   <li>Bumble and Android are not bonded
-     * </ol>
-     *
-     * <p>Steps:
-     *
-     * <ol>
-     *   <li>Bumble is connectable over BR/EDR
-     *   <li>Android pairs with Bumble over BR/EDR
-     *   <li>Call BluetoothDevice.removeBond() API
-     *   <li>Android disconnects the ACL and removes the bond
-     * </ol>
-     *
-     * <p>Expectation: Bumble is not bonded
-     */
-    @Test
-    @RequiresFlagsEnabled({Flags.FLAG_WAIT_FOR_DISCONNECT_BEFORE_UNBOND})
-    public void testRemoveBondBredr_WhenConnected() {
-        registerIntentActions(
-                BluetoothDevice.ACTION_ACL_DISCONNECTED, BluetoothDevice.ACTION_BOND_STATE_CHANGED);
-
-        testStep_BondBredr();
-        assertThat(sAdapter.getBondedDevices()).contains(mBumbleDevice);
-
-        assertThat(mBumbleDevice.removeBond()).isTrue();
-        verifyIntentReceived(
-                hasAction(BluetoothDevice.ACTION_ACL_DISCONNECTED),
-                hasExtra(BluetoothDevice.EXTRA_TRANSPORT, BluetoothDevice.TRANSPORT_BREDR),
-                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice));
-        verifyIntentReceived(
-                hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
-                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
-                hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_NONE));
-
-        assertThat(sAdapter.getBondedDevices()).doesNotContain(mBumbleDevice);
-
-        verifyNoMoreInteractions(mReceiver);
-        unregisterIntentActions(
-                BluetoothDevice.ACTION_ACL_DISCONNECTED, BluetoothDevice.ACTION_BOND_STATE_CHANGED);
-    }
-
-    /**
-     * Test removeDevice API when not connected
-     *
-     * <p>Prerequisites:
-     *
-     * <ol>
-     *   <li>Bumble and Android are not bonded
-     *   <li>Bumble supports HOGP
-     * </ol>
-     *
-     * <p>Steps:
-     *
-     * <ol>
-     *   <li>Bumble is connectable over LE
-     *   <li>Android pairs with Bumble over LE
-     *   <li>Disconnect the Bumble
-     *   <li>Call BluetoothDevice.removeBond() API
-     *   <li>Removes the bond
-     * </ol>
-     *
-     * <p>Expectation: Bumble is not bonded
-     */
-    @Test
-    public void testRemoveBondLe_WhenDisconnected() {
-        registerIntentActions(
-                BluetoothDevice.ACTION_ACL_DISCONNECTED,
-                BluetoothDevice.ACTION_BOND_STATE_CHANGED,
-                BluetoothHidHost.ACTION_CONNECTION_STATE_CHANGED);
-
-        testStep_BondLe(mBumbleDevice, OwnAddressType.PUBLIC);
-        assertThat(sAdapter.getBondedDevices()).contains(mBumbleDevice);
-
-        // Wait for profiles to get connected
-        verifyIntentReceived(
-                hasAction(BluetoothHidHost.ACTION_CONNECTION_STATE_CHANGED),
-                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
-                hasExtra(BluetoothHidHost.EXTRA_STATE, BluetoothHidHost.STATE_CONNECTING));
-        verifyIntentReceived(
-                hasAction(BluetoothHidHost.ACTION_CONNECTION_STATE_CHANGED),
-                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
-                hasExtra(BluetoothHidHost.EXTRA_STATE, BluetoothHidHost.STATE_CONNECTED));
-
-        // Disconnect Bumble
-        assertThat(mBumbleDevice.disconnect()).isEqualTo(BluetoothStatusCodes.SUCCESS);
-        verifyIntentReceived(
-                hasAction(BluetoothHidHost.ACTION_CONNECTION_STATE_CHANGED),
-                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
-                hasExtra(BluetoothHidHost.EXTRA_STATE, BluetoothHidHost.STATE_DISCONNECTING));
-        verifyIntentReceived(
-                hasAction(BluetoothHidHost.ACTION_CONNECTION_STATE_CHANGED),
-                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
-                hasExtra(BluetoothHidHost.EXTRA_STATE, BluetoothHidHost.STATE_DISCONNECTED));
-
-        // Wait for ACL to get disconnected
-        verifyIntentReceived(
-                hasAction(BluetoothDevice.ACTION_ACL_DISCONNECTED),
-                hasExtra(BluetoothDevice.EXTRA_TRANSPORT, BluetoothDevice.TRANSPORT_LE),
-                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice));
-
-        // Remove bond
-        assertThat(mBumbleDevice.removeBond()).isTrue();
-        verifyIntentReceived(
-                hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
-                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
-                hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_NONE));
-        assertThat(sAdapter.getBondedDevices()).doesNotContain(mBumbleDevice);
-
-        verifyNoMoreInteractions(mReceiver);
-        unregisterIntentActions(
-                BluetoothDevice.ACTION_ACL_DISCONNECTED,
-                BluetoothDevice.ACTION_BOND_STATE_CHANGED,
-                BluetoothHidHost.ACTION_CONNECTION_STATE_CHANGED);
-    }
-
-    /**
-     * Test removeDevice API when not connected
-     *
-     * <p>Prerequisites:
-     *
-     * <ol>
-     *   <li>Bumble and Android are not bonded
-     *   <li>Bumble supports HID device role
-     * </ol>
-     *
-     * <p>Steps:
-     *
-     * <ol>
-     *   <li>Bumble is connectable over BR/EDR
-     *   <li>Android pairs with Bumble over BR/EDR
-     *   <li>Disconnect the Bumble
-     *   <li>Call BluetoothDevice.removeBond() API
-     *   <li>Removes the bond
-     * </ol>
-     *
-     * <p>Expectation: Bumble is not bonded
-     */
-    @Test
-    public void testRemoveBondBredr_WhenDisconnected() {
-        registerIntentActions(
-                BluetoothDevice.ACTION_ACL_DISCONNECTED,
-                BluetoothDevice.ACTION_BOND_STATE_CHANGED,
-                BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED);
-
-        // Disable all profiles other than A2DP as profile connections take too long
-        assertThat(
-                        mHfpService.setConnectionPolicy(
-                                mBumbleDevice, BluetoothProfile.CONNECTION_POLICY_FORBIDDEN))
-                .isTrue();
-        assertThat(
-                        mHidService.setConnectionPolicy(
-                                mBumbleDevice, BluetoothProfile.CONNECTION_POLICY_FORBIDDEN))
-                .isTrue();
-
-        testStep_BondBredr();
-        assertThat(sAdapter.getBondedDevices()).contains(mBumbleDevice);
-
-        // Wait for profiles to get connected
-        verifyIntentReceived(
-                hasAction(BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED),
-                hasExtra(BluetoothA2dp.EXTRA_STATE, BluetoothA2dp.STATE_CONNECTING),
-                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice));
-        verifyIntentReceived(
-                hasAction(BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED),
-                hasExtra(BluetoothA2dp.EXTRA_STATE, BluetoothA2dp.STATE_CONNECTED),
-                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice));
-
-        // Todo: b/382118305 - due to settings app interference, profile connection initiate twice
-        // after bonding. Introduced 1 second delay after first profile connection success
-        final CompletableFuture<Integer> future = new CompletableFuture<>();
-        future.completeOnTimeout(null, TEST_DELAY_MS, TimeUnit.MILLISECONDS).join();
-        // Disconnect all profiles
-        assertThat(mBumbleDevice.disconnect()).isEqualTo(BluetoothStatusCodes.SUCCESS);
-        verifyIntentReceived(
-                hasAction(BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED),
-                hasExtra(BluetoothA2dp.EXTRA_STATE, BluetoothA2dp.STATE_DISCONNECTING),
-                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice));
-        verifyIntentReceived(
-                hasAction(BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED),
-                hasExtra(BluetoothA2dp.EXTRA_STATE, BluetoothA2dp.STATE_DISCONNECTED),
-                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice));
-
-        // Wait for the ACL to get disconnected
-        verifyIntentReceived(
-                hasAction(BluetoothDevice.ACTION_ACL_DISCONNECTED),
-                hasExtra(BluetoothDevice.EXTRA_TRANSPORT, BluetoothDevice.TRANSPORT_BREDR),
-                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice));
-
-        // Remove bond
-        assertThat(mBumbleDevice.removeBond()).isTrue();
-        verifyIntentReceived(
-                hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
-                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
-                hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_NONE));
-        assertThat(sAdapter.getBondedDevices()).doesNotContain(mBumbleDevice);
-
-        verifyNoMoreInteractions(mReceiver);
-        unregisterIntentActions(
-                BluetoothDevice.ACTION_ACL_DISCONNECTED,
-                BluetoothDevice.ACTION_BOND_STATE_CHANGED,
-                BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED);
-    }
-
-    private void testStep_BondBredr() {
-        registerIntentActions(
-                BluetoothDevice.ACTION_BOND_STATE_CHANGED,
-                BluetoothDevice.ACTION_ACL_CONNECTED,
-                BluetoothDevice.ACTION_PAIRING_REQUEST);
-
-        StreamObserver<PairingEventAnswer> pairingEventAnswerObserver =
-                mBumble.security()
-                        .withDeadlineAfter(BOND_INTENT_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)
-                        .onPairing(mPairingEventStreamObserver);
-
-        assertThat(mBumbleDevice.createBond(BluetoothDevice.TRANSPORT_BREDR)).isTrue();
-
-        verifyIntentReceivedUnordered(
-                hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
-                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
-                hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_BONDING));
-        verifyIntentReceived(
-                hasAction(BluetoothDevice.ACTION_ACL_CONNECTED),
-                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
-                hasExtra(BluetoothDevice.EXTRA_TRANSPORT, BluetoothDevice.TRANSPORT_BREDR));
-        verifyIntentReceivedUnordered(
-                hasAction(BluetoothDevice.ACTION_PAIRING_REQUEST),
-                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
-                hasExtra(
-                        BluetoothDevice.EXTRA_PAIRING_VARIANT,
-                        BluetoothDevice.PAIRING_VARIANT_CONSENT));
-
-        // Approve pairing from Android
-        assertThat(mBumbleDevice.setPairingConfirmation(true)).isTrue();
-
-        PairingEvent pairingEvent = mPairingEventStreamObserver.iterator().next();
-        assertThat(pairingEvent.hasJustWorks()).isTrue();
-        pairingEventAnswerObserver.onNext(
-                PairingEventAnswer.newBuilder().setEvent(pairingEvent).setConfirm(true).build());
-
-        // Ensure that pairing succeeds
-        verifyIntentReceived(
-                hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
-                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
-                hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_BONDED));
-
-        unregisterIntentActions(
-                BluetoothDevice.ACTION_BOND_STATE_CHANGED,
-                BluetoothDevice.ACTION_ACL_CONNECTED,
-                BluetoothDevice.ACTION_PAIRING_REQUEST);
-    }
-
-    private void testStep_restartBt() {
-        assertThat(BlockingBluetoothAdapter.disable(true)).isTrue();
-        assertThat(BlockingBluetoothAdapter.enable()).isTrue();
-    }
-
-    /* Starts outgoing GATT service discovery and incoming LE pairing in parallel */
-    private StreamObserverSpliterator<SecureResponse>
-            helper_OutgoingGattServiceDiscoveryWithIncomingLePairing() {
-        // Setup intent filters
-        registerIntentActions(
-                BluetoothDevice.ACTION_BOND_STATE_CHANGED,
-                BluetoothDevice.ACTION_PAIRING_REQUEST,
-                BluetoothDevice.ACTION_UUID,
-                BluetoothDevice.ACTION_ACL_CONNECTED);
-
-        // Register lots of interesting GATT services on Bumble
-        for (int i = 0; i < 40; i++) {
-            mBumble.gattBlocking()
-                    .registerService(
-                            GattProto.RegisterServiceRequest.newBuilder()
-                                    .setService(
-                                            GattProto.GattServiceParams.newBuilder()
-                                                    .setUuid(BATTERY_UUID.toString())
-                                                    .build())
-                                    .build());
-        }
-
-        // Start GATT service discovery, this will establish LE ACL
-        assertThat(mBumbleDevice.fetchUuidsWithSdp(BluetoothDevice.TRANSPORT_LE)).isTrue();
-
-        // Make Bumble connectable
-        AdvertiseResponse advertiseResponse =
-                mBumble.hostBlocking()
-                        .advertise(
-                                AdvertiseRequest.newBuilder()
-                                        .setLegacy(true)
-                                        .setConnectable(true)
-                                        .setOwnAddressType(OwnAddressType.PUBLIC)
-                                        .build())
-                        .next();
-
-        // Todo: Unexpected empty ACTION_UUID intent is generated
-        verifyIntentReceivedUnordered(hasAction(BluetoothDevice.ACTION_UUID));
-
-        // Wait for connection on Android
-        verifyIntentReceivedUnordered(
-                hasAction(BluetoothDevice.ACTION_ACL_CONNECTED),
-                hasExtra(BluetoothDevice.EXTRA_TRANSPORT, BluetoothDevice.TRANSPORT_LE));
-
-        // Start pairing from Bumble
-        StreamObserverSpliterator<SecureResponse> responseObserver =
-                new StreamObserverSpliterator<>();
-        mBumble.security()
-                .secure(
-                        SecureRequest.newBuilder()
-                                .setConnection(advertiseResponse.getConnection())
-                                .setLe(LESecurityLevel.LE_LEVEL3)
-                                .build(),
-                        responseObserver);
-
-        // Wait for incoming pairing notification on Android
-        // TODO: Order of these events is not deterministic
-        verifyIntentReceivedUnordered(
-                hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
-                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
-                hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_BONDING));
-        verifyIntentReceivedUnordered(
-                hasAction(BluetoothDevice.ACTION_PAIRING_REQUEST),
-                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
-                hasExtra(
-                        BluetoothDevice.EXTRA_PAIRING_VARIANT,
-                        BluetoothDevice.PAIRING_VARIANT_CONSENT));
-
-        // Allow participating in the incoming pairing on Android
-        assertThat(mBumbleDevice.setPairingConfirmation(true)).isTrue();
-
-        // Wait for pairing approval notification on Android
-        verifyIntentReceivedUnordered(
-                2,
-                hasAction(BluetoothDevice.ACTION_PAIRING_REQUEST),
-                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
-                hasExtra(
-                        BluetoothDevice.EXTRA_PAIRING_VARIANT,
-                        BluetoothDevice.PAIRING_VARIANT_CONSENT));
-
-        // Wait for GATT service discovery to complete on Android
-        // so that ACTION_UUID is received here.
-        verifyIntentReceivedUnordered(
-                hasAction(BluetoothDevice.ACTION_UUID),
-                hasExtra(BluetoothDevice.EXTRA_UUID, Matchers.hasItemInArray(BATTERY_UUID)));
-
-        unregisterIntentActions(
-                BluetoothDevice.ACTION_BOND_STATE_CHANGED,
-                BluetoothDevice.ACTION_PAIRING_REQUEST,
-                BluetoothDevice.ACTION_UUID,
-                BluetoothDevice.ACTION_ACL_CONNECTED);
-
-        return responseObserver;
-    }
-
-    private void removeBond(BluetoothDevice device) {
-        registerIntentActions(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
-
-        assertThat(device.removeBond()).isTrue();
-        verifyIntentReceived(
-                hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
-                hasExtra(BluetoothDevice.EXTRA_DEVICE, device),
-                hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_NONE));
-
-        unregisterIntentActions(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
-    }
-
-    @SafeVarargs
-    private void verifyIntentReceived(Matcher<Intent>... matchers) {
-        mInOrder.verify(mReceiver, timeout(BOND_INTENT_TIMEOUT.toMillis()))
-                .onReceive(any(Context.class), MockitoHamcrest.argThat(AllOf.allOf(matchers)));
-    }
-
-    @SafeVarargs
-    private void verifyIntentReceivedUnordered(int num, Matcher<Intent>... matchers) {
-        verify(mReceiver, timeout(BOND_INTENT_TIMEOUT.toMillis()).times(num))
-                .onReceive(any(Context.class), MockitoHamcrest.argThat(AllOf.allOf(matchers)));
-    }
-
-    @SafeVarargs
-    private void verifyIntentReceivedUnordered(Matcher<Intent>... matchers) {
-        verifyIntentReceivedUnordered(1, matchers);
-    }
-
-    /**
-     * Helper function to add reference count to registered intent actions
-     *
-     * @param actions new intent actions to add. If the array is empty, it is a no-op.
-     */
-    private void registerIntentActions(String... actions) {
-        if (actions.length == 0) {
-            return;
-        }
-        if (getTotalActionRegistrationCounts() > 0) {
-            Log.d(TAG, "registerIntentActions(): unregister ALL intents");
-            sTargetContext.unregisterReceiver(mReceiver);
-        }
-        for (String action : actions) {
-            mActionRegistrationCounts.merge(action, 1, Integer::sum);
-        }
-        IntentFilter filter = new IntentFilter();
-        mActionRegistrationCounts.entrySet().stream()
-                .filter(entry -> entry.getValue() > 0)
-                .forEach(
-                        entry -> {
-                            Log.d(
-                                    TAG,
-                                    "registerIntentActions(): Registering action = "
-                                            + entry.getKey());
-                            filter.addAction(entry.getKey());
-                        });
-        sTargetContext.registerReceiver(mReceiver, filter);
-    }
-
-    /**
-     * Helper function to reduce reference count to registered intent actions If total reference
-     * count is zero after removal, no broadcast receiver will be registered.
-     *
-     * @param actions intent actions to be removed. If some action is not registered, it is no-op
-     *     for that action. If the actions array is empty, it is also a no-op.
-     */
-    private void unregisterIntentActions(String... actions) {
-        if (actions.length == 0) {
-            return;
-        }
-        if (getTotalActionRegistrationCounts() <= 0) {
-            return;
-        }
-        Log.d(TAG, "unregisterIntentActions(): unregister ALL intents");
-        sTargetContext.unregisterReceiver(mReceiver);
-        for (String action : actions) {
-            if (!mActionRegistrationCounts.containsKey(action)) {
-                continue;
-            }
-            mActionRegistrationCounts.put(action, mActionRegistrationCounts.get(action) - 1);
-            if (mActionRegistrationCounts.get(action) <= 0) {
-                mActionRegistrationCounts.remove(action);
-            }
-        }
-        if (getTotalActionRegistrationCounts() > 0) {
-            IntentFilter filter = new IntentFilter();
-            mActionRegistrationCounts.entrySet().stream()
-                    .filter(entry -> entry.getValue() > 0)
-                    .forEach(
-                            entry -> {
-                                Log.d(
-                                        TAG,
-                                        "unregisterIntentActions(): Registering action = "
-                                                + entry.getKey());
-                                filter.addAction(entry.getKey());
-                            });
-            sTargetContext.registerReceiver(mReceiver, filter);
-        }
-    }
-
-    /**
-     * Get sum of reference count from all registered actions
-     *
-     * @return sum of reference count from all registered actions
-     */
-    private int getTotalActionRegistrationCounts() {
-        return mActionRegistrationCounts.values().stream().reduce(0, Integer::sum);
-    }
-
-    private BluetoothProfile getProfileProxy(int profile) {
-        sAdapter.getProfileProxy(sTargetContext, mProfileServiceListener, profile);
-        ArgumentCaptor<BluetoothProfile> proxyCaptor =
-                ArgumentCaptor.forClass(BluetoothProfile.class);
-        verify(mProfileServiceListener, timeout(BOND_INTENT_TIMEOUT.toMillis()))
-                .onServiceConnected(eq(profile), proxyCaptor.capture());
-        return proxyCaptor.getValue();
+        identityAddress = device.getIdentityAddressWithType();
+        assertThat(identityAddress.getAddress()).isEqualTo(device.getAddress());
+        assertThat(identityAddress.getAddressType())
+                .isEqualTo(
+                        ownAddressType == OwnAddressType.RANDOM
+                                ? BluetoothDevice.ADDRESS_TYPE_RANDOM
+                                : BluetoothDevice.ADDRESS_TYPE_PUBLIC);
     }
 }
