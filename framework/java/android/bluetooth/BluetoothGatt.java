@@ -37,6 +37,8 @@ import android.os.ParcelUuid;
 import android.os.RemoteException;
 import android.util.Log;
 
+import com.android.bluetooth.flags.Flags;
+
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
@@ -431,6 +433,10 @@ public final class BluetoothGatt implements BluetoothProfile {
                     for (BluetoothGattService s : services) {
                         // services we receive don't have device set properly.
                         s.setDevice(mDevice);
+                    }
+
+                    if (Flags.fixBluetoothGattGettingDuplicateServices()) {
+                        mServices.clear();
                     }
 
                     mServices.addAll(services);
@@ -1342,7 +1348,9 @@ public final class BluetoothGatt implements BluetoothProfile {
         if (DBG) Log.d(TAG, "discoverServices() - device: " + mDevice);
         if (mService == null || mClientIf == 0) return false;
 
-        mServices.clear();
+        if (!Flags.fixBluetoothGattGettingDuplicateServices()) {
+            mServices.clear();
+        }
 
         try {
             mService.discoverServices(mClientIf, mDevice.getAddress(), mAttributionSource);
@@ -1369,7 +1377,9 @@ public final class BluetoothGatt implements BluetoothProfile {
         if (DBG) Log.d(TAG, "discoverServiceByUuid() - device: " + mDevice);
         if (mService == null || mClientIf == 0) return false;
 
-        mServices.clear();
+        if (!Flags.fixBluetoothGattGettingDuplicateServices()) {
+            mServices.clear();
+        }
 
         try {
             mService.discoverServiceByUuid(
