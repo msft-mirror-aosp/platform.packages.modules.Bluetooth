@@ -22,12 +22,8 @@ import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -38,7 +34,8 @@ import android.bluetooth.BluetoothProfile;
 import android.bluetooth.PandoraDevice;
 import android.bluetooth.StreamObserverSpliterator;
 import android.bluetooth.test_utils.EnableBluetoothRule;
-import android.content.BroadcastReceiver;
+import android.bluetooth.pairing.utils.IntentReceiver;
+import android.bluetooth.pairing.utils.TestUtil;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -56,15 +53,12 @@ import com.android.compatibility.common.util.AdoptShellPermissionsRule;
 
 import io.grpc.stub.StreamObserver;
 
-import org.hamcrest.Matcher;
-import org.hamcrest.core.AllOf;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.hamcrest.MockitoHamcrest;
@@ -77,18 +71,14 @@ import pandora.SecurityProto.PairingEventAnswer;
 
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 @RunWith(AndroidJUnit4.class)
 public class EncryptionChangeTest {
-    private static final String TAG = "EncryptionChangeTest";
-    private static final Duration BOND_INTENT_TIMEOUT = Duration.ofSeconds(10);
+    private static final String TAG = EncryptionChangeTest.class.getSimpleName();
 
-    private static final ParcelUuid BATTERY_UUID =
-            ParcelUuid.fromString("0000180F-0000-1000-8000-00805F9B34FB");
+    private static final Duration BOND_INTENT_TIMEOUT = Duration.ofSeconds(10);
 
     private static final ParcelUuid HOGP_UUID =
             ParcelUuid.fromString("00001812-0000-1000-8000-00805F9B34FB");
@@ -111,67 +101,91 @@ public class EncryptionChangeTest {
     public final EnableBluetoothRule mEnableBluetoothRule =
             new EnableBluetoothRule(false /* enableTestMode */, true /* toggleBluetooth */);
 
-    private final Map<String, Integer> mActionRegistrationCounts = new HashMap<>();
     private final StreamObserverSpliterator<PairingEvent> mPairingEventStreamObserver =
             new StreamObserverSpliterator<>();
-    @Mock private BroadcastReceiver mReceiver;
     @Mock private BluetoothProfile.ServiceListener mProfileServiceListener;
-    private InOrder mInOrder = null;
+
+    /* Util instance for common test steps with current Context reference */
+    private TestUtil util;
     private BluetoothDevice mBumbleDevice;
     private BluetoothHidHost mHidService;
     private BluetoothHeadset mHfpService;
 
+   /**
+     * IntentListener for the received intents
+     * Note: This is added as a default listener for all the IntentReceiver
+     *  instances created in this test class. Please add your own listener if
+     *  required as per the test requirement.
+     */
+    private IntentReceiver.IntentListener intentListener = new IntentReceiver.IntentListener() {
+        @Override
+        public void onReceive(Intent intent) {
+            String action = intent.getAction();
+            if (BluetoothDevice.ACTION_UUID.equals(action)) {
+                    ParcelUuid[] uuids =
+                    intent.getParcelableArrayExtra(
+                            BluetoothDevice.EXTRA_UUID, ParcelUuid.class);
+                    Log.d(TAG, "onReceive(): UUID=" + Arrays.toString(uuids));
+            } else if (BluetoothDevice.ACTION_BOND_STATE_CHANGED.equals(action)) {
+                    int bondState =
+                    intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, -1);
+                    Log.d(TAG, "onReceive(): bondState=" + bondState);
+            }
+        }
+    };
+
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
-
-        doAnswer(
-                        inv -> {
-                            Log.d(
-                                    TAG,
-                                    "onReceive(): intent=" + Arrays.toString(inv.getArguments()));
-                            Intent intent = inv.getArgument(1);
-                            String action = intent.getAction();
-                            if (BluetoothDevice.ACTION_UUID.equals(action)) {
-                                ParcelUuid[] uuids =
-                                        intent.getParcelableArrayExtra(
-                                                BluetoothDevice.EXTRA_UUID, ParcelUuid.class);
-                                Log.d(TAG, "onReceive(): UUID=" + Arrays.toString(uuids));
-                            } else if (BluetoothDevice.ACTION_BOND_STATE_CHANGED.equals(action)) {
-                                int bondState =
-                                        intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, -1);
-                                Log.d(TAG, "onReceive(): bondState=" + bondState);
-                            }
-                            return null;
-                        })
-                .when(mReceiver)
-                .onReceive(any(), any());
-
-        mInOrder = inOrder(mReceiver);
+        util = new TestUtil.Builder(sTargetContext)
+                .setProfileServiceListener(mProfileServiceListener)
+                .setBluetoothAdapter(sAdapter)
+                .build();
 
         // Get profile proxies
-        mHidService = (BluetoothHidHost) getProfileProxy(BluetoothProfile.HID_HOST);
-        mHfpService = (BluetoothHeadset) getProfileProxy(BluetoothProfile.HEADSET);
+        mHidService = (BluetoothHidHost) util.getProfileProxy(BluetoothProfile.HID_HOST);
+        mHfpService = (BluetoothHeadset) util.getProfileProxy(BluetoothProfile.HEADSET);
 
         mBumbleDevice = mBumble.getRemoteDevice();
         Set<BluetoothDevice> bondedDevices = sAdapter.getBondedDevices();
         if (bondedDevices.contains(mBumbleDevice)) {
-            removeBond(mBumbleDevice);
+            util.removeBond(null, mBumbleDevice);
         }
     }
 
     @After
     public void tearDown() throws Exception {
         Set<BluetoothDevice> bondedDevices = sAdapter.getBondedDevices();
+        /*
+         * Note: Since there was no IntentReceiver registered, passing the instance as
+         *  NULL in removeBond(). But, if there is an instance already present, that
+         *  must be passed instead of NULL.
+         */
         if (bondedDevices.contains(mBumbleDevice)) {
-            removeBond(mBumbleDevice);
+            util.removeBond(null, mBumbleDevice);
         }
+
         mBumbleDevice = null;
-        if (getTotalActionRegistrationCounts() > 0) {
-            sTargetContext.unregisterReceiver(mReceiver);
-            mActionRegistrationCounts.clear();
-        }
     }
+
+    /** All the test function goes here */
+
+    /**
+     * Process of writing a test function
+     *
+     * 1. Create an IntentReceiver object first with following way:
+     *      IntentReceiver intentReceiver = new IntentReceiver.Builder(sTargetContext,
+     *          BluetoothDevice.ACTION_1,
+     *          BluetoothDevice.ACTION_2)
+     *          .setIntentListener(--) // optional
+     *          .setIntentTimeout(--)  // optional
+     *          .build();
+     * 2. Use the intentReceiver instance for all Intent related verification, and pass
+     *     the same instance to all the helper/testStep functions which has similar Intent
+     *     requirements.
+     * 3. Once all the verification is done, call `intentReceiver.close()` before returning
+     *     from the function.
+     */
 
     /**
      * Test Encryption change event on LE Secure link:
@@ -186,10 +200,13 @@ public class EncryptionChangeTest {
     @Test
     @RequiresFlagsEnabled({Flags.FLAG_ENCRYPTION_CHANGE_BROADCAST})
     public void encryptionChangeSecureLeLink() {
-        registerIntentActions(
+        IntentReceiver intentReceiver = new IntentReceiver.Builder(sTargetContext,
                 BluetoothDevice.ACTION_BOND_STATE_CHANGED,
                 BluetoothDevice.ACTION_ENCRYPTION_CHANGE,
-                BluetoothDevice.ACTION_PAIRING_REQUEST);
+                BluetoothDevice.ACTION_PAIRING_REQUEST)
+                .setIntentListener(intentListener)
+                .build();
+
         mBumble.gattBlocking()
                 .registerService(
                         GattProto.RegisterServiceRequest.newBuilder()
@@ -213,12 +230,12 @@ public class EncryptionChangeTest {
                         .onPairing(mPairingEventStreamObserver);
 
         assertThat(mBumbleDevice.createBond(BluetoothDevice.TRANSPORT_LE)).isTrue();
-        verifyIntentReceived(
+        intentReceiver.verifyReceivedOrdered(
                 hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
                 hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
                 hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_BONDING));
 
-        verifyIntentReceived(
+        intentReceiver.verifyReceivedOrdered(
                 hasAction(BluetoothDevice.ACTION_PAIRING_REQUEST),
                 hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
                 hasExtra(
@@ -231,7 +248,7 @@ public class EncryptionChangeTest {
         pairingEventAnswerObserver.onNext(
                 PairingEventAnswer.newBuilder().setEvent(pairingEvent).setConfirm(true).build());
 
-        verifyIntentReceived(
+        intentReceiver.verifyReceivedOrdered(
                 hasAction(BluetoothDevice.ACTION_ENCRYPTION_CHANGE),
                 hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
                 hasExtra(BluetoothDevice.EXTRA_TRANSPORT, BluetoothDevice.TRANSPORT_LE),
@@ -242,17 +259,12 @@ public class EncryptionChangeTest {
                         BluetoothDevice.EXTRA_ENCRYPTION_ALGORITHM,
                         BluetoothDevice.ENCRYPTION_ALGORITHM_AES));
 
-        verifyIntentReceived(
+        intentReceiver.verifyReceivedOrdered(
                 hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
                 hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
                 hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_BONDED));
 
-        verifyNoMoreInteractions(mReceiver);
-
-        unregisterIntentActions(
-                BluetoothDevice.ACTION_BOND_STATE_CHANGED,
-                BluetoothDevice.ACTION_ENCRYPTION_CHANGE,
-                BluetoothDevice.ACTION_PAIRING_REQUEST);
+        intentReceiver.close();
     }
 
     /**
@@ -268,10 +280,12 @@ public class EncryptionChangeTest {
     @Test
     @RequiresFlagsEnabled({Flags.FLAG_ENCRYPTION_CHANGE_BROADCAST})
     public void encryptionChangeSecureClassicLink() {
-        registerIntentActions(
+        IntentReceiver intentReceiver = new IntentReceiver.Builder(sTargetContext,
                 BluetoothDevice.ACTION_BOND_STATE_CHANGED,
                 BluetoothDevice.ACTION_ENCRYPTION_CHANGE,
-                BluetoothDevice.ACTION_PAIRING_REQUEST);
+                BluetoothDevice.ACTION_PAIRING_REQUEST)
+                .setIntentListener(intentListener)
+                .build();
 
         StreamObserver<PairingEventAnswer> pairingEventAnswerObserver =
                 mBumble.security()
@@ -279,12 +293,12 @@ public class EncryptionChangeTest {
                         .onPairing(mPairingEventStreamObserver);
 
         assertThat(mBumbleDevice.createBond(BluetoothDevice.TRANSPORT_BREDR)).isTrue();
-        verifyIntentReceived(
+        intentReceiver.verifyReceivedOrdered(
                 hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
                 hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
                 hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_BONDING));
 
-        verifyIntentReceived(
+        intentReceiver.verifyReceivedOrdered(
                 hasAction(BluetoothDevice.ACTION_PAIRING_REQUEST),
                 hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
                 hasExtra(
@@ -297,7 +311,7 @@ public class EncryptionChangeTest {
         pairingEventAnswerObserver.onNext(
                 PairingEventAnswer.newBuilder().setEvent(pairingEvent).setConfirm(true).build());
 
-        verifyIntentReceived(
+        intentReceiver.verifyReceivedOrdered(
                 hasAction(BluetoothDevice.ACTION_ENCRYPTION_CHANGE),
                 hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
                 hasExtra(BluetoothDevice.EXTRA_TRANSPORT, BluetoothDevice.TRANSPORT_BREDR),
@@ -308,133 +322,11 @@ public class EncryptionChangeTest {
                         BluetoothDevice.EXTRA_ENCRYPTION_ALGORITHM,
                         BluetoothDevice.ENCRYPTION_ALGORITHM_AES));
 
-        verifyIntentReceived(
+        intentReceiver.verifyReceivedOrdered(
                 hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
                 hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
                 hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_BONDED));
 
-        verifyNoMoreInteractions(mReceiver);
-        unregisterIntentActions(
-                BluetoothDevice.ACTION_BOND_STATE_CHANGED,
-                BluetoothDevice.ACTION_ENCRYPTION_CHANGE,
-                BluetoothDevice.ACTION_PAIRING_REQUEST);
-    }
-
-    private void removeBond(BluetoothDevice device) {
-        registerIntentActions(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
-
-        assertThat(device.removeBond()).isTrue();
-        verifyIntentReceived(
-                hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
-                hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice),
-                hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_NONE));
-
-        unregisterIntentActions(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
-    }
-
-    @SafeVarargs
-    private void verifyIntentReceived(Matcher<Intent>... matchers) {
-        mInOrder.verify(mReceiver, timeout(BOND_INTENT_TIMEOUT.toMillis()))
-                .onReceive(any(Context.class), MockitoHamcrest.argThat(AllOf.allOf(matchers)));
-    }
-
-    @SafeVarargs
-    private void verifyIntentReceivedUnordered(int num, Matcher<Intent>... matchers) {
-        verify(mReceiver, timeout(BOND_INTENT_TIMEOUT.toMillis()).times(num))
-                .onReceive(any(Context.class), MockitoHamcrest.argThat(AllOf.allOf(matchers)));
-    }
-
-    @SafeVarargs
-    private void verifyIntentReceivedUnordered(Matcher<Intent>... matchers) {
-        verifyIntentReceivedUnordered(1, matchers);
-    }
-
-    /**
-     * Helper function to add reference count to registered intent actions
-     *
-     * @param actions new intent actions to add. If the array is empty, it is a no-op.
-     */
-    private void registerIntentActions(String... actions) {
-        if (actions.length == 0) {
-            return;
-        }
-        if (getTotalActionRegistrationCounts() > 0) {
-            Log.d(TAG, "registerIntentActions(): unregister ALL intents");
-            sTargetContext.unregisterReceiver(mReceiver);
-        }
-        for (String action : actions) {
-            mActionRegistrationCounts.merge(action, 1, Integer::sum);
-        }
-        IntentFilter filter = new IntentFilter();
-        mActionRegistrationCounts.entrySet().stream()
-                .filter(entry -> entry.getValue() > 0)
-                .forEach(
-                        entry -> {
-                            Log.d(
-                                    TAG,
-                                    "registerIntentActions(): Registering action = "
-                                            + entry.getKey());
-                            filter.addAction(entry.getKey());
-                        });
-        sTargetContext.registerReceiver(mReceiver, filter, Context.RECEIVER_EXPORTED);
-    }
-
-    /**
-     * Helper function to reduce reference count to registered intent actions If total reference
-     * count is zero after removal, no broadcast receiver will be registered.
-     *
-     * @param actions intent actions to be removed. If some action is not registered, it is no-op
-     *     for that action. If the actions array is empty, it is also a no-op.
-     */
-    private void unregisterIntentActions(String... actions) {
-        if (actions.length == 0) {
-            return;
-        }
-        if (getTotalActionRegistrationCounts() <= 0) {
-            return;
-        }
-        Log.d(TAG, "unregisterIntentActions(): unregister ALL intents");
-        sTargetContext.unregisterReceiver(mReceiver);
-        for (String action : actions) {
-            if (!mActionRegistrationCounts.containsKey(action)) {
-                continue;
-            }
-            mActionRegistrationCounts.put(action, mActionRegistrationCounts.get(action) - 1);
-            if (mActionRegistrationCounts.get(action) <= 0) {
-                mActionRegistrationCounts.remove(action);
-            }
-        }
-        if (getTotalActionRegistrationCounts() > 0) {
-            IntentFilter filter = new IntentFilter();
-            mActionRegistrationCounts.entrySet().stream()
-                    .filter(entry -> entry.getValue() > 0)
-                    .forEach(
-                            entry -> {
-                                Log.d(
-                                        TAG,
-                                        "unregisterIntentActions(): Registering action = "
-                                                + entry.getKey());
-                                filter.addAction(entry.getKey());
-                            });
-            sTargetContext.registerReceiver(mReceiver, filter, Context.RECEIVER_EXPORTED);
-        }
-    }
-
-    /**
-     * Get sum of reference count from all registered actions
-     *
-     * @return sum of reference count from all registered actions
-     */
-    private int getTotalActionRegistrationCounts() {
-        return mActionRegistrationCounts.values().stream().reduce(0, Integer::sum);
-    }
-
-    private BluetoothProfile getProfileProxy(int profile) {
-        sAdapter.getProfileProxy(sTargetContext, mProfileServiceListener, profile);
-        ArgumentCaptor<BluetoothProfile> proxyCaptor =
-                ArgumentCaptor.forClass(BluetoothProfile.class);
-        verify(mProfileServiceListener, timeout(BOND_INTENT_TIMEOUT.toMillis()))
-                .onServiceConnected(eq(profile), proxyCaptor.capture());
-        return proxyCaptor.getValue();
+        intentReceiver.close();
     }
 }
