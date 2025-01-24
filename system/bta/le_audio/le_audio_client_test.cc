@@ -164,6 +164,10 @@ static void cleanup_message_loop_thread() {
   message_loop_thread.ShutDown();
 }
 
+const tBLE_BD_ADDR BTM_Sec_GetAddressWithType(const RawAddress& bd_addr) {
+  return tBLE_BD_ADDR{.type = BLE_ADDR_PUBLIC, .bda = bd_addr};
+}
+
 void invoke_switch_codec_cb(bool /*is_low_latency_buffer_size*/) {}
 void invoke_switch_buffer_size_cb(bool /*is_low_latency_buffer_size*/) {}
 
@@ -980,7 +984,7 @@ protected:
                 ase.state = types::AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING;
 
                 uint16_t cis_conn_hdl = ase.cis_conn_hdl;
-                auto core_config = ase.codec_config.GetAsCoreCodecConfig();
+                auto core_config = ase.codec_config.params.GetAsCoreCodecConfig();
 
                 /* Copied from state_machine.cc ProcessHciNotifSetupIsoDataPath */
                 if (ase.direction == bluetooth::le_audio::types::kLeAudioDirectionSource) {
@@ -997,7 +1001,8 @@ protected:
                                             true));
 
                     stream_conf->stream_params.source.num_of_devices++;
-                    stream_conf->stream_params.source.num_of_channels += ase.channel_count;
+                    stream_conf->stream_params.source.num_of_channels +=
+                            ase.codec_config.channel_count_per_iso_stream;
 
                     log::info(
                             "AttachToStream: Added Source Stream Configuration. CIS Connection "
@@ -1022,7 +1027,8 @@ protected:
                                             true));
 
                     stream_conf->stream_params.sink.num_of_devices++;
-                    stream_conf->stream_params.sink.num_of_channels += ase.channel_count;
+                    stream_conf->stream_params.sink.num_of_channels +=
+                            ase.codec_config.channel_count_per_iso_stream;
 
                     log::info(
                             "AttachToStream: Added Sink Stream Configuration. CIS Connection "
@@ -1119,7 +1125,7 @@ protected:
                   ase.qos_preferences.pres_delay_max = 2500;
                   ase.qos_preferences.preferred_pres_delay_min = 2500;
                   ase.qos_preferences.preferred_pres_delay_max = 2500;
-                  auto core_config = ase.codec_config.GetAsCoreCodecConfig();
+                  auto core_config = ase.codec_config.params.GetAsCoreCodecConfig();
 
                   uint16_t cis_conn_hdl = ase.cis_conn_hdl;
 
@@ -1138,7 +1144,8 @@ protected:
                                               *core_config.audio_channel_allocation, true));
 
                       stream_conf->stream_params.source.num_of_devices++;
-                      stream_conf->stream_params.source.num_of_channels += ase.channel_count;
+                      stream_conf->stream_params.source.num_of_channels +=
+                              ase.codec_config.channel_count_per_iso_stream;
                       stream_conf->stream_params.source.audio_channel_allocation |=
                               *core_config.audio_channel_allocation;
                       stream_conf->stream_params.source.stream_config.peer_delay_ms = 44;
@@ -1210,7 +1217,8 @@ protected:
                                               *core_config.audio_channel_allocation, true));
 
                       stream_conf->stream_params.sink.num_of_devices++;
-                      stream_conf->stream_params.sink.num_of_channels += ase.channel_count;
+                      stream_conf->stream_params.sink.num_of_channels +=
+                              ase.codec_config.channel_count_per_iso_stream;
                       stream_conf->stream_params.sink.audio_channel_allocation |=
                               *core_config.audio_channel_allocation;
                       stream_conf->stream_params.sink.stream_config.peer_delay_ms = 44;
@@ -1358,7 +1366,7 @@ protected:
                                   if (ases.sink) {
                                     stream_conf->stream_params.sink.num_of_devices--;
                                     stream_conf->stream_params.sink.num_of_channels -=
-                                            ases.sink->channel_count;
+                                            ases.sink->codec_config.channel_count_per_iso_stream;
 
                                     log::info(
                                             "Sink Number Of Devices: {}, Sink Number Of "
@@ -1384,7 +1392,7 @@ protected:
                                   if (ases.source) {
                                     stream_conf->stream_params.source.num_of_devices--;
                                     stream_conf->stream_params.source.num_of_channels -=
-                                            ases.source->channel_count;
+                                            ases.source->codec_config.channel_count_per_iso_stream;
 
                                     log::info(
                                             ", Source Number Of Devices: {}, Source Number Of "
@@ -1420,7 +1428,7 @@ protected:
                                    if (ases.sink) {
                                      stream_conf->stream_params.sink.num_of_devices--;
                                      stream_conf->stream_params.sink.num_of_channels -=
-                                             ases.sink->channel_count;
+                                             ases.sink->codec_config.channel_count_per_iso_stream;
 
                                      log::info(
                                              "Sink Number Of Devices: {}, Sink Number Of "
@@ -1446,7 +1454,7 @@ protected:
                                    if (ases.source) {
                                      stream_conf->stream_params.source.num_of_devices--;
                                      stream_conf->stream_params.source.num_of_channels -=
-                                             ases.source->channel_count;
+                                             ases.source->codec_config.channel_count_per_iso_stream;
 
                                      log::info(
                                              ", Source Number Of Devices: {}, Source Number "
@@ -13285,7 +13293,7 @@ TEST_F(UnicastTest, CodecFrameBlocks2) {
        device = group->GetNextDevice(device)) {
     for (auto& ase : device->ases_) {
       if (ase.active) {
-        auto cfg = ase.codec_config.GetAsCoreCodecConfig();
+        auto cfg = ase.codec_config.params.GetAsCoreCodecConfig();
         ASSERT_TRUE(cfg.codec_frames_blocks_per_sdu.has_value());
         device_configured_codec_frame_blocks_per_sdu = cfg.codec_frames_blocks_per_sdu.value();
       }

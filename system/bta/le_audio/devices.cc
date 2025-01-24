@@ -404,23 +404,21 @@ bool LeAudioDevice::ConfigureAses(const types::AudioSetConfiguration* audio_set_
       }
 
       ase->target_latency = ase_cfg.qos.target_latency;
-      ase->codec_id = ase_cfg.codec.id;
-      ase->codec_config = ase_cfg.codec.params;
-      ase->vendor_codec_config = ase_cfg.codec.vendor_params;
-      ase->channel_count = ase_cfg.codec.channel_count_per_iso_stream;
+      ase->codec_config = ase_cfg.codec;
 
       /* Let's choose audio channel allocation if not set */
-      ase->codec_config.Add(
+      ase->codec_config.params.Add(
               codec_spec_conf::kLeAudioLtvTypeAudioChannelAllocation,
               PickAudioLocation(strategy, audio_locations, group_audio_locations_memo));
 
       /* Get default value if no requirement for specific frame blocks per sdu
        */
-      if (utils::IsCodecUsingLtvFormat(ase->codec_id) &&
-          !ase->codec_config.Find(codec_spec_conf::kLeAudioLtvTypeCodecFrameBlocksPerSdu)) {
-        ase->codec_config.Add(codec_spec_conf::kLeAudioLtvTypeCodecFrameBlocksPerSdu,
-                              GetMaxCodecFramesPerSduFromPac(
-                                      utils::GetConfigurationSupportedPac(pacs, ase_cfg.codec)));
+      if (utils::IsCodecUsingLtvFormat(ase->codec_config.id) &&
+          !ase->codec_config.params.Find(codec_spec_conf::kLeAudioLtvTypeCodecFrameBlocksPerSdu)) {
+        ase->codec_config.params.Add(
+                codec_spec_conf::kLeAudioLtvTypeCodecFrameBlocksPerSdu,
+                GetMaxCodecFramesPerSduFromPac(
+                        utils::GetConfigurationSupportedPac(pacs, ase_cfg.codec)));
       }
 
       ase->qos_config.sdu_interval = ase_cfg.qos.sduIntervalUs;

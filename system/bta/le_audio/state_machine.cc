@@ -1349,7 +1349,7 @@ private:
   }
 
   void AddCisToStreamConfiguration(LeAudioDeviceGroup* group, const struct ase* ase) {
-    group->stream_conf.codec_id = ase->codec_id;
+    group->stream_conf.codec_id = ase->codec_config.id;
 
     auto cis_conn_hdl = ase->cis_conn_hdl;
     auto& params = group->stream_conf.stream_params.get(ase->direction);
@@ -1363,19 +1363,15 @@ private:
     log::assert_that(iter == params.stream_config.stream_map.end(),
                      "Stream is already there 0x{:04x}", cis_conn_hdl);
 
-    auto core_config = ase->codec_config.GetAsCoreCodecConfig();
-
     params.num_of_devices++;
-    params.num_of_channels += ase->channel_count;
+    params.num_of_channels += ase->codec_config.channel_count_per_iso_stream;
 
-    if (!core_config.audio_channel_allocation.has_value()) {
-      log::warn("ASE has invalid audio location");
-    }
-    auto ase_audio_channel_allocation = core_config.audio_channel_allocation.value_or(0);
+    auto ase_audio_channel_allocation = ase->codec_config.GetAudioChannelAllocation();
     params.audio_channel_allocation |= ase_audio_channel_allocation;
     params.stream_config.stream_map.emplace_back(ase->cis_conn_hdl, ase_audio_channel_allocation,
                                                  true);
 
+    auto core_config = ase->codec_config.params.GetAsCoreCodecConfig();
     if (params.stream_config.sampling_frequency_hz == 0) {
       params.stream_config.sampling_frequency_hz = core_config.GetSamplingFrequencyHz();
     } else {
@@ -1903,13 +1899,13 @@ private:
       conf.ase_id = ase->id;
       conf.target_latency = ase->target_latency;
       conf.target_phy = group->GetTargetPhy(ase->direction);
-      conf.codec_id = ase->codec_id;
+      conf.codec_id = ase->codec_config.id;
 
-      if (!ase->vendor_codec_config.empty()) {
+      if (!ase->codec_config.vendor_params.empty()) {
         log::debug("Using vendor codec configuration.");
-        conf.codec_config = ase->vendor_codec_config;
+        conf.codec_config = ase->codec_config.vendor_params;
       } else {
-        conf.codec_config = ase->codec_config.RawPacket();
+        conf.codec_config = ase->codec_config.params.RawPacket();
       }
       confs.push_back(conf);
 

@@ -614,6 +614,9 @@ struct LeAudioCoreCodecConfig {
 
     return 0;
   }
+
+  /** Returns the audio channel allocation bitmask */
+  inline uint32_t GetAudioChannelAllocation() const { return audio_channel_allocation.value_or(0); }
 };
 
 struct LeAudioCoreCodecCapabilities {
@@ -1115,6 +1118,44 @@ struct AseQosPreferences {
   uint32_t preferred_pres_delay_max = 0;
 };
 
+struct CodecConfigSetting {
+  /* Codec identifier */
+  types::LeAudioCodecId id;
+
+  /* Codec Specific Configuration */
+  types::LeAudioLtvMap params;
+  /* Vendor Specific Configuration */
+  std::vector<uint8_t> vendor_params;
+
+  /* Channel count per device */
+  uint8_t channel_count_per_iso_stream;
+
+  /* Octets per fram for codec */
+  uint16_t GetOctetsPerFrame() const;
+  /* Sampling frequency requested for codec */
+  uint32_t GetSamplingFrequencyHz() const;
+  /* Data fetch/feed interval for codec in microseconds */
+  uint32_t GetDataIntervalUs() const;
+  /* Audio bit depth required for codec */
+  uint8_t GetBitsPerSample() const;
+  /* Audio channel allocation bitmask */
+  inline uint32_t GetAudioChannelAllocation() const {
+    return params.GetAsCoreCodecConfig().GetAudioChannelAllocation();
+  }
+  /* Audio channels number for a device */
+  uint8_t GetChannelCountPerIsoStream() const { return channel_count_per_iso_stream; }
+
+  bool operator==(const CodecConfigSetting& other) const {
+    return (id == other.id) &&
+           (channel_count_per_iso_stream == other.channel_count_per_iso_stream) &&
+           (vendor_params == other.vendor_params) && (params == other.params);
+  }
+
+  bool operator!=(const CodecConfigSetting& other) const { return !(*this == other); }
+};
+
+std::ostream& operator<<(std::ostream& os, const CodecConfigSetting& config);
+
 struct ase {
   static constexpr uint8_t kAseIdInvalid = 0x00;
 
@@ -1145,10 +1186,7 @@ struct ase {
   LeAudioContextType configured_for_context_type;
 
   /* Codec configuration */
-  LeAudioCodecId codec_id;
-  LeAudioLtvMap codec_config;
-  std::vector<uint8_t> vendor_codec_config;
-  uint8_t channel_count;
+  CodecConfigSetting codec_config;
 
   /* Data path configuration */
   DataPathConfiguration data_path_configuration;
@@ -1183,44 +1221,6 @@ std::ostream& operator<<(std::ostream& os, const LeAudioContextType& context);
 std::ostream& operator<<(std::ostream& os, const DataPathState& state);
 std::ostream& operator<<(std::ostream& os, const CisState& state);
 std::ostream& operator<<(std::ostream& os, const AudioContexts& contexts);
-
-struct CodecConfigSetting {
-  /* Codec identifier */
-  types::LeAudioCodecId id;
-
-  /* Codec Specific Configuration */
-  types::LeAudioLtvMap params;
-  /* Vendor Specific Configuration */
-  std::vector<uint8_t> vendor_params;
-
-  /* Channel count per device */
-  uint8_t channel_count_per_iso_stream;
-
-  /* Octets per fram for codec */
-  uint16_t GetOctetsPerFrame() const;
-  /* Sampling frequency requested for codec */
-  uint32_t GetSamplingFrequencyHz() const;
-  /* Data fetch/feed interval for codec in microseconds */
-  uint32_t GetDataIntervalUs() const;
-  /* Audio bit depth required for codec */
-  uint8_t GetBitsPerSample() const;
-  /* Audio channels number for a device */
-  uint8_t GetChannelCountPerIsoStream() const { return channel_count_per_iso_stream; }
-
-  bool operator==(const CodecConfigSetting& other) const {
-    return (id == other.id) &&
-           (channel_count_per_iso_stream == other.channel_count_per_iso_stream) &&
-           (vendor_params == other.vendor_params) && (params == other.params);
-  }
-
-  bool operator!=(const CodecConfigSetting& other) const { return !(*this == other); }
-
-  /* TODO: Add vendor parameter or Ltv map viewers for
-   * vendor specific LTV types.
-   */
-};
-
-std::ostream& operator<<(std::ostream& os, const CodecConfigSetting& config);
 
 struct QosConfigSetting {
   uint8_t target_latency;

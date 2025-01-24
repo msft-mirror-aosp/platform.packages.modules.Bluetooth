@@ -1977,7 +1977,9 @@ void LeAudioDeviceGroup::RemoveCisFromStreamIfNeeded(LeAudioDevice* leAudioDevic
                              auto ases_pair = leAudioDevice->GetAsesByCisConnHdl(cis_conn_hdl);
                              if (ases_pair.get(dir) && cis_conn_hdl == info.stream_handle) {
                                params.num_of_devices--;
-                               params.num_of_channels -= ases_pair.get(dir)->channel_count;
+                               params.num_of_channels -=
+                                       ases_pair.get(dir)
+                                               ->codec_config.channel_count_per_iso_stream;
                                params.audio_channel_allocation &= ~info.audio_channel_allocation;
                              }
                              return ases_pair.get(dir) && cis_conn_hdl == info.stream_handle;
