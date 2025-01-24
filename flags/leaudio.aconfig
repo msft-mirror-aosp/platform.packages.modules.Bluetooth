@@ -451,3 +451,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "leaudio_disable_broadcast_for_hap_device"
+    namespace: "bluetooth"
+    description: "Disable broadcast feature for HAP device"
+    bug: "391702876"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
