@@ -5225,11 +5225,47 @@ TEST_F(StateMachineTestAdsp, testStreamConfigurationAdspDownMix) {
   EXPECT_CALL(mock_callbacks_,
               OnUpdatedCisConfiguration(group->group_id_,
                                         bluetooth::le_audio::types::kLeAudioDirectionSink))
-          .Times(1);
+          .WillOnce([group](int group_id, uint8_t direction) {
+            ASSERT_EQ(group_id, group->group_id_);
+
+            auto stream_config = group->stream_conf.stream_params.get(direction).stream_config;
+            ASSERT_NE(stream_config.stream_map.size(), 0lu);
+
+            for (auto const& info : stream_config.stream_map) {
+              ASSERT_TRUE(info.is_stream_active);
+              ASSERT_EQ(codec_specific::kLc3CodingFormat, info.codec_config.id.coding_format);
+              ASSERT_EQ(0lu, info.codec_config.id.vendor_company_id);
+              ASSERT_EQ(0lu, info.codec_config.id.vendor_codec_id);
+              ASSERT_NE(info.address, RawAddress::kEmpty);
+              ASSERT_NE(info.stream_handle, 0);
+              ASSERT_NE(info.codec_config.params.Size(), 0lu);
+              ASSERT_NE(info.target_latency, 0);
+              ASSERT_NE(info.target_phy, 0);
+              ASSERT_NE(info.metadata.Size(), 0lu);
+            }
+          });
   EXPECT_CALL(mock_callbacks_,
               OnUpdatedCisConfiguration(group->group_id_,
                                         bluetooth::le_audio::types::kLeAudioDirectionSource))
-          .Times(1);
+          .WillOnce([group](int group_id, uint8_t direction) {
+            ASSERT_EQ(group_id, group->group_id_);
+
+            auto stream_config = group->stream_conf.stream_params.get(direction).stream_config;
+            ASSERT_NE(stream_config.stream_map.size(), 0lu);
+
+            for (auto const& info : stream_config.stream_map) {
+              ASSERT_TRUE(info.is_stream_active);
+              ASSERT_EQ(codec_specific::kLc3CodingFormat, info.codec_config.id.coding_format);
+              ASSERT_EQ(0lu, info.codec_config.id.vendor_company_id);
+              ASSERT_EQ(0lu, info.codec_config.id.vendor_codec_id);
+              ASSERT_NE(info.address, RawAddress::kEmpty);
+              ASSERT_NE(info.stream_handle, 0);
+              ASSERT_NE(info.codec_config.params.Size(), 0lu);
+              ASSERT_NE(info.target_latency, 0);
+              ASSERT_NE(info.target_phy, 0);
+              ASSERT_NE(info.metadata.Size(), 0lu);
+            }
+          });
 
   /* Can be called for every context when fetching the configuration
    */
