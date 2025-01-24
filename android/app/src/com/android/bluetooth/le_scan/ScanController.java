@@ -759,13 +759,14 @@ public class ScanController {
                         }
                     }
                 }
-                if (permittedResults.isEmpty()) {
-                    return;
-                }
             }
 
             if (client.hasDisavowedLocation) {
                 permittedResults.removeIf(mLocationDenylistPredicate);
+            }
+            if (permittedResults.isEmpty()) {
+                mScanManager.callbackDone(scannerId, status);
+                return;
             }
 
             if (app.mCallback != null) {
@@ -791,6 +792,9 @@ public class ScanController {
     @SuppressWarnings("NonApiType")
     private void sendBatchScanResults(
             ScannerMap.ScannerApp app, ScanClient client, ArrayList<ScanResult> results) {
+        if (results.isEmpty()) {
+            return;
+        }
         try {
             if (app.mCallback != null) {
                 if (mScanManager.isAutoBatchScanClientEnabled(client)) {
@@ -833,14 +837,11 @@ public class ScanController {
                     }
                 }
             }
-            if (permittedResults.isEmpty()) {
-                return;
-            }
         }
 
         if (client.filters == null || client.filters.isEmpty()) {
             sendBatchScanResults(app, client, permittedResults);
-            // TODO: Question to reviewer: Shouldn't there be a return here?
+            return;
         }
         // Reconstruct the scan results.
         ArrayList<ScanResult> results = new ArrayList<ScanResult>();
