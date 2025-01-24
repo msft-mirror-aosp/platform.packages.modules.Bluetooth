@@ -77,7 +77,7 @@ tBTA_JV_STATUS BTA_JvRfcommConnect(tBTA_SEC /* sec_mask */, uint8_t /* remote_sc
                                    const RawAddress& /* peer_bd_addr */,
                                    tBTA_JV_RFCOMM_CBACK* /* p_cback */,
                                    uint32_t /* rfcomm_slot_id */, RfcommCfgInfo /* cfg */,
-                                   uint32_t /* app_uid */) {
+                                   uint32_t /* app_uid */, uint64_t /* sdp_duration_ms */) {
   inc_func_call_count(__func__);
   return tBTA_JV_STATUS::SUCCESS;
 }
