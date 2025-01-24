@@ -720,6 +720,44 @@ public class GattClientTest {
         }
     }
 
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_UNREGISTER_GATT_CLIENT_DISCONNECTED)
+    public void connectAndDisconnectManyClientsWithoutClose() throws Exception {
+        advertiseWithBumble();
+
+        List<BluetoothGatt> gatts = new ArrayList<>();
+        try {
+            for (int i = 0; i < 100; i++) {
+                BluetoothGattCallback gattCallback = mock(BluetoothGattCallback.class);
+                InOrder inOrder = inOrder(gattCallback);
+
+                BluetoothGatt gatt = mRemoteLeDevice.connectGatt(mContext, false, gattCallback);
+                gatts.add(gatt);
+
+                inOrder.verify(gattCallback, timeout(1000))
+                        .onConnectionStateChange(any(), anyInt(), eq(STATE_CONNECTED));
+
+                gatt.disconnect();
+                inOrder.verify(gattCallback, timeout(1000))
+                        .onConnectionStateChange(
+                                any(), anyInt(), eq(BluetoothProfile.STATE_DISCONNECTED));
+
+                gatt.connect();
+                inOrder.verify(gattCallback, timeout(1000))
+                        .onConnectionStateChange(any(), anyInt(), eq(STATE_CONNECTED));
+
+                gatt.disconnect();
+                inOrder.verify(gattCallback, timeout(1000))
+                        .onConnectionStateChange(
+                                any(), anyInt(), eq(BluetoothProfile.STATE_DISCONNECTED));
+            }
+        } finally {
+            for (BluetoothGatt gatt : gatts) {
+                gatt.close();
+            }
+        }
+    }
+
     private void createLeBondAndWaitBonding(BluetoothDevice device) {
         advertiseWithBumble();
         mHost.createBondAndVerify(device);
