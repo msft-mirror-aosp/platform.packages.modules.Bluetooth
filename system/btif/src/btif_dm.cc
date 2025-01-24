@@ -2541,6 +2541,9 @@ void btif_dm_cancel_bond(const RawAddress bd_addr) {
   **  2. special handling for HID devices
   */
   if (is_bonding_or_sdp()) {
+    // clear sdp_attempts
+    pairing_cb.sdp_attempts = 0;
+
     if (com::android::bluetooth::flags::ignore_unrelated_cancel_bond() &&
         (pairing_cb.bd_addr != bd_addr)) {
       log::warn("Ignoring bond cancel for unrelated device: {} pairing: {}", bd_addr,
