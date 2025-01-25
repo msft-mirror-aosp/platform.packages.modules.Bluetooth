@@ -146,6 +146,7 @@ public class ScanManager {
     @VisibleForTesting boolean mIsConnecting;
     @VisibleForTesting int mProfilesConnecting;
     private int mProfilesConnected, mProfilesDisconnecting;
+    private final BatchScanThrottler mBatchScanThrottler;
 
     @VisibleForTesting
     static class UidImportance {
@@ -158,7 +159,7 @@ public class ScanManager {
         }
     }
 
-    public ScanManager(
+    ScanManager(
             AdapterService adapterService,
             ScanController scanController,
             BluetoothAdapterProxy bluetoothAdapterProxy,
@@ -202,9 +203,10 @@ public class ScanManager {
         IntentFilter locationIntentFilter = new IntentFilter(LocationManager.MODE_CHANGED_ACTION);
         locationIntentFilter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
         mAdapterService.registerReceiver(mLocationReceiver, locationIntentFilter);
+        mBatchScanThrottler = new BatchScanThrottler(timeProvider, mScreenOn);
     }
 
-    public void cleanup() {
+    void cleanup() {
         mRegularScanClients.clear();
         mBatchClients.clear();
         mSuspendedScanClients.clear();
@@ -233,16 +235,16 @@ public class ScanManager {
         }
     }
 
-    public void registerScanner(UUID uuid) {
+    void registerScanner(UUID uuid) {
         mScanNative.registerScanner(uuid.getLeastSignificantBits(), uuid.getMostSignificantBits());
     }
 
-    public void unregisterScanner(int scannerId) {
+    void unregisterScanner(int scannerId) {
         mScanNative.unregisterScanner(scannerId);
     }
 
     /** Returns the regular scan queue. */
-    public Set<ScanClient> getRegularScanQueue() {
+    Set<ScanClient> getRegularScanQueue() {
         return mRegularScanClients;
     }
 
@@ -252,12 +254,12 @@ public class ScanManager {
     }
 
     /** Returns batch scan queue. */
-    public Set<ScanClient> getBatchScanQueue() {
+    Set<ScanClient> getBatchScanQueue() {
         return mBatchClients;
     }
 
     /** Returns a set of full batch scan clients. */
-    public Set<ScanClient> getFullBatchScanQueue() {
+    Set<ScanClient> getFullBatchScanQueue() {
         // TODO: split full batch scan clients and truncated batch clients so we don't need to
         // construct this every time.
         Set<ScanClient> fullBatchClients = new HashSet<ScanClient>();
@@ -269,12 +271,12 @@ public class ScanManager {
         return fullBatchClients;
     }
 
-    public void startScan(ScanClient client) {
+    void startScan(ScanClient client) {
         Log.d(TAG, "startScan() " + client);
         sendMessage(MSG_START_BLE_SCAN, client);
     }
 
-    public void stopScan(int scannerId) {
+    void stopScan(int scannerId) {
         ScanClient client = mScanNative.getBatchScanClient(scannerId);
         if (client == null) {
             client = mScanNative.getRegularScanClient(scannerId);
@@ -285,12 +287,16 @@ public class ScanManager {
         sendMessage(MSG_STOP_BLE_SCAN, client);
     }
 
-    public void flushBatchScanResults(ScanClient client) {
+    void flushBatchScanResults(ScanClient client) {
         sendMessage(MSG_FLUSH_BATCH_RESULTS, client);
     }
 
-    public void callbackDone(int scannerId, int status) {
+    void callbackDone(int scannerId, int status) {
         mScanNative.callbackDone(scannerId, status);
+    }
+
+    void batchScanResultDelivered() {
+        mBatchScanThrottler.resetBackoff();
     }
 
     private void sendMessage(int what, ScanClient client) {
@@ -305,8 +311,14 @@ public class ScanManager {
         return mBluetoothAdapterProxy.isOffloadedScanFilteringSupported();
     }
 
-    public boolean isAutoBatchScanClientEnabled(ScanClient client) {
+    boolean isAutoBatchScanClientEnabled(ScanClient client) {
         return mScanNative.isAutoBatchScanClientEnabled(client);
+    }
+
+    int getCurrentUsedTrackingAdvertisement() {
+        synchronized (mCurUsedTrackableAdvertisementsLock) {
+            return mCurUsedTrackableAdvertisements;
+        }
     }
 
     // Handler class that handles BLE scan operations.
@@ -534,6 +546,7 @@ public class ScanManager {
             }
             mScreenOn = false;
             Log.d(TAG, "handleScreenOff()");
+            mBatchScanThrottler.onScreenOn(false);
             handleSuspendScans();
             updateRegularScanClientsScreenOff();
             updateRegularScanToBatchScanClients();
@@ -864,6 +877,7 @@ public class ScanManager {
             }
             mScreenOn = true;
             Log.d(TAG, "handleScreenOn()");
+            mBatchScanThrottler.onScreenOn(true);
             updateBatchScanToRegularScanClients();
             handleResumeScans();
             updateRegularScanClientsScreenOn();
@@ -921,14 +935,14 @@ public class ScanManager {
 
     /** Parameters for batch scans. */
     static class BatchScanParams {
-        public int scanMode;
-        public int fullScanscannerId;
-        public int truncatedScanscannerId;
+        @VisibleForTesting int mScanMode;
+        private int mFullScanscannerId;
+        private int mTruncatedScanscannerId;
 
         BatchScanParams() {
-            scanMode = -1;
-            fullScanscannerId = -1;
-            truncatedScanscannerId = -1;
+            mScanMode = -1;
+            mFullScanscannerId = -1;
+            mTruncatedScanscannerId = -1;
         }
 
         @Override
@@ -939,20 +953,14 @@ public class ScanManager {
             if (!(obj instanceof BatchScanParams other)) {
                 return false;
             }
-            return scanMode == other.scanMode
-                    && fullScanscannerId == other.fullScanscannerId
-                    && truncatedScanscannerId == other.truncatedScanscannerId;
+            return mScanMode == other.mScanMode
+                    && mFullScanscannerId == other.mFullScanscannerId
+                    && mTruncatedScanscannerId == other.mTruncatedScanscannerId;
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(scanMode, fullScanscannerId, truncatedScanscannerId);
-        }
-    }
-
-    public int getCurrentUsedTrackingAdvertisement() {
-        synchronized (mCurUsedTrackableAdvertisementsLock) {
-            return mCurUsedTrackableAdvertisements;
+            return Objects.hash(mScanMode, mFullScanscannerId, mTruncatedScanscannerId);
         }
     }
 
@@ -1262,9 +1270,9 @@ public class ScanManager {
                 waitForCallback();
                 resetCountDownLatch();
                 int scanInterval =
-                        Utils.millsToUnit(getBatchScanIntervalMillis(batchScanParams.scanMode));
+                        Utils.millsToUnit(getBatchScanIntervalMillis(batchScanParams.mScanMode));
                 int scanWindow =
-                        Utils.millsToUnit(getBatchScanWindowMillis(batchScanParams.scanMode));
+                        Utils.millsToUnit(getBatchScanWindowMillis(batchScanParams.mScanMode));
                 mNativeInterface.gattClientStartBatchScan(
                         scannerId,
                         resultType,
@@ -1298,15 +1306,15 @@ public class ScanManager {
             BatchScanParams params = new BatchScanParams();
             ScanClient winner = getAggressiveClient(mBatchClients);
             if (winner != null) {
-                params.scanMode = winner.settings.getScanMode();
+                params.mScanMode = winner.settings.getScanMode();
             }
             // TODO: split full batch scan results and truncated batch scan results to different
             // collections.
             for (ScanClient client : mBatchClients) {
                 if (client.settings.getScanResultType() == ScanSettings.SCAN_RESULT_TYPE_FULL) {
-                    params.fullScanscannerId = client.scannerId;
+                    params.mFullScanscannerId = client.scannerId;
                 } else {
-                    params.truncatedScanscannerId = client.scannerId;
+                    params.mTruncatedScanscannerId = client.scannerId;
                 }
             }
             return params;
@@ -1359,7 +1367,10 @@ public class ScanManager {
             if (mBatchClients.isEmpty()) {
                 return;
             }
-            long batchTriggerIntervalMillis = getBatchTriggerIntervalMillis();
+            long batchTriggerIntervalMillis =
+                    Flags.batchScanOptimization()
+                            ? mBatchScanThrottler.getBatchTriggerIntervalMillis(mBatchClients)
+                            : getBatchTriggerIntervalMillis();
             // Allows the alarm to be triggered within
             // [batchTriggerIntervalMillis, 1.1 * batchTriggerIntervalMillis]
             long windowLengthMillis = batchTriggerIntervalMillis / 10;
@@ -1494,16 +1505,16 @@ public class ScanManager {
 
         void flushBatchResults(int scannerId) {
             Log.d(TAG, "flushPendingBatchResults - scannerId = " + scannerId);
-            if (mBatchScanParams.fullScanscannerId != -1) {
+            if (mBatchScanParams.mFullScanscannerId != -1) {
                 resetCountDownLatch();
                 mNativeInterface.gattClientReadScanReports(
-                        mBatchScanParams.fullScanscannerId, SCAN_RESULT_TYPE_FULL);
+                        mBatchScanParams.mFullScanscannerId, SCAN_RESULT_TYPE_FULL);
                 waitForCallback();
             }
-            if (mBatchScanParams.truncatedScanscannerId != -1) {
+            if (mBatchScanParams.mTruncatedScanscannerId != -1) {
                 resetCountDownLatch();
                 mNativeInterface.gattClientReadScanReports(
-                        mBatchScanParams.truncatedScanscannerId, SCAN_RESULT_TYPE_TRUNCATED);
+                        mBatchScanParams.mTruncatedScanscannerId, SCAN_RESULT_TYPE_TRUNCATED);
                 waitForCallback();
             }
             setBatchAlarm();
@@ -1662,13 +1673,13 @@ public class ScanManager {
 
         /** Return batch scan result type value defined in bt stack. */
         private int getResultType(BatchScanParams params) {
-            if (params.fullScanscannerId != -1 && params.truncatedScanscannerId != -1) {
+            if (params.mFullScanscannerId != -1 && params.mTruncatedScanscannerId != -1) {
                 return SCAN_RESULT_TYPE_BOTH;
             }
-            if (params.truncatedScanscannerId != -1) {
+            if (params.mTruncatedScanscannerId != -1) {
                 return SCAN_RESULT_TYPE_TRUNCATED;
             }
-            if (params.fullScanscannerId != -1) {
+            if (params.mFullScanscannerId != -1) {
                 return SCAN_RESULT_TYPE_FULL;
             }
             return -1;
