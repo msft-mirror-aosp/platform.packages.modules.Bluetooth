@@ -21,8 +21,8 @@
  *  This is the private interface file for the BTA device manager.
  *
  ******************************************************************************/
-#ifndef BTA_DM_INT_H
-#define BTA_DM_INT_H
+
+#pragma once
 
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
@@ -323,6 +323,9 @@ extern tBTA_DM_ACL_CB bta_dm_acl_cb;
 /* DI control block */
 extern tBTA_DM_DI_CB bta_dm_di_cb;
 
+void BTA_dm_on_hw_on();
+void BTA_dm_on_hw_off();
+
 void bta_dm_enable(tBTA_DM_SEC_CBACK*, tBTA_DM_ACL_CBACK*);
 void bta_dm_disable();
 void bta_dm_set_dev_name(const std::vector<uint8_t>&);
@@ -361,10 +364,19 @@ void bta_dm_eir_update_cust_uuid(const tBTA_CUSTOM_UUID& curr, bool adding);
 void bta_dm_ble_subrate_request(const RawAddress& bd_addr, uint16_t subrate_min,
                                 uint16_t subrate_max, uint16_t max_latency, uint16_t cont_num,
                                 uint16_t timeout);
+tBTM_CONTRL_STATE bta_dm_pm_obtain_controller_state(void);
 
 namespace std {
 template <>
 struct formatter<tBTA_DM_CONN_STATE> : enum_formatter<tBTA_DM_CONN_STATE> {};
 }  // namespace std
 
-#endif /* BTA_DM_INT_H */
+namespace bluetooth::legacy::testing {
+
+tBTA_DM_PEER_DEVICE* allocate_device_for(const RawAddress& bd_addr, tBT_TRANSPORT transport);
+void bta_dm_acl_up(const RawAddress& bd_addr, tBT_TRANSPORT transport, uint16_t acl_handle);
+void bta_dm_acl_down(const RawAddress& bd_addr, tBT_TRANSPORT transport);
+void bta_dm_init_cb();
+void bta_dm_deinit_cb();
+
+}  // namespace bluetooth::legacy::testing

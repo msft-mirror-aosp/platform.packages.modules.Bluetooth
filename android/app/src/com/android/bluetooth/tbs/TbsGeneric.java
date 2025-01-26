@@ -17,6 +17,8 @@
 
 package com.android.bluetooth.tbs;
 
+import static java.util.Objects.requireNonNull;
+
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothLeAudio;
 import android.bluetooth.BluetoothLeCall;
@@ -50,8 +52,7 @@ import java.util.UUID;
 
 /** Container class to store TBS instances */
 public class TbsGeneric {
-
-    private static final String TAG = "TbsGeneric";
+    private static final String TAG = TbsGeneric.class.getSimpleName();
 
     private static final String UCI = "GTBS";
     private static final String DEFAULT_PROVIDER_NAME = "none";
@@ -121,17 +122,20 @@ public class TbsGeneric {
         }
     }
 
-    private boolean mIsInitialized = false;
-    private TbsGatt mTbsGatt = null;
-    private List<Bearer> mBearerList = new ArrayList<>();
+    private final List<Bearer> mBearerList = new ArrayList<>();
+    private final Map<Integer, TbsCall> mCurrentCallsList = new TreeMap<>();
+    private final Receiver mReceiver = new Receiver();
+    private final ServiceFactory mFactory = new ServiceFactory();
+
+    private final TbsGatt mTbsGatt;
+    private final Context mContext;
+
+    private boolean mIsInitialized;
     private int mLastIndexAssigned = TbsCall.INDEX_UNASSIGNED;
-    private Map<Integer, TbsCall> mCurrentCallsList = new TreeMap<>();
     private Bearer mForegroundBearer = null;
     private int mLastRequestIdAssigned = 0;
     private List<String> mUriSchemes = new ArrayList<>(Arrays.asList("tel"));
-    private Receiver mReceiver = null;
     private int mStoredRingerMode = -1;
-    private final ServiceFactory mFactory = new ServiceFactory();
     private LeAudioService mLeAudioService;
 
     private final class Receiver extends BroadcastReceiver {
@@ -162,9 +166,9 @@ public class TbsGeneric {
     }
     ;
 
-    public synchronized boolean init(TbsGatt tbsGatt) {
-        Log.d(TAG, "init");
-        mTbsGatt = tbsGatt;
+    TbsGeneric(Context ctx, TbsGatt tbsGatt) {
+        mTbsGatt = requireNonNull(tbsGatt);
+        mContext = requireNonNull(ctx);
 
         int ccid =
                 ContentControlIdKeeper.acquireCcid(
@@ -173,7 +177,7 @@ public class TbsGeneric {
         if (!isCcidValid(ccid)) {
             Log.e(TAG, " CCID is not valid");
             cleanup();
-            return false;
+            return;
         }
 
         if (!mTbsGatt.init(
@@ -187,15 +191,10 @@ public class TbsGeneric {
                 mTbsGattCallback)) {
             Log.e(TAG, " TbsGatt init failed");
             cleanup();
-            return false;
+            return;
         }
 
-        AudioManager audioManager = mTbsGatt.getContext().getSystemService(AudioManager.class);
-        if (audioManager == null) {
-            Log.w(TAG, " AudioManager is not available");
-            cleanup();
-            return false;
-        }
+        AudioManager audioManager = requireNonNull(mContext.getSystemService(AudioManager.class));
 
         // read initial value of ringer mode
         mStoredRingerMode = audioManager.getRingerMode();
@@ -206,25 +205,20 @@ public class TbsGeneric {
             mTbsGatt.clearSilentModeFlag();
         }
 
-        mReceiver = new Receiver();
         IntentFilter filter = new IntentFilter(AudioManager.RINGER_MODE_CHANGED_ACTION);
         filter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
-        mTbsGatt.getContext().registerReceiver(mReceiver, filter);
+        mContext.registerReceiver(mReceiver, filter);
 
         mIsInitialized = true;
-        return true;
     }
 
     public synchronized void cleanup() {
         Log.d(TAG, "cleanup");
 
-        if (mTbsGatt != null) {
-            if (mReceiver != null) {
-                mTbsGatt.getContext().unregisterReceiver(mReceiver);
-            }
-            mTbsGatt.cleanup();
-            mTbsGatt = null;
+        if (mIsInitialized) {
+            mContext.unregisterReceiver(mReceiver);
         }
+        mTbsGatt.cleanup();
 
         mIsInitialized = false;
     }
@@ -236,9 +230,7 @@ public class TbsGeneric {
      */
     public synchronized void onDeviceAuthorizationSet(BluetoothDevice device) {
         // Notify TBS GATT service instance in case of pending operations
-        if (mTbsGatt != null) {
-            mTbsGatt.onDeviceAuthorizationSet(device);
-        }
+        mTbsGatt.onDeviceAuthorizationSet(device);
     }
 
     /**
@@ -247,10 +239,6 @@ public class TbsGeneric {
      * @param device device for which inband ringtone has been set
      */
     public synchronized void setInbandRingtoneSupport(BluetoothDevice device) {
-        if (mTbsGatt == null) {
-            Log.w(TAG, "setInbandRingtoneSupport, mTbsGatt is null");
-            return;
-        }
         mTbsGatt.setInbandRingtoneFlag(device);
     }
 
@@ -260,10 +248,6 @@ public class TbsGeneric {
      * @param device device for which inband ringtone has been cleared
      */
     public synchronized void clearInbandRingtoneSupport(BluetoothDevice device) {
-        if (mTbsGatt == null) {
-            Log.w(TAG, "setInbandRingtoneSupport, mTbsGatt is null");
-            return;
-        }
         mTbsGatt.clearInbandRingtoneFlag(device);
     }
 
@@ -767,7 +751,7 @@ public class TbsGeneric {
             Log.i(TAG, "originate uri=" + uri);
             Intent intent = new Intent(Intent.ACTION_CALL_PRIVILEGED, Uri.parse(uri));
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            mTbsGatt.getContext().startActivity(intent);
+            mContext.startActivity(intent);
             mTbsGatt.setCallControlPointResult(
                     device,
                     TbsGatt.CALL_CONTROL_POINT_OPCODE_ORIGINATE,

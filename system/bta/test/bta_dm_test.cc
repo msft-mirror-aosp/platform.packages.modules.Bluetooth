@@ -25,8 +25,10 @@
 #include <format>
 #include <string>
 
+#include "bta/dm/bta_dm_device_search.h"
 #include "bta/dm/bta_dm_device_search_int.h"
 #include "bta/dm/bta_dm_disc.h"
+#include "bta/dm/bta_dm_disc_int.h"
 #include "bta/dm/bta_dm_int.h"
 #include "bta/dm/bta_dm_pm.cc"
 #include "bta/dm/bta_dm_sec_int.h"
@@ -58,15 +60,6 @@ const RawAddress kRawAddress2({0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc});
 constexpr char kRemoteName[] = "TheRemoteName";
 
 }  // namespace
-
-namespace bluetooth::legacy::testing {
-
-tBTA_DM_SEARCH_CB& bta_dm_disc_search_cb();
-void bta_dm_deinit_cb();
-void bta_dm_init_cb();
-void bta_dm_remote_name_cmpl(const tBTA_DM_REMOTE_NAME& remote_name_msg);
-
-}  // namespace bluetooth::legacy::testing
 
 class BtaDmTest : public BtaWithContextTest {
 protected:
@@ -193,23 +186,6 @@ void BTA_DM_ENCRYPT_CBACK(const RawAddress& bd_addr, tBT_TRANSPORT transport, tB
 
 }  // namespace
 
-namespace bluetooth {
-namespace legacy {
-namespace testing {
-tBTA_DM_PEER_DEVICE* allocate_device_for(const RawAddress& bd_addr, tBT_TRANSPORT transport);
-
-void bta_dm_remname_cback(const tBTM_REMOTE_DEV_NAME* p);
-
-tBT_TRANSPORT bta_dm_determine_discovery_transport(const RawAddress& remote_bd_addr);
-
-tBTM_STATUS bta_dm_sp_cback(tBTM_SP_EVT event, tBTM_SP_EVT_DATA* p_data);
-
-void BTA_dm_on_hw_on();
-
-}  // namespace testing
-}  // namespace legacy
-}  // namespace bluetooth
-
 TEST_F(BtaDmTest, bta_dm_set_encryption) {
   const tBT_TRANSPORT transport{BT_TRANSPORT_LE};
   const tBTM_BLE_SEC_ACT sec_act{BTM_BLE_SEC_NONE};
@@ -267,9 +243,6 @@ TEST_F(BtaDmTest, bta_dm_set_encryption) {
 
   BTA_DM_ENCRYPT_CBACK_queue = {};
 }
-
-void bta_dm_encrypt_cback(RawAddress bd_addr, tBT_TRANSPORT transport, void* /* p_ref_data */,
-                          tBTM_STATUS result);
 
 TEST_F(BtaDmTest, bta_dm_encrypt_cback) {
   const tBT_TRANSPORT transport{BT_TRANSPORT_LE};
@@ -481,13 +454,13 @@ TEST_F(BtaDmCustomAlarmTest, sniff_offload_feature__test_sysprop) {
   // Expect not to trigger bta_dm_init_pm due to sysprop enabled
   // and reset the value of .srvc_id.
   is_property_enabled = true;
-  bluetooth::legacy::testing::BTA_dm_on_hw_on();
+  BTA_dm_on_hw_on();
   ASSERT_EQ(0, bta_dm_cb.pm_timer[0].srvc_id[0]);
 
   // Expect to trigger bta_dm_init_pm and init the value of .srvc_id to
   // BTA_ID_MAX due to sysprop disabled.
   is_property_enabled = false;
-  bluetooth::legacy::testing::BTA_dm_on_hw_on();
+  BTA_dm_on_hw_on();
   ASSERT_EQ((uint8_t)BTA_ID_MAX, bta_dm_cb.pm_timer[0].srvc_id[0]);
 
   // Shouldn't crash even there's no active timer when calling
