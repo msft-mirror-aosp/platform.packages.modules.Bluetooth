@@ -511,7 +511,7 @@ static void bta_dm_gatt_disc_complete(tCONN_ID conn_id, tGATT_STATUS status) {
   log::verbose("conn_id = {}, status = {}, sdp_pending = {}, le_pending = {}", conn_id, status,
                sdp_pending, le_pending);
 
-  if (com::android::bluetooth::flags::bta_dm_discover_both() && sdp_pending && !le_pending) {
+  if (sdp_pending && !le_pending) {
     /* LE Service discovery finished, and services were reported, but SDP is not
      * finished yet. gatt_close_timer closed the connection, and we received
      * this callback because of disconnection */
@@ -784,8 +784,7 @@ static void bta_dm_disc_sm_execute(tBTA_DM_DISC_EVT event, std::unique_ptr<tBTA_
                            "bad message type: {}", msg->index());
 
           auto req = std::get<tBTA_DM_API_DISCOVER>(*msg);
-          if (com::android::bluetooth::flags::bta_dm_discover_both() &&
-              is_same_device(req.bd_addr, bta_dm_discovery_cb.peer_bdaddr)) {
+          if (is_same_device(req.bd_addr, bta_dm_discovery_cb.peer_bdaddr)) {
             bta_dm_discover_services(std::get<tBTA_DM_API_DISCOVER>(*msg));
           } else {
             bta_dm_queue_disc(std::get<tBTA_DM_API_DISCOVER>(*msg));

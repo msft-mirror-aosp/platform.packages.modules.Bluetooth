@@ -9,13 +9,6 @@ flag {
 }
 
 flag {
-    name: "bta_dm_discover_both"
-    namespace: "bluetooth"
-    description: "perform both LE and Classic service discovery simulteanously on capable devices"
-    bug: "339217881"
-}
-
-flag {
     name: "cancel_open_discovery_client"
     namespace: "bluetooth"
     description: "Cancel connection from discovery client correctly"
