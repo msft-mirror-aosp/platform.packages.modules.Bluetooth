@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.gatt;
 
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -54,6 +56,13 @@ public class AdvertiseBinderTest {
 
     @Before
     public void setUp() {
+        doAnswer(
+                        invocation -> {
+                            ((Runnable) invocation.getArgument(0)).run();
+                            return null;
+                        })
+                .when(mAdvertiseManager)
+                .doOnAdvertiseThread(any());
         mBinder = new AdvertiseBinder(mAdapterService, mAdvertiseManager);
     }
 
