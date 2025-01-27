@@ -724,20 +724,23 @@ public final class BluetoothA2dp implements BluetoothProfile {
     /**
      * Gets the current codec status (configuration and capability).
      *
+     * <p>This method requires the calling app to have the {@link
+     * android.Manifest.permission#BLUETOOTH_CONNECT} permission. Additionally, an app must either
+     * have the {@link android.Manifest.permission#BLUETOOTH_PRIVILEGED} or be associated with the
+     * Companion Device manager (see {@link android.companion.CompanionDeviceManager#associate(
+     * AssociationRequest, android.companion.CompanionDeviceManager.Callback, Handler)})
+     *
      * @param device the remote Bluetooth device.
      * @return the current codec status
      * @hide
      */
     @SystemApi
-    @Nullable
     @RequiresLegacyBluetoothPermission
     @RequiresBluetoothConnectPermission
     @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
-    public BluetoothCodecStatus getCodecStatus(@NonNull BluetoothDevice device) {
+            allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED},
+            conditional = true)
+    public @Nullable BluetoothCodecStatus getCodecStatus(@NonNull BluetoothDevice device) {
         if (DBG) Log.d(TAG, "getCodecStatus(" + device + ")");
         verifyDeviceNotNull(device, "getCodecStatus");
         final IBluetoothA2dp service = getService();
