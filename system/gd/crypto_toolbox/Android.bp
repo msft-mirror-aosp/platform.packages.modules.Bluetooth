@@ -19,7 +19,7 @@ cc_library {
     name: "libbluetooth_crypto_toolbox",
     defaults: ["fluoride_defaults"],
     host_supported: true,
-    apex_available: ["com.android.btservices"],
+    apex_available: ["com.android.bt"],
     min_sdk_version: "29",
     include_dirs: [
         "packages/modules/Bluetooth/system/gd",

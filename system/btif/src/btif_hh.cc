@@ -937,11 +937,10 @@ void btif_hh_disconnected(const RawAddress& addr, tBT_TRANSPORT transport) {
   if (p_dev == nullptr) {
     return;
   }
-  if (com::android::bluetooth::flags::allow_switching_hid_and_hogp()) {
-    btif_hh_added_device_t* added_dev = btif_hh_find_added_dev(link_spec);
-    if (added_dev == nullptr || !added_dev->reconnect_allowed) {
-      return;
-    }
+
+  btif_hh_added_device_t* added_dev = btif_hh_find_added_dev(link_spec);
+  if (added_dev == nullptr || !added_dev->reconnect_allowed) {
+    return;
   }
 
   log::debug("Rearm HoGP reconnection for {}", addr);

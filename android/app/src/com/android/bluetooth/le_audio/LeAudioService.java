@@ -142,6 +142,9 @@ public class LeAudioService extends ProfileService {
     /** Indicates group is active */
     private static final int ACTIVE_STATE_ACTIVE = 0x02;
 
+    /** Filter for Targeted Announcements */
+    static final byte[] CAP_TARGETED_ANNOUNCEMENT_PAYLOAD = new byte[] {0x01};
+
     /** This is used by application read-only for checking the fallback active group id. */
     public static final String BLUETOOTH_LE_BROADCAST_FALLBACK_ACTIVE_GROUP_ID =
             "bluetooth_le_broadcast_fallback_active_group_id";
@@ -255,6 +258,7 @@ public class LeAudioService extends ProfileService {
             mInputSelectableConfig = new ArrayList<>();
             mOutputSelectableConfig = new ArrayList<>();
             mInactivatedDueToContextType = false;
+            mAutoActiveModeEnabled = true;
         }
 
         Integer mGroupId;
@@ -270,6 +274,7 @@ public class LeAudioService extends ProfileService {
         List<BluetoothLeAudioCodecConfig> mInputSelectableConfig;
         List<BluetoothLeAudioCodecConfig> mOutputSelectableConfig;
         Boolean mInactivatedDueToContextType;
+        Boolean mAutoActiveModeEnabled;
 
         private Integer mActiveState;
         private Integer mAllowedSinkContexts;
@@ -816,7 +821,7 @@ public class LeAudioService extends ProfileService {
     }
 
     @VisibleForTesting
-    static synchronized void setLeAudioService(LeAudioService instance) {
+    public static synchronized void setLeAudioService(LeAudioService instance) {
         Log.d(TAG, "setLeAudioService(): set to: " + instance);
         sLeAudioService = instance;
     }
@@ -1987,10 +1992,35 @@ public class LeAudioService extends ProfileService {
         mExposedActiveDevice = device;
     }
 
+    boolean isAnyGroupDisabledFromAutoActiveMode() {
+        mGroupReadLock.lock();
+        try {
+            for (Map.Entry<Integer, LeAudioGroupDescriptor> groupEntry :
+                    mGroupDescriptorsView.entrySet()) {
+                LeAudioGroupDescriptor groupDescriptor = groupEntry.getValue();
+                if (!groupDescriptor.mAutoActiveModeEnabled) {
+                    Log.d(
+                            TAG,
+                            "isAnyGroupDisabledFromAutoActiveMode: disabled groupId "
+                                    + groupEntry.getKey());
+                    return true;
+                }
+            }
+        } finally {
+            mGroupReadLock.unlock();
+        }
+        return false;
+    }
+
     boolean isScannerNeeded() {
         if (mDeviceDescriptors.isEmpty() || !mBluetoothEnabled) {
             Log.d(TAG, "isScannerNeeded: false, mBluetoothEnabled: " + mBluetoothEnabled);
             return false;
+        }
+
+        if (isAnyGroupDisabledFromAutoActiveMode()) {
+            Log.d(TAG, "isScannerNeeded true, some group has disabled Auto Active Mode");
+            return true;
         }
 
         if (allLeAudioDevicesConnected()) {
@@ -2027,66 +2057,92 @@ public class LeAudioService extends ProfileService {
 
     private class AudioServerScanCallback extends IScannerCallback.Stub {
         // See BluetoothLeScanner.BleScanCallbackWrapper.mScannerId
-        int mScannerId = 0;
+        static final int SCANNER_NOT_INITIALIZED = -2;
+        static final int SCANNER_INITIALIZING = -1;
+        int mScannerId = SCANNER_NOT_INITIALIZED;
 
         synchronized void startBackgroundScan() {
-            if (mScannerId != 0) {
-                Log.d(TAG, "Scanner is already registered with id " + mScannerId);
+            if (mScannerId >= 0) {
+                Log.i(
+                        TAG,
+                        "startBackgroundScan: Scanner is already registered with id " + mScannerId);
                 return;
             }
+
+            if (mScannerId == SCANNER_INITIALIZING) {
+                Log.i(TAG, "startBackgroundScan: Scanner is already initializing");
+                return;
+            }
+
+            mScannerId = SCANNER_INITIALIZING;
+
             mAdapterService
                     .getBluetoothScanController()
-                    .getTransitionalScanHelper()
                     .registerScannerInternal(this, getAttributionSource(), null);
         }
 
         synchronized void stopBackgroundScan() {
-            if (mScannerId == 0) {
-                Log.d(TAG, "Scanner is already unregistered");
+            if (mScannerId < 0) {
+                Log.d(TAG, "Scanner is not running (mScannerId=" + mScannerId + ")");
                 return;
             }
             mAdapterService
                     .getBluetoothScanController()
-                    .getTransitionalScanHelper()
                     .stopScanInternal(mScannerId);
 
-            mAdapterService
-                    .getBluetoothScanController()
-                    .getTransitionalScanHelper()
-                    .unregisterScannerInternal(mScannerId);
-            mScannerId = 0;
+            mAdapterService.getBluetoothScanController().unregisterScannerInternal(mScannerId);
+            mScannerId = SCANNER_NOT_INITIALIZED;
         }
 
         @Override
         public synchronized void onScannerRegistered(int status, int scannerId) {
+            Log.d(TAG, "onScannerRegistered: status: " + status + ", id:" + scannerId);
+            if (status != 0) {
+                mScannerId = SCANNER_NOT_INITIALIZED;
+                return;
+            }
             mScannerId = scannerId;
 
-            /* Filter we are building here will not match to anything.
-             * Eventually we should be able to start scan from native when
-             * b/276350722 is done
-             */
             ScanFilter filter =
                     new ScanFilter.Builder()
-                            .setServiceData(BluetoothUuid.LE_AUDIO, new byte[] {0x11})
+                            .setServiceData(BluetoothUuid.CAP, CAP_TARGETED_ANNOUNCEMENT_PAYLOAD)
                             .build();
 
             ScanSettings settings =
                     new ScanSettings.Builder()
                             .setLegacy(false)
+                            .setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES)
                             .setScanMode(ScanSettings.SCAN_MODE_BALANCED)
                             .setPhy(BluetoothDevice.PHY_LE_1M)
                             .build();
 
             mAdapterService
                     .getBluetoothScanController()
-                    .getTransitionalScanHelper()
                     .startScanInternal(scannerId, settings, List.of(filter));
         }
 
-        // Eventually we should be able to start scan from native when b/276350722 is done
-        // All the result returned here are ignored
         @Override
-        public void onScanResult(ScanResult scanResult) {}
+        public void onScanResult(ScanResult scanResult) {
+            Log.d(TAG, "onScanResult: " + scanResult.getDevice());
+            BluetoothDevice device = scanResult.getDevice();
+            if (device == null) {
+                return;
+            }
+
+            int groupId = getGroupId(device);
+            LeAudioGroupDescriptor descriptor = getGroupDescriptor(groupId);
+            if (descriptor == null) {
+                return;
+            }
+
+            if (!descriptor.mAutoActiveModeEnabled) {
+                Log.i(TAG, "onScanResult: GroupId: " + groupId + " is getting Active");
+                descriptor.mAutoActiveModeEnabled = true;
+                if (!getConnectedPeerDevices(groupId).isEmpty()) {
+                    setActiveDevice(device);
+                }
+            }
+        }
 
         @Override
         public void onBatchScanResults(List<ScanResult> batchResults) {}
@@ -2385,6 +2441,25 @@ public class LeAudioService extends ProfileService {
         }
     }
 
+    private void clearAutoActiveModeToDefault() {
+        mGroupReadLock.lock();
+        try {
+            for (Map.Entry<Integer, LeAudioGroupDescriptor> groupEntry :
+                    mGroupDescriptorsView.entrySet()) {
+                LeAudioGroupDescriptor groupDescriptor = groupEntry.getValue();
+                if (!groupDescriptor.mAutoActiveModeEnabled) {
+                    Log.d(
+                            TAG,
+                            "mAutoActiveModeEnabled back to default for groupId: "
+                                    + groupEntry.getKey());
+                    groupDescriptor.mAutoActiveModeEnabled = true;
+                }
+            }
+        } finally {
+            mGroupReadLock.unlock();
+        }
+    }
+
     /**
      * Set the active device group.
      *
@@ -2402,6 +2477,9 @@ public class LeAudioService extends ProfileService {
             }
 
             groupId = descriptor.mGroupId;
+
+            /* User force device being active, clear the flag */
+            clearAutoActiveModeToDefault();
 
             if (!isGroupAvailableForStream(groupId)) {
                 Log.e(
@@ -2429,11 +2507,10 @@ public class LeAudioService extends ProfileService {
                         + ", mExposedActiveDevice: "
                         + mExposedActiveDevice);
 
-        if (!Flags.leaudioBroadcastPrimaryGroupSelection()
-                && isBroadcastActive()
-                && currentlyActiveGroupId == LE_AUDIO_GROUP_ID_INVALID
-                && mUnicastGroupIdDeactivatedForBroadcastTransition != LE_AUDIO_GROUP_ID_INVALID) {
-
+        /* Replace fallback unicast and monitoring input device if device is active local
+         * broadcaster.
+         */
+        if (isAnyBroadcastInStreamingState()) {
             LeAudioGroupDescriptor fallbackGroupDescriptor = getGroupDescriptor(groupId);
 
             // If broadcast is ongoing and need to update unicast fallback active group
@@ -2939,7 +3016,7 @@ public class LeAudioService extends ProfileService {
             return false;
         }
 
-        return bassClientService.isAnyReceiverReceivingBroadcast(getGroupDevices(groupId));
+        return bassClientService.isAnyReceiverActive(getGroupDevices(groupId));
     }
 
     private void notifyGroupStreamStatusChanged(int groupId, int groupStreamStatus) {
@@ -3112,12 +3189,16 @@ public class LeAudioService extends ProfileService {
         }
     }
 
+    private boolean isAnyBroadcastInStreamingState() {
+        return mBroadcastDescriptors.values().stream()
+                .anyMatch(d -> d.mState.equals(LeAudioStackEvent.BROADCAST_STATE_STREAMING));
+    }
+
     void transitionFromBroadcastToUnicast() {
         if (mUnicastGroupIdDeactivatedForBroadcastTransition == LE_AUDIO_GROUP_ID_INVALID) {
             Log.d(TAG, "No deactivated group due for broadcast transmission");
             // Notify audio manager
-            if (mBroadcastDescriptors.values().stream()
-                    .noneMatch(d -> d.mState.equals(LeAudioStackEvent.BROADCAST_STATE_STREAMING))) {
+            if (!isAnyBroadcastInStreamingState()) {
                 updateBroadcastActiveDevice(null, mActiveBroadcastAudioDevice, false);
             }
             return;
@@ -3883,11 +3964,7 @@ public class LeAudioService extends ProfileService {
                     }
 
                     // Notify audio manager
-                    if (mBroadcastDescriptors.values().stream()
-                            .anyMatch(
-                                    d ->
-                                            d.mState.equals(
-                                                    LeAudioStackEvent.BROADCAST_STATE_STREAMING))) {
+                    if (isAnyBroadcastInStreamingState()) {
                         if (!Objects.equals(device, mActiveBroadcastAudioDevice)) {
                             updateBroadcastActiveDevice(device, mActiveBroadcastAudioDevice, true);
                         }
@@ -4024,11 +4101,6 @@ public class LeAudioService extends ProfileService {
             if (descriptor == null) {
                 Log.e(TAG, "bondStateChanged: No valid descriptor for device: " + device);
                 return;
-            }
-
-            if (descriptor.mGroupId != LE_AUDIO_GROUP_ID_INVALID) {
-                /* In case device is still in the group, let's remove it */
-                mNativeInterface.groupRemoveNode(descriptor.mGroupId, device);
             }
 
             descriptor.mGroupId = LE_AUDIO_GROUP_ID_INVALID;
@@ -4181,6 +4253,7 @@ public class LeAudioService extends ProfileService {
 
             if (getConnectedPeerDevices(groupId).isEmpty()) {
                 descriptor.mIsConnected = false;
+                descriptor.mAutoActiveModeEnabled = true;
                 descriptor.mAvailableContexts = Flags.leaudioUnicastNoAvailableContexts() ? null : 0;
                 if (descriptor.isActive()) {
                     /* Notify Native layer */
@@ -4523,6 +4596,91 @@ public class LeAudioService extends ProfileService {
     }
 
     /**
+     * Set auto active mode state.
+     *
+     * <p>Auto Active Mode by default is set to true and it means, that after ACL connection is
+     * created to LeAudio device which is part of the group, can be connected to Audio Framework
+     * (set as Active).
+     *
+     * <p>If Auto Active Mode is set to false, it means that after LeAudio device is connected for
+     * given group, the function isGroupAvailableForStream(groupId) will return false and
+     * ActiveDeviceManager will not make this group active.
+     *
+     * <p>This mode can change internally when two things happen: 1. LeAudioService detects Targeted
+     * Announcements from the device which belongs to the group.
+     * 2. @BluetoothLeAudio.setActiveDevice() is called with a device which belongs to the group.
+     *
+     * <p>Note: Auto Active Mode can be disabled only when all devices from the group are
+     * disconnected.
+     *
+     * @param groupId LeAudio group id which Auto Active Mode should be changed.
+     * @param enabled true when Auto Active Mode should be enabled (default value), false otherwise.
+     * @return true when Auto Active Mode is set, false otherwise
+     */
+    public boolean setAutoActiveModeState(int groupId, boolean enabled) {
+        Log.d(TAG, "setAutoActiveModeState: groupId: " + groupId + " enabled: " + enabled);
+
+        mGroupReadLock.lock();
+        try {
+            LeAudioGroupDescriptor descriptor = getGroupDescriptor(groupId);
+            if (descriptor == null) {
+                Log.i(
+                        TAG,
+                        "setAutoActiveModeState: groupId: "
+                                + groupId
+                                + " is not known LeAudio group");
+                return false;
+            }
+
+            /* Disabling Auto Active Mode is allowed only when all the devices from the group
+             * are disconnected */
+            if (!enabled && descriptor.mIsConnected) {
+                Log.i(
+                        TAG,
+                        "setAutoActiveModeState: GroupId: " + groupId + " is already connected ");
+                return false;
+            }
+
+            Log.i(TAG, "setAutoActiveModeState: groupId: " + groupId + ", enabled: " + enabled);
+            descriptor.mAutoActiveModeEnabled = enabled;
+            return true;
+        } finally {
+            mGroupReadLock.unlock();
+        }
+    }
+
+    /**
+     * Is Auto Active Mode enabled
+     *
+     * @param groupId LeAudio group id which Auto Active Mode should be taken.
+     * @return true when Auto Active Mode is enabled, false otherwise
+     */
+    public boolean isAutoActiveModeEnabled(int groupId) {
+        mGroupReadLock.lock();
+        try {
+            LeAudioGroupDescriptor descriptor = getGroupDescriptor(groupId);
+            if (descriptor == null) {
+                Log.i(
+                        TAG,
+                        "isAutoActiveModeEnabled: groupId: "
+                                + groupId
+                                + " is not known LeAudio group");
+                return false;
+            }
+            Log.i(
+                    TAG,
+                    "isAutoActiveModeEnabled: groupId: "
+                            + groupId
+                            + ", mAutoActiveModeEnabled: "
+                            + descriptor.mAutoActiveModeEnabled);
+            return descriptor.mAutoActiveModeEnabled;
+
+        } finally {
+            mGroupReadLock.unlock();
+        }
+    }
+
+    /**
      * Check if group is available for streaming. If there is no available context types then group
      * is not available for streaming.
      *
@@ -4534,9 +4692,21 @@ public class LeAudioService extends ProfileService {
         try {
             LeAudioGroupDescriptor descriptor = getGroupDescriptor(groupId);
             if (descriptor == null) {
-                Log.e(TAG, "getGroupId: No valid descriptor for groupId: " + groupId);
+                Log.e(
+                        TAG,
+                        "isGroupAvailableForStream: No valid descriptor for groupId: " + groupId);
                 return false;
             }
+
+            if (!descriptor.mAutoActiveModeEnabled) {
+                Log.e(
+                        TAG,
+                        "isGroupAvailableForStream: Auto Active Mode is disabled for groupId: "
+                                + groupId);
+                return false;
+            }
+
+            Log.i(TAG, " descriptor.mAvailableContexts: " + descriptor.mAvailableContexts);
             return descriptor.mAvailableContexts != null && descriptor.mAvailableContexts != 0;
         } finally {
             mGroupReadLock.unlock();
@@ -6048,6 +6218,8 @@ public class LeAudioService extends ProfileService {
                         sb,
                         "mInactivatedDueToContextType: "
                                 + groupDescriptor.mInactivatedDueToContextType);
+                ProfileService.println(
+                        sb, "mAutoActiveModeEnabled: " + groupDescriptor.mAutoActiveModeEnabled);
 
                 for (Map.Entry<BluetoothDevice, LeAudioDeviceDescriptor> deviceEntry :
                         mDeviceDescriptors.entrySet()) {

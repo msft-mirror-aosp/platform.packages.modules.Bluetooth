@@ -646,6 +646,21 @@ void btif_storage_leaudio_update_handles_bin(const RawAddress& addr) {
   }
 }
 
+/** Store GMAP information */
+void btif_storage_leaudio_update_gmap_bin(const RawAddress& addr) {
+  std::vector<uint8_t> gmap;
+
+  if (LeAudioClient::GetGmapForStorage(addr, gmap)) {
+    do_in_jni_thread(Bind(
+            [](const RawAddress& bd_addr, std::vector<uint8_t> gmap) {
+              auto bdstr = bd_addr.ToString();
+              btif_config_set_bin(bdstr, BTIF_STORAGE_KEY_LEAUDIO_GMAP_BIN, gmap.data(),
+                                  gmap.size());
+            },
+            addr, std::move(gmap)));
+  }
+}
+
 /** Store PACs information */
 void btif_storage_leaudio_update_pacs_bin(const RawAddress& addr) {
   std::vector<uint8_t> sink_pacs;
@@ -794,10 +809,16 @@ void btif_storage_load_bonded_leaudio() {
       btif_config_get_bin(name, BTIF_STORAGE_KEY_LEAUDIO_ASES_BIN, ases.data(), &buffer_size);
     }
 
+    buffer_size = btif_config_get_bin_length(name, BTIF_STORAGE_KEY_LEAUDIO_GMAP_BIN);
+    std::vector<uint8_t> gmap(buffer_size);
+    if (buffer_size > 0) {
+      btif_config_get_bin(name, BTIF_STORAGE_KEY_LEAUDIO_GMAP_BIN, gmap.data(), &buffer_size);
+    }
+
     do_in_main_thread(Bind(&LeAudioClient::AddFromStorage, bd_addr, autoconnect,
                            sink_audio_location, source_audio_location, sink_supported_context_type,
                            source_supported_context_type, std::move(handles), std::move(sink_pacs),
-                           std::move(source_pacs), std::move(ases)));
+                           std::move(source_pacs), std::move(ases), std::move(gmap)));
   }
 }
 
@@ -806,6 +827,7 @@ void btif_storage_leaudio_clear_service_data(const RawAddress& address) {
   btif_config_remove(bdstr, BTIF_STORAGE_KEY_LEAUDIO_HANDLES_BIN);
   btif_config_remove(bdstr, BTIF_STORAGE_KEY_LEAUDIO_SINK_PACS_BIN);
   btif_config_remove(bdstr, BTIF_STORAGE_KEY_LEAUDIO_ASES_BIN);
+  btif_config_remove(bdstr, BTIF_STORAGE_KEY_LEAUDIO_GMAP_BIN);
 }
 
 /** Remove the Le Audio device from storage */

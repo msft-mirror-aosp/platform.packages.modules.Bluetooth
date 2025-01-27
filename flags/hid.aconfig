@@ -1,5 +1,5 @@
 package: "com.android.bluetooth.flags"
-container: "com.android.btservices"
+container: "com.android.bt"
 
 flag {
     name: "allow_switching_hid_and_hogp"

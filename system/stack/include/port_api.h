@@ -360,6 +360,19 @@ typedef void(tPORT_MGMT_CALLBACK)(const tPORT_RESULT code, uint16_t port_handle)
 
 /*******************************************************************************
  *
+ * Function         PORT_SetAppUid
+ *
+ * Description      This function configures connection according to the
+ *                  specifications in the tPORT_STATE structure.
+ *
+ * Parameters:      handle     - Handle returned in the RFCOMM_CreateConnection
+ *                  app_uid    - Uid of app that requested the socket
+ *
+ ******************************************************************************/
+[[nodiscard]] int PORT_SetAppUid(uint16_t handle, uint32_t app_uid);
+
+/*******************************************************************************
+ *
  * Function         PORT_SetState
  *
  * Description      This function configures connection according to the

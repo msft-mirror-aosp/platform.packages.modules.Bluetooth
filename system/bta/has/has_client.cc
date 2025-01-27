@@ -138,6 +138,7 @@ public:
   HasClientImpl(bluetooth::has::HasClientCallbacks* callbacks, base::Closure initCb)
       : gatt_if_(0), callbacks_(callbacks) {
     BTA_GATTC_AppRegister(
+            "has",
             [](tBTA_GATTC_EVT event, tBTA_GATTC* p_data) {
               if (instance && p_data) {
                 instance->GattcCallback(event, p_data);
@@ -2014,7 +2015,7 @@ private:
     if (com::android::bluetooth::flags::gatt_queue_cleanup_connected()) {
       BtaGattQueue::Clean(evt.conn_id);
     }
-    if (BTM_SecIsSecurityPending(device->addr)) {
+    if (BTM_SecIsLeSecurityPending(device->addr)) {
       /* if security collision happened, wait for encryption done
        * (BTA_GATTC_ENC_CMPL_CB_EVT)
        */

@@ -19,9 +19,7 @@ cc_library_headers {
         "BluetoothGeneratedPacketsHci_h",
     ],
     host_supported: true,
-    apex_available: [
-        "com.android.btservices",
-    ],
+    apex_available: ["com.android.bt"],
     min_sdk_version: "33",
 }
 
@@ -48,9 +46,7 @@ cc_library_static {
         "//hardware/interfaces/bluetooth/aidl/vts",
         "//packages/modules/Bluetooth/system:__subpackages__",
     ],
-    apex_available: [
-        "com.android.btservices",
-    ],
+    apex_available: ["com.android.bt"],
     min_sdk_version: "33",
 }
 

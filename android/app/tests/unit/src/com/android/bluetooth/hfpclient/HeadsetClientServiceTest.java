@@ -39,8 +39,6 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.media.AudioManager;
 import android.os.BatteryManager;
-import android.platform.test.annotations.EnableFlags;
-import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.filters.MediumTest;
 import androidx.test.runner.AndroidJUnit4;
@@ -49,10 +47,8 @@ import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.RemoteDevices;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
-import com.android.bluetooth.flags.Flags;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -71,7 +67,6 @@ import java.util.concurrent.TimeUnit;
 @RunWith(AndroidJUnit4.class)
 public class HeadsetClientServiceTest {
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
-    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     @Mock private AdapterService mAdapterService;
     @Mock private HeadsetClientStateMachine mStateMachine;
@@ -211,7 +206,6 @@ public class HeadsetClientServiceTest {
      * back HF values and checks if they match AM. This proves that the conversion is symmetric.
      */
     @Test
-    @EnableFlags(Flags.FLAG_HEADSET_CLIENT_AM_HF_VOLUME_SYMMETRIC)
     public void testAmHfVolumeSymmetric_AmLowerRange() {
         int amMin = 1;
         int amMax = 10;
@@ -231,7 +225,7 @@ public class HeadsetClientServiceTest {
 
         for (Map.Entry entry : amToHfMap.entrySet()) {
             // Convert back from collected HF to AM and check if equal the saved AM value
-            Assert.assertEquals(service.hfToAmVol((int) entry.getValue()), entry.getKey());
+            assertThat(service.hfToAmVol((int) entry.getValue())).isEqualTo(entry.getKey());
         }
     }
 
@@ -241,7 +235,6 @@ public class HeadsetClientServiceTest {
      * back AM values and checks if they match HF. This proves that the conversion is symmetric.
      */
     @Test
-    @EnableFlags(Flags.FLAG_HEADSET_CLIENT_AM_HF_VOLUME_SYMMETRIC)
     public void testAmHfVolumeSymmetric_HfLowerRange() {
         int amMin = 1;
         int amMax = 20;
@@ -261,7 +254,7 @@ public class HeadsetClientServiceTest {
 
         for (Map.Entry entry : hfToAmMap.entrySet()) {
             // Convert back from collected AM to HF and check if equal the saved HF value
-            Assert.assertEquals(service.amToHfVol((int) entry.getValue()), entry.getKey());
+            assertThat(service.amToHfVol((int) entry.getValue())).isEqualTo(entry.getKey());
         }
     }
 

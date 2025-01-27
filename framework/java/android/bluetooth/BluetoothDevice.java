@@ -1726,7 +1726,9 @@ public final class BluetoothDevice implements Parcelable, Attributable {
     }
 
     /**
-     * Returns the identity address and identity address type of this BluetoothDevice.
+     * Returns the identity address and identity address type of this BluetoothDevice. An identity
+     * address is a public or static random Bluetooth LE device address that serves as a
+     * unique identifier.
      *
      * @return a {@link BluetoothAddress} containing identity address and identity address type. If
      *     Bluetooth is not enabled or identity address type is not available, it will return a

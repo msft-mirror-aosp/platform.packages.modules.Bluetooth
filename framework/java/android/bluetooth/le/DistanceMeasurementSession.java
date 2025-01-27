@@ -28,7 +28,7 @@ import android.annotation.RequiresPermission;
 import android.annotation.SystemApi;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothStatusCodes;
-import android.bluetooth.IBluetoothGatt;
+import android.bluetooth.IDistanceMeasurement;
 import android.bluetooth.annotations.RequiresBluetoothConnectPermission;
 import android.content.AttributionSource;
 import android.os.ParcelUuid;
@@ -60,7 +60,7 @@ import java.util.concurrent.Executor;
 public final class DistanceMeasurementSession {
     private static final String TAG = "DistanceMeasurementSession";
 
-    private final IBluetoothGatt mGatt;
+    private final IDistanceMeasurement mDistanceMeasurement;
     private final ParcelUuid mUuid;
     private final DistanceMeasurementParams mDistanceMeasurementParams;
     private final Executor mExecutor;
@@ -79,13 +79,13 @@ public final class DistanceMeasurementSession {
 
     /** @hide */
     public DistanceMeasurementSession(
-            IBluetoothGatt gatt,
+            IDistanceMeasurement distanceMeasurement,
             ParcelUuid uuid,
             DistanceMeasurementParams params,
             Executor executor,
             AttributionSource attributionSource,
             Callback callback) {
-        mGatt = requireNonNull(gatt);
+        mDistanceMeasurement = requireNonNull(distanceMeasurement);
         mDistanceMeasurementParams = requireNonNull(params);
         mExecutor = requireNonNull(executor);
         mCallback = requireNonNull(callback);
@@ -104,7 +104,7 @@ public final class DistanceMeasurementSession {
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public @StopSessionReturnValues int stopSession() {
         try {
-            return mGatt.stopDistanceMeasurement(
+            return mDistanceMeasurement.stopDistanceMeasurement(
                     mUuid,
                     mDistanceMeasurementParams.getDevice(),
                     mDistanceMeasurementParams.getMethodId(),

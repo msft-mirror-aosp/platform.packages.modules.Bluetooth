@@ -22,7 +22,6 @@ import android.annotation.SuppressLint;
 
 import androidx.test.runner.AndroidJUnit4;
 
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -63,23 +62,23 @@ public class BipAttachmentFormatTest {
         int expectedSize = (size != null ? Integer.parseInt(size) : -1);
         BipAttachmentFormat attachment =
                 new BipAttachmentFormat(contentType, charset, name, size, created, modified);
-        Assert.assertEquals(contentType, attachment.getContentType());
-        Assert.assertEquals(charset, attachment.getCharset());
-        Assert.assertEquals(name, attachment.getName());
-        Assert.assertEquals(expectedSize, attachment.getSize());
+        assertThat(attachment.getContentType()).isEqualTo(contentType);
+        assertThat(attachment.getCharset()).isEqualTo(charset);
+        assertThat(attachment.getName()).isEqualTo(name);
+        assertThat(attachment.getSize()).isEqualTo(expectedSize);
 
         if (expectedCreated != null) {
-            Assert.assertEquals(expectedCreated, attachment.getCreatedDate().getTime());
-            Assert.assertEquals(isCreatedUtc, attachment.getCreatedDate().isUtc());
+            assertThat(attachment.getCreatedDate().getTime()).isEqualTo(expectedCreated);
+            assertThat(attachment.getCreatedDate().isUtc()).isEqualTo(isCreatedUtc);
         } else {
-            Assert.assertEquals(null, attachment.getCreatedDate());
+            assertThat(attachment.getCreatedDate()).isNull();
         }
 
         if (expectedModified != null) {
-            Assert.assertEquals(expectedModified, attachment.getModifiedDate().getTime());
-            Assert.assertEquals(isModifiedUtc, attachment.getModifiedDate().isUtc());
+            assertThat(attachment.getModifiedDate().getTime()).isEqualTo(expectedModified);
+            assertThat(attachment.getModifiedDate().isUtc()).isEqualTo(isModifiedUtc);
         } else {
-            Assert.assertEquals(null, attachment.getModifiedDate());
+            assertThat(attachment.getModifiedDate()).isNull();
         }
     }
 
@@ -93,23 +92,23 @@ public class BipAttachmentFormatTest {
             Date modified) {
         BipAttachmentFormat attachment =
                 new BipAttachmentFormat(contentType, charset, name, size, created, modified);
-        Assert.assertEquals(contentType, attachment.getContentType());
-        Assert.assertEquals(charset, attachment.getCharset());
-        Assert.assertEquals(name, attachment.getName());
-        Assert.assertEquals(size, attachment.getSize());
+        assertThat(attachment.getContentType()).isEqualTo(contentType);
+        assertThat(attachment.getCharset()).isEqualTo(charset);
+        assertThat(attachment.getName()).isEqualTo(name);
+        assertThat(attachment.getSize()).isEqualTo(size);
 
         if (created != null) {
-            Assert.assertEquals(created, attachment.getCreatedDate().getTime());
+            assertThat(attachment.getCreatedDate().getTime()).isEqualTo(created);
             assertThat(attachment.getCreatedDate().isUtc()).isTrue();
         } else {
-            Assert.assertEquals(null, attachment.getCreatedDate());
+            assertThat(attachment.getCreatedDate()).isNull();
         }
 
         if (modified != null) {
-            Assert.assertEquals(modified, attachment.getModifiedDate().getTime());
+            assertThat(attachment.getModifiedDate().getTime()).isEqualTo(modified);
             assertThat(attachment.getModifiedDate().isUtc()).isTrue();
         } else {
-            Assert.assertEquals(null, attachment.getModifiedDate());
+            assertThat(attachment.getModifiedDate()).isNull();
         }
     }
 
@@ -326,7 +325,7 @@ public class BipAttachmentFormatTest {
                         "2048",
                         "19900101T123456",
                         "19900101T123456");
-        Assert.assertEquals(expected, attachment.toString());
+        assertThat(attachment.toString()).isEqualTo(expected);
 
         // Create by parsing, all fields with utc dates
         attachment =
@@ -337,31 +336,31 @@ public class BipAttachmentFormatTest {
                         "2048",
                         "19900101T123456Z",
                         "19900101T123456Z");
-        Assert.assertEquals(expectedUtc, attachment.toString());
+        assertThat(attachment.toString()).isEqualTo(expectedUtc);
 
         // Create by parsing, no timestamps
         attachment =
                 new BipAttachmentFormat(
                         "text/plain", "ISO-8859-1", "thisisatextfile.txt", "2048", null, null);
-        Assert.assertEquals(expectedNoDates, attachment.toString());
+        assertThat(attachment.toString()).isEqualTo(expectedNoDates);
 
         // Create by parsing, no size, no dates
         attachment =
                 new BipAttachmentFormat(
                         "text/plain", "ISO-8859-1", "thisisatextfile.txt", null, null, null);
-        Assert.assertEquals(expectedNoSizeNoDates, attachment.toString());
+        assertThat(attachment.toString()).isEqualTo(expectedNoSizeNoDates);
 
         // Create by parsing, no charset, no dates
         attachment =
                 new BipAttachmentFormat(
                         "text/plain", null, "thisisatextfile.txt", "2048", null, null);
-        Assert.assertEquals(expectedNoCharsetNoDates, attachment.toString());
+        assertThat(attachment.toString()).isEqualTo(expectedNoCharsetNoDates);
 
         // Create by parsing, content type only
         attachment =
                 new BipAttachmentFormat(
                         "text/plain", null, "thisisatextfile.txt", null, null, null);
-        Assert.assertEquals(expectedRequiredOnly, attachment.toString());
+        assertThat(attachment.toString()).isEqualTo(expectedRequiredOnly);
     }
 
     @Test
@@ -395,30 +394,30 @@ public class BipAttachmentFormatTest {
         BipAttachmentFormat attachment =
                 new BipAttachmentFormat(
                         "text/plain", "ISO-8859-1", "thisisatextfile.txt", 2048, date, date);
-        Assert.assertEquals(expected, attachment.toString());
+        assertThat(attachment.toString()).isEqualTo(expected);
 
         // Create with objects, no dates
         attachment =
                 new BipAttachmentFormat(
                         "text/plain", "ISO-8859-1", "thisisatextfile.txt", 2048, null, null);
-        Assert.assertEquals(expectedNoDates, attachment.toString());
+        assertThat(attachment.toString()).isEqualTo(expectedNoDates);
 
         // Create with objects, no size and no dates
         attachment =
                 new BipAttachmentFormat(
                         "text/plain", "ISO-8859-1", "thisisatextfile.txt", -1, null, null);
-        Assert.assertEquals(expectedNoSizeNoDates, attachment.toString());
+        assertThat(attachment.toString()).isEqualTo(expectedNoSizeNoDates);
 
         // Create with objects, no charset, no dates
         attachment =
                 new BipAttachmentFormat(
                         "text/plain", null, "thisisatextfile.txt", 2048, null, null);
-        Assert.assertEquals(expectedNoCharsetNoDates, attachment.toString());
+        assertThat(attachment.toString()).isEqualTo(expectedNoCharsetNoDates);
 
         // Create with objects, content type only
         attachment =
                 new BipAttachmentFormat("text/plain", null, "thisisatextfile.txt", -1, null, null);
-        Assert.assertEquals(expectedRequiredOnly, attachment.toString());
+        assertThat(attachment.toString()).isEqualTo(expectedRequiredOnly);
     }
 
     @Test

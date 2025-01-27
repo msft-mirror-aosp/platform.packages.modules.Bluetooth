@@ -31,7 +31,6 @@
 #include "bta/ag/bta_ag_int.h"
 #include "bta/include/bta_sec_api.h"
 #include "bta_api.h"
-#include "os/logging/log_adapter.h"
 #include "stack/include/main_thread.h"
 #include "stack/include/port_api.h"
 #include "types/raw_address.h"

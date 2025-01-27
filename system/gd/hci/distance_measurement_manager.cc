@@ -45,6 +45,13 @@ namespace bluetooth {
 namespace hci {
 const ModuleFactory DistanceMeasurementManager::Factory =
         ModuleFactory([]() { return new DistanceMeasurementManager(); });
+// valid azimuth angle degree value is from 0 to 360.
+static constexpr int kInvalidAzimuthAngleDegree = -1;
+// valid altitude angle degree value is from -90 to 90
+static constexpr int kInvalidAltitudeAngleDegree = -91;
+static constexpr double kInvalidDelayedSpreadMeters = -1.0;
+static constexpr int8_t kInvalidConfidenceLevel = -1;
+static constexpr double kInvalidVelocityMetersPerSecond = -1.0;
 static constexpr uint16_t kIllegalConnectionHandle = 0xffff;
 static constexpr uint8_t kTxPowerNotAvailable = 0xfe;
 static constexpr int8_t kRSSIDropOffAt1M = 41;
@@ -283,10 +290,18 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     using namespace std::chrono;
     uint64_t elapsedRealtimeNanos =
             duration_cast<nanoseconds>(steady_clock::now().time_since_epoch()).count();
+    if (is_hal_v2()) {
+      elapsedRealtimeNanos = ranging_result.elapsed_timestamp_nanos_;
+    }
     distance_measurement_callbacks_->OnDistanceMeasurementResult(
             cs_requester_trackers_[connection_handle].address, ranging_result.result_meters_ * 100,
-            0.0, -1, -1, -1, -1, elapsedRealtimeNanos, ranging_result.confidence_level_,
-            DistanceMeasurementMethod::METHOD_CS);
+            ranging_result.error_meters_ * 100, kInvalidAzimuthAngleDegree,
+            kInvalidAzimuthAngleDegree, kInvalidAltitudeAngleDegree, kInvalidAltitudeAngleDegree,
+            elapsedRealtimeNanos, ranging_result.confidence_level_,
+            ranging_result.delay_spread_meters_,
+            static_cast<DistanceMeasurementDetectedAttackLevel>(
+                    ranging_result.detected_attack_level_),
+            ranging_result.velocity_meters_per_second_, DistanceMeasurementMethod::METHOD_CS);
   }
 
   ~impl() {}
@@ -527,7 +542,8 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     }
   }
 
-  void handle_ras_client_disconnected_event(const Address address) {
+  void handle_ras_client_disconnected_event(const Address address,
+                                            const ras::RasDisconnectReason& ras_disconnect_reason) {
     log::info("address:{}", address);
     for (auto it = cs_requester_trackers_.begin(); it != cs_requester_trackers_.end();) {
       if (it->second.address == address) {
@@ -535,8 +551,13 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
           it->second.repeating_alarm->Cancel();
           it->second.repeating_alarm.reset();
         }
-        distance_measurement_callbacks_->OnDistanceMeasurementStopped(
-                address, REASON_NO_LE_CONNECTION, METHOD_CS);
+        DistanceMeasurementErrorCode reason = REASON_NO_LE_CONNECTION;
+        if (ras_disconnect_reason == ras::RasDisconnectReason::SERVER_NOT_AVAILABLE) {
+          reason = REASON_FEATURE_NOT_SUPPORTED_REMOTE;
+        } else if (ras_disconnect_reason == ras::RasDisconnectReason::FATAL_ERROR) {
+          reason = REASON_INTERNAL_ERROR;
+        }
+        distance_measurement_callbacks_->OnDistanceMeasurementStopped(address, reason, METHOD_CS);
         gatt_mtus_.erase(it->first);
         it = cs_requester_trackers_.erase(it);  // erase and get the next iterator
       } else {
@@ -915,9 +936,6 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       req_it->second.remote_support_phase_based_ranging =
               event_view.GetOptionalSubfeaturesSupported().phase_based_ranging_ == 0x01;
       req_it->second.remote_num_antennas_supported_ = event_view.GetNumAntennasSupported();
-      req_it->second.setup_complete = true;
-      log::info("Setup phase complete, connection_handle: {}, address: {}", connection_handle,
-                req_it->second.address);
       req_it->second.retry_counter_for_create_config = 0;
       req_it->second.remote_supported_sw_time_ = event_view.GetTSwTimeSupported();
       send_le_cs_create_config(connection_handle, req_it->second.requesting_config_id);
@@ -1016,6 +1034,10 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     if (!live_tracker->local_start) {
       // reset the responder state, as no other event to set the state.
       live_tracker->state = CsTrackerState::WAIT_FOR_CONFIG_COMPLETE;
+    } else {
+      live_tracker->setup_complete = true;
+      log::info("connection_handle: {}, address: {}, config_id: {}", connection_handle,
+                live_tracker->address, config_id);
     }
 
     live_tracker->used_config_id = config_id;
@@ -2477,8 +2499,11 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     uint64_t elapsedRealtimeNanos =
             duration_cast<nanoseconds>(steady_clock::now().time_since_epoch()).count();
     distance_measurement_callbacks_->OnDistanceMeasurementResult(
-            address, distance * 100, distance * 100, -1, -1, -1, -1, elapsedRealtimeNanos, -1,
-            DistanceMeasurementMethod::METHOD_RSSI);
+            address, distance * 100, distance * 100, kInvalidAzimuthAngleDegree,
+            kInvalidAzimuthAngleDegree, kInvalidAltitudeAngleDegree, kInvalidAltitudeAngleDegree,
+            elapsedRealtimeNanos, kInvalidConfidenceLevel, kInvalidDelayedSpreadMeters,
+            DistanceMeasurementDetectedAttackLevel::NADM_ATTACK_UNKNOWN,
+            kInvalidVelocityMetersPerSecond, DistanceMeasurementMethod::METHOD_RSSI);
   }
 
   std::vector<uint8_t> builder_to_bytes(std::unique_ptr<PacketBuilder<true>> builder) {
@@ -2578,8 +2603,9 @@ void DistanceMeasurementManager::HandleConnIntervalUpdated(const Address& addres
          conn_interval);
 }
 
-void DistanceMeasurementManager::HandleRasClientDisconnectedEvent(const Address& address) {
-  CallOn(pimpl_.get(), &impl::handle_ras_client_disconnected_event, address);
+void DistanceMeasurementManager::HandleRasClientDisconnectedEvent(
+        const Address& address, const ras::RasDisconnectReason& ras_disconnect_reason) {
+  CallOn(pimpl_.get(), &impl::handle_ras_client_disconnected_event, address, ras_disconnect_reason);
 }
 
 void DistanceMeasurementManager::HandleVendorSpecificReply(

@@ -44,6 +44,7 @@ import android.annotation.RequiresPermission;
 import android.annotation.SuppressLint;
 import android.app.BroadcastOptions;
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothClass;
 import android.bluetooth.BluetoothDevice;
 import android.companion.AssociationInfo;
 import android.companion.CompanionDeviceManager;
@@ -72,6 +73,7 @@ import androidx.annotation.VisibleForTesting;
 
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.ProfileService;
+import com.android.bluetooth.btservice.storage.DatabaseManager;
 import com.android.bluetooth.flags.Flags;
 
 import org.xmlpull.v1.XmlPullParser;
@@ -166,6 +168,34 @@ public final class Utils {
     public static void setIsScoManagedByAudioEnabled(boolean enabled) {
         Log.i(TAG, "Updating isScoManagedByAudioEnabled for testing to: " + enabled);
         isScoManagedByAudioEnabled = enabled;
+    }
+
+    /**
+     * Checks CoD and metadata to determine if the device is a watch
+     *
+     * @param service Adapter service
+     * @param device the remote device
+     * @return {@code true} if it's a watch, {@code false} otherwise
+     */
+    public static boolean isWatch(
+            @NonNull AdapterService service, @NonNull BluetoothDevice device) {
+        // Check CoD
+        BluetoothClass deviceClass = new BluetoothClass(service.getRemoteClass(device));
+        if (deviceClass.getDeviceClass() == BluetoothClass.Device.WEARABLE_WRIST_WATCH) {
+            return true;
+        }
+
+        // Check metadata
+        DatabaseManager mDbManager = service.getDatabase();
+        byte[] deviceType = mDbManager.getCustomMeta(device, BluetoothDevice.METADATA_DEVICE_TYPE);
+        if (deviceType == null) {
+            return false;
+        }
+        String deviceTypeStr = new String(deviceType);
+        if (deviceTypeStr.equals(BluetoothDevice.DEVICE_TYPE_WATCH)) {
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -845,10 +875,7 @@ public final class Utils {
             return true;
         }
 
-        Log.e(
-                TAG,
-                "Permission denial: Need ACCESS_COARSE_LOCATION "
-                        + "permission to get scan results");
+        Log.e(TAG, "Need ACCESS_COARSE_LOCATION permission for " + currentAttribution);
         return false;
     }
 
@@ -889,8 +916,8 @@ public final class Utils {
 
         Log.e(
                 TAG,
-                "Permission denial: Need ACCESS_COARSE_LOCATION or ACCESS_FINE_LOCATION"
-                        + "permission to get scan results");
+                "Need ACCESS_COARSE_LOCATION or ACCESS_FINE_LOCATION permission for "
+                        + currentAttribution);
         return false;
     }
 
@@ -920,9 +947,7 @@ public final class Utils {
             return true;
         }
 
-        Log.e(
-                TAG,
-                "Permission denial: Need ACCESS_FINE_LOCATION " + "permission to get scan results");
+        Log.e(TAG, "Need ACCESS_FINE_LOCATION permission for " + currentAttribution);
         return false;
     }
 

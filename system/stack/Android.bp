@@ -24,9 +24,7 @@ cc_library_static {
     shared_libs: [
         "libchrome",
     ],
-    apex_available: [
-        "com.android.btservices",
-    ],
+    apex_available: ["com.android.bt"],
     host_supported: true,
     min_sdk_version: "Tiramisu",
 }
@@ -150,9 +148,7 @@ cc_library_static {
         "libldacBT_abr",
         "libldacBT_enc",
     ],
-    apex_available: [
-        "com.android.btservices",
-    ],
+    apex_available: ["com.android.bt"],
     host_supported: true,
     min_sdk_version: "Tiramisu",
 }
@@ -342,9 +338,7 @@ cc_library_static {
         "libPlatformProperties",
         "libcrypto",
     ],
-    apex_available: [
-        "com.android.btservices",
-    ],
+    apex_available: ["com.android.bt"],
     host_supported: true,
     min_sdk_version: "Tiramisu",
 }
@@ -354,6 +348,10 @@ cc_defaults {
     host_supported: true,
     defaults: [
         "bluetooth_cflags",
+    ],
+    cflags: [
+        "-Wno-missing-prototypes",
+        "-Wno-unused-parameter",
     ],
     include_dirs: [
         "packages/modules/Bluetooth/system",
@@ -1105,6 +1103,7 @@ cc_test {
         ":TestMockRustFfi",
         ":TestMockStackArbiter",
         ":TestMockStackBtm",
+        ":TestMockStackConnMgr",
         ":TestMockStackSdp",
         "gatt/gatt_utils.cc",
         "test/common/mock_eatt.cc",
@@ -1639,6 +1638,7 @@ cc_test {
     ],
     static_libs: [
         "bluetooth_flags_c_lib_for_test",
+        "libaconfig_storage_read_api_cc",
         "libbase",
         "libbluetooth-types",
         "libbluetooth_gd",
@@ -1655,7 +1655,6 @@ cc_test {
         "libprotobuf-cpp-lite",
         "libstatslog_bt",
         "server_configurable_flags",
-        "libaconfig_storage_read_api_cc",
     ],
     target: {
         android: {
@@ -1887,6 +1886,7 @@ cc_test {
         "test/hid/stack_hid_test.cc",
     ],
     static_libs: [
+        "bluetooth_flags_c_lib_for_test",
         "libbase",
         "libbluetooth-types",
         "libbluetooth_crypto_toolbox",
@@ -1905,6 +1905,7 @@ cc_test {
         "libprotobuf-cpp-lite",
     ],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "libcrypto",
     ],
     target: {
@@ -1962,6 +1963,7 @@ cc_test {
     ],
     static_libs: [
         "bluetooth_flags_c_lib_for_test",
+        "libaconfig_storage_read_api_cc",
         "libbase",
         "libbluetooth-types",
         "libbluetooth_gd",
@@ -1977,7 +1979,6 @@ cc_test {
         "liblog",
         "libosi",
         "server_configurable_flags",
-        "libaconfig_storage_read_api_cc",
     ],
     aidl: {
         libs: ["bluetooth_constants"],

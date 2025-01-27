@@ -43,9 +43,6 @@
 #include "stack/include/srvc_api.h"
 #endif
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using bluetooth::Uuid;
 using namespace bluetooth::legacy::stack::sdp;
 using namespace bluetooth;
@@ -361,17 +358,3 @@ void bta_dm_sdp_find_services(tBTA_DM_SDP_STATE* sdp_state) {
   }
   sdp_state->service_index++;
 }
-
-namespace bluetooth {
-namespace legacy {
-namespace testing {
-
-void bta_dm_sdp_find_services(tBTA_DM_SDP_STATE* sdp_state) {
-  ::bta_dm_sdp_find_services(sdp_state);
-}
-
-void store_avrcp_profile_feature(tSDP_DISC_REC* sdp_rec) { ::store_avrcp_profile_feature(sdp_rec); }
-
-}  // namespace testing
-}  // namespace legacy
-}  // namespace bluetooth

@@ -309,4 +309,41 @@ TEST(StorageHelperTest, DeserializeHandles) {
   ASSERT_FALSE(DeserializeHandles(&leAudioDevice, invalidHandlesMagic));
   ASSERT_FALSE(DeserializeHandles(&leAudioDevice, invalidHandles));
 }
+
+TEST(StorageHelperTest, DeserializeGmapV1) {
+  // clang-format off
+  const std::vector<uint8_t> validHandles {
+        0x01,  // V1 Layout Magic
+        0x0e, 0x11,  // Role Handle
+        0x0f, 0x11,  // Feature Handle
+        0x05,  // Role value
+        0x06,  // Feature value
+  };
+  const std::vector<uint8_t> invalidHandlesMagic {
+        0x00,  // Unknown Layout Magic
+        0x0e, 0x11,  // Role Handle
+        0x0f, 0x11,  // Feature Handle
+        0x05,  // Role value
+        0x06,  // Feature value
+  };
+  const std::vector<uint8_t> invalidHandles {
+        0x01,  // V1 Layout Magic
+        0x0e, 0x11,  // Role Handle
+        0x0f, 0x11,  // Feature Handle
+        0x05,  // Role value
+        0x06,  // Feature value
+        0x06,  // corrupted
+  };
+
+  // clang-format on
+  RawAddress test_address0 = GetTestAddress(0);
+  GmapClient gmap(test_address0);
+  ASSERT_TRUE(DeserializeGmap(&gmap, validHandles));
+  std::vector<uint8_t> serialize;
+  ASSERT_TRUE(SerializeGmap(&gmap, serialize));
+  ASSERT_TRUE(serialize == validHandles);
+
+  ASSERT_FALSE(DeserializeGmap(&gmap, invalidHandlesMagic));
+  ASSERT_FALSE(DeserializeGmap(&gmap, invalidHandles));
+}
 }  // namespace bluetooth::le_audio

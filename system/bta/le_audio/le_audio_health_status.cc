@@ -31,7 +31,6 @@
 #include "devices.h"
 #include "hardware/bt_le_audio.h"
 #include "main/shim/metrics_api.h"
-#include "os/logging/log_adapter.h"
 #include "types/raw_address.h"
 
 using bluetooth::common::ToString;

@@ -69,8 +69,8 @@ tGATT_STATUS BTA_GATTC_RegisterForNotifications(tGATT_IF /* client_if */,
   return GATT_SUCCESS;
 }
 void BTA_GATTC_AppDeregister(tGATT_IF /* client_if */) { inc_func_call_count(__func__); }
-void BTA_GATTC_AppRegister(tBTA_GATTC_CBACK* /* p_client_cb */, BtaAppRegisterCallback /* cb */,
-                           bool /* eatt_support */) {
+void BTA_GATTC_AppRegister(const std::string& /* name */, tBTA_GATTC_CBACK* /* p_client_cb */,
+                           BtaAppRegisterCallback /* cb */, bool /* eatt_support */) {
   inc_func_call_count(__func__);
 }
 void BTA_GATTC_CancelOpen(tGATT_IF /* client_if */, const RawAddress& /* remote_bda */,

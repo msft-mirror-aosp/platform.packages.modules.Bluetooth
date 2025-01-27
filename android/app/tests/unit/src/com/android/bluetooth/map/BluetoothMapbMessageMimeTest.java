@@ -105,7 +105,7 @@ public class BluetoothMapbMessageMimeTest {
         assertThat(mMime.getBcc()).isEqualTo(TEST_BCC);
         assertThat(mMime.getReplyTo()).isEqualTo(TEST_REPLY_TO);
 
-        assertThat(mMime.getMimeParts().size()).isEqualTo(1);
+        assertThat(mMime.getMimeParts()).hasSize(1);
     }
 
     @Test

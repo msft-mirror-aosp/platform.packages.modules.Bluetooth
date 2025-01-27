@@ -32,7 +32,6 @@
 #include <cstdint>
 
 #include "internal_include/bt_trace.h"
-#include "os/logging/log_adapter.h"
 #include "osi/include/allocator.h"
 #include "osi/include/mutex.h"
 #include "stack/include/bt_hdr.h"
@@ -143,7 +142,7 @@ int RFCOMM_CreateConnectionWithSecurity(uint16_t uuid, uint8_t scn, bool is_serv
         log::error(
                 "already at opened state {}, RFC_state={}, MCB_state={}, "
                 "bd_addr={}, scn={}, is_server={}, mtu={}, uuid=0x{:x}, dlci={}, p_mcb={}, port={}",
-                static_cast<int>(p_port->state), static_cast<int>(p_port->rfc.state),
+                static_cast<int>(p_port->state), static_cast<int>(p_port->rfc.sm_cb.state),
                 p_port->rfc.p_mcb ? p_port->rfc.p_mcb->state : 0, bd_addr, scn, is_server, mtu,
                 uuid, dlci, std::format_ptr(p_mcb), p_port->handle);
         *p_handle = p_port->handle;
@@ -456,14 +455,14 @@ int PORT_CheckConnection(uint16_t handle, RawAddress* bd_addr, uint16_t* p_lcid)
   }
   log::verbose("handle={}, in_use={}, port_state={}, p_mcb={}, peer_ready={}, rfc_state={}", handle,
                p_port->in_use, p_port->state, std::format_ptr(p_port->rfc.p_mcb),
-               p_port->rfc.p_mcb ? p_port->rfc.p_mcb->peer_ready : -1, p_port->rfc.state);
+               p_port->rfc.p_mcb ? p_port->rfc.p_mcb->peer_ready : -1, p_port->rfc.sm_cb.state);
 
   if (!p_port->in_use || (p_port->state == PORT_CONNECTION_STATE_CLOSED)) {
     return PORT_NOT_OPENED;
   }
 
   if (!p_port->rfc.p_mcb || !p_port->rfc.p_mcb->peer_ready ||
-      (p_port->rfc.state != RFC_STATE_OPENED)) {
+      (p_port->rfc.sm_cb.state != RFC_STATE_OPENED)) {
     return PORT_LINE_ERR;
   }
 
@@ -510,8 +509,8 @@ bool PORT_IsOpening(RawAddress* bd_addr) {
     if (multiplexer_cb.state == RFC_MX_STATE_CONNECTED) {
       const tPORT* p_port = get_port_from_mcb(&multiplexer_cb);
       log::info("RFC_MX_STATE_CONNECTED, found_port={}, tRFC_PORT_STATE={}",
-                (p_port != nullptr) ? "T" : "F", (p_port != nullptr) ? p_port->rfc.state : 0);
-      if ((p_port == nullptr) || (p_port->rfc.state < RFC_STATE_OPENED)) {
+                (p_port != nullptr) ? "T" : "F", (p_port != nullptr) ? p_port->rfc.sm_cb.state : 0);
+      if ((p_port == nullptr) || (p_port->rfc.sm_cb.state < RFC_STATE_OPENED)) {
         /* Port is not established yet. */
         *bd_addr = multiplexer_cb.bd_addr;
         log::info("In RFC_MX_STATE_CONNECTED but port is not established yet, returning true");
@@ -555,8 +554,8 @@ bool PORT_IsCollisionDetected(RawAddress bd_addr) {
     if (multiplexer_cb.state == RFC_MX_STATE_CONNECTED) {
       const tPORT* p_port = get_port_from_mcb(&multiplexer_cb);
       log::info("RFC_MX_STATE_CONNECTED, found_port={}, tRFC_PORT_STATE={}",
-                (p_port != nullptr) ? "T" : "F", (p_port != nullptr) ? p_port->rfc.state : 0);
-      if ((p_port == nullptr) || (p_port->rfc.state < RFC_STATE_OPENED)) {
+                (p_port != nullptr) ? "T" : "F", (p_port != nullptr) ? p_port->rfc.sm_cb.state : 0);
+      if ((p_port == nullptr) || (p_port->rfc.sm_cb.state < RFC_STATE_OPENED)) {
         // Port is not established yet
         log::info(
                 "In RFC_MX_STATE_CONNECTED but port is not established yet, "
@@ -567,6 +566,30 @@ bool PORT_IsCollisionDetected(RawAddress bd_addr) {
   }
   log::info("returning false");
   return false;
+}
+
+/*******************************************************************************
+ *
+ * Function         PORT_SetAppUid
+ *
+ * Description      This function configures connection according to the
+ *                  specifications in the tPORT_STATE structure.
+ *
+ * Parameters:      handle     - Handle returned in the RFCOMM_CreateConnection
+ *                  app_uid    - Uid of app that requested the socket
+ *
+ ******************************************************************************/
+int PORT_SetAppUid(uint16_t handle, uint32_t app_uid) {
+  tPORT* p_port = get_port_from_handle(handle);
+
+  if (p_port == nullptr) {
+    log::error("Unable to get RFCOMM port control block bad handle:{}", handle);
+    return PORT_BAD_HANDLE;
+  }
+
+  p_port->app_uid = app_uid;
+
+  return PORT_SUCCESS;
 }
 
 /*******************************************************************************
@@ -829,7 +852,7 @@ int PORT_ReadData(uint16_t handle, char* p_data, uint16_t max_len, uint16_t* p_l
 static int port_write(tPORT* p_port, BT_HDR* p_buf) {
   /* We should not allow to write data in to server port when connection is not
    * opened */
-  if (p_port->is_server && (p_port->rfc.state != RFC_STATE_OPENED)) {
+  if (p_port->is_server && (p_port->rfc.sm_cb.state != RFC_STATE_OPENED)) {
     osi_free(p_buf);
     return PORT_CLOSED;
   }
@@ -838,7 +861,7 @@ static int port_write(tPORT* p_port, BT_HDR* p_buf) {
   /* Peer is not ready or Port is not yet opened or initial port control */
   /* command has not been sent */
   if (p_port->tx.peer_fc || !p_port->rfc.p_mcb || !p_port->rfc.p_mcb->peer_ready ||
-      (p_port->rfc.state != RFC_STATE_OPENED) ||
+      (p_port->rfc.sm_cb.state != RFC_STATE_OPENED) ||
       ((p_port->port_ctrl & (PORT_CTRL_REQ_SENT | PORT_CTRL_IND_RECEIVED)) !=
        (PORT_CTRL_REQ_SENT | PORT_CTRL_IND_RECEIVED))) {
     if ((p_port->tx.queue_size > PORT_TX_CRITICAL_WM) ||
@@ -858,7 +881,7 @@ static int port_write(tPORT* p_port, BT_HDR* p_buf) {
             "Data is enqueued. flow disabled {} peer_ready {} state {} ctrl_state "
             "{:x}",
             p_port->tx.peer_fc, p_port->rfc.p_mcb && p_port->rfc.p_mcb->peer_ready,
-            p_port->rfc.state, p_port->port_ctrl);
+            p_port->rfc.sm_cb.state, p_port->port_ctrl);
 
     fixed_queue_enqueue(p_port->tx.queue, p_buf);
     p_port->tx.queue_size += p_buf->len;

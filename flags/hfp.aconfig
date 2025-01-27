@@ -1,5 +1,5 @@
 package: "com.android.bluetooth.flags"
-container: "com.android.btservices"
+container: "com.android.bt"
 
 flag {
     name: "auto_connect_on_multiple_hfp_when_no_a2dp_device"
@@ -54,16 +54,6 @@ flag {
     namespace: "bluetooth"
     description: "Reset AG instance state as well when outgoing connection attempt is discarded on collision detection"
     bug: "341376713"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "headset_client_am_hf_volume_symmetric"
-    namespace: "bluetooth"
-    description: "Fix AM/HF volume conversion to be symmetric"
-    bug: "340482648"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

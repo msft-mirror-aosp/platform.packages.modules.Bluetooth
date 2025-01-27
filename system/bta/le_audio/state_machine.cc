@@ -48,7 +48,6 @@
 #include "le_audio_health_status.h"
 #include "le_audio_log_history.h"
 #include "le_audio_types.h"
-#include "os/logging/log_adapter.h"
 #include "osi/include/alarm.h"
 #include "osi/include/osi.h"
 #include "osi/include/properties.h"
@@ -1745,7 +1744,7 @@ private:
   }
 
   void SetAseState(LeAudioDevice* leAudioDevice, struct ase* ase, AseState state) {
-    log::info("{}, ase_id: {}, {} -> {}", leAudioDevice->address_, ase->id, ToString(ase->state),
+    log::info("{} ({}), ase_id: {}, {} -> {}", leAudioDevice->address_, leAudioDevice->group_id_, ase->id, ToString(ase->state),
               ToString(state));
 
     log_history_->AddLogHistory(kLogStateMachineTag, leAudioDevice->group_id_,
@@ -3046,7 +3045,7 @@ private:
             log::info("Group {} is doing autonomous release", group->group_id_);
             SetTargetState(group, AseState::BTA_LE_AUDIO_ASE_STATE_IDLE);
             state_machine_callbacks_->StatusReportCb(group->group_id_,
-                                                     GroupStreamStatus::RELEASING);
+                                                     GroupStreamStatus::RELEASING_AUTONOMOUS);
           }
         }
 

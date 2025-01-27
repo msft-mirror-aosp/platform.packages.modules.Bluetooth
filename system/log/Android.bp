@@ -2,9 +2,7 @@ cc_library {
     name: "libbluetooth_log",
     host_supported: true,
     min_sdk_version: "33",
-    apex_available: [
-        "com.android.btservices",
-    ],
+    apex_available: ["com.android.bt"],
     export_include_dirs: [
         "include",
     ],
