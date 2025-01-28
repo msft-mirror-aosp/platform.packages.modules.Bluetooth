@@ -91,7 +91,7 @@ public class ScanController {
     private static final int TRUNCATED_RESULT_SIZE = 11;
 
     /** The default floor value for LE batch scan report delays greater than 0 */
-    @VisibleForTesting static final long DEFAULT_REPORT_DELAY_FLOOR = 5000;
+    static final long DEFAULT_REPORT_DELAY_FLOOR = 5000L;
 
     private static final int NUM_SCAN_EVENTS_KEPT = 20;
 
@@ -771,6 +771,7 @@ public class ScanController {
 
             if (app.mCallback != null) {
                 app.mCallback.onBatchScanResults(permittedResults);
+                mScanManager.batchScanResultDelivered();
             } else {
                 // PendingIntent based
                 try {
@@ -815,6 +816,7 @@ public class ScanController {
             Log.e(TAG, "Exception: " + e);
             handleDeadScanClient(client);
         }
+        mScanManager.batchScanResultDelivered();
     }
 
     // Check and deliver scan results for different scan clients.
