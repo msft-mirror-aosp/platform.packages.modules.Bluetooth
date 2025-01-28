@@ -47,8 +47,8 @@ class AdvertisingConfig {
 public:
   std::vector<GapData> advertisement;
   std::vector<GapData> scan_response;
-  uint16_t interval_min;
-  uint16_t interval_max;
+  uint32_t interval_min;
+  uint32_t interval_max;
   AdvertisingType advertising_type;
   AdvertiserAddressType requested_advertiser_address_type;
   PeerAddressType peer_address_type;
