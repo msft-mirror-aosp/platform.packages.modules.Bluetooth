@@ -446,6 +446,7 @@ bt_status_t btif_storage_set_hid_connection_policy(const tAclLinkSpec& link_spec
 bt_status_t btif_storage_get_hid_connection_policy(const tAclLinkSpec& link_spec,
                                                    bool* reconnect_allowed);
 
+void btif_storage_migrate_services();
 /******************************************************************************
  * Exported for unit tests
  *****************************************************************************/

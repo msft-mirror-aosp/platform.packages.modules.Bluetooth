@@ -47,6 +47,7 @@
 
 #include "btif/include/btif_api.h"
 #include "btif/include/btif_config.h"
+#include "btif/include/btif_dm.h"
 #include "btif/include/btif_util.h"
 #include "btif/include/core_callbacks.h"
 #include "btif/include/stack_manager_t.h"
@@ -179,15 +180,18 @@ static bool prop2cfg(const RawAddress* remote_bd_addr, bt_property_t* prop) {
     case BT_PROPERTY_TYPE_OF_DEVICE:
       btif_config_set_int(bdstr, BTIF_STORAGE_KEY_DEV_TYPE, *reinterpret_cast<int*>(prop->val));
       break;
-    case BT_PROPERTY_UUIDS: {
+    case BT_PROPERTY_UUIDS:
+    case BT_PROPERTY_UUIDS_LE: {
       std::string val;
       size_t cnt = (prop->len) / sizeof(Uuid);
       for (size_t i = 0; i < cnt; i++) {
         val += (reinterpret_cast<Uuid*>(prop->val) + i)->ToString() + " ";
       }
-      btif_config_set_str(bdstr, BTIF_STORAGE_KEY_REMOTE_SERVICE, val);
-      break;
-    }
+      std::string key = (prop->type == BT_PROPERTY_UUIDS_LE) ? BTIF_STORAGE_KEY_REMOTE_SERVICE_LE
+                                                             : BTIF_STORAGE_KEY_REMOTE_SERVICE;
+      btif_config_set_str(bdstr, key, val);
+    } break;
+
     case BT_PROPERTY_REMOTE_VERSION_INFO: {
       bt_remote_version_t* info = reinterpret_cast<bt_remote_version_t*>(prop->val);
 
@@ -300,10 +304,15 @@ static bool cfg2prop(const RawAddress* remote_bd_addr, bt_property_t* prop) {
                                   reinterpret_cast<int*>(prop->val));
       }
       break;
-    case BT_PROPERTY_UUIDS: {
+    case BT_PROPERTY_UUIDS:
+    case BT_PROPERTY_UUIDS_LE: {
       char value[1280];
       int size = sizeof(value);
-      if (btif_config_get_str(bdstr, BTIF_STORAGE_KEY_REMOTE_SERVICE, value, &size)) {
+
+      std::string key = (prop->type == BT_PROPERTY_UUIDS_LE) ? BTIF_STORAGE_KEY_REMOTE_SERVICE_LE
+                                                             : BTIF_STORAGE_KEY_REMOTE_SERVICE;
+
+      if (btif_config_get_str(bdstr, key, value, &size)) {
         Uuid* p_uuid = reinterpret_cast<Uuid*>(prop->val);
         size_t num_uuids = btif_split_uuids_string(value, p_uuid, BT_MAX_NUM_UUIDS);
         prop->len = num_uuids * sizeof(Uuid);
@@ -938,13 +947,14 @@ bt_status_t btif_storage_load_bonded_devices(void) {
   uint32_t i = 0;
   bt_property_t adapter_props[6];
   uint32_t num_props = 0;
-  bt_property_t remote_properties[10];
+  bt_property_t remote_properties[11];
   RawAddress addr;
   bt_bdname_t name, alias, model_name;
   bt_scan_mode_t mode;
   uint32_t disc_timeout;
   Uuid local_uuids[BT_MAX_NUM_UUIDS];
   Uuid remote_uuids[BT_MAX_NUM_UUIDS];
+  Uuid remote_uuids_le[BT_MAX_NUM_UUIDS];
   bt_status_t status;
 
   remove_devices_with_sample_ltk();
@@ -1026,9 +1036,15 @@ bt_status_t btif_storage_load_bonded_devices(void) {
                                    sizeof(devtype), &remote_properties[num_props]);
       num_props++;
 
-      btif_storage_get_remote_prop(p_remote_addr, BT_PROPERTY_UUIDS, remote_uuids,
+      btif_storage_get_remote_prop(p_remote_addr, BT_PROPERTY_UUIDS, &remote_uuids,
                                    sizeof(remote_uuids), &remote_properties[num_props]);
       num_props++;
+
+      if (com::android::bluetooth::flags::separate_service_storage()) {
+        btif_storage_get_remote_prop(p_remote_addr, BT_PROPERTY_UUIDS_LE, &remote_uuids_le,
+                                     sizeof(remote_uuids_le), &remote_properties[num_props]);
+        num_props++;
+      }
 
       // Floss needs appearance for metrics purposes
       uint16_t appearance = 0;
@@ -1436,6 +1452,48 @@ void btif_storage_remove_gatt_cl_db_hash(const RawAddress& bd_addr) {
             }
           },
           bd_addr));
+}
+
+// TODO(b/369381361) Remove this function after all devices are migrated
+void btif_storage_migrate_services() {
+  for (const auto& mac_address : btif_config_get_paired_devices()) {
+    auto addr_str = mac_address.ToString();
+
+    int device_type = BT_DEVICE_TYPE_UNKNOWN;
+    btif_config_get_int(addr_str, BTIF_STORAGE_KEY_DEV_TYPE, &device_type);
+
+    if ((device_type == BT_DEVICE_TYPE_BREDR) ||
+        btif_config_exist(addr_str, BTIF_STORAGE_KEY_REMOTE_SERVICE_LE)) {
+      /* Classic only, or already migrated entries don't need migration */
+      continue;
+    }
+
+    bt_property_t remote_uuids_prop;
+    Uuid remote_uuids[BT_MAX_NUM_UUIDS];
+    BTIF_STORAGE_FILL_PROPERTY(&remote_uuids_prop, BT_PROPERTY_UUIDS, sizeof(remote_uuids),
+                               remote_uuids);
+    btif_storage_get_remote_device_property(&mac_address, &remote_uuids_prop);
+
+    log::info("Will migrate Services => ServicesLe for {}", mac_address.ToStringForLogging());
+
+    std::vector<uint8_t> property_value;
+    for (auto& uuid : remote_uuids) {
+      if (!btif_is_interesting_le_service(uuid)) {
+        continue;
+      }
+
+      log::info("interesting LE service: {}", uuid);
+      auto uuid_128bit = uuid.To128BitBE();
+      property_value.insert(property_value.end(), uuid_128bit.begin(), uuid_128bit.end());
+    }
+
+    bt_property_t le_uuids_prop{BT_PROPERTY_UUIDS_LE, static_cast<int>(property_value.size()),
+                                (void*)property_value.data()};
+
+    /* Write LE services to storage */
+    btif_storage_set_remote_device_property(&mac_address, &le_uuids_prop);
+    log::info("Migration finished for {}", mac_address.ToStringForLogging());
+  }
 }
 
 void btif_debug_linkkey_type_dump(int fd) {
