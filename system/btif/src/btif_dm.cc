@@ -1841,8 +1841,7 @@ static void btif_on_gatt_results(RawAddress bd_addr, std::vector<bluetooth::Uuid
      * send them with rest of SDP results in on_service_discovery_results */
     return;
   } else {
-    if (pairing_cb.sdp_over_classic == btif_dm_pairing_cb_t::ServiceDiscoveryState::SCHEDULED &&
-        com::android::bluetooth::flags::bta_dm_discover_both()) {
+    if (pairing_cb.sdp_over_classic == btif_dm_pairing_cb_t::ServiceDiscoveryState::SCHEDULED) {
       /* Don't report services yet, they will be reported together once SDP
        * finishes. */
       log::info("will report services later, with SDP results {}", bd_addr);
