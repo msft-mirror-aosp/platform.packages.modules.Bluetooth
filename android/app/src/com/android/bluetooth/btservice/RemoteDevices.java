@@ -991,141 +991,139 @@ public class RemoteDevices {
         for (int j = 0; j < types.length; j++) {
             type = types[j];
             val = values[j];
-            if (val.length > 0) {
-                synchronized (mObject) {
-                    debugLog("Update property, device=" + bdDevice + ", type: " + type);
-                    switch (type) {
-                        case AbstractionLayer.BT_PROPERTY_BDNAME:
-                            final String newName = new String(val);
-                            if (newName.equals(deviceProperties.getName())) {
-                                debugLog("Skip name update for " + bdDevice);
-                                break;
-                            }
-                            deviceProperties.setName(newName);
-                            List<String> wordBreakdownList =
-                                    MetricsLogger.getInstance().getWordBreakdownList(newName);
-                            if (SdkLevel.isAtLeastU()) {
-                                MetricsLogger.getInstance()
-                                        .uploadRestrictedBluetothDeviceName(wordBreakdownList);
-                            }
-                            intent = new Intent(BluetoothDevice.ACTION_NAME_CHANGED);
-                            intent.putExtra(BluetoothDevice.EXTRA_DEVICE, bdDevice);
-                            intent.putExtra(BluetoothDevice.EXTRA_NAME, deviceProperties.getName());
-                            intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
-                            mAdapterService.sendBroadcast(
-                                    intent,
-                                    BLUETOOTH_CONNECT,
-                                    Utils.getTempBroadcastOptions().toBundle());
-                            debugLog("Remote device name is: " + deviceProperties.getName());
+            if (val.length == 0) {
+                continue;
+            }
+
+            synchronized (mObject) {
+                debugLog("Update property, device=" + bdDevice + ", type: " + type);
+                switch (type) {
+                    case AbstractionLayer.BT_PROPERTY_BDNAME:
+                        final String newName = new String(val);
+                        if (newName.equals(deviceProperties.getName())) {
+                            debugLog("Skip name update for " + bdDevice);
                             break;
-                        case AbstractionLayer.BT_PROPERTY_REMOTE_FRIENDLY_NAME:
-                            deviceProperties.setAlias(bdDevice, new String(val));
-                            debugLog("Remote device alias is: " + deviceProperties.getAlias());
-                            break;
-                        case AbstractionLayer.BT_PROPERTY_BDADDR:
-                            deviceProperties.setAddress(val);
+                        }
+                        deviceProperties.setName(newName);
+                        List<String> wordBreakdownList =
+                                MetricsLogger.getInstance().getWordBreakdownList(newName);
+                        if (SdkLevel.isAtLeastU()) {
+                            MetricsLogger.getInstance()
+                                    .uploadRestrictedBluetothDeviceName(wordBreakdownList);
+                        }
+                        intent = new Intent(BluetoothDevice.ACTION_NAME_CHANGED);
+                        intent.putExtra(BluetoothDevice.EXTRA_DEVICE, bdDevice);
+                        intent.putExtra(BluetoothDevice.EXTRA_NAME, deviceProperties.getName());
+                        intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
+                        mAdapterService.sendBroadcast(
+                                intent,
+                                BLUETOOTH_CONNECT,
+                                Utils.getTempBroadcastOptions().toBundle());
+                        debugLog("Remote device name is: " + deviceProperties.getName());
+                        break;
+                    case AbstractionLayer.BT_PROPERTY_REMOTE_FRIENDLY_NAME:
+                        deviceProperties.setAlias(bdDevice, new String(val));
+                        debugLog("Remote device alias is: " + deviceProperties.getAlias());
+                        break;
+                    case AbstractionLayer.BT_PROPERTY_BDADDR:
+                        deviceProperties.setAddress(val);
+                        debugLog(
+                                "Remote Address is:" + Utils.getRedactedAddressStringFromByte(val));
+                        break;
+                    case AbstractionLayer.BT_PROPERTY_CLASS_OF_DEVICE:
+                        final int newBluetoothClass = Utils.byteArrayToInt(val);
+                        if (newBluetoothClass == deviceProperties.getBluetoothClass()) {
                             debugLog(
-                                    "Remote Address is:"
-                                            + Utils.getRedactedAddressStringFromByte(val));
-                            break;
-                        case AbstractionLayer.BT_PROPERTY_CLASS_OF_DEVICE:
-                            final int newBluetoothClass = Utils.byteArrayToInt(val);
-                            if (newBluetoothClass == deviceProperties.getBluetoothClass()) {
-                                debugLog(
-                                        "Skip class update, device="
-                                                + bdDevice
-                                                + ", cod=0x"
-                                                + Integer.toHexString(newBluetoothClass));
-                                break;
-                            }
-                            deviceProperties.setBluetoothClass(newBluetoothClass);
-                            intent = new Intent(BluetoothDevice.ACTION_CLASS_CHANGED);
-                            intent.putExtra(BluetoothDevice.EXTRA_DEVICE, bdDevice);
-                            intent.putExtra(
-                                    BluetoothDevice.EXTRA_CLASS,
-                                    new BluetoothClass(deviceProperties.getBluetoothClass()));
-                            intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
-                            mAdapterService.sendBroadcast(
-                                    intent,
-                                    BLUETOOTH_CONNECT,
-                                    Utils.getTempBroadcastOptions().toBundle());
-                            debugLog(
-                                    "Remote class update, device="
+                                    "Skip class update, device="
                                             + bdDevice
                                             + ", cod=0x"
                                             + Integer.toHexString(newBluetoothClass));
                             break;
-                        case AbstractionLayer.BT_PROPERTY_UUIDS:
-                            final ParcelUuid[] newUuids = Utils.byteArrayToUuid(val);
-                            if (areUuidsEqual(newUuids, deviceProperties.getUuids())) {
-                                // SDP Skip adding UUIDs to property cache if equal
-                                debugLog("Skip uuids update for " + bdDevice.getAddress());
-                                MetricsLogger.getInstance()
-                                        .cacheCount(BluetoothProtoEnums.SDP_UUIDS_EQUAL_SKIP, 1);
-                                break;
-                            }
-                            deviceProperties.setUuids(newUuids);
-                            if (mAdapterService.getState() == BluetoothAdapter.STATE_ON) {
-                                // SDP Adding UUIDs to property cache and sending intent
-                                MetricsLogger.getInstance()
-                                        .cacheCount(
-                                                BluetoothProtoEnums.SDP_ADD_UUID_WITH_INTENT, 1);
-                                mAdapterService.deviceUuidUpdated(bdDevice);
-                                sendUuidIntent(bdDevice, deviceProperties, true);
-                            } else if (mAdapterService.getState()
-                                    == BluetoothAdapter.STATE_BLE_ON) {
-                                // SDP Adding UUIDs to property cache but with no intent
-                                MetricsLogger.getInstance()
-                                        .cacheCount(
-                                                BluetoothProtoEnums.SDP_ADD_UUID_WITH_NO_INTENT, 1);
-                                mAdapterService.deviceUuidUpdated(bdDevice);
-                            } else {
-                                // SDP Silently dropping UUIDs and with no intent
-                                MetricsLogger.getInstance()
-                                        .cacheCount(BluetoothProtoEnums.SDP_DROP_UUID, 1);
-                            }
+                        }
+                        deviceProperties.setBluetoothClass(newBluetoothClass);
+                        intent = new Intent(BluetoothDevice.ACTION_CLASS_CHANGED);
+                        intent.putExtra(BluetoothDevice.EXTRA_DEVICE, bdDevice);
+                        intent.putExtra(
+                                BluetoothDevice.EXTRA_CLASS,
+                                new BluetoothClass(deviceProperties.getBluetoothClass()));
+                        intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
+                        mAdapterService.sendBroadcast(
+                                intent,
+                                BLUETOOTH_CONNECT,
+                                Utils.getTempBroadcastOptions().toBundle());
+                        debugLog(
+                                "Remote class update, device="
+                                        + bdDevice
+                                        + ", cod=0x"
+                                        + Integer.toHexString(newBluetoothClass));
+                        break;
+                    case AbstractionLayer.BT_PROPERTY_UUIDS:
+                        final ParcelUuid[] newUuids = Utils.byteArrayToUuid(val);
+                        if (areUuidsEqual(newUuids, deviceProperties.getUuids())) {
+                            // SDP Skip adding UUIDs to property cache if equal
+                            debugLog("Skip uuids update for " + bdDevice.getAddress());
+                            MetricsLogger.getInstance()
+                                    .cacheCount(BluetoothProtoEnums.SDP_UUIDS_EQUAL_SKIP, 1);
                             break;
-                        case AbstractionLayer.BT_PROPERTY_TYPE_OF_DEVICE:
-                            if (deviceProperties.isConsolidated()) {
-                                break;
-                            }
-                            // The device type from hal layer, defined in bluetooth.h,
-                            // matches the type defined in BluetoothDevice.java
-                            deviceProperties.setDeviceType(Utils.byteArrayToInt(val));
+                        }
+                        deviceProperties.setUuids(newUuids);
+                        if (mAdapterService.getState() == BluetoothAdapter.STATE_ON) {
+                            // SDP Adding UUIDs to property cache and sending intent
+                            MetricsLogger.getInstance()
+                                    .cacheCount(BluetoothProtoEnums.SDP_ADD_UUID_WITH_INTENT, 1);
+                            mAdapterService.deviceUuidUpdated(bdDevice);
+                            sendUuidIntent(bdDevice, deviceProperties, true);
+                        } else if (mAdapterService.getState() == BluetoothAdapter.STATE_BLE_ON) {
+                            // SDP Adding UUIDs to property cache but with no intent
+                            MetricsLogger.getInstance()
+                                    .cacheCount(BluetoothProtoEnums.SDP_ADD_UUID_WITH_NO_INTENT, 1);
+                            mAdapterService.deviceUuidUpdated(bdDevice);
+                        } else {
+                            // SDP Silently dropping UUIDs and with no intent
+                            MetricsLogger.getInstance()
+                                    .cacheCount(BluetoothProtoEnums.SDP_DROP_UUID, 1);
+                        }
+                        break;
+                    case AbstractionLayer.BT_PROPERTY_TYPE_OF_DEVICE:
+                        if (deviceProperties.isConsolidated()) {
                             break;
-                        case AbstractionLayer.BT_PROPERTY_REMOTE_RSSI:
-                            // RSSI from hal is in one byte
-                            deviceProperties.setRssi(val[0]);
-                            break;
-                        case AbstractionLayer.BT_PROPERTY_REMOTE_IS_COORDINATED_SET_MEMBER:
-                            deviceProperties.setIsCoordinatedSetMember(val[0] != 0);
-                            break;
-                        case AbstractionLayer.BT_PROPERTY_REMOTE_ASHA_CAPABILITY:
-                            deviceProperties.setAshaCapability(val[0]);
-                            break;
-                        case AbstractionLayer.BT_PROPERTY_REMOTE_ASHA_TRUNCATED_HISYNCID:
-                            deviceProperties.setAshaTruncatedHiSyncId(val[0]);
-                            break;
-                        case AbstractionLayer.BT_PROPERTY_REMOTE_MODEL_NUM:
-                            final String modelName = new String(val);
-                            debugLog("Remote device model name: " + modelName);
-                            deviceProperties.setModelName(modelName);
-                            BluetoothStatsLog.write(
-                                    BluetoothStatsLog.BLUETOOTH_DEVICE_INFO_REPORTED,
-                                    mAdapterService.obfuscateAddress(bdDevice),
-                                    BluetoothProtoEnums.DEVICE_INFO_INTERNAL,
-                                    LOG_SOURCE_DIS,
-                                    null,
-                                    modelName,
-                                    null,
-                                    null,
-                                    mAdapterService.getMetricId(bdDevice),
-                                    bdDevice.getAddressType(),
-                                    0,
-                                    0,
-                                    0);
-                            break;
-                    }
+                        }
+                        // The device type from hal layer, defined in bluetooth.h,
+                        // matches the type defined in BluetoothDevice.java
+                        deviceProperties.setDeviceType(Utils.byteArrayToInt(val));
+                        break;
+                    case AbstractionLayer.BT_PROPERTY_REMOTE_RSSI:
+                        // RSSI from hal is in one byte
+                        deviceProperties.setRssi(val[0]);
+                        break;
+                    case AbstractionLayer.BT_PROPERTY_REMOTE_IS_COORDINATED_SET_MEMBER:
+                        deviceProperties.setIsCoordinatedSetMember(val[0] != 0);
+                        break;
+                    case AbstractionLayer.BT_PROPERTY_REMOTE_ASHA_CAPABILITY:
+                        deviceProperties.setAshaCapability(val[0]);
+                        break;
+                    case AbstractionLayer.BT_PROPERTY_REMOTE_ASHA_TRUNCATED_HISYNCID:
+                        deviceProperties.setAshaTruncatedHiSyncId(val[0]);
+                        break;
+                    case AbstractionLayer.BT_PROPERTY_REMOTE_MODEL_NUM:
+                        final String modelName = new String(val);
+                        debugLog("Remote device model name: " + modelName);
+                        deviceProperties.setModelName(modelName);
+                        BluetoothStatsLog.write(
+                                BluetoothStatsLog.BLUETOOTH_DEVICE_INFO_REPORTED,
+                                mAdapterService.obfuscateAddress(bdDevice),
+                                BluetoothProtoEnums.DEVICE_INFO_INTERNAL,
+                                LOG_SOURCE_DIS,
+                                null,
+                                modelName,
+                                null,
+                                null,
+                                mAdapterService.getMetricId(bdDevice),
+                                bdDevice.getAddressType(),
+                                0,
+                                0,
+                                0);
+                        break;
                 }
             }
         }
