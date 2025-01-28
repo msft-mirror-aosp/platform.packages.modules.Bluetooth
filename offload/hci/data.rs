@@ -120,7 +120,7 @@ impl<'a> IsoData<'a> {
     }
 }
 
-impl<'a> Write for IsoData<'a> {
+impl Write for IsoData<'_> {
     fn write(&self, w: &mut Writer) {
         let (pb_flag, hdr) = match self.sdu_fragment {
             IsoSduFragment::First { ref hdr, is_last: false } => (0b00, Some(hdr)),
