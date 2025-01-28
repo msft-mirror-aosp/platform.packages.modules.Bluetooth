@@ -175,6 +175,7 @@ typedef struct btle_audio_codec_config {
   btle_audio_bits_per_sample_index_t bits_per_sample = LE_AUDIO_BITS_PER_SAMPLE_INDEX_NONE;
   btle_audio_channel_count_index_t channel_count = LE_AUDIO_CHANNEL_COUNT_INDEX_NONE;
   btle_audio_frame_duration_index_t frame_duration = LE_AUDIO_FRAME_DURATION_INDEX_NONE;
+  uint8_t codec_frame_blocks_per_sdu = 0;
   uint16_t octets_per_frame = 0;
   int32_t codec_priority = 0;
 
