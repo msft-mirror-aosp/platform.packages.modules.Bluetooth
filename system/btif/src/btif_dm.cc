@@ -1550,10 +1550,8 @@ static void btif_merge_existing_uuids(RawAddress& addr, std::set<Uuid>* uuids) {
     if (btif_should_ignore_uuid(uuid)) {
       continue;
     }
-    if (btif_is_interesting_le_service(uuid)) {
-      log::info("interesting le service {} insert", uuid.ToString());
-      uuids->insert(uuid);
-    }
+
+    uuids->insert(uuid);
   }
 }
 
@@ -1701,9 +1699,6 @@ static void btif_on_service_discovery_results(RawAddress bd_addr,
 
 static void btif_on_gatt_results(RawAddress bd_addr, std::vector<bluetooth::Uuid>& services,
                                  bool is_transport_le) {
-  std::vector<bt_property_t> prop;
-  std::vector<uint8_t> property_value;
-  std::set<Uuid> uuids;
   RawAddress static_addr_copy = pairing_cb.static_bdaddr;
   bool lea_supported = is_le_audio_capable_during_service_discovery(bd_addr);
 
@@ -1739,6 +1734,7 @@ static void btif_on_gatt_results(RawAddress bd_addr, std::vector<bluetooth::Uuid
     BTM_LogHistory(kBtmLogTag, bd_addr, "Discovered GATT services using SDP transport");
   }
 
+  std::set<Uuid> uuids;
   for (Uuid uuid : services) {
     if (btif_is_interesting_le_service(uuid)) {
       if (btif_should_ignore_uuid(uuid)) {
@@ -1767,37 +1763,15 @@ static void btif_on_gatt_results(RawAddress bd_addr, std::vector<bluetooth::Uuid
     log::info("Will return Classic SDP results, if done, to unblock bonding");
   }
 
-  Uuid existing_uuids[BT_MAX_NUM_UUIDS] = {};
-
   // Look up UUIDs using pseudo address (either RPA or static address)
-  bt_status_t existing_lookup_result = btif_get_existing_uuids(&bd_addr, existing_uuids);
-
-  if (existing_lookup_result != BT_STATUS_FAIL) {
-    log::info("Got some existing UUIDs by address {}", bd_addr);
-
-    for (int i = 0; i < BT_MAX_NUM_UUIDS; i++) {
-      Uuid uuid = existing_uuids[i];
-      if (uuid.IsEmpty()) {
-        continue;
-      }
-      uuids.insert(uuid);
-    }
-  }
-
+  btif_merge_existing_uuids(bd_addr, &uuids);
   if (bd_addr != static_addr_copy) {
     // Look up UUID using static address, if different than sudo address
-    existing_lookup_result = btif_get_existing_uuids(&static_addr_copy, existing_uuids);
-    if (existing_lookup_result != BT_STATUS_FAIL) {
-      log::info("Got some existing UUIDs by static address {}", static_addr_copy);
-      for (int i = 0; i < BT_MAX_NUM_UUIDS; i++) {
-        Uuid uuid = existing_uuids[i];
-        if (uuid.IsEmpty()) {
-          continue;
-        }
-        uuids.insert(uuid);
-      }
-    }
+    btif_merge_existing_uuids(static_addr_copy, &uuids);
   }
+
+  std::vector<bt_property_t> prop;
+  std::vector<uint8_t> property_value;
 
   for (auto& uuid : uuids) {
     auto uuid_128bit = uuid.To128BitBE();
