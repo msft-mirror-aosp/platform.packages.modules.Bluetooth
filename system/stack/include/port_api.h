@@ -24,6 +24,8 @@
 #ifndef PORT_API_H
 #define PORT_API_H
 
+#include <hardware/bt_sock.h>
+
 #include <cstdint>
 
 #include "include/macros.h"
@@ -188,6 +190,7 @@ struct RfcommCfgInfo {
   uint16_t init_credit;
   bool rx_mtu_present;
   uint16_t rx_mtu;
+  btsock_data_path_t data_path{BTSOCK_DATA_PATH_NO_OFFLOAD};
 };
 
 namespace std {

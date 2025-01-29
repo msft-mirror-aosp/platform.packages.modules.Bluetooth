@@ -1086,6 +1086,7 @@ static void jv_dm_cback(tBTA_JV_EVT event, tBTA_JV* p_data, uint32_t id) {
           cfg.init_credit = 0;
           cfg.rx_mtu_present = slot->mtu > 0;
           cfg.rx_mtu = slot->mtu;
+          cfg.data_path = slot->data_path;
         }
       }
       // Start the rfcomm server after sdp & channel # assigned.
@@ -1149,6 +1150,7 @@ static void handle_discovery_comp(tBTA_JV_STATUS status, int scn, uint32_t id) {
       cfg.init_credit = 0;
       cfg.rx_mtu_present = slot->mtu > 0;
       cfg.rx_mtu = slot->mtu;
+      cfg.data_path = slot->data_path;
     }
   }
 
