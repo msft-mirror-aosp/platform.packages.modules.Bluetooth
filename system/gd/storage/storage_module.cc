@@ -93,8 +93,6 @@ StorageModule::~StorageModule() {
   pimpl_.reset();
 }
 
-const ModuleFactory StorageModule::Factory = ModuleFactory([]() { return new StorageModule(); });
-
 struct StorageModule::impl {
   explicit impl(Handler* handler, ConfigCache cache, size_t in_memory_cache_size_limit)
       : config_save_alarm_(handler),
@@ -198,6 +196,7 @@ void StorageModule::Start() {
 
 void StorageModule::Stop() {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
+  log::assert_that(pimpl_ != nullptr, "StorageModule is not started");
   if (pimpl_->has_pending_config_save_) {
     // Save pending changes before stopping the module.
     SaveImmediately();
