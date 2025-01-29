@@ -48,17 +48,7 @@ const uint8_t kBdName[] = "kBdName";
 constexpr char kTimeFormat[] = "%Y-%m-%d %H:%M:%S";
 }  // namespace
 
-namespace bluetooth {
-namespace testing {
-namespace legacy {
-
-void wipe_secrets_and_remove(tBTM_SEC_DEV_REC* p_dev_rec);
-
-}  // namespace legacy
-}  // namespace testing
-}  // namespace bluetooth
-
-using bluetooth::testing::legacy::wipe_secrets_and_remove;
+using bluetooth::legacy::testing::wipe_secrets_and_remove;
 
 constexpr size_t kBtmSecMaxDeviceRecords = static_cast<size_t>(BTM_SEC_MAX_DEVICE_RECORDS + 1);
 

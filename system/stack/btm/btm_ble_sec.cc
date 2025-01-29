@@ -44,6 +44,7 @@
 #include "stack/btm/security_device_record.h"
 #include "stack/eatt/eatt.h"
 #include "stack/include/acl_api.h"
+#include "stack/include/ble_hci_link_interface.h"
 #include "stack/include/bt_name.h"
 #include "stack/include/bt_octets.h"
 #include "stack/include/bt_types.h"
@@ -52,6 +53,7 @@
 #include "stack/include/btm_ble_sec_api.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_log_history.h"
+#include "stack/include/btm_sec_api.h"
 #include "stack/include/btm_status.h"
 #include "stack/include/gatt_api.h"
 #include "stack/include/l2cap_security_interface.h"
@@ -59,16 +61,9 @@
 #include "stack/include/smp_api_types.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using namespace bluetooth;
 
 extern tBTM_CB btm_cb;
-
-bool btm_ble_init_pseudo_addr(tBTM_SEC_DEV_REC* p_dev_rec, const RawAddress& new_pseudo_addr);
-tBTM_STATUS btm_ble_read_remote_name(const RawAddress& remote_bda, tBTM_NAME_CMPL_CB* p_cb);
-tBTM_STATUS btm_ble_read_remote_cod(const RawAddress& remote_bda);
 
 namespace {
 constexpr char kBtmLogTag[] = "SEC";

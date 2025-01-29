@@ -46,10 +46,6 @@ using SyncReportCb =
 using SyncLostCb = base::Callback<void(uint16_t /*sync_handle*/)>;
 using SyncTransferCb = base::Callback<void(uint8_t /*status*/, RawAddress)>;
 
-bool ble_vnd_is_included() {
-  inc_func_call_count(__func__);
-  return false;
-}
 bool BTM_BleConfigPrivacy(bool /* privacy_mode */) {
   inc_func_call_count(__func__);
   return false;
@@ -58,9 +54,9 @@ bool BTM_BleLocalPrivacyEnabled(void) {
   inc_func_call_count(__func__);
   return false;
 }
-bool btm_ble_read_remote_cod(const RawAddress& /* remote_bda */) {
+tBTM_STATUS btm_ble_read_remote_cod(const RawAddress& /* remote_bda */) {
   inc_func_call_count(__func__);
-  return false;
+  return tBTM_STATUS::BTM_SUCCESS;
 }
 bool btm_ble_cancel_remote_name(const RawAddress& /* remote_bda */) {
   inc_func_call_count(__func__);
@@ -144,18 +140,7 @@ void btm_ble_process_adv_pkt_cont_for_inquiry(
 void btm_ble_read_remote_features_complete(uint8_t* /* p */, uint8_t /* length */) {
   inc_func_call_count(__func__);
 }
-void btm_ble_read_remote_name_cmpl(bool /* status */, const RawAddress& /* bda */,
-                                   uint16_t /* length */, char* /* p_name */) {
-  inc_func_call_count(__func__);
-}
-void btm_ble_set_adv_flag(uint16_t /* connect_mode */, uint16_t /* disc_mode */) {
-  inc_func_call_count(__func__);
-}
 void btm_ble_stop_inquiry(void) { inc_func_call_count(__func__); }
-void btm_ble_update_dmt_flag_bits(uint8_t* /* adv_flag_value */, const uint16_t /* connect_mode */,
-                                  const uint16_t /* disc_mode */) {
-  inc_func_call_count(__func__);
-}
 void btm_ble_update_mode_operation(uint8_t /* link_role */, const RawAddress* /* bd_addr */,
                                    tHCI_STATUS /* status */) {
   inc_func_call_count(__func__);
