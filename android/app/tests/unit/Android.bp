@@ -22,6 +22,7 @@ java_defaults {
 
     static_libs: [
         "PlatformProperties",
+        "TestParameterInjector",
         "android.media.audio-aconfig-exported-java",
         "androidx.media_media",
         "androidx.room_room-migration",
