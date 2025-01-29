@@ -281,3 +281,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "batch_scan_optimization"
+    namespace: "bluetooth"
+    description: "Optimized batch scan for less wakeups"
+    bug: "392132489"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
