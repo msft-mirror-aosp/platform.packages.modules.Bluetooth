@@ -1793,28 +1793,6 @@ public class HeadsetStateMachineTest {
     }
 
     @Test
-    @EnableFlags({Flags.FLAG_HFP_ALLOW_VOLUME_CHANGE_WITHOUT_SCO})
-    public void testVolumeChangeEvent_fromIntentWhenConnected() {
-        setUpConnectedState();
-        int originalVolume = mHeadsetStateMachine.mSpeakerVolume;
-        mHeadsetStateMachine.mSpeakerVolume = 0;
-        int vol = 10;
-
-        // Send INTENT_SCO_VOLUME_CHANGED message
-        Intent volumeChange = new Intent(AudioManager.ACTION_VOLUME_CHANGED);
-        volumeChange.putExtra(AudioManager.EXTRA_VOLUME_STREAM_VALUE, vol);
-
-        mHeadsetStateMachine.sendMessage(
-                HeadsetStateMachine.INTENT_SCO_VOLUME_CHANGED, volumeChange);
-        TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
-
-        // verify volume processed
-        verify(mNativeInterface).setVolume(mTestDevice, HeadsetHalConstants.VOLUME_TYPE_SPK, vol);
-
-        mHeadsetStateMachine.mSpeakerVolume = originalVolume;
-    }
-
-    @Test
     public void testVolumeChangeEvent_fromIntentWhenAudioOn() {
         setUpAudioOnState();
         int originalVolume = mHeadsetStateMachine.mSpeakerVolume;

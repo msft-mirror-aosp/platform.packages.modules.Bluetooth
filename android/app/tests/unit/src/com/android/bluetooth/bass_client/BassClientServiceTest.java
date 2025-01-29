@@ -4472,6 +4472,8 @@ public class BassClientServiceTest {
 
         // Verify getSyncedBroadcastSinks returns empty device list if no broadcst ID
         assertThat(mBassClientService.getSyncedBroadcastSinks().isEmpty()).isTrue();
+        assertThat(mBassClientService.getSyncedBroadcastSinks(TEST_BROADCAST_ID).isEmpty())
+                .isTrue();
 
         // Update receiver state with broadcast ID
         injectRemoteSourceStateChanged(meta, true, false);
@@ -4485,6 +4487,16 @@ public class BassClientServiceTest {
         } else {
             // Verify getSyncedBroadcastSinks returns empty device list if no BIS synced
             assertThat(mBassClientService.getSyncedBroadcastSinks().isEmpty()).isTrue();
+        }
+
+        activeSinks.clear();
+        // Verify getSyncedBroadcastSinks by broadcast id
+        activeSinks = mBassClientService.getSyncedBroadcastSinks(TEST_BROADCAST_ID);
+        if (Flags.leaudioBigDependsOnAudioState()) {
+            // Verify getSyncedBroadcastSinks returns correct device list if no BIS synced
+            assertThat(activeSinks.size()).isEqualTo(2);
+            assertThat(activeSinks.contains(mCurrentDevice)).isTrue();
+            assertThat(activeSinks.contains(mCurrentDevice1)).isTrue();
         }
 
         // Update receiver state with BIS sync
@@ -6348,7 +6360,8 @@ public class BassClientServiceTest {
     @Test
     @EnableFlags({
         Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
+        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
+        Flags.FLAG_LEAUDIO_MONITOR_UNICAST_SOURCE_WHEN_MANAGED_BY_BROADCAST_DELEGATOR
     })
     public void sinkUnintentional_handleUnicastSourceStreamStatusChange_withoutScanning() {
         sinkUnintentionalWithoutScanning();
@@ -6357,7 +6370,6 @@ public class BassClientServiceTest {
         mBassClientService.handleUnicastSourceStreamStatusChange(
                 0 /* STATUS_LOCAL_STREAM_REQUESTED */);
         verifyStopBigMonitoringWithUnsync();
-        verifyRemoveMessageAndInjectSourceRemoval();
         checkNoResumeSynchronizationByBig();
 
         /* Unicast finished streaming */
@@ -6370,7 +6382,8 @@ public class BassClientServiceTest {
     @Test
     @EnableFlags({
         Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
+        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
+        Flags.FLAG_LEAUDIO_MONITOR_UNICAST_SOURCE_WHEN_MANAGED_BY_BROADCAST_DELEGATOR
     })
     public void sinkUnintentional_handleUnicastSourceStreamStatusChange_duringScanning() {
         sinkUnintentionalDuringScanning();
@@ -6379,7 +6392,6 @@ public class BassClientServiceTest {
         mBassClientService.handleUnicastSourceStreamStatusChange(
                 0 /* STATUS_LOCAL_STREAM_REQUESTED */);
         verifyStopBigMonitoringWithoutUnsync();
-        verifyRemoveMessageAndInjectSourceRemoval();
         checkNoResumeSynchronizationByBig();
 
         /* Unicast finished streaming */
@@ -6636,6 +6648,44 @@ public class BassClientServiceTest {
         /* Unicast finished streaming */
         mBassClientService.handleUnicastSourceStreamStatusChange(
                 2 /* STATUS_LOCAL_STREAM_SUSPENDED */);
+        verifyAllGroupMembersGettingUpdateOrAddSource(createBroadcastMetadata(TEST_BROADCAST_ID));
+    }
+
+    @Test
+    @EnableFlags({
+        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
+        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
+        Flags.FLAG_LEAUDIO_BROADCAST_ASSISTANT_PERIPHERAL_ENTRUSTMENT,
+        Flags.FLAG_LEAUDIO_MONITOR_UNICAST_SOURCE_WHEN_MANAGED_BY_BROADCAST_DELEGATOR
+    })
+    public void hostIntentional_handleUnicastSourceStreamStatusChange_beforeResumeCompleted() {
+        prepareSynchronizedPairAndStopSearching();
+
+        /* Unicast would like to stream */
+        mBassClientService.handleUnicastSourceStreamStatusChange(
+                0 /* STATUS_LOCAL_STREAM_REQUESTED */);
+        checkNoSinkPause();
+
+        /* Unicast finished streaming */
+        mBassClientService.handleUnicastSourceStreamStatusChange(
+                2 /* STATUS_LOCAL_STREAM_SUSPENDED */);
+        mInOrderMethodProxy
+                .verify(mMethodProxy)
+                .periodicAdvertisingManagerRegisterSync(
+                        any(), any(), anyInt(), anyInt(), any(), any());
+
+        /* Unicast would like to stream again before previous resume was complete*/
+        mBassClientService.handleUnicastSourceStreamStatusChange(
+                0 /* STATUS_LOCAL_STREAM_REQUESTED */);
+
+        /* Unicast finished streaming */
+        mBassClientService.handleUnicastSourceStreamStatusChange(
+                2 /* STATUS_LOCAL_STREAM_SUSPENDED */);
+        mInOrderMethodProxy
+                .verify(mMethodProxy)
+                .periodicAdvertisingManagerRegisterSync(
+                        any(), any(), anyInt(), anyInt(), any(), any());
+        onSyncEstablished(mSourceDevice, TEST_SYNC_HANDLE); // In case of add source to inactive
         verifyAllGroupMembersGettingUpdateOrAddSource(createBroadcastMetadata(TEST_BROADCAST_ID));
     }
 

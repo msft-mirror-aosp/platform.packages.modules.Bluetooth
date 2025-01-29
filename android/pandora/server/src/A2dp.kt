@@ -41,7 +41,6 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.filter
@@ -110,10 +109,6 @@ class A2dp(val context: Context) : A2DPImplBase(), Closeable {
                 }
             }
 
-            // TODO: b/234891800, AVDTP start request sometimes never sent if playback starts too
-            // early.
-            delay(2000L)
-
             val source =
                 Source.newBuilder().setCookie(ByteString.copyFrom(device.getAddress(), "UTF-8"))
             OpenSourceResponse.newBuilder().setSource(source).build()
@@ -146,10 +141,6 @@ class A2dp(val context: Context) : A2DPImplBase(), Closeable {
                     throw RuntimeException("waitSource failed, A2DP has been disconnected")
                 }
             }
-
-            // TODO: b/234891800, AVDTP start request sometimes never sent if playback starts too
-            // early.
-            delay(2000L)
 
             val source =
                 Source.newBuilder().setCookie(ByteString.copyFrom(device.getAddress(), "UTF-8"))

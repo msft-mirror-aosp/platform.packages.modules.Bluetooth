@@ -828,6 +828,20 @@ public class TbsGeneric {
                             return;
                         }
 
+                        if (shouldBlockTbsForBroadcastReceiver(device)) {
+                            Log.w(
+                                    TAG,
+                                    "Blocking TBS operation for non-primary device in broadcast,"
+                                            + " opcode = "
+                                            + callControlRequestOpcodeStr(opcode));
+                            mTbsGatt.setCallControlPointResult(
+                                    device,
+                                    opcode,
+                                    0,
+                                    TbsGatt.CALL_CONTROL_POINT_RESULT_OPERATION_NOT_POSSIBLE);
+                            return;
+                        }
+
                         int result;
 
                         switch (opcode) {
@@ -1227,6 +1241,20 @@ public class TbsGeneric {
         }
 
         return false;
+    }
+
+    private boolean shouldBlockTbsForBroadcastReceiver(BluetoothDevice device) {
+        if (device == null) {
+            Log.w(TAG, "shouldBlockTbsForBroadcastReceiver: Ignore null device");
+            return false;
+        }
+        if (!isLeAudioServiceAvailable()) {
+            Log.w(TAG, "shouldBlockTbsForBroadcastReceiver: LeAudioService is not available");
+            return false;
+        }
+
+        return mLeAudioService.getLocalBroadcastReceivers().contains(device)
+                && !mLeAudioService.isPrimaryDevice(device);
     }
 
     /**

@@ -878,17 +878,6 @@ void bta_av_cleanup(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* /* p_data */) {
     alarm_cancel(p_scb->accept_open_timer);
   }
 
-  /* TODO(eisenbach): RE-IMPLEMENT USING VSC OR HAL EXTENSION
-    vendor_get_interface()->send_command(
-        (vendor_opcode_t)BT_VND_OP_A2DP_OFFLOAD_STOP, (void*)&p_scb->l2c_cid);
-    if (p_scb->offload_start_pending) {
-      tBTA_AV_STATUS status = BTA_AV_FAIL_STREAM;
-      tBTA_AV bta_av_data;
-      bta_av_data.status = status;
-      (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_START_RSP_EVT, &bta_av_data);
-    }
-  */
-
   if (p_scb->deregistering) {
     /* remove stream */
     for (int i = 0; i < BTAV_A2DP_CODEC_INDEX_MAX; i++) {
@@ -3185,67 +3174,32 @@ void bta_av_vendor_offload_stop() {
  *
  ******************************************************************************/
 void bta_av_offload_req(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* /*p_data*/) {
-  tBTA_AV_STATUS status = BTA_AV_FAIL_RESOURCES;
-
+  tBTA_AV bta_av_data = {};
   tBT_A2DP_OFFLOAD offload_start;
   log::verbose("stream {}, audio channels open {}", p_scb->started ? "STARTED" : "STOPPED",
                bta_av_cb.audio_open_cnt);
 
+  if (!p_scb->started) {
+    log::warn("stream not started, start offload failed.");
+    bta_av_data.status = BTA_AV_FAIL_STREAM;
+    (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_START_RSP_EVT, &bta_av_data);
+    return;
+  }
+
+  if (bta_av_cb.offload_start_pending_hndl || bta_av_cb.offload_started_hndl) {
+    log::warn("offload already started, ignore request");
+    return;
+  }
+
   A2dpCodecConfig* codec_config = bta_av_get_a2dp_current_codec();
   log::assert_that(codec_config != nullptr, "assert failed: codec_config != nullptr");
 
-  /* Check if stream has already been started. */
-  /* Support offload if only one audio source stream is open. */
-  if (p_scb->started != true) {
-    status = BTA_AV_FAIL_STREAM;
-  } else if (bta_av_cb.offload_start_pending_hndl || bta_av_cb.offload_started_hndl) {
-    log::warn("offload already started, ignore request");
-    return;
-  } else if (::bluetooth::audio::a2dp::provider::supports_codec(codec_config->codecIndex())) {
+  if (::bluetooth::audio::a2dp::provider::supports_codec(codec_config->codecIndex())) {
     bta_av_vendor_offload_start_v2(p_scb, static_cast<A2dpCodecConfigExt*>(codec_config));
   } else {
     bta_av_offload_codec_builder(p_scb, &offload_start);
     bta_av_vendor_offload_start(p_scb, &offload_start);
-    return;
   }
-  if (status != BTA_AV_SUCCESS) {
-    tBTA_AV bta_av_data;
-    bta_av_data.status = status;
-    (*bta_av_cb.p_cback)(BTA_AV_OFFLOAD_START_RSP_EVT, &bta_av_data);
-  }
-  /* TODO(eisenbach): RE-IMPLEMENT USING VSC OR HAL EXTENSION
-  else if (bta_av_cb.audio_open_cnt == 1 &&
-             p_scb->seps[p_scb->sep_idx].tsep == AVDT_TSEP_SRC &&
-             p_scb->chnl == BTA_AV_CHNL_AUDIO) {
-    bt_vendor_op_a2dp_offload_t a2dp_offload_start;
-
-    if (L2CA_GetConnectionConfig(
-            p_scb->l2c_cid, &a2dp_offload_start.acl_data_size,
-            &a2dp_offload_start.remote_cid, &a2dp_offload_start.lm_handle)) {
-      log::verbose("l2cmtu {} lcid 0x{:02X} rcid 0x{:02X} lm_handle 0x{:02X}",
-  a2dp_offload_start.acl_data_size, p_scb->l2c_cid,
-  a2dp_offload_start.remote_cid, a2dp_offload_start.lm_handle);
-
-      a2dp_offload_start.bta_av_handle = p_scb->hndl;
-      a2dp_offload_start.xmit_quota = BTA_AV_A2DP_OFFLOAD_XMIT_QUOTA;
-      a2dp_offload_start.stream_mtu = p_scb->stream_mtu;
-      a2dp_offload_start.local_cid = p_scb->l2c_cid;
-      a2dp_offload_start.is_flushable = true;
-      a2dp_offload_start.stream_source =
-          ((uint32_t)(p_scb->cfg.codec_info[1] | p_scb->cfg.codec_info[2]));
-
-      memcpy(a2dp_offload_start.codec_info, p_scb->cfg.codec_info,
-             sizeof(a2dp_offload_start.codec_info));
-
-      if (!vendor_get_interface()->send_command(
-              (vendor_opcode_t)BT_VND_OP_A2DP_OFFLOAD_START,
-              &a2dp_offload_start)) {
-        status = BTA_AV_SUCCESS;
-        p_scb->offload_start_pending = true;
-      }
-    }
-  }
- */
 }
 
 /*******************************************************************************

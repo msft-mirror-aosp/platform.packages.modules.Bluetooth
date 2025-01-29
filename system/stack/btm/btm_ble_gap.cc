@@ -1918,7 +1918,7 @@ static DEV_CLASS btm_ble_appearance_to_cod(uint16_t appearance) {
       dev_class[1] = BTM_COD_MAJOR_PERIPHERAL;
       dev_class[2] = BTM_COD_MINOR_DIGITAL_PAN;
       break;
-    case BTM_BLE_APPEARANCE_UKNOWN:
+    case BTM_BLE_APPEARANCE_UNKNOWN:
     case BTM_BLE_APPEARANCE_GENERIC_CLOCK:
     case BTM_BLE_APPEARANCE_GENERIC_TAG:
     case BTM_BLE_APPEARANCE_GENERIC_KEYRING:
