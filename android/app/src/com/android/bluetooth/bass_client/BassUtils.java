@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.bass_client;
 
+import static com.android.bluetooth.flags.Flags.leaudioBassScanWithInternalScanController;
+
 import android.bluetooth.le.ScanFilter;
 import android.os.ParcelUuid;
 import android.util.Log;
@@ -29,8 +31,14 @@ class BassUtils {
 
     static boolean containUuid(List<ScanFilter> filters, ParcelUuid uuid) {
         for (ScanFilter filter : filters) {
-            if (filter.getServiceUuid().equals(uuid)) {
-                return true;
+            if (leaudioBassScanWithInternalScanController()) {
+                if (filter.getServiceDataUuid().equals(uuid)) {
+                    return true;
+                }
+            } else {
+                if (filter.getServiceUuid().equals(uuid)) {
+                    return true;
+                }
             }
         }
         return false;
