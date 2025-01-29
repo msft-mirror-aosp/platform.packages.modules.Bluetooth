@@ -893,7 +893,6 @@ public class PbapClientStateMachineTest {
                             return null;
                         })
                 .when(mMockObexClient)
-                .requestDownloadPhonebook(
-                        eq(phonebook), any(PbapApplicationParameters.class), any(Account.class));
+                .requestDownloadPhonebook(eq(phonebook), any(PbapApplicationParameters.class));
     }
 }
