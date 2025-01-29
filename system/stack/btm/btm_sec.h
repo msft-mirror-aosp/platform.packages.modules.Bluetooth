@@ -60,6 +60,8 @@ bool BTM_IsLinkKeyAuthed(const RawAddress& bd_addr, tBT_TRANSPORT transport);
 bool BTM_IsLinkKeyKnown(const RawAddress& bd_addr, tBT_TRANSPORT transport);
 bool BTM_IsAuthenticated(const RawAddress& bd_addr, tBT_TRANSPORT transport);
 bool BTM_CanReadDiscoverableCharacteristics(const RawAddress& bd_addr);
+void BTM_update_version_info(const RawAddress& bd_addr,
+                             const remote_version_info& remote_version_info);
 
 /*******************************************************************************
  *
@@ -401,7 +403,7 @@ void btm_sec_conn_req(const RawAddress& bda, const DEV_CLASS dc);
  * Returns          void
  *
  ******************************************************************************/
-void btm_create_conn_cancel_complete(uint8_t status, const RawAddress bd_addr, uint32_t value);
+void btm_create_conn_cancel_complete(uint8_t status, const RawAddress bd_addr);
 
 /*******************************************************************************
  *

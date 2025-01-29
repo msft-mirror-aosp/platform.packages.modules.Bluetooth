@@ -33,10 +33,6 @@
 // TODO(b/369381361) Enfore -Wmissing-prototypes
 #pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
-bool btm_sco_removed(uint16_t /* hci_handle */, tHCI_REASON /* reason */) {
-  inc_func_call_count(__func__);
-  return false;
-}
 const RawAddress* BTM_ReadScoBdAddr(uint16_t /* sco_inx */) {
   inc_func_call_count(__func__);
   return nullptr;
@@ -89,9 +85,6 @@ void btm_sco_on_esco_connect_request(const RawAddress& /* bda */,
 }
 void btm_sco_on_sco_connect_request(const RawAddress& /* bda */,
                                     const bluetooth::hci::ClassOfDevice& /* cod */) {
-  inc_func_call_count(__func__);
-}
-void btm_sco_on_disconnected(uint16_t /* hci_handle */, tHCI_REASON /* reason */) {
   inc_func_call_count(__func__);
 }
 bool btm_peer_supports_esco_2m_phy(RawAddress /* bd_addr */) {
