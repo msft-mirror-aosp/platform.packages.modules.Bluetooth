@@ -36,7 +36,6 @@ import android.test.mock.MockContentResolver;
 import androidx.test.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
-import com.android.bluetooth.R;
 import com.android.bluetooth.TestUtils;
 
 import org.junit.After;
@@ -57,7 +56,6 @@ public class ImageTest {
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
     private @Mock Context mMockContext;
-    private @Mock Resources mMockResources;
     private Resources mTestResources;
     private MockContentResolver mTestContentResolver;
 
@@ -108,8 +106,7 @@ public class ImageTest {
                 });
 
         when(mMockContext.getContentResolver()).thenReturn(mTestContentResolver);
-        when(mMockContext.getResources()).thenReturn(mMockResources);
-        when(mMockResources.getBoolean(R.bool.avrcp_target_cover_art_uri_images)).thenReturn(true);
+        Util.sUriImagesSupport = true;
     }
 
     @After
@@ -119,6 +116,7 @@ public class ImageTest {
         mTestResources = null;
         mTargetContext = null;
         mMockContext = null;
+        Util.sUriImagesSupport = false;
     }
 
     private Bitmap loadImage(int resId) {
@@ -287,7 +285,7 @@ public class ImageTest {
      */
     @Test
     public void testCreateImageFromMediaMetadataWithArtUriDisabled() {
-        when(mMockResources.getBoolean(R.bool.avrcp_target_cover_art_uri_images)).thenReturn(false);
+        Util.sUriImagesSupport = false;
         MediaMetadata metadata =
                 getMediaMetadataWithUri(MediaMetadata.METADATA_KEY_ART_URI, IMAGE_STRING_1);
         Image artwork = new Image(mMockContext, metadata);
@@ -302,7 +300,7 @@ public class ImageTest {
      */
     @Test
     public void testCreateImageFromMediaMetadataWithAlbumArtUriDisabled() {
-        when(mMockResources.getBoolean(R.bool.avrcp_target_cover_art_uri_images)).thenReturn(false);
+        Util.sUriImagesSupport = false;
         MediaMetadata metadata =
                 getMediaMetadataWithUri(MediaMetadata.METADATA_KEY_ALBUM_ART_URI, IMAGE_STRING_1);
         Image artwork = new Image(mMockContext, metadata);
@@ -317,7 +315,7 @@ public class ImageTest {
      */
     @Test
     public void testCreateImageFromMediaMetadataWithDisplayIconUriDisabled() {
-        when(mMockResources.getBoolean(R.bool.avrcp_target_cover_art_uri_images)).thenReturn(false);
+        Util.sUriImagesSupport = false;
         MediaMetadata metadata =
                 getMediaMetadataWithUri(
                         MediaMetadata.METADATA_KEY_DISPLAY_ICON_URI, IMAGE_STRING_1);
@@ -459,7 +457,7 @@ public class ImageTest {
      */
     @Test
     public void testCreateImageFromBundleWithArtUriDisabled() {
-        when(mMockResources.getBoolean(R.bool.avrcp_target_cover_art_uri_images)).thenReturn(false);
+        Util.sUriImagesSupport = false;
         Bundle bundle = getBundleWithUri(MediaMetadata.METADATA_KEY_ART_URI, IMAGE_STRING_1);
         Image artwork = new Image(mMockContext, bundle);
         assertThat(artwork.getImage()).isNull();
@@ -473,7 +471,7 @@ public class ImageTest {
      */
     @Test
     public void testCreateImageFromBundleWithAlbumArtUriDisabled() {
-        when(mMockResources.getBoolean(R.bool.avrcp_target_cover_art_uri_images)).thenReturn(false);
+        Util.sUriImagesSupport = false;
         Bundle bundle = getBundleWithUri(MediaMetadata.METADATA_KEY_ALBUM_ART_URI, IMAGE_STRING_1);
         Image artwork = new Image(mMockContext, bundle);
         assertThat(artwork.getImage()).isNull();
@@ -487,7 +485,7 @@ public class ImageTest {
      */
     @Test
     public void testCreateImageFromBundleWithDisplayIconUriDisabled() {
-        when(mMockResources.getBoolean(R.bool.avrcp_target_cover_art_uri_images)).thenReturn(false);
+        Util.sUriImagesSupport = false;
         Bundle bundle =
                 getBundleWithUri(MediaMetadata.METADATA_KEY_DISPLAY_ICON_URI, IMAGE_STRING_1);
         Image artwork = new Image(mMockContext, bundle);
