@@ -461,3 +461,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "leaudio_bass_scan_with_internal_scan_controller"
+    namespace: "bluetooth"
+    description: "Use internal scan controller for BASS service scan"
+    bug: "392953619"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
