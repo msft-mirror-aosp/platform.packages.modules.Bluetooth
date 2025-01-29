@@ -79,13 +79,8 @@
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 namespace {
-
 constexpr char kBtmLogTag[] = "SEC";
-
 }
 
 using namespace bluetooth;
@@ -102,9 +97,6 @@ extern tBTM_CB btm_cb;
 #define BTM_SEC_LE_MASK                                                          \
   (BTM_SEC_LE_AUTHENTICATED | BTM_SEC_LE_ENCRYPTED | BTM_SEC_LE_LINK_KEY_KNOWN | \
    BTM_SEC_LE_LINK_KEY_AUTHED)
-
-bool btm_ble_init_pseudo_addr(tBTM_SEC_DEV_REC* p_dev_rec, const RawAddress& new_pseudo_addr);
-void bta_dm_remove_device(const RawAddress& bd_addr);
 
 static tBTM_STATUS btm_sec_execute_procedure(tBTM_SEC_DEV_REC* p_dev_rec);
 static bool btm_sec_start_get_name(tBTM_SEC_DEV_REC* p_dev_rec);
@@ -175,12 +167,6 @@ static bool handleUnexpectedEncryptionChange() {
   static const bool sHandleUnexpectedEncryptionChange = osi_property_get_bool(
           "bluetooth.btm.sec.handle_unexpected_encryption_change.enabled", false);
   return sHandleUnexpectedEncryptionChange;
-}
-
-void NotifyBondingCanceled(tBTM_STATUS /* btm_status */) {
-  if (btm_sec_cb.api.p_bond_cancel_cmpl_callback) {
-    btm_sec_cb.api.p_bond_cancel_cmpl_callback(tBTM_STATUS::BTM_SUCCESS);
-  }
 }
 
 /*******************************************************************************
@@ -2150,9 +2136,9 @@ static void call_registered_rmt_name_callbacks(const RawAddress* p_bd_addr,
  *                  nullptr if record is not found
  *
  ******************************************************************************/
-tBTM_SEC_DEV_REC* btm_rnr_add_name_to_security_record(const RawAddress* p_bd_addr,
-                                                      const uint8_t* p_bd_name,
-                                                      tHCI_STATUS hci_status) {
+static tBTM_SEC_DEV_REC* btm_rnr_add_name_to_security_record(const RawAddress* p_bd_addr,
+                                                             const uint8_t* p_bd_name,
+                                                             tHCI_STATUS hci_status) {
   /* If remote name request failed, p_bd_addr is null and we need to search */
   /* based on state assuming that we are doing 1 at a time */
   tBTM_SEC_DEV_REC* p_dev_rec = nullptr;

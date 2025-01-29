@@ -32,14 +32,6 @@
 // TODO(b/369381361) Enfore -Wmissing-prototypes
 #pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
-namespace test {
-namespace mock {
-namespace stack_btm_devctl {
-
-}
-}  // namespace mock
-}  // namespace test
-
 tBTM_STATUS BTM_DeleteStoredLinkKey(const RawAddress* /* bd_addr */, tBTM_CMPL_CB* /* p_cb */) {
   inc_func_call_count(__func__);
   return tBTM_STATUS::BTM_SUCCESS;
@@ -56,5 +48,3 @@ void BTM_db_reset(void) { inc_func_call_count(__func__); }
 void btm_delete_stored_link_key_complete(uint8_t* /* p */, uint16_t /* evt_len */) {
   inc_func_call_count(__func__);
 }
-void btm_dev_free() { inc_func_call_count(__func__); }
-void btm_dev_init() { inc_func_call_count(__func__); }
