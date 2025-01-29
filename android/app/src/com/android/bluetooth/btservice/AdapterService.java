@@ -29,6 +29,7 @@ import static android.bluetooth.BluetoothAdapter.SCAN_MODE_NONE;
 import static android.bluetooth.BluetoothDevice.BATTERY_LEVEL_UNKNOWN;
 import static android.bluetooth.BluetoothDevice.BOND_NONE;
 import static android.bluetooth.BluetoothDevice.TRANSPORT_AUTO;
+import static android.bluetooth.BluetoothProfile.getProfileName;
 import static android.bluetooth.IBluetoothLeAudio.LE_AUDIO_GROUP_ID_INVALID;
 import static android.text.format.DateUtils.MINUTE_IN_MILLIS;
 import static android.text.format.DateUtils.SECOND_IN_MILLIS;
@@ -184,6 +185,7 @@ import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1554,46 +1556,45 @@ public class AdapterService extends Service {
 
     @VisibleForTesting
     void setProfileServiceState(int profileId, int state) {
+        Instant start = Instant.now();
+        String logHdr = "setProfileServiceState(" + getProfileName(profileId) + ", " + state + "):";
+
         if (state == BluetoothAdapter.STATE_ON) {
-            if (!mStartedProfiles.containsKey(profileId)) {
-                ProfileService profileService = PROFILE_CONSTRUCTORS.get(profileId).apply(this);
-                mStartedProfiles.put(profileId, profileService);
-                addProfile(profileService);
-                profileService.start();
-                profileService.setAvailable(true);
-                // With `Flags.scanManagerRefactor()` GattService initialization is pushed back to
-                // `ON` state instead of `BLE_ON`. Here we ensure mGattService is set prior
-                // to other Profiles using it.
-                if (profileId == BluetoothProfile.GATT && Flags.scanManagerRefactor()) {
-                    mGattService = GattService.getGattService();
-                }
-                onProfileServiceStateChanged(profileService, BluetoothAdapter.STATE_ON);
-            } else {
-                Log.e(
-                        TAG,
-                        "setProfileServiceState("
-                                + BluetoothProfile.getProfileName(profileId)
-                                + ", STATE_ON): profile is already started");
+            if (mStartedProfiles.containsKey(profileId)) {
+                Log.wtf(TAG, logHdr + " profile is already started");
+                return;
             }
+            Log.d(TAG, logHdr + " starting profile");
+            ProfileService profileService = PROFILE_CONSTRUCTORS.get(profileId).apply(this);
+            mStartedProfiles.put(profileId, profileService);
+            addProfile(profileService);
+            profileService.start();
+            profileService.setAvailable(true);
+            // With `Flags.scanManagerRefactor()` GattService initialization is pushed back to
+            // `ON` state instead of `BLE_ON`. Here we ensure mGattService is set prior
+            // to other Profiles using it.
+            if (profileId == BluetoothProfile.GATT && Flags.scanManagerRefactor()) {
+                mGattService = GattService.getGattService();
+            }
+            onProfileServiceStateChanged(profileService, BluetoothAdapter.STATE_ON);
         } else if (state == BluetoothAdapter.STATE_OFF) {
             ProfileService profileService = mStartedProfiles.remove(profileId);
-            if (profileService != null) {
-                profileService.setAvailable(false);
-                onProfileServiceStateChanged(profileService, BluetoothAdapter.STATE_OFF);
-                profileService.stop();
-                removeProfile(profileService);
-                profileService.cleanup();
-                if (profileService.getBinder() != null) {
-                    profileService.getBinder().cleanup();
-                }
-            } else {
-                Log.e(
-                        TAG,
-                        "setProfileServiceState("
-                                + BluetoothProfile.getProfileName(profileId)
-                                + ", STATE_OFF): profile is already stopped");
+            if (profileService == null) {
+                Log.wtf(TAG, logHdr + " profile is already stopped");
+                return;
+            }
+            Log.d(TAG, logHdr + " stopping profile");
+            profileService.setAvailable(false);
+            onProfileServiceStateChanged(profileService, BluetoothAdapter.STATE_OFF);
+            profileService.stop();
+            removeProfile(profileService);
+            profileService.cleanup();
+            if (profileService.getBinder() != null) {
+                profileService.getBinder().cleanup();
             }
         }
+        Instant end = Instant.now();
+        Log.d(TAG, logHdr + " completed in " + Duration.between(start, end).toMillis() + "ms");
     }
 
     private void setAllProfileServiceStates(int[] profileIds, int state) {
