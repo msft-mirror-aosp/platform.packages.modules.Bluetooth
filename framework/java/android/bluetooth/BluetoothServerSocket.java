@@ -19,7 +19,6 @@ package android.bluetooth;
 import android.annotation.NonNull;
 import android.annotation.SuppressLint;
 import android.compat.annotation.UnsupportedAppUsage;
-import android.os.Handler;
 import android.os.ParcelUuid;
 import android.util.Log;
 
@@ -80,8 +79,6 @@ public final class BluetoothServerSocket implements Closeable {
             publicAlternatives = "Use public {@link BluetoothServerSocket} API " + "instead.")
     /*package*/ final BluetoothSocket mSocket;
 
-    private Handler mHandler;
-    private int mMessage;
     private int mChannel;
     private long mSocketCreationTimeMillis = 0;
     private long mSocketCreationLatencyMillis = 0;
@@ -277,18 +274,7 @@ public final class BluetoothServerSocket implements Closeable {
      */
     public void close() throws IOException {
         if (DBG) Log.d(TAG, "BluetoothServerSocket:close() called. mChannel=" + mChannel);
-        synchronized (this) {
-            if (mHandler != null) {
-                mHandler.obtainMessage(mMessage).sendToTarget();
-            }
-        }
         mSocket.close();
-    }
-
-    /*package*/
-    synchronized void setCloseHandler(Handler handler, int message) {
-        mHandler = handler;
-        mMessage = message;
     }
 
     /*package*/ void setServiceName(String serviceName) {
