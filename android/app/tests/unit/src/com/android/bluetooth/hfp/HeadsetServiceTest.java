@@ -22,6 +22,7 @@ import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -47,6 +48,7 @@ import android.media.AudioManager;
 import android.os.ParcelUuid;
 import android.os.RemoteException;
 import android.os.SystemClock;
+import android.platform.test.annotations.EnableFlags;
 
 import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.MediumTest;
@@ -1296,6 +1298,54 @@ public class HeadsetServiceTest {
         assertThat(mHeadsetService.isInbandRingingEnabled()).isFalse();
     }
 
+    @Test
+    @EnableFlags({Flags.FLAG_UPDATE_ACTIVE_DEVICE_IN_BAND_RINGTONE})
+    public void testIncomingCallDeviceConnect_InbandRingStatus() {
+        when(mDatabaseManager.getProfileConnectionPolicy(
+                        any(BluetoothDevice.class), eq(BluetoothProfile.HEADSET)))
+                .thenReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
+        mCurrentDevice = TestUtils.getTestDevice(mAdapter, 0);
+        connectDeviceHelper(mCurrentDevice);
+
+        when(mStateMachines.get(mCurrentDevice).getDevice()).thenReturn(mCurrentDevice);
+        when(mStateMachines.get(mCurrentDevice).getConnectionState())
+                .thenReturn(BluetoothProfile.STATE_CONNECTED);
+
+        when(mSystemInterface.isRinging()).thenReturn(true);
+        mHeadsetService.setActiveDevice(mCurrentDevice);
+
+        verify(mNativeInterface).setActiveDevice(mCurrentDevice);
+        verify(mStateMachines.get(mCurrentDevice))
+                .sendMessage(HeadsetStateMachine.CONNECT_AUDIO, mCurrentDevice);
+        verify(mStateMachines.get(mCurrentDevice))
+                .sendMessage(eq(HeadsetStateMachine.SEND_BSIR), eq(1));
+    }
+
+    @Test
+    @EnableFlags({Flags.FLAG_UPDATE_ACTIVE_DEVICE_IN_BAND_RINGTONE})
+    public void testIncomingCallWithDeviceAudioConnected() {
+        ArrayList<BluetoothDevice> connectedDevices = new ArrayList<>();
+        when(mDatabaseManager.getProfileConnectionPolicy(
+                        any(BluetoothDevice.class), eq(BluetoothProfile.HEADSET)))
+                .thenReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
+        for (int i = 2; i >= 0; i--) {
+            mCurrentDevice = TestUtils.getTestDevice(mAdapter, i);
+            connectDeviceHelper(mCurrentDevice);
+            connectedDevices.add(mCurrentDevice);
+        }
+
+        mHeadsetService.setActiveDevice(connectedDevices.get(1));
+        when(mStateMachines.get(connectedDevices.get(1)).getAudioState())
+                .thenReturn(BluetoothHeadset.STATE_AUDIO_CONNECTED);
+
+        when(mSystemInterface.isRinging()).thenReturn(true);
+        mHeadsetService.setActiveDevice(connectedDevices.get(2));
+
+        verify(mNativeInterface).setActiveDevice(connectedDevices.get(2));
+        verify(mStateMachines.get(connectedDevices.get(2)), atLeast(1))
+                .sendMessage(eq(HeadsetStateMachine.SEND_BSIR), eq(0));
+    }
+
     private void addConnectedDeviceHelper(BluetoothDevice device) {
         mCurrentDevice = device;
         when(mDatabaseManager.getProfileConnectionPolicy(
@@ -1328,5 +1378,20 @@ public class HeadsetServiceTest {
         when(mDatabaseManager.getProfileConnectionPolicy(device, BluetoothProfile.HEADSET))
                 .thenReturn(priority);
         assertThat(mHeadsetService.okToAcceptConnection(device, false)).isEqualTo(expected);
+    }
+
+    private void connectDeviceHelper(BluetoothDevice device) {
+        assertThat(mHeadsetService.connect(device)).isTrue();
+        verify(mObjectsFactory)
+                .makeStateMachine(
+                        device,
+                        mHeadsetService.getStateMachinesThreadLooper(),
+                        mHeadsetService,
+                        mAdapterService,
+                        mNativeInterface,
+                        mSystemInterface);
+        when(mStateMachines.get(device).getDevice()).thenReturn(device);
+        when(mStateMachines.get(device).getConnectionState())
+                .thenReturn(BluetoothProfile.STATE_CONNECTED);
     }
 }
