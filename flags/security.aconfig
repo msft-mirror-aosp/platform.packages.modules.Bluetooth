@@ -9,6 +9,16 @@ flag {
 }
 
 flag {
+    name: "key_missing_ble_peripheral"
+    namespace: "bluetooth"
+    description: "Key missing broadcast for LE devices in peripheral role"
+    bug: "392895615"
+    metadata {
+      purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
     name: "key_missing_as_ordered_broadcast"
     namespace: "bluetooth"
     description: "Key missing broadcast would be send as ordered broadcast"
