@@ -28,6 +28,7 @@
 
 #include <cstdint>
 
+#include "common/time_util.h"
 #include "internal_include/bt_target.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
@@ -341,7 +342,7 @@ void rfc_sec_check_complete(RawAddress /* bd_addr */, tBT_TRANSPORT /* transport
 void rfc_port_closed(tPORT* p_port) {
   tRFC_MCB* p_mcb = p_port->rfc.p_mcb;
   rfc_port_timer_stop(p_port);
-  p_port->rfc.sm_cb.state = RFC_STATE_CLOSED;
+  rfc_set_state(RFC_STATE_CLOSED, p_port);
 
   /* If multiplexer channel was up mark it as down */
   if (p_mcb) {
@@ -433,5 +434,30 @@ void rfc_check_send_cmd(tRFC_MCB* p_mcb, BT_HDR* p_buf) {
       log::warn("Unable to write L2CAP data peer:{} cid:{} len:{}", p_mcb->bd_addr, p_mcb->lcid,
                 len);
     }
+  }
+}
+
+/*******************************************************************************
+ *
+ * Function         rfc_set_state
+ *
+ * Description      This function updates the RfcommPortSm control block with a
+ *                  new state
+ *
+ ******************************************************************************/
+void rfc_set_state(tRFC_PORT_STATE state, tPORT* p_port) {
+  // nothing is going to change if the state doesn't change
+  if (p_port->rfc.sm_cb.state == state) {
+    log::debug("Already at state {}, no need to update", rfcomm_port_state_text(state));
+    return;
+  }
+
+  p_port->rfc.sm_cb.state_prior = p_port->rfc.sm_cb.state;
+  p_port->rfc.sm_cb.state = state;
+
+  if (state == RFC_STATE_OPENED) {
+    p_port->rfc.sm_cb.open_timestamp = bluetooth::common::time_gettimeofday_us();
+  } else if (state == RFC_STATE_CLOSED && p_port->rfc.sm_cb.open_timestamp != 0) {
+    p_port->rfc.sm_cb.close_timestamp = bluetooth::common::time_gettimeofday_us();
   }
 }

@@ -991,7 +991,7 @@ void port_rfc_closed(tPORT* p_port, uint8_t res) {
     log::warn("port_rfc_closed in OPENING state ignored");
 
     rfc_port_timer_stop(p_port);
-    p_port->rfc.sm_cb.state = RFC_STATE_CLOSED;
+    rfc_set_state(RFC_STATE_CLOSED, p_port);
 
     if (p_mcb) {
       p_mcb->port_handles[p_port->dlci] = 0;
@@ -1049,8 +1049,8 @@ void port_rfc_closed(tPORT* p_port, uint8_t res) {
     p_port->p_mgmt_callback(static_cast<tPORT_RESULT>(res2), p_port->handle);
   }
 
-  p_port->rfc.sm_cb.state = RFC_STATE_CLOSED;
-
+  rfc_set_state(RFC_STATE_CLOSED, p_port);
+  p_port->rfc.sm_cb.close_reason = static_cast<tPORT_RESULT>(res);
   log::info(
           "RFCOMM connection closed, port_handle={}, state={}, reason={}[{}], "
           "UUID=0x{:x}, bd_addr={}, is_server={}",
