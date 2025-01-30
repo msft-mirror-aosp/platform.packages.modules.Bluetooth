@@ -23,6 +23,7 @@
 
 #include "abstract_message_loop.h"
 #include "avrcp_common.h"
+#include "device/include/interop.h"
 #include "internal_include/stack_config.h"
 #include "packet/avrcp/avrcp_reject_packet.h"
 #include "packet/avrcp/general_reject_packet.h"
@@ -736,7 +737,9 @@ void Device::AddressedPlayerNotificationResponse(uint8_t label, bool interim,
   if (!interim) {
     active_labels_.erase(label);
     addr_player_changed_ = Notification(false, 0);
-    RejectNotification();
+    if (!interop_match_addr(INTEROP_ADDRESSED_PLAYER_CHANGE_REJECT, &address_)) {
+      RejectNotification();
+    }
   }
 }
 
