@@ -226,6 +226,51 @@ public class DckL2capTest() : Closeable {
         Log.d(TAG, "testReceive: done")
     }
 
+    @Test
+    @VirtualOnly
+    fun testReadReturnOnRemoteSocketDisconnect() {
+        Log.d(TAG, "testReadReturnonSocketDisconnect: Connect L2CAP")
+        var bluetoothSocket: BluetoothSocket?
+        val l2capServer = bluetoothAdapter.listenUsingInsecureL2capChannel()
+        val socketFlow = flow { emit(l2capServer.accept()) }
+        val connectResponse = createAndConnectL2capChannelWithBumble(l2capServer.psm)
+        runBlocking {
+            bluetoothSocket = socketFlow.first()
+            assertThat(connectResponse.hasChannel()).isTrue()
+        }
+
+        val inputStream = bluetoothSocket!!.inputStream
+
+        // block on read() on server thread
+        val readThread = Thread {
+            Log.d(TAG, "testReadReturnOnRemoteSocketDisconnect: Receive data on Android")
+            val ret = inputStream.read()
+            Log.d(TAG, "testReadReturnOnRemoteSocketDisconnect: read returns : " + ret)
+            Log.d(
+                TAG,
+                "testReadReturnOnRemoteSocketDisconnect: isConnected() : " +
+                    bluetoothSocket!!.isConnected(),
+            )
+            assertThat(ret).isEqualTo(-1)
+            assertThat(bluetoothSocket!!.isConnected()).isFalse()
+        }
+        readThread.start()
+        // check that socket is still connected
+        assertThat(bluetoothSocket!!.isConnected()).isTrue()
+
+        // read() would be blocking till underlying l2cap is disconnected
+        Thread.sleep(1000 * 10)
+        Log.d(TAG, "testReadReturnOnRemoteSocketDisconnect: disconnect after 10 secs")
+        val disconnectRequest =
+            DisconnectRequest.newBuilder().setChannel(connectResponse.channel).build()
+        val disconnectResponse = mBumble.l2capBlocking().disconnect(disconnectRequest)
+        assertThat(disconnectResponse.hasSuccess()).isTrue()
+        inputStream.close()
+        bluetoothSocket?.close()
+        l2capServer.close()
+        Log.d(TAG, "testReadReturnOnRemoteSocketDisconnect: done")
+    }
+
     private fun createAndConnectL2capChannelWithBumble(psm: Int): ConnectResponse {
         Log.d(TAG, "createAndConnectL2capChannelWithBumble")
         val remoteDevice =

@@ -452,12 +452,12 @@ void rfc_port_sm_orig_wait_sec_check(tPORT* p_port, tRFC_PORT_EVENT event, void*
 void rfc_port_sm_opened(tPORT* p_port, tRFC_PORT_EVENT event, void* p_data) {
   switch (event) {
     case RFC_PORT_EVENT_OPEN:
-      log::error("RFC_PORT_EVENT_OPEN bd_addr:{} handle:{} dlci:{} scn:{}", p_port->bd_addr,
+      log::error("RFC_PORT_EVENT_OPEN bd_addr:{} port_handle:{} dlci:{} scn:{}", p_port->bd_addr,
                  p_port->handle, p_port->dlci, p_port->scn);
       return;
 
     case RFC_PORT_EVENT_CLOSE:
-      log::info("RFC_PORT_EVENT_CLOSE bd_addr:{}, handle:{} dlci:{} scn:{}", p_port->bd_addr,
+      log::info("RFC_PORT_EVENT_CLOSE bd_addr:{}, port_handle:{} dlci:{} scn:{}", p_port->bd_addr,
                 p_port->handle, p_port->dlci, p_port->scn);
       rfc_port_timer_start(p_port, RFC_DISC_TIMEOUT);
       rfc_send_disc(p_port->rfc.p_mcb, p_port->dlci);
@@ -466,7 +466,7 @@ void rfc_port_sm_opened(tPORT* p_port, tRFC_PORT_EVENT event, void* p_data) {
       return;
 
     case RFC_PORT_EVENT_CLEAR:
-      log::warn("RFC_PORT_EVENT_CLEAR bd_addr:{} handle:{} dlci:{} scn:{}", p_port->bd_addr,
+      log::warn("RFC_PORT_EVENT_CLEAR bd_addr:{} port_handle:{} dlci:{} scn:{}", p_port->bd_addr,
                 p_port->handle, p_port->dlci, p_port->scn);
       rfc_port_closed(p_port);
       return;
@@ -475,7 +475,7 @@ void rfc_port_sm_opened(tPORT* p_port, tRFC_PORT_EVENT event, void* p_data) {
       // Send credits in the frame.  Pass them in the layer specific member of the hdr.
       // There might be an initial case when we reduced rx_max and credit_rx is still bigger.
       // Make sure that we do not send 255
-      log::verbose("RFC_PORT_EVENT_DATA bd_addr:{} handle:{} dlci:{} scn:{}", p_port->bd_addr,
+      log::verbose("RFC_PORT_EVENT_DATA bd_addr:{} port_handle:{} dlci:{} scn:{}", p_port->bd_addr,
                    p_port->handle, p_port->dlci, p_port->scn);
       if ((p_port->rfc.p_mcb->flow == PORT_FC_CREDIT) &&
           (((BT_HDR*)p_data)->len < p_port->peer_mtu) && (!p_port->rx.user_fc) &&
@@ -490,25 +490,25 @@ void rfc_port_sm_opened(tPORT* p_port, tRFC_PORT_EVENT event, void* p_data) {
       return;
 
     case RFC_PORT_EVENT_UA:
-      log::verbose("RFC_PORT_EVENT_UA bd_addr:{} handle:{} dlci:{} scn:{}", p_port->bd_addr,
+      log::verbose("RFC_PORT_EVENT_UA bd_addr:{} port_handle:{} dlci:{} scn:{}", p_port->bd_addr,
                    p_port->handle, p_port->dlci, p_port->scn);
       return;
 
     case RFC_PORT_EVENT_SABME:
-      log::verbose("RFC_PORT_EVENT_SABME bd_addr:{} handle:{} dlci:{} scn:{}", p_port->bd_addr,
+      log::verbose("RFC_PORT_EVENT_SABME bd_addr:{} port_handle:{} dlci:{} scn:{}", p_port->bd_addr,
                    p_port->handle, p_port->dlci, p_port->scn);
       rfc_send_ua(p_port->rfc.p_mcb, p_port->dlci);
       return;
 
     case RFC_PORT_EVENT_DM:
-      log::info("RFC_EVENT_DM bd_addr:{} handle:{} dlci:{} scn:{}", p_port->bd_addr, p_port->handle,
-                p_port->dlci, p_port->scn);
+      log::info("RFC_EVENT_DM bd_addr:{} port_handle:{} dlci:{} scn:{}", p_port->bd_addr,
+                p_port->handle, p_port->dlci, p_port->scn);
       PORT_DlcReleaseInd(p_port->rfc.p_mcb, p_port->dlci);
       rfc_port_closed(p_port);
       return;
 
     case RFC_PORT_EVENT_DISC:
-      log::info("RFC_PORT_EVENT_DISC bd_addr:{} handle:{} dlci:{} scn:{}", p_port->bd_addr,
+      log::info("RFC_PORT_EVENT_DISC bd_addr:{} port_handle:{} dlci:{} scn:{}", p_port->bd_addr,
                 p_port->handle, p_port->dlci, p_port->scn);
       p_port->rfc.sm_cb.state = RFC_STATE_CLOSED;
       rfc_send_ua(p_port->rfc.p_mcb, p_port->dlci);
@@ -522,19 +522,19 @@ void rfc_port_sm_opened(tPORT* p_port, tRFC_PORT_EVENT event, void* p_data) {
       return;
 
     case RFC_PORT_EVENT_UIH:
-      log::verbose("RFC_PORT_EVENT_UIH bd_addr:{}, handle:{} dlci:{} scn:{}", p_port->bd_addr,
+      log::verbose("RFC_PORT_EVENT_UIH bd_addr:{}, port_handle:{} dlci:{} scn:{}", p_port->bd_addr,
                    p_port->handle, p_port->dlci, p_port->scn);
       rfc_port_uplink_data(p_port, (BT_HDR*)p_data);
       return;
 
     case RFC_PORT_EVENT_TIMEOUT:
       PORT_TimeOutCloseMux(p_port->rfc.p_mcb);
-      log::error("RFC_PORT_EVENT_TIMEOUT bd_addr:{} handle:{} dlci:{} scn:{}", p_port->bd_addr,
+      log::error("RFC_PORT_EVENT_TIMEOUT bd_addr:{} port_handle:{} dlci:{} scn:{}", p_port->bd_addr,
                  p_port->handle, p_port->dlci, p_port->scn);
       return;
 
     default:
-      log::error("Received unexpected event:{} bd_addr:{} handle:{} dlci:{} scn:{}",
+      log::error("Received unexpected event:{} bd_addr:{} port_handle:{} dlci:{} scn:{}",
                  rfcomm_port_event_text(event), p_port->bd_addr, p_port->handle, p_port->dlci,
                  p_port->scn);
       break;
@@ -560,7 +560,7 @@ void rfc_port_sm_disc_wait_ua(tPORT* p_port, tRFC_PORT_EVENT event, void* p_data
       return;
 
     case RFC_PORT_EVENT_CLEAR:
-      log::warn("RFC_PORT_EVENT_CLEAR, handle:{}", p_port->handle);
+      log::warn("RFC_PORT_EVENT_CLEAR, port_handle:{}", p_port->handle);
       rfc_port_closed(p_port);
       return;
 
@@ -573,7 +573,7 @@ void rfc_port_sm_disc_wait_ua(tPORT* p_port, tRFC_PORT_EVENT event, void* p_data
       FALLTHROUGH_INTENDED; /* FALLTHROUGH */
 
     case RFC_PORT_EVENT_DM:
-      log::warn("RFC_EVENT_DM|RFC_EVENT_UA[{}], handle:{}", event, p_port->handle);
+      log::warn("RFC_EVENT_DM|RFC_EVENT_UA[{}], port_handle:{}", event, p_port->handle);
       if (com::android::bluetooth::flags::rfcomm_always_disc_initiator_in_disc_wait_ua()) {
         // If we got a DM in RFC_STATE_DISC_WAIT_UA, it's likely that both ends
         // attempt to DISC at the same time and both get a DM.
@@ -602,7 +602,7 @@ void rfc_port_sm_disc_wait_ua(tPORT* p_port, tRFC_PORT_EVENT event, void* p_data
       return;
 
     case RFC_PORT_EVENT_TIMEOUT:
-      log::error("RFC_EVENT_TIMEOUT, handle:{}", p_port->handle);
+      log::error("RFC_EVENT_TIMEOUT, port_handle:{}", p_port->handle);
       rfc_port_closed(p_port);
       return;
     default:

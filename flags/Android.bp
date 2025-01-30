@@ -31,6 +31,7 @@ aconfig_declarations {
         "hid.aconfig",
         "l2cap.aconfig",
         "le_advertising.aconfig",
+        "le_scanning.aconfig",
         "leaudio.aconfig",
         "mapclient.aconfig",
         "mcp.aconfig",

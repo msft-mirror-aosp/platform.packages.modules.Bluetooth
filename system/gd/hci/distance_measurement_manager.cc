@@ -32,6 +32,7 @@
 #include "hci/event_checkers.h"
 #include "hci/hci_layer.h"
 #include "module.h"
+#include "os/alarm.h"
 #include "os/handler.h"
 #include "os/repeating_alarm.h"
 #include "packet/packet_view.h"
@@ -84,6 +85,7 @@ static constexpr uint16_t kInvalidConnInterval = 0;  // valid value is from 0x00
 static constexpr uint16_t kDefaultRasMtu = 247;      // Section 3.1.2 of RAP 1.0
 static constexpr uint8_t kAttHeaderSize = 5;         // Section 3.2.2.1 of RAS 1.0
 static constexpr uint8_t kRasSegmentHeaderSize = 1;
+static constexpr uint16_t kEnableSecurityTimeoutMs = 10000;  // 10s
 
 struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
   struct CsProcedureData {
@@ -216,6 +218,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     PacketViewForRecombination segment_data_;
     uint16_t conn_interval_ = kInvalidConnInterval;
     uint8_t procedure_sequence_after_enable = -1;
+    std::unique_ptr<os::Alarm> enable_security_timeout_alarm = nullptr;
   };
 
   bool get_free_config_id(uint16_t connection_handle, uint8_t& config_id) {
@@ -683,9 +686,11 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       return;
     }
     switch (event.GetSubeventCode()) {
-      case hci::SubeventCode::LE_CS_TEST_END_COMPLETE:
-      case hci::SubeventCode::LE_CS_READ_REMOTE_FAE_TABLE_COMPLETE: {
+      case hci::SubeventCode::LE_CS_TEST_END_COMPLETE: {
         log::warn("Unhandled subevent {}", hci::SubeventCodeText(event.GetSubeventCode()));
+      } break;
+      case hci::SubeventCode::LE_CS_READ_REMOTE_FAE_TABLE_COMPLETE: {
+        on_cs_read_remote_fae_table_complete(LeCsReadRemoteFaeTableCompleteView::Create(event));
       } break;
       case hci::SubeventCode::LE_CS_SUBEVENT_RESULT_CONTINUE:
       case hci::SubeventCode::LE_CS_SUBEVENT_RESULT: {
@@ -745,6 +750,11 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
             LeCsSetDefaultSettingsBuilder::Create(connection_handle, role_enable,
                                                   kCsSyncAntennaSelection, kCsMaxTxPower),
             handler_->BindOnceOn(this, &impl::on_cs_set_default_settings_complete));
+  }
+
+  void send_le_cs_read_remote_fae_table(uint16_t connection_handle) const {
+    hci_layer_->EnqueueCommand(LeCsReadRemoteFaeTableBuilder::Create(connection_handle),
+                               handler_->BindOnce(check_status<LeCsReadRemoteFaeTableStatusView>));
   }
 
   void send_le_cs_create_config(uint16_t connection_handle, uint8_t config_id) {
@@ -938,6 +948,12 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       req_it->second.remote_num_antennas_supported_ = event_view.GetNumAntennasSupported();
       req_it->second.retry_counter_for_create_config = 0;
       req_it->second.remote_supported_sw_time_ = event_view.GetTSwTimeSupported();
+
+      if (event_view.GetOptionalSubfeaturesSupported().no_frequency_actuation_error_ == 0) {
+        log::debug("read remote fae as the no_fae is false.");
+        send_le_cs_read_remote_fae_table(connection_handle);
+      }
+
       send_le_cs_create_config(connection_handle, req_it->second.requesting_config_id);
     }
     log::info(
@@ -963,19 +979,39 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
     }
   }
 
+  static void on_cs_read_remote_fae_table_complete(LeCsReadRemoteFaeTableCompleteView event_view) {
+    if (!event_view.IsValid()) {
+      log::warn("Get invalid LeCsReadRemoteFaeTableCompleteView");
+      return;
+    }
+    if (event_view.GetStatus() != ErrorCode::SUCCESS) {
+      log::warn("Received LeCsReadRemoteFaeTableCompleteView with error code {}",
+                ErrorCodeText(event_view.GetStatus()));
+      // not critical, do nothing here.
+    }
+  }
+
   void on_cs_security_enable_complete(LeCsSecurityEnableCompleteView event_view) {
     if (!event_view.IsValid()) {
       log::warn("Get invalid LeCsSecurityEnableCompleteView");
       return;
     }
     uint16_t connection_handle = event_view.GetConnectionHandle();
+    auto req_it = cs_requester_trackers_.find(connection_handle);
+    if (req_it != cs_requester_trackers_.end() &&
+        req_it->second.state == CsTrackerState::WAIT_FOR_SECURITY_ENABLED &&
+        req_it->second.enable_security_timeout_alarm != nullptr) {
+      log::debug("cancel alarm for security enable cmd.");
+      req_it->second.enable_security_timeout_alarm->Cancel();
+      req_it->second.enable_security_timeout_alarm = nullptr;
+    }
     if (event_view.GetStatus() != ErrorCode::SUCCESS) {
       std::string error_code = ErrorCodeText(event_view.GetStatus());
       log::warn("Received LeCsSecurityEnableCompleteView with error code {}", error_code);
       handle_cs_setup_failure(connection_handle, REASON_INTERNAL_ERROR);
       return;
     }
-    auto req_it = cs_requester_trackers_.find(connection_handle);
+
     if (req_it != cs_requester_trackers_.end() &&
         req_it->second.state == CsTrackerState::WAIT_FOR_SECURITY_ENABLED) {
       send_le_cs_set_procedure_parameters(event_view.GetConnectionHandle(),
@@ -1055,8 +1091,25 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
       // send the cmd from the BLE central only.
       send_le_cs_security_enable(connection_handle, live_tracker->local_start);
     } else {
-      // TODO: else set a timeout alarm to make sure the remote would trigger the cmd.
       live_tracker->state = CsTrackerState::WAIT_FOR_SECURITY_ENABLED;
+      if (live_tracker->local_start) {
+        if (live_tracker->enable_security_timeout_alarm == nullptr) {
+          live_tracker->enable_security_timeout_alarm = std::make_unique<os::Alarm>(handler_);
+        }
+        live_tracker->enable_security_timeout_alarm->Schedule(
+                common::Bind(&impl::le_cs_enable_security_timeout, common::Unretained(this),
+                             connection_handle),
+                std::chrono::milliseconds(kEnableSecurityTimeoutMs));
+      }
+    }
+  }
+
+  void le_cs_enable_security_timeout(uint16_t connection_handle) {
+    auto req_it = cs_requester_trackers_.find(connection_handle);
+    if (req_it != cs_requester_trackers_.end()) {
+      log::info("security enable cmd is timeout, stop current session.");
+      handle_cs_setup_failure(connection_handle,
+                              DistanceMeasurementErrorCode::REASON_INTERNAL_ERROR);
     }
   }
 

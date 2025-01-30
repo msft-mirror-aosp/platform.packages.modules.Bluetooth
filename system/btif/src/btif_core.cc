@@ -134,7 +134,12 @@ int btif_is_enabled(void) {
   return (!btif_is_dut_mode()) && (stack_manager_get_interface()->get_stack_is_running());
 }
 
-void btif_init_ok() { btif_dm_load_ble_local_keys(); }
+void btif_init_ok() {
+  btif_dm_load_ble_local_keys();
+  if (com::android::bluetooth::flags::separate_service_storage()) {
+    btif_storage_migrate_services();
+  }
+}
 
 /*******************************************************************************
  *
@@ -290,7 +295,7 @@ void btif_dut_mode_send(uint16_t opcode, uint8_t* buf, uint8_t len) {
  ****************************************************************************/
 
 static bt_status_t btif_in_get_adapter_properties(void) {
-  const static uint32_t NUM_ADAPTER_PROPERTIES = 5;
+  static const uint32_t NUM_ADAPTER_PROPERTIES = 5;
   bt_property_t properties[NUM_ADAPTER_PROPERTIES];
   uint32_t num_props = 0;
 
@@ -340,12 +345,13 @@ static bt_status_t btif_in_get_adapter_properties(void) {
 }
 
 static bt_status_t btif_in_get_remote_device_properties(RawAddress* bd_addr) {
-  bt_property_t remote_properties[8];
+  bt_property_t remote_properties[9];
   uint32_t num_props = 0;
 
   bt_bdname_t name, alias;
   uint32_t cod, devtype;
   Uuid remote_uuids[BT_MAX_NUM_UUIDS];
+  Uuid remote_uuids_le[BT_MAX_NUM_UUIDS];
 
   memset(remote_properties, 0, sizeof(remote_properties));
   BTIF_STORAGE_FILL_PROPERTY(&remote_properties[num_props], BT_PROPERTY_BDNAME, sizeof(name),
@@ -369,9 +375,16 @@ static bt_status_t btif_in_get_remote_device_properties(RawAddress* bd_addr) {
   num_props++;
 
   BTIF_STORAGE_FILL_PROPERTY(&remote_properties[num_props], BT_PROPERTY_UUIDS, sizeof(remote_uuids),
-                             remote_uuids);
+                             &remote_uuids);
   btif_storage_get_remote_device_property(bd_addr, &remote_properties[num_props]);
   num_props++;
+
+  if (com::android::bluetooth::flags::separate_service_storage()) {
+    BTIF_STORAGE_FILL_PROPERTY(&remote_properties[num_props], BT_PROPERTY_UUIDS_LE,
+                               sizeof(remote_uuids_le), &remote_uuids_le);
+    btif_storage_get_remote_device_property(bd_addr, &remote_properties[num_props]);
+    num_props++;
+  }
 
   GetInterfaceToProfiles()->events->invoke_remote_device_properties_cb(
           BT_STATUS_SUCCESS, *bd_addr, num_props, remote_properties);

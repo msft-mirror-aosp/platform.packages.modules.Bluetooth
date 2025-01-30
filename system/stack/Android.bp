@@ -567,6 +567,7 @@ cc_fuzz {
         ":TestCommonMockFunctions",
         ":TestCommonStackConfig",
         ":TestFakeOsi",
+        ":TestMockBtaDm",
         ":TestMockBtif",
         ":TestMockDevice",
         ":TestMockMainShim",
@@ -949,6 +950,7 @@ cc_test {
     srcs: [
         ":TestCommonMainHandler",
         ":TestCommonMockFunctions",
+        ":TestMockBtaDm",
         ":TestMockBtif",
         ":TestMockDevice",
         ":TestMockMainShim",

@@ -102,6 +102,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -1653,6 +1654,31 @@ public class LeAudioService extends ProfileService {
     public boolean isPrimaryGroup(int groupId) {
         return groupId != IBluetoothLeAudio.LE_AUDIO_GROUP_ID_INVALID
                 && groupId == mUnicastGroupIdDeactivatedForBroadcastTransition;
+    }
+
+    /** Get local broadcast receiving devices */
+    public Set<BluetoothDevice> getLocalBroadcastReceivers() {
+        if (mBroadcastDescriptors == null) {
+            Log.e(TAG, "getLocalBroadcastReceivers: Invalid Broadcast Descriptors");
+            return Collections.emptySet();
+        }
+
+        BassClientService bassClientService = getBassClientService();
+        if (bassClientService == null) {
+            Log.e(TAG, "getLocalBroadcastReceivers: Bass service not available");
+            return Collections.emptySet();
+        }
+
+        Set<BluetoothDevice> deviceList = new HashSet<>();
+        for (Map.Entry<Integer, LeAudioBroadcastDescriptor> entry :
+                mBroadcastDescriptors.entrySet()) {
+            if (!entry.getValue().mState.equals(LeAudioStackEvent.BROADCAST_STATE_STOPPED)) {
+                List<BluetoothDevice> devices =
+                        bassClientService.getSyncedBroadcastSinks(entry.getKey());
+                deviceList.addAll(devices);
+            }
+        }
+        return deviceList;
     }
 
     private boolean areBroadcastsAllStopped() {

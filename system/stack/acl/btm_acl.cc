@@ -61,6 +61,7 @@
 #include "stack/btm/btm_int_types.h"
 #include "stack/btm/btm_sco.h"
 #include "stack/btm/btm_sec.h"
+#include "stack/btm/internal/btm_api.h"
 #include "stack/btm/security_device_record.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/acl_api_types.h"
@@ -69,6 +70,7 @@
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_ble_api.h"
 #include "stack/include/btm_client_interface.h"
+#include "stack/include/btm_iot_config.h"
 #include "stack/include/btm_iso_api.h"
 #include "stack/include/btm_status.h"
 #include "stack/include/hci_error_code.h"
@@ -92,14 +94,7 @@
 using namespace bluetooth;
 using bluetooth::legacy::hci::GetInterface;
 
-void BTM_update_version_info(const RawAddress& bd_addr,
-                             const remote_version_info& remote_version_info);
-
-void BTM_db_reset(void);
-
 extern tBTM_CB btm_cb;
-void btm_iot_save_remote_properties(tACL_CONN* p_acl_cb);
-void btm_iot_save_remote_versions(tACL_CONN* p_acl_cb);
 
 struct StackAclBtmAcl {
   tACL_CONN* acl_allocate_connection();
@@ -157,8 +152,8 @@ static void btm_read_failed_contact_counter_timeout(void* data);
 static void btm_read_remote_ext_features(uint16_t handle, uint8_t page_number);
 static void btm_read_rssi_timeout(void* data);
 static void btm_read_tx_power_timeout(void* data);
+static void btm_set_link_policy(tACL_CONN* conn, tLINK_POLICY policy);
 static void check_link_policy(tLINK_POLICY* settings);
-void btm_set_link_policy(tACL_CONN* conn, tLINK_POLICY policy);
 
 namespace {
 void NotifyAclLinkUp(tACL_CONN& p_acl) {
@@ -669,7 +664,7 @@ static void check_link_policy(tLINK_POLICY* settings) {
   }
 }
 
-void btm_set_link_policy(tACL_CONN* conn, tLINK_POLICY policy) {
+static void btm_set_link_policy(tACL_CONN* conn, tLINK_POLICY policy) {
   conn->link_policy = policy;
   check_link_policy(&conn->link_policy);
   if ((conn->link_policy & HCI_ENABLE_CENTRAL_PERIPHERAL_SWITCH) &&
