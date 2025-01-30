@@ -26,6 +26,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import android.bluetooth.BluetoothAdapter;
@@ -47,13 +48,15 @@ import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
-import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.CompanionManager;
 import com.android.bluetooth.gatt.GattNativeInterface;
 import com.android.bluetooth.gatt.GattObjectsFactory;
+
+import com.google.testing.junit.testparameterinjector.TestParameter;
+import com.google.testing.junit.testparameterinjector.TestParameterInjector;
 
 import org.junit.After;
 import org.junit.Before;
@@ -73,7 +76,7 @@ import java.util.Set;
 
 /** Test cases for {@link ScanController}. */
 @SmallTest
-@RunWith(AndroidJUnit4.class)
+@RunWith(TestParameterInjector.class)
 public class ScanControllerTest {
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
     @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
@@ -187,7 +190,8 @@ public class ScanControllerTest {
     }
 
     @Test
-    public void onBatchScanReportsInternal_deliverBatchScan() throws RemoteException {
+    public void onBatchScanReportsInternal_deliverBatchScan_full(
+            @TestParameter boolean expectResults) throws RemoteException {
         int status = 1;
         int scannerId = 2;
         int reportType = ScanManager.SCAN_RESULT_TYPE_FULL;
@@ -200,28 +204,59 @@ public class ScanControllerTest {
         Set<ScanClient> scanClientSet = new HashSet<>();
         ScanClient scanClient = new ScanClient(scannerId);
         scanClient.associatedDevices = new ArrayList<>();
-        scanClient.associatedDevices.add("02:00:00:00:00:00");
         scanClient.scannerId = scannerId;
+        if (expectResults) {
+            scanClient.hasScanWithoutLocationPermission = true;
+        }
         scanClientSet.add(scanClient);
         doReturn(scanClientSet).when(mScanManager).getFullBatchScanQueue();
         doReturn(mApp).when(mScannerMap).getById(scanClient.scannerId);
-
-        mScanController.onBatchScanReportsInternal(
-                status, scannerId, reportType, numRecords, recordData);
-        verify(mScanManager).callbackDone(scannerId, status);
-
-        reportType = ScanManager.SCAN_RESULT_TYPE_TRUNCATED;
-        recordData =
-                new byte[] {
-                    0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x06, 0x04, 0x02, 0x02, 0x00, 0x00, 0x02
-                };
-        doReturn(scanClientSet).when(mScanManager).getBatchScanQueue();
         IScannerCallback callback = mock(IScannerCallback.class);
         mApp.mCallback = callback;
 
         mScanController.onBatchScanReportsInternal(
                 status, scannerId, reportType, numRecords, recordData);
-        verify(callback).onBatchScanResults(any());
+        verify(mScanManager).callbackDone(scannerId, status);
+        if (expectResults) {
+            verify(callback).onBatchScanResults(any());
+        } else {
+            verify(callback, never()).onBatchScanResults(any());
+        }
+    }
+
+    @Test
+    public void onBatchScanReportsInternal_deliverBatchScan_truncated(
+            @TestParameter boolean expectResults) throws RemoteException {
+        int status = 1;
+        int scannerId = 2;
+        int reportType = ScanManager.SCAN_RESULT_TYPE_TRUNCATED;
+        int numRecords = 1;
+        byte[] recordData =
+                new byte[] {
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x06, 0x04, 0x02, 0x02, 0x00, 0x00, 0x02
+                };
+
+        Set<ScanClient> scanClientSet = new HashSet<>();
+        ScanClient scanClient = new ScanClient(scannerId);
+        scanClient.associatedDevices = new ArrayList<>();
+        if (expectResults) {
+            scanClient.associatedDevices.add("02:00:00:00:00:00");
+        }
+        scanClient.scannerId = scannerId;
+        scanClientSet.add(scanClient);
+        doReturn(scanClientSet).when(mScanManager).getBatchScanQueue();
+        doReturn(mApp).when(mScannerMap).getById(scanClient.scannerId);
+        IScannerCallback callback = mock(IScannerCallback.class);
+        mApp.mCallback = callback;
+
+        mScanController.onBatchScanReportsInternal(
+                status, scannerId, reportType, numRecords, recordData);
+        verify(mScanManager).callbackDone(scannerId, status);
+        if (expectResults) {
+            verify(callback).onBatchScanResults(any());
+        } else {
+            verify(callback, never()).onBatchScanResults(any());
+        }
     }
 
     @Test

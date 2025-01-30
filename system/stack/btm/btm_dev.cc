@@ -49,9 +49,6 @@
 #include "stack/include/l2cap_interface.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using namespace bluetooth;
 
 extern tBTM_CB btm_cb;
@@ -825,11 +822,11 @@ void DumpsysRecord(int fd) {
 #undef DUMPSYS_TAG
 
 namespace bluetooth {
-namespace testing {
 namespace legacy {
+namespace testing {
 
 void wipe_secrets_and_remove(tBTM_SEC_DEV_REC* p_dev_rec) { ::wipe_secrets_and_remove(p_dev_rec); }
 
-}  // namespace legacy
 }  // namespace testing
+}  // namespace legacy
 }  // namespace bluetooth

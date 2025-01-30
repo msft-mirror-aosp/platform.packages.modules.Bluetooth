@@ -38,8 +38,6 @@ using namespace bluetooth;
 
 extern tBTM_CB btm_cb;
 
-void btm_ble_increment_link_topology_mask(uint8_t link_role);
-
 static bool acl_ble_common_connection(const tBLE_BD_ADDR& address_with_type, uint16_t handle,
                                       tHCI_ROLE role, bool is_in_security_db,
                                       uint16_t conn_interval, uint16_t conn_latency,

@@ -129,6 +129,11 @@
     "AVDTP/SRC/INT/SIG/SMG/BV-31-C",
     "AVDTP/SRC/INT/SIG/SYN/BV-05-C",
     "AVDTP/SRC/INT/TRA/BTR/BV-01-C",
+    "AVRCP/TG/CA/BI-03-C",
+    "AVRCP/TG/CA/BI-05-C",
+    "AVRCP/TG/CA/BI-07-C",
+    "AVRCP/TG/CA/BI-10-C",
+    "AVRCP/TG/CA/BV-16-C",
     "AVRCP/CT/CEC/BV-02-I",
     "AVRCP/CT/CRC/BV-02-I",
     "AVRCP/TG/CEC/BV-01-I",
@@ -769,6 +774,21 @@
     "AVDTP/SRC/INT/SIG/SMG/BV-23-C",
     "AVDTP/SRC/INT/SIG/SMG/BV-33-C",
     "AVDTP/SRC/INT/SIG/SMG/ESR05/BV-13-C",
+    "AVRCP/TG/CA/BI-01-C",
+    "AVRCP/TG/CA/BI-04-C",
+    "AVRCP/TG/CA/BI-06-C",
+    "AVRCP/TG/CA/BI-08-C",
+    "AVRCP/TG/CA/BI-09-C",
+    "AVRCP/TG/CA/BV-01-I",
+    "AVRCP/TG/CA/BV-02-C",
+    "AVRCP/TG/CA/BV-02-I",
+    "AVRCP/TG/CA/BV-03-I",
+    "AVRCP/TG/CA/BV-04-C",
+    "AVRCP/TG/CA/BV-06-C",
+    "AVRCP/TG/CA/BV-08-C",
+    "AVRCP/TG/CA/BV-10-C",
+    "AVRCP/TG/CA/BV-12-C",
+    "AVRCP/TG/CA/BV-14-C",
     "AVRCP/CT/CEC/BV-01-I",
     "AVRCP/CT/CRC/BV-01-I",
     "AVRCP/CT/PTH/BV-01-C",
@@ -1566,6 +1586,7 @@
     "TSPC_AVRCP_7_64": true,
     "TSPC_AVRCP_7_65": true,
     "TSPC_AVRCP_7_66": true,
+    "TSPC_AVRCP_7_67": true,
     "TSPC_AVRCP_7b_4": true,
     "TSPC_AVRCP_8_19": true,
     "TSPC_AVRCP_8_20": true,
@@ -3213,6 +3234,20 @@
     "VCP": {}
   },
   "flags": [
+    {
+      "flags": [
+        "set_addressed_player",
+        "browsing_refactor",
+        "avrcp_16_default"
+      ],
+      "tests": [
+        "AVRCP/TG/CA/BI-03-C",
+        "AVRCP/TG/CA/BI-05-C",
+        "AVRCP/TG/CA/BI-07-C",
+        "AVRCP/TG/CA/BI-10-C",
+        "AVRCP/TG/CA/BV-16-C"
+      ]
+    },
     {
       "flags": [
         "leaudio_allow_leaudio_only_devices",

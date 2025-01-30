@@ -34,7 +34,10 @@
 #include "internal_include/bt_target.h"
 #include "osi/include/allocator.h"
 #include "stack/btm/btm_int_types.h"
+#include "stack/btm/btm_sco.h"
+#include "stack/btm/btm_sec.h"
 #include "stack/include/acl_api.h"
+#include "stack/include/ble_hci_link_interface.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_status.h"
@@ -50,14 +53,6 @@
 using namespace bluetooth;
 
 extern tBTM_CB btm_cb;
-
-bool BTM_ReadPowerMode(const RawAddress& remote_bda, tBTM_PM_MODE* p_mode);
-tBTM_STATUS btm_sec_disconnect(uint16_t handle, tHCI_STATUS reason, std::string);
-void btm_acl_created(const RawAddress& bda, uint16_t hci_handle, uint8_t link_role,
-                     tBT_TRANSPORT transport);
-void btm_acl_removed(uint16_t handle);
-void btm_ble_decrement_link_topology_mask(uint8_t link_role);
-void btm_sco_acl_removed(const RawAddress* bda);
 
 static void l2c_link_send_to_lower(tL2C_LCB* p_lcb, BT_HDR* p_buf, tL2C_TX_COMPLETE_CB_INFO* p_cbi);
 static BT_HDR* l2cu_get_next_buffer_to_send(tL2C_LCB* p_lcb, tL2C_TX_COMPLETE_CB_INFO* p_cbi);

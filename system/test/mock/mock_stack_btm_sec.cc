@@ -64,7 +64,6 @@ struct BTM_SetEncryption BTM_SetEncryption;
 struct BTM_SetPinType BTM_SetPinType;
 struct BTM_SetSecurityLevel BTM_SetSecurityLevel;
 struct BTM_update_version_info BTM_update_version_info;
-struct NotifyBondingCanceled NotifyBondingCanceled;
 struct btm_create_conn_cancel_complete btm_create_conn_cancel_complete;
 struct btm_get_dev_class btm_get_dev_class;
 struct btm_io_capabilities_req btm_io_capabilities_req;
@@ -234,10 +233,6 @@ void BTM_update_version_info(const RawAddress& bd_addr,
                              const remote_version_info& remote_version_info) {
   inc_func_call_count(__func__);
   test::mock::stack_btm_sec::BTM_update_version_info(bd_addr, remote_version_info);
-}
-void NotifyBondingCanceled(tBTM_STATUS btm_status) {
-  inc_func_call_count(__func__);
-  test::mock::stack_btm_sec::NotifyBondingCanceled(btm_status);
 }
 void btm_create_conn_cancel_complete(uint8_t status, const RawAddress bd_addr) {
   inc_func_call_count(__func__);
