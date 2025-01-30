@@ -48,6 +48,9 @@ typedef enum {
   // levels or general lack of controlability.
   INTEROP_DISABLE_ABSOLUTE_VOLUME,
 
+  // Devices requiring this read characteristics via GATT_READ_CHAR_VALUE
+  INTEROP_DISABLE_SIRK_READ_BY_TYPE,
+
   // Disable automatic pairing with headsets/car-kits
   // Some car kits do not react kindly to a failed pairing attempt and
   // do not allow immediate re-pairing. Rejectlist these so that the initial
