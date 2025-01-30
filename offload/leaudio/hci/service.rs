@@ -19,12 +19,10 @@ use aidl::android::hardware::bluetooth::offload::leaudio::{
     IHciProxy::{BnHciProxy, BpHciProxy, IHciProxy},
     IHciProxyCallbacks::IHciProxyCallbacks,
 };
-use binder::{
-    BinderFeatures, DeathRecipient, ExceptionCode, Interface, Result as BinderResult, Strong,
-};
+use binder::{BinderFeatures, ExceptionCode, Interface, Result as BinderResult, Strong};
 use bluetooth_offload_hci::IsoData;
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{Arc, LazyLock, Mutex, Weak};
 
 pub(crate) use aidl::android::hardware::bluetooth::offload::leaudio::StreamConfiguration::StreamConfiguration;
 
@@ -32,27 +30,31 @@ pub(crate) struct Service {
     state: Arc<Mutex<State>>,
 }
 
+static SERVICE: LazyLock<Service> = LazyLock::new(|| {
+    let state = Arc::new(Mutex::new(State::default()));
+    HciProxy::register(state.clone());
+    Service { state }
+});
+
 #[derive(Default)]
 struct State {
     arbiter: Weak<Arbiter>,
-    callbacks: Option<Strong<dyn IHciProxyCallbacks>>,
     streams: HashMap<u16, StreamConfiguration>,
+    callbacks: Option<Strong<dyn IHciProxyCallbacks>>,
 }
 
 impl Service {
-    pub(crate) fn new() -> Self {
-        let state = Arc::new(Mutex::new(State::default()));
-        HciProxy::register(state.clone());
-        Self { state }
+    pub(crate) fn register() {
+        LazyLock::force(&SERVICE);
     }
 
-    pub(crate) fn reset(&self, arbiter: Weak<Arbiter>) {
-        let mut state = self.state.lock().unwrap();
+    pub(crate) fn reset(arbiter: Weak<Arbiter>) {
+        let mut state = SERVICE.state.lock().unwrap();
         *state = State { arbiter, ..Default::default() }
     }
 
-    pub(crate) fn start_stream(&self, handle: u16, config: StreamConfiguration) {
-        let mut state = self.state.lock().unwrap();
+    pub(crate) fn start_stream(handle: u16, config: StreamConfiguration) {
+        let mut state = SERVICE.state.lock().unwrap();
         if let Some(callbacks) = &state.callbacks {
             let _ = callbacks.startStream(handle.into(), &config);
         } else {
@@ -61,8 +63,8 @@ impl Service {
         state.streams.insert(handle, config);
     }
 
-    pub(crate) fn stop_stream(&self, handle: u16) {
-        let mut state = self.state.lock().unwrap();
+    pub(crate) fn stop_stream(handle: u16) {
+        let mut state = SERVICE.state.lock().unwrap();
         state.streams.remove(&handle);
         if let Some(callbacks) = &state.callbacks {
             let _ = callbacks.stopStream(handle.into());
@@ -72,28 +74,15 @@ impl Service {
 
 struct HciProxy {
     state: Arc<Mutex<State>>,
-    _death_recipient: DeathRecipient,
 }
 
 impl Interface for HciProxy {}
 
 impl HciProxy {
     fn register(state: Arc<Mutex<State>>) {
-        let death_recipient = {
-            let state = state.clone();
-            DeathRecipient::new(move || {
-                log::info!("Client has died");
-                state.lock().unwrap().callbacks = None;
-            })
-        };
-
         binder::add_service(
             &format!("{}/default", BpHciProxy::get_descriptor()),
-            BnHciProxy::new_binder(
-                Self { state, _death_recipient: death_recipient },
-                BinderFeatures::default(),
-            )
-            .as_binder(),
+            BnHciProxy::new_binder(Self { state }, BinderFeatures::default()).as_binder(),
         )
         .expect("Failed to register service");
     }
@@ -106,7 +95,6 @@ impl IHciProxy for HciProxy {
         for (handle, config) in &state.streams {
             let _ = callbacks.startStream((*handle).into(), config);
         }
-
         Ok(())
     }
 
