@@ -302,8 +302,7 @@ void BleScannerInterfaceImpl::OnMsftAdvMonitorEnable(bool enable,
 
 /** Sets the LE scan interval and window in units of N*0.625 msec */
 void BleScannerInterfaceImpl::SetScanParameters(int scanner_id, uint8_t scan_type,
-                                                int scan_interval, int scan_window, int scan_phy,
-                                                Callback /* cb */) {
+                                                int scan_interval, int scan_window, int scan_phy) {
   log::info("in shim layer, scannerId={}", scanner_id);
   if (BTM_BLE_ISVALID_PARAM(scan_interval, BTM_BLE_SCAN_INT_MIN, BTM_BLE_EXT_SCAN_INT_MAX) &&
       BTM_BLE_ISVALID_PARAM(scan_window, BTM_BLE_SCAN_WIN_MIN, BTM_BLE_EXT_SCAN_WIN_MAX)) {
