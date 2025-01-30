@@ -931,14 +931,16 @@ protected:
               // Inject the state
               group->SetTargetState(config_state);
               group->SetState(group->GetTargetState());
-              group->ClearPendingConfiguration();
-              do_in_main_thread(base::BindOnce(
-                      [](int group_id, bluetooth::le_audio::LeAudioGroupStateMachine::Callbacks*
-                                               state_machine_callbacks) {
-                        state_machine_callbacks->StatusReportCb(
-                                group_id, GroupStreamStatus::CONFIGURED_BY_USER);
-                      },
-                      group->group_id_, base::Unretained(this->state_machine_callbacks_)));
+              if (group->IsPendingConfiguration()) {
+                group->ClearPendingConfiguration();
+                do_in_main_thread(base::BindOnce(
+                        [](int group_id, bluetooth::le_audio::LeAudioGroupStateMachine::Callbacks*
+                                                 state_machine_callbacks) {
+                          state_machine_callbacks->StatusReportCb(
+                                  group_id, GroupStreamStatus::CONFIGURED_BY_USER);
+                        },
+                        group->group_id_, base::Unretained(this->state_machine_callbacks_)));
+              }
               return true;
             });
 
@@ -5081,6 +5083,9 @@ TEST_F(UnicastTest, AnotherGroupSetActive_DuringMediaStream) {
 
   SyncOnMainLoop();
   Mock::VerifyAndClearExpectations(&mock_state_machine_);
+
+  LocalAudioSourceResume();
+  SyncOnMainLoop();
 }
 
 TEST_F(UnicastTest, AnotherGroupSetActive_DuringVoip) {
