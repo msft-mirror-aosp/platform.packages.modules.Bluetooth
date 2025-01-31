@@ -362,14 +362,26 @@ typedef void(tPORT_MGMT_CALLBACK)(const tPORT_RESULT code, uint16_t port_handle)
  *
  * Function         PORT_SetAppUid
  *
- * Description      This function configures connection according to the
- *                  specifications in the tPORT_STATE structure.
+ * Description      This function sets app_uid in port structure
  *
  * Parameters:      handle     - Handle returned in the RFCOMM_CreateConnection
  *                  app_uid    - Uid of app that requested the socket
  *
  ******************************************************************************/
 [[nodiscard]] int PORT_SetAppUid(uint16_t handle, uint32_t app_uid);
+
+/*******************************************************************************
+ *
+ * Function         PORT_SetSdpDuration
+ *
+ * Description      This function saves calculated sdp duration (in
+ *                  milliseconds) to port structure
+ *
+ * Parameters:      handle          - Handle returned in RFCOMM_CreateConnection
+ *                  sdp_duration_ms - Time spent doing sdp
+ *
+ ******************************************************************************/
+[[nodiscard]] int PORT_SetSdpDuration(uint16_t handle, uint64_t sdp_duration_ms);
 
 /*******************************************************************************
  *
