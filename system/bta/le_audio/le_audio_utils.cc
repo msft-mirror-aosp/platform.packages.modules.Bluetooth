@@ -326,7 +326,7 @@ bluetooth::le_audio::btle_audio_frame_duration_index_t translateToBtLeAudioCodec
 }
 
 void fillStreamParamsToBtLeAudioCodecConfig(
-        const std::vector<struct set_configurations::AseConfiguration>& confs,
+        const std::vector<struct types::AseConfiguration>& confs,
         bluetooth::le_audio::btle_audio_codec_config_t& out_config) {
   if (confs.size() == 0) {
     log::warn("Stream params are null");
@@ -435,7 +435,7 @@ std::vector<bluetooth::le_audio::btle_audio_codec_config_t> GetRemoteBtLeAudioCo
 }
 
 bool IsCodecUsingLtvFormat(const types::LeAudioCodecId& codec_id) {
-  if (codec_id == set_configurations::LeAudioCodecIdLc3) {
+  if (codec_id == types::LeAudioCodecIdLc3) {
     return true;
   }
   return false;
@@ -443,7 +443,7 @@ bool IsCodecUsingLtvFormat(const types::LeAudioCodecId& codec_id) {
 
 ::bluetooth::le_audio::LeAudioCodecConfiguration
 GetAudioSessionCodecConfigFromAudioSetConfiguration(
-        const bluetooth::le_audio::set_configurations::AudioSetConfiguration& audio_set_conf,
+        const bluetooth::le_audio::types::AudioSetConfiguration& audio_set_conf,
         uint8_t remote_direction) {
   /* Note: For now we expect that each ASE in a particular direction needs
    *       exactly the same audio codec parameters.
@@ -490,8 +490,7 @@ GetAudioSessionCodecConfigFromAudioSetConfiguration(
 }
 
 types::LeAudioConfigurationStrategy GetStrategyForAseConfig(
-        const std::vector<le_audio::set_configurations::AseConfiguration>& cfgs,
-        uint8_t device_cnt) {
+        const std::vector<le_audio::types::AseConfiguration>& cfgs, uint8_t device_cnt) {
   if (cfgs.size() == 0) {
     return types::LeAudioConfigurationStrategy::RFU;
   }
@@ -576,9 +575,8 @@ static bool IsCodecConfigSupported(const types::LeAudioLtvMap& pacs,
   return true;
 }
 
-static bool IsCodecConfigSettingSupported(
-        const types::acs_ac_record& pac,
-        const set_configurations::CodecConfigSetting& codec_config_setting) {
+static bool IsCodecConfigSettingSupported(const types::acs_ac_record& pac,
+                                          const types::CodecConfigSetting& codec_config_setting) {
   const auto& codec_id = codec_config_setting.id;
   if (codec_id != pac.codec_id) {
     return false;
@@ -599,7 +597,7 @@ static bool IsCodecConfigSettingSupported(
 
 const struct types::acs_ac_record* GetConfigurationSupportedPac(
         const types::PublishedAudioCapabilities& pacs,
-        const set_configurations::CodecConfigSetting& codec_config_setting) {
+        const types::CodecConfigSetting& codec_config_setting) {
   for (const auto& pac_tuple : pacs) {
     for (const auto& pac : std::get<1>(pac_tuple)) {
       if (utils::IsCodecConfigSettingSupported(pac, codec_config_setting)) {
@@ -615,7 +613,7 @@ const struct types::acs_ac_record* GetConfigurationSupportedPac(
 }
 
 bool IsAseConfigMatchedWithPreferredRequirements(
-        const std::vector<struct set_configurations::AseConfiguration>& ase_confs,
+        const std::vector<struct types::AseConfiguration>& ase_confs,
         const std::vector<
                 CodecManager::UnicastConfigurationRequirements::DeviceDirectionRequirements>& reqs,
         uint8_t channel_cnt_per_ase) {
