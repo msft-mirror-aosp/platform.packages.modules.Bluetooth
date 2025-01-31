@@ -1031,7 +1031,7 @@ public class PhonePolicy implements AdapterService.BluetoothStateCallback {
             return;
         }
         int bondState = mAdapterService.getBondState(device);
-        if (!Flags.unbondedProfileForbidFix() || bondState != BluetoothDevice.BOND_NONE) {
+        if (bondState != BluetoothDevice.BOND_NONE) {
             Log.d(TAG, log + "Services discovered. bondState=" + bondStateToString(bondState));
             processInitProfilePriorities(device, uuids);
         } else {
