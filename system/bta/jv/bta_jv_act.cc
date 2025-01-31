@@ -1512,7 +1512,7 @@ static void bta_jv_port_event_cl_cback(uint32_t code, uint16_t port_handle) {
 /* Client initiates an RFCOMM connection */
 void bta_jv_rfcomm_connect(tBTA_SEC sec_mask, uint8_t remote_scn, const RawAddress& peer_bd_addr,
                            tBTA_JV_RFCOMM_CBACK* p_cback, uint32_t rfcomm_slot_id,
-                           RfcommCfgInfo cfg, uint32_t app_uid) {
+                           RfcommCfgInfo cfg, uint32_t app_uid, uint64_t sdp_duration_ms) {
   uint16_t handle = 0;
   uint32_t event_mask = BTA_JV_RFC_EV_MASK;
   PortSettings port_settings;
@@ -1549,6 +1549,9 @@ void bta_jv_rfcomm_connect(tBTA_SEC sec_mask, uint8_t remote_scn, const RawAddre
       p_pcb->rfcomm_slot_id = rfcomm_slot_id;
       bta_jv.rfc_cl_init.use_co = true;
 
+      if (PORT_SetSdpDuration(handle, sdp_duration_ms) != PORT_SUCCESS) {
+        log::warn("Unable to set sdp_duration for port_handle:{}", handle);
+      }
       if (PORT_SetAppUid(handle, app_uid) != PORT_SUCCESS) {
         log::warn("Unable to set app_uid for port_handle:{}", handle);
       }
