@@ -1497,8 +1497,7 @@ void L2CA_SetEcosystemBaseInterval(uint32_t base_interval) {
             }
           }));
 
-  if (com::android::bluetooth::flags::l2cap_update_existing_conn_interval_with_base_interval() &&
-      base_interval != 0) {
+  if (base_interval != 0) {
     tL2C_LCB* p_lcb = &l2cb.lcb_pool[0];
 
     for (int i = 0; i < MAX_L2CAP_LINKS; i++, p_lcb++) {
