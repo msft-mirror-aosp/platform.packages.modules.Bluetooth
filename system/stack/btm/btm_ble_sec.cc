@@ -1618,11 +1618,16 @@ static bool btm_ble_complete_evt_ignore(const tBTM_SEC_DEV_REC* p_dev_rec,
   if (!com::android::bluetooth::flags::bonded_device_smp_failure_handling()) {
     return false;
   }
-  // Encryption request in peripheral role results in SMP Security request. SMP may generate a
+
+  // Peripheral role: Encryption request results in SMP Security request. SMP may generate a
   // SMP_COMPLT_EVT failure event cases like below:
   // 1) Some central devices don't handle cross-over between encryption and SMP security request
   // 2) Link may get disconnected after the SMP security request was sent.
-  if (p_data->complt.reason != SMP_SUCCESS && !p_dev_rec->role_central &&
+  //
+  // Central role: SMP may generate a SMP_COMPLT_EVT if encryption refresh fails.
+  if (p_data->complt.reason != SMP_SUCCESS &&
+      (com::android::bluetooth::flags::le_encryption_refresh_failure_handling() ||
+       !p_dev_rec->role_central) &&
       btm_sec_cb.pairing_bda != p_dev_rec->bd_addr &&
       btm_sec_cb.pairing_bda != p_dev_rec->ble.pseudo_addr &&
       p_dev_rec->sec_rec.is_le_link_key_known() &&
