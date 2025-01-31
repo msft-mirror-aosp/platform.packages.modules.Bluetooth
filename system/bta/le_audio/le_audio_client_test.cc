@@ -164,6 +164,10 @@ static void cleanup_message_loop_thread() {
   message_loop_thread.ShutDown();
 }
 
+const tBLE_BD_ADDR BTM_Sec_GetAddressWithType(const RawAddress& bd_addr) {
+  return tBLE_BD_ADDR{.type = BLE_ADDR_PUBLIC, .bda = bd_addr};
+}
+
 void invoke_switch_codec_cb(bool /*is_low_latency_buffer_size*/) {}
 void invoke_switch_buffer_size_cb(bool /*is_low_latency_buffer_size*/) {}
 
@@ -290,7 +294,7 @@ public:
   MOCK_METHOD((void), ConfirmStreamingRequest, (), (override));
   MOCK_METHOD((void), CancelStreamingRequest, (), (override));
   MOCK_METHOD((void), UpdateRemoteDelay, (uint16_t delay), (override));
-  MOCK_METHOD((void), UpdateAudioConfigToHal, (const ::bluetooth::le_audio::offload_config&),
+  MOCK_METHOD((void), UpdateAudioConfigToHal, (const ::bluetooth::le_audio::stream_config&),
               (override));
   MOCK_METHOD((void), SuspendedForReconfiguration, (), (override));
   MOCK_METHOD((void), ReconfigurationComplete, (), (override));
@@ -310,13 +314,13 @@ public:
   MOCK_METHOD((void), ConfirmStreamingRequest, (), (override));
   MOCK_METHOD((void), CancelStreamingRequest, (), (override));
   MOCK_METHOD((void), UpdateRemoteDelay, (uint16_t delay), (override));
-  MOCK_METHOD((void), UpdateAudioConfigToHal, (const ::bluetooth::le_audio::offload_config&),
+  MOCK_METHOD((void), UpdateAudioConfigToHal, (const ::bluetooth::le_audio::stream_config&),
               (override));
   MOCK_METHOD((std::optional<broadcaster::BroadcastConfiguration>), GetBroadcastConfig,
               ((const std::vector<std::pair<types::LeAudioContextType, uint8_t>>&),
                (const std::optional<std::vector<::bluetooth::le_audio::types::acs_ac_record>>&)),
               (const override));
-  MOCK_METHOD((std::optional<::bluetooth::le_audio::set_configurations::AudioSetConfiguration>),
+  MOCK_METHOD((std::optional<::bluetooth::le_audio::types::AudioSetConfiguration>),
               GetUnicastConfig, (const CodecManager::UnicastConfigurationRequirements&),
               (const override));
   MOCK_METHOD((void), UpdateBroadcastAudioConfigToHal,
@@ -982,21 +986,25 @@ protected:
                 ase.state = types::AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING;
 
                 uint16_t cis_conn_hdl = ase.cis_conn_hdl;
-                auto core_config = ase.codec_config.GetAsCoreCodecConfig();
+                auto core_config = ase.codec_config.params.GetAsCoreCodecConfig();
 
                 /* Copied from state_machine.cc ProcessHciNotifSetupIsoDataPath */
                 if (ase.direction == bluetooth::le_audio::types::kLeAudioDirectionSource) {
                   auto iter = std::find_if(
-                          stream_conf->stream_params.source.stream_locations.begin(),
-                          stream_conf->stream_params.source.stream_locations.end(),
-                          [cis_conn_hdl](auto& pair) { return cis_conn_hdl == pair.first; });
+                          stream_conf->stream_params.source.stream_config.stream_map.begin(),
+                          stream_conf->stream_params.source.stream_config.stream_map.end(),
+                          [cis_conn_hdl](auto& info) {
+                            return cis_conn_hdl == info.stream_handle;
+                          });
 
-                  if (iter == stream_conf->stream_params.source.stream_locations.end()) {
-                    stream_conf->stream_params.source.stream_locations.emplace_back(std::make_pair(
-                            ase.cis_conn_hdl, *core_config.audio_channel_allocation));
+                  if (iter == stream_conf->stream_params.source.stream_config.stream_map.end()) {
+                    stream_conf->stream_params.source.stream_config.stream_map.emplace_back(
+                            stream_map_info(ase.cis_conn_hdl, *core_config.audio_channel_allocation,
+                                            true));
 
                     stream_conf->stream_params.source.num_of_devices++;
-                    stream_conf->stream_params.source.num_of_channels += ase.channel_count;
+                    stream_conf->stream_params.source.num_of_channels +=
+                            ase.codec_config.channel_count_per_iso_stream;
 
                     log::info(
                             "AttachToStream: Added Source Stream Configuration. CIS Connection "
@@ -1009,16 +1017,20 @@ protected:
                   }
                 } else {
                   auto iter = std::find_if(
-                          stream_conf->stream_params.sink.stream_locations.begin(),
-                          stream_conf->stream_params.sink.stream_locations.end(),
-                          [cis_conn_hdl](auto& pair) { return cis_conn_hdl == pair.first; });
+                          stream_conf->stream_params.sink.stream_config.stream_map.begin(),
+                          stream_conf->stream_params.sink.stream_config.stream_map.end(),
+                          [cis_conn_hdl](auto& info) {
+                            return cis_conn_hdl == info.stream_handle;
+                          });
 
-                  if (iter == stream_conf->stream_params.sink.stream_locations.end()) {
-                    stream_conf->stream_params.sink.stream_locations.emplace_back(std::make_pair(
-                            ase.cis_conn_hdl, *core_config.audio_channel_allocation));
+                  if (iter == stream_conf->stream_params.sink.stream_config.stream_map.end()) {
+                    stream_conf->stream_params.sink.stream_config.stream_map.emplace_back(
+                            stream_map_info(ase.cis_conn_hdl, *core_config.audio_channel_allocation,
+                                            true));
 
                     stream_conf->stream_params.sink.num_of_devices++;
-                    stream_conf->stream_params.sink.num_of_channels += ase.channel_count;
+                    stream_conf->stream_params.sink.num_of_channels +=
+                            ase.codec_config.channel_count_per_iso_stream;
 
                     log::info(
                             "AttachToStream: Added Sink Stream Configuration. CIS Connection "
@@ -1115,61 +1127,74 @@ protected:
                   ase.qos_preferences.pres_delay_max = 2500;
                   ase.qos_preferences.preferred_pres_delay_min = 2500;
                   ase.qos_preferences.preferred_pres_delay_max = 2500;
-                  auto core_config = ase.codec_config.GetAsCoreCodecConfig();
+                  auto core_config = ase.codec_config.params.GetAsCoreCodecConfig();
 
                   uint16_t cis_conn_hdl = ase.cis_conn_hdl;
 
-                  /* Copied from state_machine.cc ProcessHciNotifSetupIsoDataPath */
+                  /* Copied from state_machine.cc AddCisToStreamConfiguration */
                   if (ase.direction == bluetooth::le_audio::types::kLeAudioDirectionSource) {
                     auto iter = std::find_if(
-                            stream_conf->stream_params.source.stream_locations.begin(),
-                            stream_conf->stream_params.source.stream_locations.end(),
-                            [cis_conn_hdl](auto& pair) { return cis_conn_hdl == pair.first; });
+                            stream_conf->stream_params.source.stream_config.stream_map.begin(),
+                            stream_conf->stream_params.source.stream_config.stream_map.end(),
+                            [cis_conn_hdl](auto& info) {
+                              return cis_conn_hdl == info.stream_handle;
+                            });
 
-                    if (iter == stream_conf->stream_params.source.stream_locations.end()) {
-                      stream_conf->stream_params.source.stream_locations.emplace_back(
-                              std::make_pair(ase.cis_conn_hdl,
-                                             *core_config.audio_channel_allocation));
+                    if (iter == stream_conf->stream_params.source.stream_config.stream_map.end()) {
+                      stream_conf->stream_params.source.stream_config.stream_map.emplace_back(
+                              stream_map_info(ase.cis_conn_hdl,
+                                              *core_config.audio_channel_allocation, true));
 
                       stream_conf->stream_params.source.num_of_devices++;
-                      stream_conf->stream_params.source.num_of_channels += ase.channel_count;
+                      stream_conf->stream_params.source.num_of_channels +=
+                              ase.codec_config.channel_count_per_iso_stream;
                       stream_conf->stream_params.source.audio_channel_allocation |=
                               *core_config.audio_channel_allocation;
+                      stream_conf->stream_params.source.stream_config.peer_delay_ms = 44;
 
-                      if (stream_conf->stream_params.source.sample_frequency_hz == 0) {
-                        stream_conf->stream_params.source.sample_frequency_hz =
+                      if (stream_conf->stream_params.source.stream_config.sampling_frequency_hz ==
+                          0) {
+                        stream_conf->stream_params.source.stream_config.sampling_frequency_hz =
                                 core_config.GetSamplingFrequencyHz();
                       } else {
-                        log::assert_that(stream_conf->stream_params.source.sample_frequency_hz ==
+                        log::assert_that(stream_conf->stream_params.source.stream_config
+                                                         .sampling_frequency_hz ==
                                                  core_config.GetSamplingFrequencyHz(),
                                          "StartStream: sample freq mismatch: {}!={}",
-                                         stream_conf->stream_params.source.sample_frequency_hz,
+                                         stream_conf->stream_params.source.stream_config
+                                                 .sampling_frequency_hz,
                                          core_config.GetSamplingFrequencyHz());
                       }
 
-                      if (stream_conf->stream_params.source.octets_per_codec_frame == 0) {
-                        stream_conf->stream_params.source.octets_per_codec_frame =
+                      if (stream_conf->stream_params.source.stream_config.octets_per_codec_frame ==
+                          0) {
+                        stream_conf->stream_params.source.stream_config.octets_per_codec_frame =
                                 *core_config.octets_per_codec_frame;
                       } else {
-                        log::assert_that(stream_conf->stream_params.source.octets_per_codec_frame ==
+                        log::assert_that(stream_conf->stream_params.source.stream_config
+                                                         .octets_per_codec_frame ==
                                                  *core_config.octets_per_codec_frame,
                                          "StartStream: octets per frame mismatch: {}!={}",
-                                         stream_conf->stream_params.source.octets_per_codec_frame,
+                                         stream_conf->stream_params.source.stream_config
+                                                 .octets_per_codec_frame,
                                          *core_config.octets_per_codec_frame);
                       }
 
-                      if (stream_conf->stream_params.source.codec_frames_blocks_per_sdu == 0) {
-                        stream_conf->stream_params.source.codec_frames_blocks_per_sdu =
+                      if (stream_conf->stream_params.source.stream_config
+                                  .codec_frames_blocks_per_sdu == 0) {
+                        stream_conf->stream_params.source.stream_config
+                                .codec_frames_blocks_per_sdu =
                                 *core_config.codec_frames_blocks_per_sdu;
-                        stream_conf->stream_params.source.frame_duration_us =
+                        stream_conf->stream_params.source.stream_config.frame_duration_us =
                                 core_config.GetFrameDurationUs();
                       } else {
-                        log::assert_that(
-                                stream_conf->stream_params.source.codec_frames_blocks_per_sdu ==
-                                        *core_config.codec_frames_blocks_per_sdu,
-                                "StartStream: codec_frames_blocks_per_sdu: {}!={}",
-                                stream_conf->stream_params.source.codec_frames_blocks_per_sdu,
-                                *core_config.codec_frames_blocks_per_sdu);
+                        log::assert_that(stream_conf->stream_params.source.stream_config
+                                                         .codec_frames_blocks_per_sdu ==
+                                                 *core_config.codec_frames_blocks_per_sdu,
+                                         "StartStream: codec_frames_blocks_per_sdu: {}!={}",
+                                         stream_conf->stream_params.source.stream_config
+                                                 .codec_frames_blocks_per_sdu,
+                                         *core_config.codec_frames_blocks_per_sdu);
                       }
 
                       log::info(
@@ -1182,54 +1207,66 @@ protected:
                     }
                   } else {
                     auto iter = std::find_if(
-                            stream_conf->stream_params.sink.stream_locations.begin(),
-                            stream_conf->stream_params.sink.stream_locations.end(),
-                            [cis_conn_hdl](auto& pair) { return cis_conn_hdl == pair.first; });
+                            stream_conf->stream_params.sink.stream_config.stream_map.begin(),
+                            stream_conf->stream_params.sink.stream_config.stream_map.end(),
+                            [cis_conn_hdl](auto& info) {
+                              return cis_conn_hdl == info.stream_handle;
+                            });
 
-                    if (iter == stream_conf->stream_params.sink.stream_locations.end()) {
-                      stream_conf->stream_params.sink.stream_locations.emplace_back(std::make_pair(
-                              ase.cis_conn_hdl, *core_config.audio_channel_allocation));
+                    if (iter == stream_conf->stream_params.sink.stream_config.stream_map.end()) {
+                      stream_conf->stream_params.sink.stream_config.stream_map.emplace_back(
+                              stream_map_info(ase.cis_conn_hdl,
+                                              *core_config.audio_channel_allocation, true));
 
                       stream_conf->stream_params.sink.num_of_devices++;
-                      stream_conf->stream_params.sink.num_of_channels += ase.channel_count;
-
+                      stream_conf->stream_params.sink.num_of_channels +=
+                              ase.codec_config.channel_count_per_iso_stream;
                       stream_conf->stream_params.sink.audio_channel_allocation |=
                               *core_config.audio_channel_allocation;
+                      stream_conf->stream_params.sink.stream_config.peer_delay_ms = 44;
 
-                      if (stream_conf->stream_params.sink.sample_frequency_hz == 0) {
-                        stream_conf->stream_params.sink.sample_frequency_hz =
+                      if (stream_conf->stream_params.sink.stream_config.sampling_frequency_hz ==
+                          0) {
+                        stream_conf->stream_params.sink.stream_config.sampling_frequency_hz =
                                 core_config.GetSamplingFrequencyHz();
                       } else {
-                        log::assert_that(stream_conf->stream_params.sink.sample_frequency_hz ==
-                                                 core_config.GetSamplingFrequencyHz(),
-                                         "StartStream: sample freq mismatch: {}!={}",
-                                         stream_conf->stream_params.sink.sample_frequency_hz,
-                                         core_config.GetSamplingFrequencyHz());
+                        log::assert_that(
+                                stream_conf->stream_params.sink.stream_config
+                                                .sampling_frequency_hz ==
+                                        core_config.GetSamplingFrequencyHz(),
+                                "StartStream: sample freq mismatch: {}!={}",
+                                stream_conf->stream_params.sink.stream_config.sampling_frequency_hz,
+                                core_config.GetSamplingFrequencyHz());
                       }
 
-                      if (stream_conf->stream_params.sink.octets_per_codec_frame == 0) {
-                        stream_conf->stream_params.sink.octets_per_codec_frame =
+                      if (stream_conf->stream_params.sink.stream_config.octets_per_codec_frame ==
+                          0) {
+                        stream_conf->stream_params.sink.stream_config.octets_per_codec_frame =
                                 *core_config.octets_per_codec_frame;
                       } else {
-                        log::assert_that(stream_conf->stream_params.sink.octets_per_codec_frame ==
+                        log::assert_that(stream_conf->stream_params.sink.stream_config
+                                                         .octets_per_codec_frame ==
                                                  *core_config.octets_per_codec_frame,
                                          "StartStream: octets per frame mismatch: {}!={}",
-                                         stream_conf->stream_params.sink.octets_per_codec_frame,
+                                         stream_conf->stream_params.sink.stream_config
+                                                 .octets_per_codec_frame,
                                          *core_config.octets_per_codec_frame);
                       }
 
-                      if (stream_conf->stream_params.sink.codec_frames_blocks_per_sdu == 0) {
-                        stream_conf->stream_params.sink.codec_frames_blocks_per_sdu =
+                      if (stream_conf->stream_params.sink.stream_config
+                                  .codec_frames_blocks_per_sdu == 0) {
+                        stream_conf->stream_params.sink.stream_config.codec_frames_blocks_per_sdu =
                                 *core_config.codec_frames_blocks_per_sdu;
-                        stream_conf->stream_params.sink.frame_duration_us =
+                        stream_conf->stream_params.sink.stream_config.frame_duration_us =
                                 core_config.GetFrameDurationUs();
                       } else {
-                        log::assert_that(
-                                stream_conf->stream_params.sink.codec_frames_blocks_per_sdu ==
-                                        *core_config.codec_frames_blocks_per_sdu,
-                                "StartStream: codec_frames_blocks_per_sdu: {}!={}",
-                                stream_conf->stream_params.sink.codec_frames_blocks_per_sdu,
-                                *core_config.codec_frames_blocks_per_sdu);
+                        log::assert_that(stream_conf->stream_params.sink.stream_config
+                                                         .codec_frames_blocks_per_sdu ==
+                                                 *core_config.codec_frames_blocks_per_sdu,
+                                         "StartStream: codec_frames_blocks_per_sdu: {}!={}",
+                                         stream_conf->stream_params.sink.stream_config
+                                                 .codec_frames_blocks_per_sdu,
+                                         *core_config.codec_frames_blocks_per_sdu);
                       }
 
                       log::info(
@@ -1314,23 +1351,24 @@ protected:
               }
               /* Invalidate stream configuration if needed */
               auto* stream_conf = &group->stream_conf;
-              if (!stream_conf->stream_params.sink.stream_locations.empty() ||
-                  !stream_conf->stream_params.source.stream_locations.empty()) {
-                stream_conf->stream_params.sink.stream_locations.erase(
+              if (!stream_conf->stream_params.sink.stream_config.stream_map.empty() ||
+                  !stream_conf->stream_params.source.stream_config.stream_map.empty()) {
+                stream_conf->stream_params.sink.stream_config.stream_map.erase(
                         std::remove_if(
-                                stream_conf->stream_params.sink.stream_locations.begin(),
-                                stream_conf->stream_params.sink.stream_locations.end(),
-                                [leAudioDevice, &stream_conf](auto& pair) {
-                                  auto ases = leAudioDevice->GetAsesByCisConnHdl(pair.first);
+                                stream_conf->stream_params.sink.stream_config.stream_map.begin(),
+                                stream_conf->stream_params.sink.stream_config.stream_map.end(),
+                                [leAudioDevice, &stream_conf](auto& info) {
+                                  auto ases =
+                                          leAudioDevice->GetAsesByCisConnHdl(info.stream_handle);
 
                                   log::info(
                                           ", sink ase to delete. Cis handle: {}, ase pointer: "
                                           "{}",
-                                          (int)(pair.first), std::format_ptr(+ases.sink));
+                                          (int)(info.stream_handle), std::format_ptr(+ases.sink));
                                   if (ases.sink) {
                                     stream_conf->stream_params.sink.num_of_devices--;
                                     stream_conf->stream_params.sink.num_of_channels -=
-                                            ases.sink->channel_count;
+                                            ases.sink->codec_config.channel_count_per_iso_stream;
 
                                     log::info(
                                             "Sink Number Of Devices: {}, Sink Number Of "
@@ -1340,21 +1378,23 @@ protected:
                                   }
                                   return ases.sink;
                                 }),
-                        stream_conf->stream_params.sink.stream_locations.end());
+                        stream_conf->stream_params.sink.stream_config.stream_map.end());
 
-                stream_conf->stream_params.source.stream_locations.erase(
+                stream_conf->stream_params.source.stream_config.stream_map.erase(
                         std::remove_if(
-                                stream_conf->stream_params.source.stream_locations.begin(),
-                                stream_conf->stream_params.source.stream_locations.end(),
-                                [leAudioDevice, &stream_conf](auto& pair) {
-                                  auto ases = leAudioDevice->GetAsesByCisConnHdl(pair.first);
+                                stream_conf->stream_params.source.stream_config.stream_map.begin(),
+                                stream_conf->stream_params.source.stream_config.stream_map.end(),
+                                [leAudioDevice, &stream_conf](auto& info) {
+                                  auto ases =
+                                          leAudioDevice->GetAsesByCisConnHdl(info.stream_handle);
 
                                   log::info(", source to delete. Cis handle: {}, ase pointer: {}",
-                                            (int)(pair.first), std::format_ptr(ases.source));
+                                            (int)(info.stream_handle),
+                                            std::format_ptr(ases.source));
                                   if (ases.source) {
                                     stream_conf->stream_params.source.num_of_devices--;
                                     stream_conf->stream_params.source.num_of_channels -=
-                                            ases.source->channel_count;
+                                            ases.source->codec_config.channel_count_per_iso_stream;
 
                                     log::info(
                                             ", Source Number Of Devices: {}, Source Number Of "
@@ -1364,7 +1404,7 @@ protected:
                                   }
                                   return ases.source;
                                 }),
-                        stream_conf->stream_params.source.stream_locations.end());
+                        stream_conf->stream_params.source.stream_config.stream_map.end());
               }
 
               group->cig.UnassignCis(leAudioDevice, event->cis_conn_hdl);
@@ -1375,22 +1415,22 @@ protected:
            device = group->GetNextDevice(device)) {
         /* Invalidate stream configuration if needed */
         auto* stream_conf = &group->stream_conf;
-        if (!stream_conf->stream_params.sink.stream_locations.empty() ||
-            !stream_conf->stream_params.source.stream_locations.empty()) {
-          stream_conf->stream_params.sink.stream_locations.erase(
-                  std::remove_if(stream_conf->stream_params.sink.stream_locations.begin(),
-                                 stream_conf->stream_params.sink.stream_locations.end(),
-                                 [device, &stream_conf](auto& pair) {
-                                   auto ases = device->GetAsesByCisConnHdl(pair.first);
+        if (!stream_conf->stream_params.sink.stream_config.stream_map.empty() ||
+            !stream_conf->stream_params.source.stream_config.stream_map.empty()) {
+          stream_conf->stream_params.sink.stream_config.stream_map.erase(
+                  std::remove_if(stream_conf->stream_params.sink.stream_config.stream_map.begin(),
+                                 stream_conf->stream_params.sink.stream_config.stream_map.end(),
+                                 [device, &stream_conf](auto& info) {
+                                   auto ases = device->GetAsesByCisConnHdl(info.stream_handle);
 
                                    log::info(
                                            ", sink ase to delete. Cis handle: {}, ase "
                                            "pointer: {}",
-                                           (int)(pair.first), std::format_ptr(+ases.sink));
+                                           (int)(info.stream_handle), std::format_ptr(+ases.sink));
                                    if (ases.sink) {
                                      stream_conf->stream_params.sink.num_of_devices--;
                                      stream_conf->stream_params.sink.num_of_channels -=
-                                             ases.sink->channel_count;
+                                             ases.sink->codec_config.channel_count_per_iso_stream;
 
                                      log::info(
                                              "Sink Number Of Devices: {}, Sink Number Of "
@@ -1400,22 +1440,23 @@ protected:
                                    }
                                    return ases.sink;
                                  }),
-                  stream_conf->stream_params.sink.stream_locations.end());
+                  stream_conf->stream_params.sink.stream_config.stream_map.end());
 
-          stream_conf->stream_params.source.stream_locations.erase(
-                  std::remove_if(stream_conf->stream_params.source.stream_locations.begin(),
-                                 stream_conf->stream_params.source.stream_locations.end(),
-                                 [device, &stream_conf](auto& pair) {
-                                   auto ases = device->GetAsesByCisConnHdl(pair.first);
+          stream_conf->stream_params.source.stream_config.stream_map.erase(
+                  std::remove_if(stream_conf->stream_params.source.stream_config.stream_map.begin(),
+                                 stream_conf->stream_params.source.stream_config.stream_map.end(),
+                                 [device, &stream_conf](auto& info) {
+                                   auto ases = device->GetAsesByCisConnHdl(info.stream_handle);
 
                                    log::info(
                                            ", source to delete. Cis handle: {}, ase pointer: "
                                            "{}",
-                                           (int)(pair.first), std::format_ptr(+ases.source));
+                                           (int)(info.stream_handle),
+                                           std::format_ptr(+ases.source));
                                    if (ases.source) {
                                      stream_conf->stream_params.source.num_of_devices--;
                                      stream_conf->stream_params.source.num_of_channels -=
-                                             ases.source->channel_count;
+                                             ases.source->codec_config.channel_count_per_iso_stream;
 
                                      log::info(
                                              ", Source Number Of Devices: {}, Source Number "
@@ -1425,7 +1466,7 @@ protected:
                                    }
                                    return ases.source;
                                  }),
-                  stream_conf->stream_params.source.stream_locations.end());
+                  stream_conf->stream_params.source.stream_config.stream_map.end());
         }
 
         for (auto& ase : device->ases_) {
@@ -8350,17 +8391,16 @@ TEST_F(UnicastTest, UpdateActiveAudioConfigForLocalSinkSource) {
   // Start streaming
   EXPECT_CALL(*mock_le_audio_sink_hal_client_, UpdateAudioConfigToHal(_)).Times(1);
   EXPECT_CALL(*mock_le_audio_source_hal_client_, UpdateAudioConfigToHal(_)).Times(1);
-  EXPECT_CALL(*mock_codec_manager_, UpdateActiveAudioConfig(_, _, _))
+  EXPECT_CALL(*mock_codec_manager_, UpdateActiveAudioConfig(_, _))
           .Times(1)
-          .WillOnce([](const types::BidirectionalPair<stream_parameters>& /*stream_params*/,
-                       types::BidirectionalPair<uint16_t> delays_ms,
-                       std::function<void(const offload_config& config, uint8_t direction)>
+          .WillOnce([](const types::BidirectionalPair<stream_parameters>& stream_params,
+                       std::function<void(const stream_config& config, uint8_t direction)>
                                update_receiver) {
-            bluetooth::le_audio::offload_config unicast_cfg;
-            if (delays_ms.sink != 0) {
+            bluetooth::le_audio::stream_config unicast_cfg;
+            if (stream_params.sink.stream_config.peer_delay_ms != 0) {
               update_receiver(unicast_cfg, bluetooth::le_audio::types::kLeAudioDirectionSink);
             }
-            if (delays_ms.source != 0) {
+            if (stream_params.source.stream_config.peer_delay_ms != 0) {
               update_receiver(unicast_cfg, bluetooth::le_audio::types::kLeAudioDirectionSource);
             }
           });
@@ -8412,17 +8452,16 @@ TEST_F(UnicastTest, UpdateActiveAudioConfigForLocalSource) {
   // Start streaming
   EXPECT_CALL(*mock_le_audio_source_hal_client_, UpdateAudioConfigToHal(_)).Times(1);
   EXPECT_CALL(*mock_le_audio_sink_hal_client_, UpdateAudioConfigToHal(_)).Times(0);
-  EXPECT_CALL(*mock_codec_manager_, UpdateActiveAudioConfig(_, _, _))
+  EXPECT_CALL(*mock_codec_manager_, UpdateActiveAudioConfig(_, _))
           .Times(1)
-          .WillOnce([](const types::BidirectionalPair<stream_parameters>& /*stream_params*/,
-                       types::BidirectionalPair<uint16_t> delays_ms,
-                       std::function<void(const offload_config& config, uint8_t direction)>
+          .WillOnce([](const types::BidirectionalPair<stream_parameters>& stream_params,
+                       std::function<void(const stream_config& config, uint8_t direction)>
                                update_receiver) {
-            bluetooth::le_audio::offload_config unicast_cfg;
-            if (delays_ms.sink != 0) {
+            bluetooth::le_audio::stream_config unicast_cfg;
+            if (stream_params.sink.stream_config.peer_delay_ms != 0) {
               update_receiver(unicast_cfg, bluetooth::le_audio::types::kLeAudioDirectionSink);
             }
-            if (delays_ms.source != 0) {
+            if (stream_params.source.stream_config.peer_delay_ms != 0) {
               update_receiver(unicast_cfg, bluetooth::le_audio::types::kLeAudioDirectionSource);
             }
           });
@@ -13194,8 +13233,7 @@ TEST_F(UnicastTest, CodecFrameBlocks2) {
                     }
                     auto cfg = provider(requirements, &filtered);
                     if (cfg == nullptr) {
-                      return std::unique_ptr<
-                              bluetooth::le_audio::set_configurations::AudioSetConfiguration>(
+                      return std::unique_ptr<bluetooth::le_audio::types::AudioSetConfiguration>(
                               nullptr);
                     }
 
@@ -13224,8 +13262,7 @@ TEST_F(UnicastTest, CodecFrameBlocks2) {
   ON_CALL(*mock_codec_manager_, UpdateActiveAudioConfig)
           .WillByDefault(
                   Invoke([&](const types::BidirectionalPair<stream_parameters>& stream_params,
-                             types::BidirectionalPair<uint16_t> /*delays_ms*/,
-                             std::function<void(const offload_config& config, uint8_t direction)>
+                             std::function<void(const stream_config& config, uint8_t direction)>
                              /*updater*/) { codec_manager_stream_params = stream_params; }));
 
   const RawAddress test_address0 = GetTestAddress(0);
@@ -13283,7 +13320,7 @@ TEST_F(UnicastTest, CodecFrameBlocks2) {
        device = group->GetNextDevice(device)) {
     for (auto& ase : device->ases_) {
       if (ase.active) {
-        auto cfg = ase.codec_config.GetAsCoreCodecConfig();
+        auto cfg = ase.codec_config.params.GetAsCoreCodecConfig();
         ASSERT_TRUE(cfg.codec_frames_blocks_per_sdu.has_value());
         device_configured_codec_frame_blocks_per_sdu = cfg.codec_frames_blocks_per_sdu.value();
       }
@@ -13313,7 +13350,8 @@ TEST_F(UnicastTest, CodecFrameBlocks2) {
   ASSERT_NE(codec_mocks.size(), 0ul);
 
   // Verify that the initially started session was updated with the new params
-  ASSERT_EQ(codec_manager_stream_params.sink.codec_frames_blocks_per_sdu, max_codec_frames_per_sdu);
+  ASSERT_EQ(codec_manager_stream_params.sink.stream_config.codec_frames_blocks_per_sdu,
+            max_codec_frames_per_sdu);
 }
 
 TEST_F(UnicastTestHandoverMode, UpdateMetadataToNotAllowedContexts) {

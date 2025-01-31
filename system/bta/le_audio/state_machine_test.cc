@@ -581,11 +581,9 @@ protected:
     // Regardless of the codec location, return all the possible configurations
     ON_CALL(*mock_codec_manager_, IsDualBiDirSwbSupported).WillByDefault(Return(true));
     ON_CALL(*mock_codec_manager_, CheckCodecConfigIsBiDirSwb)
-            .WillByDefault(
-                    Invoke([](const set_configurations::AudioSetConfiguration& config) -> bool {
-                      return AudioSetConfigurationProvider::Get()->CheckConfigurationIsBiDirSwb(
-                              config);
-                    }));
+            .WillByDefault(Invoke([](const types::AudioSetConfiguration& config) -> bool {
+              return AudioSetConfigurationProvider::Get()->CheckConfigurationIsBiDirSwb(config);
+            }));
     ON_CALL(*mock_codec_manager_, GetCodecConfig)
             .WillByDefault(Invoke(
                     [](const bluetooth::le_audio::CodecManager::UnicastConfigurationRequirements&
@@ -939,7 +937,7 @@ protected:
           uint16_t supported_octets_per_codec_frame_max, uint8_t codec_frame_blocks_per_sdu_ = 1,
           uint8_t coding_format = codec_specific::kLc3CodingFormat,
           uint16_t vendor_company_id = 0x0000, uint16_t vendor_codec_id = 0x0000,
-          std::vector<uint8_t> metadata = {}) {
+          types::LeAudioLtvMap metadata = types::LeAudioLtvMap()) {
     auto ltv_map = types::LeAudioLtvMap({
             {codec_specific::kCapTypeSupportedSamplingFrequencies,
              {(uint8_t)(sampling_frequencies_bitfield),
@@ -1540,7 +1538,7 @@ protected:
                 // Streaming, when in Source role
                 const auto& ase = &(*it);
                 client_parser::ascs::ase_transient_state_params streaming_params = {
-                        .metadata = ase->metadata};
+                        .metadata = ase->metadata.RawPacket()};
                 InjectAseStateNotification(ase, device, group, ascs::kAseStateStreaming,
                                            &streaming_params);
               }
@@ -1766,8 +1764,7 @@ TEST_F(StateMachineTest, testConfigureCodecSingleFb2) {
 
             auto cfg = provider(requirements, &configs);
             if (cfg == nullptr) {
-              return std::unique_ptr<
-                      bluetooth::le_audio::set_configurations::AudioSetConfiguration>(nullptr);
+              return std::unique_ptr<bluetooth::le_audio::types::AudioSetConfiguration>(nullptr);
             }
 
             if (requirements.sink_pacs.has_value()) {
@@ -5344,13 +5341,8 @@ TEST_F(StateMachineTest, testAttachDeviceToTheStream) {
   ASSERT_EQ(group->GetState(), types::AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING);
 
   // Verify that the joining device receives the right CCID list
-  auto lastMeta = lastDevice->GetFirstActiveAse()->metadata;
-  bool parsedOk = false;
-  auto ltv = bluetooth::le_audio::types::LeAudioLtvMap::Parse(lastMeta.data(), lastMeta.size(),
-                                                              parsedOk);
-  ASSERT_TRUE(parsedOk);
-
-  auto ccids = ltv.Find(bluetooth::le_audio::types::kLeAudioMetadataTypeCcidList);
+  auto ccids = lastDevice->GetFirstActiveAse()->metadata.Find(
+          bluetooth::le_audio::types::kLeAudioMetadataTypeCcidList);
   ASSERT_TRUE(ccids.has_value());
   ASSERT_NE(std::find(ccids->begin(), ccids->end(), media_ccid), ccids->end());
 
@@ -5456,13 +5448,8 @@ TEST_F(StateMachineTest, testAttachDeviceToTheStreamV2) {
   ASSERT_EQ(group->GetState(), types::AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING);
 
   // Verify that the joining device receives the right CCID list
-  auto lastMeta = lastDevice->GetFirstActiveAse()->metadata;
-  bool parsedOk = false;
-  auto ltv = bluetooth::le_audio::types::LeAudioLtvMap::Parse(lastMeta.data(), lastMeta.size(),
-                                                              parsedOk);
-  ASSERT_TRUE(parsedOk);
-
-  auto ccids = ltv.Find(bluetooth::le_audio::types::kLeAudioMetadataTypeCcidList);
+  auto ccids = lastDevice->GetFirstActiveAse()->metadata.Find(
+          bluetooth::le_audio::types::kLeAudioMetadataTypeCcidList);
   ASSERT_TRUE(ccids.has_value());
   ASSERT_NE(std::find(ccids->begin(), ccids->end(), media_ccid), ccids->end());
 
@@ -6362,13 +6349,8 @@ TEST_F(StateMachineTest, testAutonomousConfiguredAndAttachToStream) {
   ASSERT_EQ(group->GetState(), types::AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING);
 
   // Verify that the joining device receives the right CCID list
-  auto lastMeta = lastDevice->GetFirstActiveAse()->metadata;
-  bool parsedOk = false;
-  auto ltv = bluetooth::le_audio::types::LeAudioLtvMap::Parse(lastMeta.data(), lastMeta.size(),
-                                                              parsedOk);
-  ASSERT_TRUE(parsedOk);
-
-  auto ccids = ltv.Find(bluetooth::le_audio::types::kLeAudioMetadataTypeCcidList);
+  auto ccids = lastDevice->GetFirstActiveAse()->metadata.Find(
+          bluetooth::le_audio::types::kLeAudioMetadataTypeCcidList);
   ASSERT_TRUE(ccids.has_value());
   ASSERT_NE(std::find(ccids->begin(), ccids->end(), media_ccid), ccids->end());
 
@@ -6465,13 +6447,8 @@ TEST_F(StateMachineTest, testAttachDeviceToTheStream_autonomusQoSConfiguredState
   ASSERT_EQ(group->GetState(), types::AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING);
 
   // Verify that the joining device receives the right CCID list
-  auto lastMeta = lastDevice->GetFirstActiveAse()->metadata;
-  bool parsedOk = false;
-  auto ltv = bluetooth::le_audio::types::LeAudioLtvMap::Parse(lastMeta.data(), lastMeta.size(),
-                                                              parsedOk);
-  ASSERT_TRUE(parsedOk);
-
-  auto ccids = ltv.Find(bluetooth::le_audio::types::kLeAudioMetadataTypeCcidList);
+  auto ccids = lastDevice->GetFirstActiveAse()->metadata.Find(
+          bluetooth::le_audio::types::kLeAudioMetadataTypeCcidList);
   ASSERT_TRUE(ccids.has_value());
   ASSERT_NE(std::find(ccids->begin(), ccids->end(), media_ccid), ccids->end());
 
@@ -6602,13 +6579,8 @@ TEST_F(StateMachineTest, testAttachDeviceToTheStream_remoteDoesNotResponseOnCode
   testing::Mock::VerifyAndClearExpectations(&gatt_queue);
 
   // Verify that the joining device receives the right CCID list
-  auto lastMeta = lastDevice->GetFirstActiveAse()->metadata;
-  bool parsedOk = false;
-  auto ltv = bluetooth::le_audio::types::LeAudioLtvMap::Parse(lastMeta.data(), lastMeta.size(),
-                                                              parsedOk);
-  ASSERT_TRUE(parsedOk);
-
-  auto ccids = ltv.Find(bluetooth::le_audio::types::kLeAudioMetadataTypeCcidList);
+  auto ccids = lastDevice->GetFirstActiveAse()->metadata.Find(
+          bluetooth::le_audio::types::kLeAudioMetadataTypeCcidList);
   ASSERT_TRUE(ccids.has_value());
   ASSERT_NE(std::find(ccids->begin(), ccids->end(), media_ccid), ccids->end());
 
@@ -6761,13 +6733,7 @@ TEST_F(StateMachineTest, testReconfigureAfterLateDeviceAttached) {
 
   // FIXME: No ASE was activated - that's bad
   ASSERT_NE(nullptr, ase);
-  auto lastMeta = ase->metadata;
-  bool parsedOk = false;
-  auto ltv = bluetooth::le_audio::types::LeAudioLtvMap::Parse(lastMeta.data(), lastMeta.size(),
-                                                              parsedOk);
-  ASSERT_TRUE(parsedOk);
-
-  auto ccids = ltv.Find(bluetooth::le_audio::types::kLeAudioMetadataTypeCcidList);
+  auto ccids = ase->metadata.Find(bluetooth::le_audio::types::kLeAudioMetadataTypeCcidList);
   ASSERT_TRUE(ccids.has_value());
   ASSERT_NE(std::find(ccids->begin(), ccids->end(), media_ccid), ccids->end());
 
@@ -6872,13 +6838,7 @@ TEST_F(StateMachineTest, testReconfigureAfterLateDeviceAttachedConversationalSwb
 
   // No ASE was activated - that's bad
   ASSERT_NE(nullptr, ase);
-  auto lastMeta = ase->metadata;
-  bool parsedOk = false;
-  auto ltv = bluetooth::le_audio::types::LeAudioLtvMap::Parse(lastMeta.data(), lastMeta.size(),
-                                                              parsedOk);
-  ASSERT_TRUE(parsedOk);
-
-  auto ccids = ltv.Find(bluetooth::le_audio::types::kLeAudioMetadataTypeCcidList);
+  auto ccids = ase->metadata.Find(bluetooth::le_audio::types::kLeAudioMetadataTypeCcidList);
   ASSERT_TRUE(ccids.has_value());
   ASSERT_NE(std::find(ccids->begin(), ccids->end(), media_ccid), ccids->end());
 
@@ -6990,13 +6950,7 @@ TEST_F(StateMachineTestNoSwb, testReconfigureAfterLateDeviceAttachedConversation
 
   // No ASE was activated - that's bad
   ASSERT_NE(nullptr, ase);
-  auto lastMeta = ase->metadata;
-  bool parsedOk = false;
-  auto ltv = bluetooth::le_audio::types::LeAudioLtvMap::Parse(lastMeta.data(), lastMeta.size(),
-                                                              parsedOk);
-  ASSERT_TRUE(parsedOk);
-
-  auto ccids = ltv.Find(bluetooth::le_audio::types::kLeAudioMetadataTypeCcidList);
+  auto ccids = ase->metadata.Find(bluetooth::le_audio::types::kLeAudioMetadataTypeCcidList);
   ASSERT_TRUE(ccids.has_value());
   ASSERT_NE(std::find(ccids->begin(), ccids->end(), media_ccid), ccids->end());
 
@@ -7203,13 +7157,8 @@ TEST_F(StateMachineTest, testAttachDeviceToTheConversationalStream) {
   ASSERT_EQ(group->GetState(), types::AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING);
 
   // Verify that the joining device receives the right CCID list
-  auto lastMeta = lastDevice->GetFirstActiveAse()->metadata;
-  bool parsedOk = false;
-  auto ltv = bluetooth::le_audio::types::LeAudioLtvMap::Parse(lastMeta.data(), lastMeta.size(),
-                                                              parsedOk);
-  ASSERT_TRUE(parsedOk);
-
-  auto ccids = ltv.Find(bluetooth::le_audio::types::kLeAudioMetadataTypeCcidList);
+  auto ccids = lastDevice->GetFirstActiveAse()->metadata.Find(
+          bluetooth::le_audio::types::kLeAudioMetadataTypeCcidList);
   ASSERT_TRUE(ccids.has_value());
   ASSERT_NE(std::find(ccids->begin(), ccids->end(), call_ccid), ccids->end());
 
@@ -8735,13 +8684,8 @@ TEST_F(StateMachineTest, StreamStartWithSameContextFromConfiguredStateButNewMeta
   testing::Mock::VerifyAndClearExpectations(&mock_callbacks_);
 
   // Verify that the joining device receives the right CCID list
-  auto lastMeta = firstActiveDevice->GetFirstActiveAse()->metadata;
-  bool parsedOk = false;
-  auto ltv = bluetooth::le_audio::types::LeAudioLtvMap::Parse(lastMeta.data(), lastMeta.size(),
-                                                              parsedOk);
-  ASSERT_TRUE(parsedOk);
-
-  auto ccids = ltv.Find(bluetooth::le_audio::types::kLeAudioMetadataTypeCcidList);
+  auto ccids = firstActiveDevice->GetFirstActiveAse()->metadata.Find(
+          bluetooth::le_audio::types::kLeAudioMetadataTypeCcidList);
   ASSERT_TRUE(ccids.has_value());
   ASSERT_NE(std::find(ccids->begin(), ccids->end(), media_ccid), ccids->end());
 }
@@ -8832,13 +8776,8 @@ TEST_F(StateMachineTest, testAttachDeviceToTheStreamCisFailure) {
   ASSERT_EQ(group->GetState(), types::AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING);
 
   // Verify that the joining device receives the right CCID list
-  auto lastMeta = lastDevice->GetFirstActiveAse()->metadata;
-  bool parsedOk = false;
-  auto ltv = bluetooth::le_audio::types::LeAudioLtvMap::Parse(lastMeta.data(), lastMeta.size(),
-                                                              parsedOk);
-  ASSERT_TRUE(parsedOk);
-
-  auto ccids = ltv.Find(bluetooth::le_audio::types::kLeAudioMetadataTypeCcidList);
+  auto ccids = lastDevice->GetFirstActiveAse()->metadata.Find(
+          bluetooth::le_audio::types::kLeAudioMetadataTypeCcidList);
   ASSERT_TRUE(ccids.has_value());
   ASSERT_NE(std::find(ccids->begin(), ccids->end(), media_ccid), ccids->end());
 
