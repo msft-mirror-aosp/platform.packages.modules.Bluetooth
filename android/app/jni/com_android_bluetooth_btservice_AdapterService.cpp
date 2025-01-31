@@ -1291,7 +1291,6 @@ static jboolean set_data(JNIEnv* env, jobject oobData, jint transport, bt_oob_da
     if (oobDataLength == NULL || env->GetArrayLength(oobDataLength) != OOB_DATA_LEN_SIZE) {
       log::info("wrong length of oobDataLength, should be empty or {} bytes.", OOB_DATA_LEN_SIZE);
       jniThrowIOException(env, EINVAL);
-      env->ReleaseByteArrayElements(oobDataLength, NULL, 0);
       return JNI_FALSE;
     }
 
