@@ -1481,10 +1481,6 @@ void L2CA_AdjustConnectionIntervals(uint16_t* min_interval, uint16_t* max_interv
 }
 
 void L2CA_SetEcosystemBaseInterval(uint32_t base_interval) {
-  if (!com::android::bluetooth::flags::le_audio_base_ecosystem_interval()) {
-    return;
-  }
-
   log::info("base_interval: {}ms", base_interval);
   bluetooth::shim::GetHciLayer()->EnqueueCommand(
           bluetooth::hci::SetEcosystemBaseIntervalBuilder::Create(base_interval),
