@@ -38,6 +38,7 @@
 #include "bta_sys.h"
 #include "btif/include/btif_config.h"
 #include "btm_api_types.h"
+#include "common/time_util.h"
 #include "device/include/interop.h"
 #include "device/include/interop_config.h"
 #include "internal_include/bt_target.h"
@@ -106,6 +107,9 @@ static void bta_ag_sdp_cback(tSDP_STATUS status, uint8_t idx) {
       event = BTA_AG_DISC_INT_RES_EVT;
     }
     tBTA_AG_DATA disc_result = {.disc_result = {.status = status}};
+    p_scb->sdp_metrics.status = (status == tSDP_STATUS::SDP_SUCCESS) ? tBTA_JV_STATUS::SUCCESS
+                                                                     : tBTA_JV_STATUS::FAILURE;
+    p_scb->sdp_metrics.sdp_end_ms = common::time_gettimeofday_us();
     do_in_main_thread(base::BindOnce(&bta_ag_sm_execute_by_handle, idx, event, disc_result));
   }
 }
@@ -522,6 +526,8 @@ void bta_ag_do_disc(tBTA_AG_SCB* p_scb, tBTA_SERVICE_MASK service) {
     return;
   }
 
+  p_scb->sdp_metrics.sdp_initiated = true;
+
   /* allocate buffer for sdp database */
   p_scb->p_disc_db = (tSDP_DISCOVERY_DB*)osi_malloc(BTA_AG_DISC_BUF_SIZE);
   /* set up service discovery database; attr happens to be attr_list len */
@@ -530,6 +536,7 @@ void bta_ag_do_disc(tBTA_AG_SCB* p_scb, tBTA_SERVICE_MASK service) {
     if (get_legacy_stack_sdp_api()->service.SDP_ServiceSearchAttributeRequest(
                 p_scb->peer_addr, p_scb->p_disc_db,
                 bta_ag_sdp_cback_tbl[bta_ag_scb_to_idx(p_scb) - 1])) {
+      p_scb->sdp_metrics.sdp_start_ms = common::time_gettimeofday_us() / 1000;
       return;
     } else {
       log::error("failed to start SDP discovery for {}", p_scb->peer_addr);
