@@ -591,7 +591,9 @@ int ParseSinglePac(std::vector<struct acs_ac_record>& pac_recs, uint16_t len,
     return -1;
   }
 
-  rec.metadata = std::vector<uint8_t>(value, value + metadata_len);
+  if (!rec.metadata.Parse(value, metadata_len)) {
+    return -1;
+  }
   value += metadata_len;
   len -= metadata_len;
 

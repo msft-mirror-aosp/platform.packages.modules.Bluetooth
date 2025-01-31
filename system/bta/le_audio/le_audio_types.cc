@@ -55,8 +55,8 @@ namespace bluetooth::le_audio {
 using types::acs_ac_record;
 using types::LeAudioContextType;
 
-namespace set_configurations {
-using set_configurations::CodecConfigSetting;
+namespace types {
+using types::CodecConfigSetting;
 using types::kLeAudioCodingFormatLC3;
 using types::LeAudioCoreCodecConfig;
 
@@ -227,9 +227,6 @@ std::ostream& operator<<(std::ostream& os, const CodecConfigSetting& config) {
   return os;
 }
 
-}  // namespace set_configurations
-
-namespace types {
 /* Helper map for matching various frequency notations */
 const std::map<uint8_t, uint32_t> LeAudioCoreCodecConfig::sampling_freq_map = {
         {codec_spec_conf::kLeAudioSamplingFreq8000Hz, LeAudioCodecConfiguration::kSampleRate8000},

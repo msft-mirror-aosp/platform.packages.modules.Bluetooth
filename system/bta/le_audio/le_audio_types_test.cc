@@ -702,7 +702,7 @@ constexpr types::LeAudioCodecId kLeAudioCodecIdVendor1 = {
         .vendor_codec_id = 0xDE,
 };
 
-static const set_configurations::CodecConfigSetting vendor_16_2 = {
+static const types::CodecConfigSetting vendor_16_2 = {
         .id = kLeAudioCodecIdVendor1,
         .params = types::LeAudioLtvMap({
                 LTV_ENTRY_SAMPLING_FREQUENCY(codec_spec_conf::kLeAudioSamplingFreq16000Hz),
@@ -825,7 +825,7 @@ TEST(CodecSpecTest, test_channel_count_transition) {
 }
 
 TEST(CodecConfigTest, test_lc3_bits_per_sample) {
-  set_configurations::CodecConfigSetting lc3_codec_config = {
+  types::CodecConfigSetting lc3_codec_config = {
           .id = {.coding_format = types::kLeAudioCodingFormatLC3},
   };
   ASSERT_EQ(utils::translateToBtLeAudioCodecConfigBitPerSample(lc3_codec_config.GetBitsPerSample()),
@@ -833,7 +833,7 @@ TEST(CodecConfigTest, test_lc3_bits_per_sample) {
 }
 
 TEST(CodecConfigTest, test_invalid_codec_bits_per_sample) {
-  set_configurations::CodecConfigSetting invalid_codec_config = {
+  types::CodecConfigSetting invalid_codec_config = {
           .id = {.coding_format = types::kLeAudioCodingFormatVendorSpecific}};
   ASSERT_EQ(utils::translateToBtLeAudioCodecConfigBitPerSample(
                     invalid_codec_config.GetBitsPerSample()),
