@@ -368,9 +368,6 @@ typedef enum {
   // Some devices claim to support HFP in EIR but does not actually support it.
   INTEROP_DISABLE_HF_PROFILE,
 
-  // Some carkits don't support rejecting notifications when addressed player changed.
-  INTEROP_ADDRESSED_PLAYER_CHANGE_REJECT,
-
   END_OF_INTEROP_LIST
 } interop_feature_t;
 
