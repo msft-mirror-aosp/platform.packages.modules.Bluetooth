@@ -40,6 +40,7 @@ import android.bluetooth.Utils;
 import android.bluetooth.test_utils.BlockingBluetoothAdapter;
 import android.bluetooth.test_utils.EnableBluetoothRule;
 import android.bluetooth.pairing.utils.IntentReceiver;
+import android.bluetooth.pairing.utils.TestUtil;
 import android.content.Context;
 import android.os.ParcelUuid;
 import android.platform.test.annotations.RequiresFlagsEnabled;
@@ -117,6 +118,9 @@ public class PairingTest {
     private final StreamObserverSpliterator<PairingEvent> mPairingEventStreamObserver =
             new StreamObserverSpliterator<>();
     @Mock private BluetoothProfile.ServiceListener mProfileServiceListener;
+
+    /* Util instance for common test steps with current Context reference */
+    private TestUtil util;
     private BluetoothDevice mBumbleDevice;
     private BluetoothDevice mRemoteLeDevice;
     private BluetoothHidHost mHidService;
@@ -125,10 +129,14 @@ public class PairingTest {
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
+        util = new TestUtil.Builder(sTargetContext)
+                .setProfileServiceListener(mProfileServiceListener)
+                .setBluetoothAdapter(sAdapter)
+                .build();
 
         // Get profile proxies
-        mHidService = (BluetoothHidHost) getProfileProxy(BluetoothProfile.HID_HOST);
-        mHfpService = (BluetoothHeadset) getProfileProxy(BluetoothProfile.HEADSET);
+        mHidService = (BluetoothHidHost) util.getProfileProxy(BluetoothProfile.HID_HOST);
+        mHfpService = (BluetoothHeadset) util.getProfileProxy(BluetoothProfile.HEADSET);
 
         mBumbleDevice = mBumble.getRemoteDevice();
         mRemoteLeDevice =
@@ -137,11 +145,11 @@ public class PairingTest {
 
         /*
          * Note: Since there was no IntentReceiver registered, passing the instance as
-         *  NULL in testStep_RemoveBond(). But, if there is an instance already present, that
+         *  NULL in removeBond(). But, if there is an instance already present, that
          *  must be passed instead of NULL.
          */
         for (BluetoothDevice device : sAdapter.getBondedDevices()) {
-            testStep_RemoveBond(null, device);
+            util.removeBond(null, device);
         }
     }
 
@@ -151,14 +159,14 @@ public class PairingTest {
 
         /*
          * Note: Since there was no IntentReceiver registered, passing the instance as
-         *  NULL in testStep_RemoveBond(). But, if there is an instance already present, that
+         *  NULL in removeBond(). But, if there is an instance already present, that
          *  must be passed instead of NULL.
          */
         if (bondedDevices.contains(mBumbleDevice)) {
-            testStep_RemoveBond(null, mBumbleDevice);
+            util.removeBond(null, mBumbleDevice);
         }
         if (bondedDevices.contains(mRemoteLeDevice)) {
-            testStep_RemoveBond(null, mRemoteLeDevice);
+            util.removeBond(null, mRemoteLeDevice);
         }
         mBumbleDevice = null;
         mRemoteLeDevice = null;
@@ -1010,33 +1018,6 @@ public class PairingTest {
 
         intentReceiver.close();
         return responseObserver;
-    }
-
-    private void testStep_RemoveBond(IntentReceiver parentIntentReceiver,
-        BluetoothDevice device) {
-        IntentReceiver intentReceiver =
-            IntentReceiver.updateNewIntentActionsInParentReceiver(
-                parentIntentReceiver,
-                sTargetContext,
-                BluetoothDevice.ACTION_BOND_STATE_CHANGED);
-
-        assertThat(device.removeBond()).isTrue();
-        intentReceiver.verifyReceivedOrdered(
-                hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
-                hasExtra(BluetoothDevice.EXTRA_DEVICE, device),
-                hasExtra(BluetoothDevice.EXTRA_BOND_STATE,
-                    BluetoothDevice.BOND_NONE));
-
-        intentReceiver.close();
-    }
-
-    private BluetoothProfile getProfileProxy(int profile) {
-        sAdapter.getProfileProxy(sTargetContext, mProfileServiceListener, profile);
-        ArgumentCaptor<BluetoothProfile> proxyCaptor =
-                ArgumentCaptor.forClass(BluetoothProfile.class);
-        verify(mProfileServiceListener, timeout(BOND_INTENT_TIMEOUT.toMillis()))
-                .onServiceConnected(eq(profile), proxyCaptor.capture());
-        return proxyCaptor.getValue();
     }
 
     private void testStep_BondLe(IntentReceiver parentIntentReceiver,
