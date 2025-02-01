@@ -376,8 +376,7 @@ public:
     }
 
     auto codec_ext_status =
-            osi_property_get_bool("bluetooth.core.le_audio.codec_extension_aidl.enabled", false) &&
-            com::android::bluetooth::flags::leaudio_multicodec_aidl_support();
+            osi_property_get_bool("bluetooth.core.le_audio.codec_extension_aidl.enabled", false);
 
     log::debug("Using codec extensibility AIDL: {}", codec_ext_status);
     return codec_ext_status;
