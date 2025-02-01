@@ -225,7 +225,6 @@ public class GattService extends ProfileService {
         mServerMap.clear();
         mHandleMap.clear();
         mReliableQueue.clear();
-        cleanup();
     }
 
     @Override
