@@ -560,8 +560,7 @@ static void bta_dm_gatt_disc_complete(tCONN_ID conn_id, tGATT_STATUS status) {
     } else {
       bta_dm_discovery_cb.conn_id = GATT_INVALID_CONN_ID;
     }
-    if (com::android::bluetooth::flags::fix_le_evt_cancelling_sdp_discovery() &&
-        (bta_dm_discovery_cb.transports & BT_TRANSPORT_BR_EDR)) {
+    if (bta_dm_discovery_cb.transports & BT_TRANSPORT_BR_EDR) {
       log::info("classic discovery still pending {}", bta_dm_discovery_cb.peer_bdaddr);
       return;
     } else {
