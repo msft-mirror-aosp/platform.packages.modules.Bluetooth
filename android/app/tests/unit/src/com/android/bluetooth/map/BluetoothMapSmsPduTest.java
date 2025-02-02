@@ -26,7 +26,6 @@ import static org.mockito.Mockito.when;
 
 import android.content.Context;
 import android.content.pm.PackageManager;
-import android.telephony.SmsManager;
 import android.telephony.SmsMessage;
 import android.telephony.TelephonyManager;
 
@@ -62,7 +61,6 @@ public class BluetoothMapSmsPduTest {
     private int TEST_ENCODING;
     private int TEST_LANGUAGE_TABLE;
 
-    private SmsManager mSmsManager = SmsManager.getDefault();
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
     @Mock private Context mTargetContext;
@@ -72,7 +70,7 @@ public class BluetoothMapSmsPduTest {
     public void setUp() throws Exception {
         PackageManager packageManager =
                 InstrumentationRegistry.getTargetContext().getPackageManager();
-        assumeTrue(packageManager.isPackageAvailable(FEATURE_TELEPHONY_MESSAGING));
+        assumeTrue(packageManager.hasSystemFeature(FEATURE_TELEPHONY_MESSAGING));
         when(mTargetContext.getSystemServiceName(TelephonyManager.class))
                 .thenReturn("TELEPHONY_SERVICE");
         when(mTargetContext.getSystemService("TELEPHONY_SERVICE")).thenReturn(mTelephonyManager);
@@ -110,8 +108,6 @@ public class BluetoothMapSmsPduTest {
 
     @Test
     public void getSubmitPdus_withTypeGSM_whenMsgCountIsMoreThanOne() throws Exception {
-        // Do not run test if sms is not supported
-        assumeTrue(mSmsManager.isImsSmsSupported());
         when(mTelephonyManager.getCurrentPhoneType()).thenReturn(TelephonyManager.PHONE_TYPE_GSM);
 
         List<SmsPdu> pdus =
@@ -139,8 +135,6 @@ public class BluetoothMapSmsPduTest {
 
     @Test
     public void getSubmitPdus_withTypeCDMA() throws Exception {
-        // Do not run test if sms is not supported
-        assumeTrue(mSmsManager.isImsSmsSupported());
         when(mTelephonyManager.getCurrentPhoneType()).thenReturn(TelephonyManager.PHONE_TYPE_CDMA);
 
         List<SmsPdu> pdus = BluetoothMapSmsPdu.getSubmitPdus(mTargetContext, TEST_TEXT, null);
@@ -164,8 +158,6 @@ public class BluetoothMapSmsPduTest {
 
     @Test
     public void getDeliverPdus_withTypeGSM() throws Exception {
-        // Do not run test if sms is not supported
-        assumeTrue(mSmsManager.isImsSmsSupported());
         when(mTelephonyManager.getCurrentPhoneType()).thenReturn(TelephonyManager.PHONE_TYPE_GSM);
 
         List<SmsPdu> pdus =
@@ -193,8 +185,6 @@ public class BluetoothMapSmsPduTest {
 
     @Test
     public void getDeliverPdus_withTypeCDMA() throws Exception {
-        // Do not run test if sms is not supported
-        assumeTrue(mSmsManager.isImsSmsSupported());
         when(mTelephonyManager.getCurrentPhoneType()).thenReturn(TelephonyManager.PHONE_TYPE_CDMA);
 
         List<SmsPdu> pdus =
