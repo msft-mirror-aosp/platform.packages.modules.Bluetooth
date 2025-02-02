@@ -79,7 +79,7 @@ public class HeadsetPhoneState {
             mTelephonyManager = mHeadsetService.getSystemService(TelephonyManager.class);
             Objects.requireNonNull(mTelephonyManager, "TELEPHONY_SERVICE is null");
             // Register for SubscriptionInfo list changes which is guaranteed to invoke
-            // onSubscriptionInfoChanged and which in turns calls loadInBackgroud.
+            // onSubscriptionInfoChanged and which in turns calls loadInBackground.
             mSubscriptionManager = SubscriptionManager.from(mHeadsetService);
             Objects.requireNonNull(mSubscriptionManager, "TELEPHONY_SUBSCRIPTION_SERVICE is null");
             // Initialize subscription on the handler thread
