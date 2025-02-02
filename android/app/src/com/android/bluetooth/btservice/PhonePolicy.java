@@ -40,7 +40,6 @@ import android.bluetooth.BluetoothUuid;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.ParcelUuid;
-import android.os.SystemProperties;
 import android.util.Log;
 
 import com.android.bluetooth.R;
@@ -57,6 +56,7 @@ import com.android.bluetooth.hfp.HeadsetService;
 import com.android.bluetooth.hid.HidHostService;
 import com.android.bluetooth.le_audio.LeAudioService;
 import com.android.bluetooth.pan.PanService;
+import com.android.bluetooth.util.SystemProperties;
 import com.android.bluetooth.vc.VolumeControlService;
 import com.android.internal.annotations.VisibleForTesting;
 

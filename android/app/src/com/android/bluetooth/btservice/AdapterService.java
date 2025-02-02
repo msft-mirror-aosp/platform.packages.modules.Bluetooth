@@ -393,17 +393,21 @@ public class AdapterService extends Service {
     }
 
     @VisibleForTesting
-    AdapterService(Looper looper) {
+    public AdapterService(Context ctx) {
+        this(Looper.getMainLooper(), ctx);
+    }
+
+    @VisibleForTesting
+    AdapterService(Looper looper, Context ctx) {
+        this(looper);
+        attachBaseContext(ctx);
+    }
+
+    private AdapterService(Looper looper) {
         mLooper = requireNonNull(looper);
         mHandler = new AdapterServiceHandler(mLooper);
         mSilenceDeviceManager = new SilenceDeviceManager(this, new ServiceFactory(), mLooper);
         mDatabaseManager = new DatabaseManager(this);
-    }
-
-    @VisibleForTesting
-    public AdapterService(Context ctx) {
-        this(Looper.getMainLooper());
-        attachBaseContext(ctx);
     }
 
     public static synchronized AdapterService getAdapterService() {

@@ -22,7 +22,6 @@ import static com.google.common.truth.Truth.assertThat;
 
 import android.content.Context;
 import android.content.pm.PackageManager;
-import android.telephony.SmsManager;
 
 import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
@@ -46,7 +45,6 @@ public class BluetoothMapbMessageSmsTest {
     private static final String TEST_MESSAGE = "test";
     private static final String TEST_ADDRESS = "12";
 
-    private SmsManager mSmsManager = SmsManager.getDefault();
     private Context mTargetContext;
     private List<SmsPdu> TEST_SMS_BODY_PDUS;
 
@@ -55,8 +53,7 @@ public class BluetoothMapbMessageSmsTest {
         // Do not run test if sms is not supported
         PackageManager packageManager =
                 InstrumentationRegistry.getTargetContext().getPackageManager();
-        Assume.assumeTrue(packageManager.isPackageAvailable(FEATURE_TELEPHONY_MESSAGING));
-        Assume.assumeTrue(mSmsManager.isImsSmsSupported());
+        Assume.assumeTrue(packageManager.hasSystemFeature(FEATURE_TELEPHONY_MESSAGING));
 
         mTargetContext = InstrumentationRegistry.getTargetContext();
         TEST_SMS_BODY_PDUS =

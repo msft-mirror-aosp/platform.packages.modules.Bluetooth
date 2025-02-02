@@ -81,6 +81,7 @@ public class HapClientStateMachineTest {
     @Before
     public void setUp() throws Exception {
         doReturn(true).when(mService).okToConnect(any());
+        doReturn(mService).when(mService).getBaseContext();
 
         doReturn(true).when(mNativeInterface).connectHapClient(any());
         doReturn(true).when(mNativeInterface).disconnectHapClient(any());
@@ -265,5 +266,6 @@ public class HapClientStateMachineTest {
         mLooper.dispatchAll();
 
         mInOrder.verify(mService, never()).sendBroadcast(any(), any(), any());
+        mInOrder.verify(mService, never()).sendBroadcastMultiplePermissions(any(), any(), any());
     }
 }

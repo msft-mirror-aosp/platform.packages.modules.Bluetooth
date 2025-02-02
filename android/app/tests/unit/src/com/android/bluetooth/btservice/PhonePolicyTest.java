@@ -27,6 +27,7 @@ import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTING;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
@@ -43,7 +44,6 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothUuid;
 import android.os.ParcelUuid;
-import android.os.SystemProperties;
 import android.os.test.TestLooper;
 import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
@@ -65,6 +65,7 @@ import com.android.bluetooth.hap.HapClientService;
 import com.android.bluetooth.hearingaid.HearingAidService;
 import com.android.bluetooth.hfp.HeadsetService;
 import com.android.bluetooth.le_audio.LeAudioService;
+import com.android.bluetooth.util.SystemProperties;
 
 import org.junit.After;
 import org.junit.Before;
@@ -95,6 +96,7 @@ public class PhonePolicyTest {
     @Mock private CsipSetCoordinatorService mCsipSetCoordinatorService;
     @Mock private HearingAidService mHearingAidService;
     @Mock private HapClientService mHapClientService;
+    @Mock private SystemProperties.MockableSystemProperties mProperties;
 
     private static final int MAX_CONNECTED_AUDIO_DEVICES = 5;
 
@@ -138,12 +140,15 @@ public class PhonePolicyTest {
         doReturn(Collections.emptyList()).when(mA2dpService).getConnectedDevices();
         doReturn(Collections.emptyList()).when(mHeadsetService).getConnectedDevices();
 
+        SystemProperties.mProperties = mProperties;
+
         mPhonePolicy = new PhonePolicy(mAdapterService, mLooper.getLooper(), mServiceFactory);
         mOriginalDualModeState = Utils.isDualModeAudioEnabled();
     }
 
     @After
     public void tearDown() throws Exception {
+        SystemProperties.mProperties = null;
         Utils.setDualModeAudioStateForTesting(mOriginalDualModeState);
     }
 
@@ -183,8 +188,9 @@ public class PhonePolicyTest {
         Utils.setDualModeAudioStateForTesting(false);
         mPhonePolicy.mLeAudioEnabledByDefault = true;
         mPhonePolicy.mAutoConnectProfilesSupported = true;
-        SystemProperties.set(
-                PhonePolicy.BYPASS_LE_AUDIO_ALLOWLIST_PROPERTY, Boolean.toString(false));
+        doReturn(false)
+                .when(mProperties)
+                .getBoolean(eq(PhonePolicy.BYPASS_LE_AUDIO_ALLOWLIST_PROPERTY), anyBoolean());
 
         int testedDeviceType = BluetoothDevice.DEVICE_TYPE_LE;
         if (dualMode) {
@@ -413,9 +419,9 @@ public class PhonePolicyTest {
         Utils.setDualModeAudioStateForTesting(dualModeEnabled);
         mPhonePolicy.mLeAudioEnabledByDefault = leAudioEnabledByDefault;
         mPhonePolicy.mAutoConnectProfilesSupported = autoConnect;
-        SystemProperties.set(
-                PhonePolicy.BYPASS_LE_AUDIO_ALLOWLIST_PROPERTY,
-                Boolean.toString(bypassLeAudioAllowlist));
+        doReturn(bypassLeAudioAllowlist)
+                .when(mProperties)
+                .getBoolean(eq(PhonePolicy.BYPASS_LE_AUDIO_ALLOWLIST_PROPERTY), anyBoolean());
 
         // Inject an event for UUIDs updated for a remote device with only HFP enabled
         ParcelUuid[] uuids = new ParcelUuid[3];
@@ -436,8 +442,9 @@ public class PhonePolicyTest {
         mPhonePolicy.mAutoConnectProfilesSupported = true;
 
         /* Just for the moment, set to true to setup first device */
-        SystemProperties.set(
-                PhonePolicy.BYPASS_LE_AUDIO_ALLOWLIST_PROPERTY, Boolean.toString(true));
+        doReturn(true)
+                .when(mProperties)
+                .getBoolean(eq(PhonePolicy.BYPASS_LE_AUDIO_ALLOWLIST_PROPERTY), anyBoolean());
 
         int csipGroupId = 1;
         int groupSize = 2;
@@ -507,8 +514,9 @@ public class PhonePolicyTest {
         verify(mHeadsetService).setConnectionPolicy(eq(mDevice), eq(CONNECTION_POLICY_FORBIDDEN));
 
         /* Remove bypass and check that second set member will be added*/
-        SystemProperties.set(
-                PhonePolicy.BYPASS_LE_AUDIO_ALLOWLIST_PROPERTY, Boolean.toString(false));
+        doReturn(false)
+                .when(mProperties)
+                .getBoolean(eq(PhonePolicy.BYPASS_LE_AUDIO_ALLOWLIST_PROPERTY), anyBoolean());
 
         // Now connect second device and make sure
         // Connect first set member
@@ -540,8 +548,9 @@ public class PhonePolicyTest {
         mPhonePolicy.mAutoConnectProfilesSupported = true;
 
         /* Just for the moment, set to true to setup first device */
-        SystemProperties.set(
-                PhonePolicy.BYPASS_LE_AUDIO_ALLOWLIST_PROPERTY, Boolean.toString(true));
+        doReturn(true)
+                .when(mProperties)
+                .getBoolean(eq(PhonePolicy.BYPASS_LE_AUDIO_ALLOWLIST_PROPERTY), anyBoolean());
 
         int csipGroupId = 1;
         int groupSize = 2;
@@ -610,8 +619,9 @@ public class PhonePolicyTest {
                 .setConnectionPolicy(eq(mDevice), eq(CONNECTION_POLICY_FORBIDDEN));
 
         /* Remove bypass and check that second set member will be added*/
-        SystemProperties.set(
-                PhonePolicy.BYPASS_LE_AUDIO_ALLOWLIST_PROPERTY, Boolean.toString(false));
+        doReturn(false)
+                .when(mProperties)
+                .getBoolean(eq(PhonePolicy.BYPASS_LE_AUDIO_ALLOWLIST_PROPERTY), anyBoolean());
 
         // Now connect second device and make sure
         // Connect first set member
