@@ -39,7 +39,6 @@ import android.os.Bundle;
 import android.os.CancellationSignal;
 import android.os.HandlerThread;
 import android.os.UserHandle;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.RequiresFlagsDisabled;
 import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
@@ -1304,7 +1303,11 @@ public class HeadsetStateMachineTest {
         verify(mHeadsetService, timeout(ASYNC_CALL_TIMEOUT_MILLIS))
                 .sendBroadcast(intentArgument.capture(), eq(BLUETOOTH_CONNECT), any(Bundle.class));
         verify(mHeadsetService).sendBroadcast(any(), any(), any());
-        assertThat(intentArgument.getValue().getExtra(BluetoothDevice.EXTRA_DEVICE, null))
+        assertThat(
+                        intentArgument
+                                .getValue()
+                                .getParcelableExtra(
+                                        BluetoothDevice.EXTRA_DEVICE, BluetoothDevice.class))
                 .isEqualTo(mTestDevice);
         assertThat(
                         intentArgument
@@ -1331,7 +1334,11 @@ public class HeadsetStateMachineTest {
         verify(mHeadsetService, timeout(ASYNC_CALL_TIMEOUT_MILLIS))
                 .sendBroadcast(intentArgument.capture(), eq(BLUETOOTH_CONNECT), any(Bundle.class));
         verify(mHeadsetService).sendBroadcast(any(), any(), any());
-        assertThat(intentArgument.getValue().getExtra(BluetoothDevice.EXTRA_DEVICE, null))
+        assertThat(
+                        intentArgument
+                                .getValue()
+                                .getParcelableExtra(
+                                        BluetoothDevice.EXTRA_DEVICE, BluetoothDevice.class))
                 .isEqualTo(mTestDevice);
         assertThat(
                         intentArgument
@@ -1358,7 +1365,11 @@ public class HeadsetStateMachineTest {
         verify(mHeadsetService, timeout(ASYNC_CALL_TIMEOUT_MILLIS))
                 .sendBroadcast(intentArgument.capture(), eq(BLUETOOTH_CONNECT), any(Bundle.class));
         verify(mHeadsetService).sendBroadcast(any(), any(), any());
-        assertThat(intentArgument.getValue().getExtra(BluetoothDevice.EXTRA_DEVICE, null))
+        assertThat(
+                        intentArgument
+                                .getValue()
+                                .getParcelableExtra(
+                                        BluetoothDevice.EXTRA_DEVICE, BluetoothDevice.class))
                 .isEqualTo(mTestDevice);
         assertThat(
                         intentArgument

@@ -43,7 +43,6 @@ import android.net.Uri;
 import android.os.ParcelUuid;
 import android.os.PowerManager;
 import android.os.RemoteException;
-import android.os.SystemProperties;
 import android.os.test.TestLooper;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.telecom.PhoneAccount;
@@ -63,6 +62,7 @@ import com.android.bluetooth.btservice.SilenceDeviceManager;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
 import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.le_audio.LeAudioService;
+import com.android.bluetooth.util.SystemProperties;
 
 import org.hamcrest.Matcher;
 import org.hamcrest.core.AllOf;
@@ -104,6 +104,7 @@ public class HeadsetServiceAndStateMachineTest {
     @Mock private AudioManager mAudioManager;
     @Mock private HeadsetPhoneState mPhoneState;
     @Mock private RemoteDevices mRemoteDevices;
+    @Mock private SystemProperties.MockableSystemProperties mProperties;
 
     private static final String TAG = HeadsetServiceAndStateMachineTest.class.getSimpleName();
     private static final int MAX_HEADSET_CONNECTIONS = 5;
@@ -198,6 +199,7 @@ public class HeadsetServiceAndStateMachineTest {
 
     @After
     public void tearDown() {
+        SystemProperties.mProperties = null;
         mTestLooper.dispatchAll();
         mHeadsetService.stop();
         mHeadsetService = HeadsetService.getHeadsetService();
@@ -1918,23 +1920,14 @@ public class HeadsetServiceAndStateMachineTest {
         }
     }
 
-    private void setAptxVoiceSystemProperties(
-            boolean aptx_voice, boolean aptx_voice_power_management) {
-        SystemProperties.set(
-                "bluetooth.hfp.codec_aptx_voice.enabled", (aptx_voice ? "true" : "false"));
-        assertThat(SystemProperties.getBoolean("bluetooth.hfp.codec_aptx_voice.enabled", false))
-                .isEqualTo(aptx_voice);
-        SystemProperties.set(
-                "bluetooth.hfp.swb.aptx.power_management.enabled",
-                (aptx_voice_power_management ? "true" : "false"));
-        assertThat(
-                        SystemProperties.getBoolean(
-                                "bluetooth.hfp.swb.aptx.power_management.enabled", false))
-                .isEqualTo(aptx_voice_power_management);
-    }
-
     private void configureHeadsetServiceForAptxVoice(boolean enable) {
-        setAptxVoiceSystemProperties(enable, enable);
+        doReturn(enable)
+                .when(mProperties)
+                .getBoolean(eq("bluetooth.hfp.codec_aptx_voice.enabled"), anyBoolean());
+        doReturn(enable)
+                .when(mProperties)
+                .getBoolean(eq("bluetooth.hfp.swb.aptx.power_management.enabled"), anyBoolean());
+        SystemProperties.mProperties = mProperties;
         mHeadsetService.mIsAptXSwbEnabled = enable;
         assertThat(mHeadsetService.isAptXSwbEnabled()).isEqualTo(enable);
         mHeadsetService.mIsAptXSwbPmEnabled = enable;

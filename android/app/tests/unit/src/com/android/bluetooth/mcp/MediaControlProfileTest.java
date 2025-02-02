@@ -103,9 +103,6 @@ public class MediaControlProfileTest {
         doReturn(mMockMediaPlayerWrapper).when(mMockMediaPlayerList).getActivePlayer();
         doReturn(mMockMcpService).when(mMockMcpService).getApplicationContext();
         doReturn(mMockPackageManager).when(mMockMcpService).getPackageManager();
-        doReturn(getInstrumentation().getTargetContext().getMainThreadHandler())
-                .when(mMockMcpService)
-                .getMainThreadHandler();
         doReturn(packageName).when(mMockMcpService).getPackageName();
         doReturn(name).when(mMockMediaPlayerWrapper).getPackageName();
         doReturn(charSequence).when(mMockApplicationInfo).loadLabel(any(PackageManager.class));

@@ -1737,12 +1737,6 @@ public class BluetoothInCallServiceTest {
         doReturn(TelephonyManager.NETWORK_TYPE_NR).when(mMockTelephonyManager).getDataNetworkType();
         assertThat(mBluetoothInCallService.getBearerTechnology())
                 .isEqualTo(BluetoothLeCallControlProxy.BEARER_TECHNOLOGY_5G);
-
-        doReturn(TelephonyManager.NETWORK_TYPE_LTE_CA)
-                .when(mMockTelephonyManager)
-                .getDataNetworkType();
-        assertThat(mBluetoothInCallService.getBearerTechnology())
-                .isEqualTo(BluetoothLeCallControlProxy.BEARER_TECHNOLOGY_GSM);
     }
 
     @Test
@@ -2008,7 +2002,6 @@ public class BluetoothInCallServiceTest {
                 .setSubscriptionAddress(Uri.parse("tel:555-000" + idx))
                 .setCapabilities(idx)
                 .setShortDescription("desc" + idx)
-                .setIsEnabled(true)
                 .build();
     }
 

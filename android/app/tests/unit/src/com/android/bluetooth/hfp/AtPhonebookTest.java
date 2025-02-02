@@ -42,7 +42,7 @@ import com.android.bluetooth.R;
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.util.DevicePolicyUtils;
-import com.android.internal.telephony.GsmAlphabet;
+import com.android.bluetooth.util.GsmAlphabet;
 
 import org.junit.After;
 import org.junit.Before;

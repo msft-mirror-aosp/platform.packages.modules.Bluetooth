@@ -215,8 +215,6 @@ public class DataMigrationTest {
 
         assertThat(DataMigration.sharedPreferencesMigration("Invalid", mMockContext)).isFalse();
 
-        assertThat(DataMigration.sharedPreferencesMigration("null", mMockContext)).isFalse();
-
         assertThat(DataMigration.sharedPreferencesMigration("empty", mMockContext)).isFalse();
 
         assertThat(DataMigration.sharedPreferencesMigration("anything else", mMockContext))
@@ -265,9 +263,6 @@ public class DataMigrationTest {
                     break;
                 case "String2":
                     b.putString(key, "42");
-                    break;
-                case "null":
-                    b.putObject(key, null);
                     break;
                 case "Invalid":
                     // Put anything different from Boolean/Long/Integer/String
