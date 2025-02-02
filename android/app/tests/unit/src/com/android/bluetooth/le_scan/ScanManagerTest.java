@@ -1045,7 +1045,7 @@ public class ScanManagerTest {
             assertThat(mScanManager.getRegularScanQueue()).doesNotContain(client);
             assertThat(mScanManager.getSuspendedScanQueue()).doesNotContain(client);
             assertThat(mScanManager.getBatchScanQueue()).contains(client);
-            assertThat(mScanManager.getBatchScanParams().scanMode).isEqualTo(expectedScanMode);
+            assertThat(mScanManager.getBatchScanParams().mScanMode).isEqualTo(expectedScanMode);
         }
     }
 
@@ -1075,13 +1075,13 @@ public class ScanManagerTest {
             sendMessageWaitForProcessed(createStartStopScanMessage(true, client));
             assertThat(mScanManager.getRegularScanQueue()).doesNotContain(client);
             assertThat(mScanManager.getSuspendedScanQueue()).doesNotContain(client);
-            assertThat(mScanManager.getBatchScanParams().scanMode).isEqualTo(expectedScanMode);
+            assertThat(mScanManager.getBatchScanParams().mScanMode).isEqualTo(expectedScanMode);
             // Turn on screen
             sendMessageWaitForProcessed(createScreenOnOffMessage(true));
             assertThat(mScanManager.getRegularScanQueue()).doesNotContain(client);
             assertThat(mScanManager.getSuspendedScanQueue()).doesNotContain(client);
             assertThat(mScanManager.getBatchScanQueue()).contains(client);
-            assertThat(mScanManager.getBatchScanParams().scanMode).isEqualTo(expectedScanMode);
+            assertThat(mScanManager.getBatchScanParams().mScanMode).isEqualTo(expectedScanMode);
         }
     }
 
@@ -1152,7 +1152,7 @@ public class ScanManagerTest {
                     assertThat(mScanManager.getRegularScanQueue()).doesNotContain(client);
                     assertThat(mScanManager.getSuspendedScanQueue()).doesNotContain(client);
                     assertThat(mScanManager.getBatchScanQueue()).contains(client);
-                    assertThat(mScanManager.getBatchScanParams().scanMode)
+                    assertThat(mScanManager.getBatchScanParams().mScanMode)
                             .isEqualTo(expectedScanMode);
                     // Turn on screen
                     sendMessageWaitForProcessed(createScreenOnOffMessage(true));
@@ -1166,7 +1166,7 @@ public class ScanManagerTest {
                     assertThat(mScanManager.getRegularScanQueue()).doesNotContain(client);
                     assertThat(mScanManager.getSuspendedScanQueue()).doesNotContain(client);
                     assertThat(mScanManager.getBatchScanQueue()).contains(client);
-                    assertThat(mScanManager.getBatchScanParams().scanMode)
+                    assertThat(mScanManager.getBatchScanParams().mScanMode)
                             .isEqualTo(expectedScanMode);
                 });
     }

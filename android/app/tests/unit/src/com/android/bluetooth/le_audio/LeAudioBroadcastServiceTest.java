@@ -1730,6 +1730,30 @@ public class LeAudioBroadcastServiceTest {
         }
     }
 
+    @Test
+    public void testGetLocalBroadcastReceivers() {
+        int broadcastId = 243;
+        byte[] code = {0x00, 0x01, 0x00, 0x02};
+
+        synchronized (mService.mBroadcastCallbacks) {
+            mService.mBroadcastCallbacks.register(mCallbacks);
+        }
+
+        BluetoothLeAudioContentMetadata.Builder meta_builder =
+                new BluetoothLeAudioContentMetadata.Builder();
+        meta_builder.setLanguage("deu");
+        meta_builder.setProgramInfo("Subgroup broadcast info");
+        BluetoothLeAudioContentMetadata meta = meta_builder.build();
+
+        verifyBroadcastStarted(broadcastId, buildBroadcastSettingsFromMetadata(meta, code, 1));
+        when(mBassClientService.getSyncedBroadcastSinks(broadcastId)).thenReturn(List.of(mDevice));
+        assertThat(mService.getLocalBroadcastReceivers().size()).isEqualTo(1);
+        assertThat(mService.getLocalBroadcastReceivers()).containsExactly(mDevice);
+
+        verifyBroadcastStopped(broadcastId);
+        assertThat(mService.getLocalBroadcastReceivers()).isEmpty();
+    }
+
     private class LeAudioIntentReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {

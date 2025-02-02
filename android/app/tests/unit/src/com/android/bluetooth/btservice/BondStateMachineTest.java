@@ -218,7 +218,7 @@ public class BondStateMachineTest {
 
         RemoteDevices.DeviceProperties testDeviceProperties =
                 mRemoteDevices.addDeviceProperties(TEST_BT_ADDR_BYTES);
-        testDeviceProperties.mUuids = TEST_UUIDS;
+        testDeviceProperties.mUuidsBrEdr = TEST_UUIDS;
         BluetoothDevice testDevice = testDeviceProperties.getDevice();
         assertThat(testDevice).isNotNull();
 
@@ -228,7 +228,7 @@ public class BondStateMachineTest {
         bondingMsg.arg2 = AbstractionLayer.BT_STATUS_RMT_DEV_DOWN;
         mBondStateMachine.sendMessage(bondingMsg);
 
-        pendingDeviceProperties.mUuids = TEST_UUIDS;
+        pendingDeviceProperties.mUuidsBrEdr = TEST_UUIDS;
         Message uuidUpdateMsg = mBondStateMachine.obtainMessage(BondStateMachine.UUID_UPDATE);
         uuidUpdateMsg.obj = pendingDevice;
 
@@ -634,7 +634,7 @@ public class BondStateMachineTest {
             }
             if (uuids != null) {
                 // Add dummy UUID for the device.
-                mDeviceProperties.mUuids = TEST_UUIDS;
+                mDeviceProperties.mUuidsBrEdr = TEST_UUIDS;
             }
             testSendIntentCase(
                     oldState,

@@ -71,14 +71,9 @@
 #include "types/ble_address_with_type.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using namespace bluetooth;
 
 extern tBTM_CB btm_cb;
-
-void btm_ble_adv_filter_init(void);
 
 #define BTM_EXT_BLE_RMT_NAME_TIMEOUT_MS (30 * 1000)
 #define MIN_ADV_LENGTH 2
@@ -197,7 +192,7 @@ AdvertisingCache cache;
 
 }  // namespace
 
-bool ble_vnd_is_included() {
+static bool ble_vnd_is_included() {
   // replace build time config BLE_VND_INCLUDED with runtime
   return android::sysprop::bluetooth::Ble::vnd_included().value_or(true);
 }
@@ -278,11 +273,6 @@ static void btm_ble_start_sync_timeout(void* data);
  *  Local functions
  ******************************************************************************/
 static void btm_ble_update_adv_flag(uint8_t flag);
-void btm_ble_process_adv_pkt_cont(uint16_t evt_type, tBLE_ADDR_TYPE addr_type,
-                                  const RawAddress& bda, uint8_t primary_phy, uint8_t secondary_phy,
-                                  uint8_t advertising_sid, int8_t tx_power, int8_t rssi,
-                                  uint16_t periodic_adv_int, uint8_t data_len, const uint8_t* data,
-                                  const RawAddress& original_bda);
 static uint8_t btm_set_conn_mode_adv_init_addr(RawAddress& p_peer_addr_ptr,
                                                tBLE_ADDR_TYPE* p_peer_addr_type,
                                                tBLE_ADDR_TYPE* p_own_addr_type);
@@ -488,7 +478,7 @@ void BTM_BleTargetAnnouncementObserve(bool enable, tBTM_INQ_RESULTS_CB* p_result
   }
 }
 
-std::pair<uint16_t /* interval */, uint16_t /* window */> get_low_latency_scan_params() {
+static std::pair<uint16_t /* interval */, uint16_t /* window */> get_low_latency_scan_params() {
   uint16_t scan_interval =
           osi_property_get_int32(kPropertyInquiryScanInterval, BTM_BLE_LOW_LATENCY_SCAN_INT);
   uint16_t scan_window =
@@ -862,7 +852,8 @@ static void sync_queue_cleanup(remove_sync_node_t* p_param) {
   }
 }
 
-void btm_ble_start_sync_request(uint8_t sid, RawAddress addr, uint16_t skip, uint16_t timeout) {
+static void btm_ble_start_sync_request(uint8_t sid, RawAddress addr, uint16_t skip,
+                                       uint16_t timeout) {
   tBLE_ADDR_TYPE address_type = BLE_ADDR_RANDOM;
   tINQ_DB_ENT* p_i = btm_inq_db_find(addr);
   if (p_i) {
@@ -1235,8 +1226,8 @@ static void btm_ble_select_adv_interval(uint8_t evt_type, uint16_t* p_adv_int_mi
  * Returns          void
  *
  ******************************************************************************/
-void btm_ble_update_dmt_flag_bits(uint8_t* adv_flag_value, const uint16_t connect_mode,
-                                  const uint16_t disc_mode) {
+static void btm_ble_update_dmt_flag_bits(uint8_t* adv_flag_value, const uint16_t connect_mode,
+                                         const uint16_t disc_mode) {
   /* BR/EDR non-discoverable , non-connectable */
   if ((disc_mode & BTM_DISCOVERABLE_MASK) == 0 && (connect_mode & BTM_CONNECTABLE_MASK) == 0) {
     *adv_flag_value |= BTM_BLE_BREDR_NOT_SPT;
@@ -1265,7 +1256,7 @@ void btm_ble_update_dmt_flag_bits(uint8_t* adv_flag_value, const uint16_t connec
  * Returns          void
  *
  ******************************************************************************/
-void btm_ble_set_adv_flag(uint16_t connect_mode, uint16_t disc_mode) {
+static void btm_ble_set_adv_flag(uint16_t connect_mode, uint16_t disc_mode) {
   uint8_t flag = 0, old_flag = 0;
   tBTM_BLE_LOCAL_ADV_DATA* p_adv_data = &btm_cb.ble_ctr_cb.inq_var.adv_data;
 
@@ -1594,8 +1585,8 @@ tBTM_STATUS btm_ble_start_inquiry(uint8_t duration) {
  * Returns          void
  *
  ******************************************************************************/
-void btm_ble_read_remote_name_cmpl(bool status, const RawAddress& bda, uint16_t length,
-                                   char* p_name) {
+static void btm_ble_read_remote_name_cmpl(bool status, const RawAddress& bda, uint16_t length,
+                                          char* p_name) {
   tHCI_STATUS hci_status = HCI_SUCCESS;
   BD_NAME bd_name;
   bd_name_from_char_pointer(bd_name, p_name);
@@ -1918,7 +1909,7 @@ static DEV_CLASS btm_ble_appearance_to_cod(uint16_t appearance) {
       dev_class[1] = BTM_COD_MAJOR_PERIPHERAL;
       dev_class[2] = BTM_COD_MINOR_DIGITAL_PAN;
       break;
-    case BTM_BLE_APPEARANCE_UKNOWN:
+    case BTM_BLE_APPEARANCE_UNKNOWN:
     case BTM_BLE_APPEARANCE_GENERIC_CLOCK:
     case BTM_BLE_APPEARANCE_GENERIC_TAG:
     case BTM_BLE_APPEARANCE_GENERIC_KEYRING:

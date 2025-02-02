@@ -333,7 +333,12 @@ void RFCOMM_LineStatusReq(tRFC_MCB* p_mcb, uint8_t dlci, uint8_t status) {
  *
  ******************************************************************************/
 void RFCOMM_DlcReleaseReq(tRFC_MCB* p_mcb, uint8_t dlci) {
-  rfc_port_sm_execute(port_find_mcb_dlci_port(p_mcb, dlci), RFC_PORT_EVENT_CLOSE, nullptr);
+  tPORT* p_port = port_find_mcb_dlci_port(p_mcb, dlci);
+  if (p_port == nullptr) {
+    log::warn("Unable to find DLCI port dlci:{}", dlci);
+    return;
+  }
+  rfc_port_sm_execute(p_port, RFC_PORT_EVENT_CLOSE, nullptr);
 }
 
 /*******************************************************************************
