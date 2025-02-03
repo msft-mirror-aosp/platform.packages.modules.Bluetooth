@@ -6975,6 +6975,44 @@ public class BassClientServiceTest {
         checkResumeSynchronizationByHost();
     }
 
+    @Test
+    @EnableFlags({
+        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
+        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
+    })
+    public void removeSource_duringSuspend() {
+        prepareSynchronizedPair();
+
+        // Suspend receivers, HOST_INTENTIONAL
+        mBassClientService.suspendReceiversSourceSynchronization(TEST_BROADCAST_ID);
+
+        // Remove source, HOST_INTENTIONAL
+        mBassClientService.removeSource(mCurrentDevice, TEST_SOURCE_ID);
+        checkNoSinkPause();
+        verifyRemoveMessageAndInjectSourceRemoval();
+
+        checkNoResumeSynchronizationByHost();
+    }
+
+    @Test
+    @EnableFlags({
+        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
+        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
+    })
+    public void stopReceivers_duringSuspend() {
+        prepareSynchronizedPair();
+
+        // Suspend receivers, HOST_INTENTIONAL
+        mBassClientService.suspendReceiversSourceSynchronization(TEST_BROADCAST_ID);
+
+        // Remove source, HOST_INTENTIONAL
+        mBassClientService.stopReceiversSourceSynchronization(TEST_BROADCAST_ID);
+        checkNoSinkPause();
+        verifyRemoveMessageAndInjectSourceRemoval();
+
+        checkNoResumeSynchronizationByHost();
+    }
+
     private void verifyConnectionStateIntent(BluetoothDevice device, int newState, int prevState) {
         verifyIntentSent(
                 hasAction(BluetoothLeBroadcastAssistant.ACTION_CONNECTION_STATE_CHANGED),
