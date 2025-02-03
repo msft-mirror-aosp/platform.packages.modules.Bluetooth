@@ -7098,6 +7098,69 @@ public class BassClientServiceTest {
         verifyAllGroupMembersGettingUpdateOrAddSource(newMeta);
     }
 
+    @Test
+    @EnableFlags({
+        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
+        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
+    })
+    public void multipleSinkMetadata_clearWhenRemove() {
+        prepareConnectedDeviceGroup();
+        startSearchingForSources();
+        onScanResult(mSourceDevice, TEST_BROADCAST_ID);
+        onSyncEstablished(mSourceDevice, TEST_SYNC_HANDLE);
+        BluetoothLeBroadcastMetadata meta = createBroadcastMetadata(TEST_BROADCAST_ID);
+        mBassClientService.addSource(mCurrentDevice, meta, false);
+        mBassClientService.addSource(mCurrentDevice1, meta, false);
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            clearInvocations(sm);
+        }
+        prepareRemoteSourceState(meta, false, false);
+
+        // Remove source should remove metadata
+        // Do not clear receive state
+        mBassClientService.removeSource(mCurrentDevice, TEST_SOURCE_ID);
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            clearInvocations(sm);
+        }
+
+        // Cache and resume should resume only one broadcaster
+        mBassClientService.cacheSuspendingSources(TEST_BROADCAST_ID);
+        mBassClientService.resumeReceiversSourceSynchronization();
+        assertThat(mStateMachines.size()).isEqualTo(2);
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            if (sm.getDevice().equals(mCurrentDevice)) {
+                verify(sm, never()).sendMessage(any());
+                clearInvocations(sm);
+            } else if (sm.getDevice().equals(mCurrentDevice1)) {
+                ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+                verify(sm, atLeast(1)).sendMessage(messageCaptor.capture());
+
+                Message msg =
+                        messageCaptor.getAllValues().stream()
+                                .filter(m -> (m.what == BassClientStateMachine.UPDATE_BCAST_SOURCE))
+                                .findFirst()
+                                .orElse(null);
+                assertThat(msg).isNotNull();
+                clearInvocations(sm);
+            }
+        }
+
+        // Remove source should remove metadata
+        // Do not clear receive state
+        mBassClientService.removeSource(mCurrentDevice1, TEST_SOURCE_ID + 1);
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            clearInvocations(sm);
+        }
+
+        // Cache and resume should not resume at all
+        mBassClientService.cacheSuspendingSources(TEST_BROADCAST_ID);
+        mBassClientService.resumeReceiversSourceSynchronization();
+        assertThat(mStateMachines.size()).isEqualTo(2);
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            verify(sm, never()).sendMessage(any());
+        }
+    }
+
     private void verifyConnectionStateIntent(BluetoothDevice device, int newState, int prevState) {
         verifyIntentSent(
                 hasAction(BluetoothLeBroadcastAssistant.ACTION_CONNECTION_STATE_CHANGED),
