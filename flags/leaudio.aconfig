@@ -444,3 +444,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "leaudio_broadcast_prevent_resume_interruption"
+    namespace: "bluetooth"
+    description: "Prevent addSource/resumeSource iterruption by start/stop searching"
+    bug: "391773917"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
