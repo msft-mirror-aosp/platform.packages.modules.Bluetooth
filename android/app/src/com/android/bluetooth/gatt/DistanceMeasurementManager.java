@@ -35,6 +35,7 @@ import com.android.bluetooth.flags.Flags;
 import com.android.internal.annotations.VisibleForTesting;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -111,7 +112,7 @@ public class DistanceMeasurementManager {
         return mDistanceMeasurementBinder;
     }
 
-    DistanceMeasurementMethod[] getSupportedDistanceMeasurementMethods() {
+    List<DistanceMeasurementMethod> getSupportedDistanceMeasurementMethods() {
         ArrayList<DistanceMeasurementMethod> methods = new ArrayList<DistanceMeasurementMethod>();
         methods.add(
                 new DistanceMeasurementMethod.Builder(
@@ -124,7 +125,7 @@ public class DistanceMeasurementManager {
                                             .DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING)
                             .build());
         }
-        return methods.toArray(new DistanceMeasurementMethod[0]);
+        return methods;
     }
 
     void startDistanceMeasurement(
