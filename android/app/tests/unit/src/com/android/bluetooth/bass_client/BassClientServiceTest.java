@@ -7347,6 +7347,118 @@ public class BassClientServiceTest {
         }
     }
 
+    @Test
+    @EnableFlags({
+        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
+        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
+    })
+    public void multipleSinkMetadata_clearWhenRemove_oneDisconnectedFirst() {
+        prepareConnectedDeviceGroup();
+        startSearchingForSources();
+        onScanResult(mSourceDevice, TEST_BROADCAST_ID);
+        onSyncEstablished(mSourceDevice, TEST_SYNC_HANDLE);
+        BluetoothLeBroadcastMetadata meta = createBroadcastMetadata(TEST_BROADCAST_ID);
+        mBassClientService.addSource(mCurrentDevice, meta, false);
+        mBassClientService.addSource(mCurrentDevice1, meta, false);
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            clearInvocations(sm);
+        }
+        prepareRemoteSourceState(meta, false, false);
+
+        // Disconnect first sink not cause removing metadata
+        doReturn(BluetoothProfile.STATE_DISCONNECTED)
+                .when(mStateMachines.get(mCurrentDevice))
+                .getConnectionState();
+        doReturn(false).when(mStateMachines.get(mCurrentDevice)).isConnected();
+        mBassClientService.connectionStateChanged(
+                mCurrentDevice,
+                BluetoothProfile.STATE_CONNECTED,
+                BluetoothProfile.STATE_DISCONNECTED);
+        injectRemoteSourceStateRemoval(mStateMachines.get(mCurrentDevice), TEST_SOURCE_ID);
+
+        // Remove second source should remove metadata for both
+        // Do not clear receive state
+        mBassClientService.removeSource(mCurrentDevice1, TEST_SOURCE_ID + 1);
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            clearInvocations(sm);
+        }
+
+        // Connect again first sink
+        doReturn(BluetoothProfile.STATE_CONNECTED)
+                .when(mStateMachines.get(mCurrentDevice))
+                .getConnectionState();
+        doReturn(true).when(mStateMachines.get(mCurrentDevice)).isConnected();
+        prepareRemoteSourceState(meta, false, false);
+
+        // Cache and resume should not resume at all
+        mBassClientService.cacheSuspendingSources(TEST_BROADCAST_ID);
+        mBassClientService.resumeReceiversSourceSynchronization();
+        assertThat(mStateMachines.size()).isEqualTo(2);
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            verify(sm, never()).sendMessage(any());
+        }
+    }
+
+    @Test
+    @EnableFlags({
+        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
+        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
+    })
+    public void multipleSinkMetadata_clearWhenRemove_oneDisconnectedFirst_duringSuspend() {
+        prepareConnectedDeviceGroup();
+        startSearchingForSources();
+        onScanResult(mSourceDevice, TEST_BROADCAST_ID);
+        onSyncEstablished(mSourceDevice, TEST_SYNC_HANDLE);
+        BluetoothLeBroadcastMetadata meta = createBroadcastMetadata(TEST_BROADCAST_ID);
+        mBassClientService.addSource(mCurrentDevice, meta, false);
+        mBassClientService.addSource(mCurrentDevice1, meta, false);
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            clearInvocations(sm);
+        }
+        prepareRemoteSourceState(meta, false, false);
+
+        /* Unicast would like to stream */
+        mBassClientService.handleUnicastSourceStreamStatusChange(
+                3 /* STATUS_LOCAL_STREAM_REQUESTED_NO_CONTEXT_VALIDATE */);
+        verifyRemoveMessageAndInjectSourceRemoval();
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            clearInvocations(sm);
+        }
+
+        // Disconnect first sink not cause removing metadata
+        doReturn(BluetoothProfile.STATE_DISCONNECTED)
+                .when(mStateMachines.get(mCurrentDevice))
+                .getConnectionState();
+        doReturn(false).when(mStateMachines.get(mCurrentDevice)).isConnected();
+        mBassClientService.connectionStateChanged(
+                mCurrentDevice,
+                BluetoothProfile.STATE_CONNECTED,
+                BluetoothProfile.STATE_DISCONNECTED);
+        injectRemoteSourceStateRemoval(mStateMachines.get(mCurrentDevice), TEST_SOURCE_ID);
+
+        // Remove second source should remove metadata for both
+        // Do not clear receive state
+        mBassClientService.removeSource(mCurrentDevice1, TEST_SOURCE_ID + 1);
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            clearInvocations(sm);
+        }
+
+        // Connect again first sink
+        doReturn(BluetoothProfile.STATE_CONNECTED)
+                .when(mStateMachines.get(mCurrentDevice))
+                .getConnectionState();
+        doReturn(true).when(mStateMachines.get(mCurrentDevice)).isConnected();
+        prepareRemoteSourceState(meta, false, false);
+
+        // Cache and resume should not resume at all
+        mBassClientService.cacheSuspendingSources(TEST_BROADCAST_ID);
+        mBassClientService.resumeReceiversSourceSynchronization();
+        assertThat(mStateMachines.size()).isEqualTo(2);
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            verify(sm, never()).sendMessage(any());
+        }
+    }
+
     private void verifyConnectionStateIntent(BluetoothDevice device, int newState, int prevState) {
         verifyIntentSent(
                 hasAction(BluetoothLeBroadcastAssistant.ACTION_CONNECTION_STATE_CHANGED),
