@@ -2148,6 +2148,27 @@ TEST_P(LeAudioAseConfigurationTest, test_unsupported_codec) {
   TestAsesInactive();
 }
 
+static auto PrepareStackMetadataLtvBase() {
+  ::bluetooth::le_audio::types::LeAudioLtvMap metadata_ltvs;
+  // Prepare the metadata LTVs
+  metadata_ltvs
+          .Add(::bluetooth::le_audio::types::kLeAudioMetadataTypeProgramInfo,
+               std::string{"ProgramInfo"})
+          .Add(::bluetooth::le_audio::types::kLeAudioMetadataTypeLanguage, std::string{"ice"})
+          .Add(::bluetooth::le_audio::types::kLeAudioMetadataTypeparentalRating, (uint8_t)0x01)
+          .Add(::bluetooth::le_audio::types::kLeAudioMetadataTypeProgramInfoUri,
+               std::string{"ProgramInfoUri"})
+          .Add(::bluetooth::le_audio::types::kLeAudioMetadataTypeAudioActiveState, false)
+          .Add(::bluetooth::le_audio::types::
+                       kLeAudioMetadataTypeBroadcastAudioImmediateRenderingFlag,
+               true)
+          .Add(::bluetooth::le_audio::types::kLeAudioMetadataTypeExtendedMetadata,
+               std::vector<uint8_t>{1, 2, 3})
+          .Add(::bluetooth::le_audio::types::kLeAudioMetadataTypeVendorSpecific,
+               std::vector<uint8_t>{1, 2, 3});
+  return metadata_ltvs;
+}
+
 TEST_P(LeAudioAseConfigurationTest, test_reconnection_media) {
   LeAudioDevice* left = AddTestDevice(2, 1);
   LeAudioDevice* right = AddTestDevice(2, 1);
@@ -2238,6 +2259,81 @@ TEST_P(LeAudioAseConfigurationTest, test_reconnection_media) {
   group_->AssignCisConnHandlesToAses(left);
 
   TestActiveAses();
+}
+
+TEST_P(LeAudioAseConfigurationTest, test_ase_metadata) {
+  /* Set desired size to 1 */
+  desired_group_size_ = 1;
+
+  LeAudioDevice* headphones = AddTestDevice(2, 1);
+
+  /* Change location as by default it is stereo */
+  headphones->snk_audio_locations_ = kChannelAllocationStereo;
+  group_->ReloadAudioLocations();
+
+  AudioSetConfiguration media_configuration = *getSpecificConfiguration(
+          "One-TwoChan-SnkAse-Lc3_48_4_High_Reliability", LeAudioContextType::MEDIA);
+
+  // Build PACs for device
+  PublishedAudioCapabilitiesBuilder snk_pac_builder;
+  snk_pac_builder.Reset();
+
+  /* Create PACs for media. Single PAC for each direction is enough.
+   */
+  if (media_configuration.confs.sink.size()) {
+    snk_pac_builder.Add(LeAudioCodecIdLc3, 0x00b5, 0x03, 0x03, 0x001a, 0x00f0, 2);
+  }
+
+  headphones->snk_pacs_ = snk_pac_builder.Get();
+
+  ::bluetooth::le_audio::types::AudioLocations group_snk_audio_locations = 3;
+  ::bluetooth::le_audio::types::AudioLocations group_src_audio_locations = 0;
+  BidirectionalPair<AudioLocations> group_audio_locations = {.sink = group_snk_audio_locations,
+                                                             .source = group_src_audio_locations};
+
+  /* Get entry for the sink direction and use it to set configuration */
+  BidirectionalPair<std::vector<uint8_t>> ccid_lists = {.sink = {0xC0}, .source = {}};
+  BidirectionalPair<AudioContexts> audio_contexts = {
+          .sink = AudioContexts(LeAudioContextType::MEDIA), .source = AudioContexts()};
+
+  /* Get entry for the sink direction and use it to set configuration */
+  ASSERT_FALSE(media_configuration.confs.sink.empty());
+  if (!media_configuration.confs.sink.empty()) {
+    // Prepare a base metadata - as if it was received from the configuration provider
+    for (auto& cfg : media_configuration.confs.sink) {
+      cfg.metadata = PrepareStackMetadataLtvBase();
+    }
+    uint8_t number_of_already_active_ases = 0;
+    headphones->ConfigureAses(&media_configuration, group_->Size(), kLeAudioDirectionSink,
+                              group_->GetConfigurationContextType(), &number_of_already_active_ases,
+                              group_audio_locations.get(kLeAudioDirectionSink),
+                              audio_contexts.get(kLeAudioDirectionSink),
+                              ccid_lists.get(kLeAudioDirectionSink), false);
+  }
+
+  /* Generate CIS, simulate CIG creation and assign cis handles to ASEs.*/
+  std::vector<uint16_t> handles = {0x0012};
+  group_->cig.GenerateCisIds(LeAudioContextType::MEDIA);
+
+  /* Verify the metadata content */
+  for (auto* ase = headphones->GetFirstActiveAse(); ase; ase = headphones->GetNextActiveAse(ase)) {
+    /* The base metadata as if received from the audio set configuration provider */
+    ASSERT_EQ(ase->metadata.GetAsLeAudioMetadata().program_info, std::string("ProgramInfo"));
+    ASSERT_EQ(ase->metadata.GetAsLeAudioMetadata().language, std::string("ice"));
+    ASSERT_EQ(ase->metadata.GetAsLeAudioMetadata().parental_rating, 0x01);
+    ASSERT_EQ(ase->metadata.GetAsLeAudioMetadata().program_info_uri, std::string("ProgramInfoUri"));
+    ASSERT_EQ(ase->metadata.GetAsLeAudioMetadata().audio_active_state, false);
+    ASSERT_EQ(ase->metadata.GetAsLeAudioMetadata().broadcast_audio_immediate_rendering, true);
+    ASSERT_EQ(ase->metadata.GetAsLeAudioMetadata().extended_metadata,
+              (std::vector<uint8_t>{1, 2, 3}));
+    ASSERT_EQ(ase->metadata.GetAsLeAudioMetadata().vendor_specific,
+              (std::vector<uint8_t>{1, 2, 3}));
+
+    /* The adidtional metadata appended by the host stack */
+    ASSERT_EQ(ase->metadata.GetAsLeAudioMetadata().streaming_audio_context,
+              (uint16_t)LeAudioContextType::MEDIA);
+    ASSERT_EQ(ase->metadata.GetAsLeAudioMetadata().ccid_list, (std::vector<uint8_t>{0xC0}));
+  }
 }
 
 /*

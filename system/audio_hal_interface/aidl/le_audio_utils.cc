@@ -527,6 +527,9 @@ static ::bluetooth::le_audio::types::AseConfiguration GetStackAseConfigurationFr
   if (source.dataPathConfiguration.has_value()) {
     config.data_path_configuration = GetStackDataPathFromAidlFormat(*source.dataPathConfiguration);
   }
+  if (source.aseConfiguration.metadata.has_value()) {
+    config.metadata = GetStackMetadataFromAidlFormat(*source.aseConfiguration.metadata);
+  }
   return config;
 }
 
