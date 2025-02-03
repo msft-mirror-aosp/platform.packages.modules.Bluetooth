@@ -142,6 +142,13 @@ filegroup {
 }
 
 filegroup {
+    name: "TestMockBtaRfcMetrics",
+    srcs: [
+        "mock/mock_bta_rfc_metrics.cc",
+    ],
+}
+
+filegroup {
     name: "TestMockBtaScn",
     srcs: [
         "mock/mock_bta_scn.cc",
@@ -189,6 +196,7 @@ filegroup {
         ":TestMockBtaLeAudioHalVerifier",
         ":TestMockBtaPan",
         ":TestMockBtaRas",
+        ":TestMockBtaRfcMetrics",
         ":TestMockBtaSdp",
         ":TestMockBtaSys",
         ":TestMockBtaVc",
