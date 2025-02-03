@@ -106,7 +106,7 @@ public class EncryptionChangeTest {
     @Mock private BluetoothProfile.ServiceListener mProfileServiceListener;
 
     /* Util instance for common test steps with current Context reference */
-    private TestUtil util;
+    private TestUtil mUtil;
     private BluetoothDevice mBumbleDevice;
     private BluetoothHidHost mHidService;
     private BluetoothHeadset mHfpService;
@@ -137,19 +137,19 @@ public class EncryptionChangeTest {
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
-        util = new TestUtil.Builder(sTargetContext)
+        mUtil = new TestUtil.Builder(sTargetContext)
                 .setProfileServiceListener(mProfileServiceListener)
                 .setBluetoothAdapter(sAdapter)
                 .build();
 
         // Get profile proxies
-        mHidService = (BluetoothHidHost) util.getProfileProxy(BluetoothProfile.HID_HOST);
-        mHfpService = (BluetoothHeadset) util.getProfileProxy(BluetoothProfile.HEADSET);
+        mHidService = (BluetoothHidHost) mUtil.getProfileProxy(BluetoothProfile.HID_HOST);
+        mHfpService = (BluetoothHeadset) mUtil.getProfileProxy(BluetoothProfile.HEADSET);
 
         mBumbleDevice = mBumble.getRemoteDevice();
         Set<BluetoothDevice> bondedDevices = sAdapter.getBondedDevices();
         if (bondedDevices.contains(mBumbleDevice)) {
-            util.removeBond(null, mBumbleDevice);
+            mUtil.removeBond(null, mBumbleDevice);
         }
     }
 
@@ -162,7 +162,7 @@ public class EncryptionChangeTest {
          *  must be passed instead of NULL.
          */
         if (bondedDevices.contains(mBumbleDevice)) {
-            util.removeBond(null, mBumbleDevice);
+            mUtil.removeBond(null, mBumbleDevice);
         }
 
         mBumbleDevice = null;
