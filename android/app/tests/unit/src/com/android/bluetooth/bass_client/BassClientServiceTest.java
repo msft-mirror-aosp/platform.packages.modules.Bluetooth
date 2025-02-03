@@ -2346,12 +2346,19 @@ public class BassClientServiceTest {
         TestUtils.waitForLooperToFinishScheduledTask(mBassClientService.getCallbacks().getLooper());
         assertThat(mStateMachines).hasSize(2);
         for (BassClientStateMachine sm : mStateMachines.values()) {
-            BluetoothDevice dev = sm.getDevice();
-            verify(mCallback)
-                    .onSourceModifyFailed(
-                            eq(dev),
-                            eq(TEST_SOURCE_ID),
-                            eq(BluetoothStatusCodes.ERROR_BAD_PARAMETERS));
+            if (sm.getDevice().equals(mCurrentDevice)) {
+                verify(mCallback)
+                        .onSourceModifyFailed(
+                                eq(sm.getDevice()),
+                                eq(TEST_SOURCE_ID),
+                                eq(BluetoothStatusCodes.ERROR_BAD_PARAMETERS));
+            } else if (sm.getDevice().equals(mCurrentDevice1)) {
+                verify(mCallback)
+                        .onSourceModifyFailed(
+                                eq(sm.getDevice()),
+                                eq(TEST_SOURCE_ID + 1),
+                                eq(BluetoothStatusCodes.ERROR_BAD_PARAMETERS));
+            }
         }
 
         assertThat(mStateMachines).hasSize(2);

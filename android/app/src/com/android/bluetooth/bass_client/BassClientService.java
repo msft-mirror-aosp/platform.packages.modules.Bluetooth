@@ -3305,7 +3305,6 @@ public class BassClientService extends ProfileService {
         mPausedBroadcastIds.remove(sourceMetadata.getBroadcastId());
         logPausedBroadcastsAndSinks();
 
-        byte[] code = sourceMetadata.getBroadcastCode();
         for (BluetoothDevice device : devices) {
             BassClientStateMachine stateMachine = getOrCreateStateMachine(device);
             int statusCode =
@@ -3432,6 +3431,8 @@ public class BassClientService extends ProfileService {
             Message message = stateMachine.obtainMessage(BassClientStateMachine.ADD_BCAST_SOURCE);
             message.obj = sourceMetadata;
             stateMachine.sendMessage(message);
+
+            byte[] code = sourceMetadata.getBroadcastCode();
             if (code != null && code.length != 0) {
                 sEventLogger.logd(
                         TAG,
@@ -3464,25 +3465,24 @@ public class BassClientService extends ProfileService {
                         + (", updatedMetadata: " + updatedMetadata));
 
         Map<BluetoothDevice, Integer> devices = getGroupManagedDeviceSources(sink, sourceId).second;
-        if (updatedMetadata == null) {
-            log("modifySource: Error bad parameters: updatedMetadata cannot be null");
-            for (BluetoothDevice device : devices.keySet()) {
-                mCallbacks.notifySourceModifyFailed(
-                        device, sourceId, BluetoothStatusCodes.ERROR_BAD_PARAMETERS);
-            }
-            return;
-        }
 
-        byte[] code = updatedMetadata.getBroadcastCode();
         for (Map.Entry<BluetoothDevice, Integer> deviceSourceIdPair : devices.entrySet()) {
             BluetoothDevice device = deviceSourceIdPair.getKey();
             Integer deviceSourceId = deviceSourceIdPair.getValue();
+
+            if (updatedMetadata == null) {
+                log("modifySource: Error bad parameters: updatedMetadata cannot be null");
+                mCallbacks.notifySourceModifyFailed(
+                        device, deviceSourceId, BluetoothStatusCodes.ERROR_BAD_PARAMETERS);
+                continue;
+            }
+
             BassClientStateMachine stateMachine = getOrCreateStateMachine(device);
             int statusCode =
                     validateParametersForSourceOperation(
                             stateMachine, device, updatedMetadata, deviceSourceId);
             if (statusCode != BluetoothStatusCodes.SUCCESS) {
-                mCallbacks.notifySourceModifyFailed(device, sourceId, statusCode);
+                mCallbacks.notifySourceModifyFailed(device, deviceSourceId, statusCode);
                 continue;
             }
             if (stateMachine.hasPendingSourceOperation()) {
@@ -3493,7 +3493,7 @@ public class BassClientService extends ProfileService {
                                 + ", broadcastId: "
                                 + updatedMetadata.getBroadcastId());
                 mCallbacks.notifySourceModifyFailed(
-                        device, sourceId, BluetoothStatusCodes.ERROR_ALREADY_IN_TARGET_STATE);
+                        device, deviceSourceId, BluetoothStatusCodes.ERROR_ALREADY_IN_TARGET_STATE);
                 continue;
             }
 
@@ -3504,7 +3504,7 @@ public class BassClientService extends ProfileService {
                     TAG,
                     "Modify Broadcast Source: "
                             + ("device: " + device)
-                            + ("sourceId: " + sourceId)
+                            + ("sourceId: " + deviceSourceId)
                             + (", updatedBroadcastId: " + updatedMetadata.getBroadcastId())
                             + (", updatedBroadcastName: " + updatedMetadata.getBroadcastName()));
 
@@ -3514,12 +3514,14 @@ public class BassClientService extends ProfileService {
             message.arg2 = BassConstants.INVALID_PA_SYNC_VALUE;
             message.obj = updatedMetadata;
             stateMachine.sendMessage(message);
+
+            byte[] code = updatedMetadata.getBroadcastCode();
             if (code != null && code.length != 0) {
                 sEventLogger.logd(
                         TAG,
                         "Set Broadcast Code (Modify Source context): "
                                 + ("device: " + device)
-                                + ("sourceId: " + sourceId)
+                                + ("sourceId: " + deviceSourceId)
                                 + (", updatedBroadcastId: " + updatedMetadata.getBroadcastId())
                                 + (", updatedBroadcastName: "
                                         + updatedMetadata.getBroadcastName()));
