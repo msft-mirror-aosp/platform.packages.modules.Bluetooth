@@ -131,6 +131,10 @@ private:
                             ApcfCommand apcf_command);
   void handle_remote_properties(RawAddress bd_addr, tBLE_ADDR_TYPE addr_type,
                                 std::vector<uint8_t> advertising_data);
+  void on_scan_result(uint16_t event_type, uint8_t address_type, bluetooth::hci::Address address,
+                      uint8_t primary_phy, uint8_t secondary_phy, uint8_t advertising_sid,
+                      int8_t tx_power, int8_t rssi, uint16_t periodic_advertising_interval,
+                      std::vector<uint8_t> advertising_data);
 
   class AddressCache {
   public:
