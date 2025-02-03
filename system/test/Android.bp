@@ -298,6 +298,13 @@ filegroup {
 }
 
 filegroup {
+    name: "TestMockStackRfcommMetrics",
+    srcs: [
+        "mock/mock_stack_rfcomm_metrics.cc",
+    ],
+}
+
+filegroup {
     name: "TestMockStackRnr",
     srcs: [
         "mock/mock_stack_rnr_interface.cc",
