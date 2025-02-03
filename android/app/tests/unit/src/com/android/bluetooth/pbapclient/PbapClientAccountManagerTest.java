@@ -40,10 +40,10 @@ import android.content.res.Resources;
 import android.os.Bundle;
 import android.os.HandlerThread;
 import android.os.UserManager;
-import android.os.test.TestLooper;
 
 import androidx.test.runner.AndroidJUnit4;
 
+import com.android.bluetooth.TestLooper;
 import com.android.bluetooth.TestUtils;
 
 import org.junit.After;

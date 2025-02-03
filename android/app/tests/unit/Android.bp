@@ -23,6 +23,7 @@ java_defaults {
         "framework-tethering.stubs.module_lib",
         "javax.obex.stubs",
         "libprotobuf-java-micro",
+        "modules-utils-handlerexecutor",
         "telephony-common",
     ],
 
@@ -42,7 +43,6 @@ java_defaults {
         "com.android.sysprop.bluetooth",
         "flag-junit",
         "framework-bluetooth-pre-jarjar",
-        "frameworks-base-testutils",
         "gson",
         "mmslib",
         "mockito-target",
