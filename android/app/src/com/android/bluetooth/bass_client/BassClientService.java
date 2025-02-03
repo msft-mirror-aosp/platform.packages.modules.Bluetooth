@@ -1733,6 +1733,7 @@ public class BassClientService extends ProfileService {
             }
 
             checkAndStopBigMonitoring();
+            removeSinkMetadataFromGroupIfWholeUnsynced(device);
 
             if (getConnectedDevices().isEmpty()
                     || (mPausedBroadcastSinks.isEmpty()
@@ -3045,6 +3046,27 @@ public class BassClientService extends ProfileService {
                 });
     }
 
+    private void removeSinkMetadataHelper(BluetoothDevice device, int broadcastId) {
+        mBroadcastMetadataMap.compute(
+                device,
+                (key, existingMap) -> {
+                    if (existingMap != null) {
+                        existingMap.remove(broadcastId);
+                        if (existingMap.isEmpty()) {
+                            return null;
+                        }
+                    } else {
+                        Log.d(
+                                TAG,
+                                "There is no metadata related to sink (device: "
+                                        + device
+                                        + ", broadcastId: "
+                                        + broadcastId);
+                    }
+                    return existingMap;
+                });
+    }
+
     private void removeSinkMetadata(BluetoothDevice device, int broadcastId) {
         if (device == null || broadcastId == BassConstants.INVALID_BROADCAST_ID) {
             Log.e(
@@ -3057,24 +3079,7 @@ public class BassClientService extends ProfileService {
             return;
         }
 
-        mBroadcastMetadataMap.compute(
-                device,
-                (key, existingMap) -> {
-                    if (existingMap != null) {
-                        existingMap.remove(broadcastId);
-                        if (existingMap.isEmpty()) {
-                            return null;
-                        }
-                    } else {
-                        Log.w(
-                                TAG,
-                                "There is no metadata related to sink (device: "
-                                        + device
-                                        + ", broadcastId: "
-                                        + broadcastId);
-                    }
-                    return existingMap;
-                });
+        removeSinkMetadataHelper(device, broadcastId);
     }
 
     private void removeSinkMetadata(BluetoothDevice device) {
@@ -3086,6 +3091,85 @@ public class BassClientService extends ProfileService {
         }
 
         mBroadcastMetadataMap.remove(device);
+    }
+
+    /**
+     * Removes sink metadata from a group if all other sinks (except the given device) are unsynced
+     * from the given broadcast and not paused by the host. If this condition is met, sink metadata
+     * is removed from the entire group, including the given device.
+     *
+     * @param device The Bluetooth device for which group synchronization with the broadcast should
+     *     be checked. The given device is skipped in the check because even if its sink metadata
+     *     has been removed, it may still be synchronized with the broadcast.
+     * @param broadcastId The broadcast ID to check against.
+     */
+    private void removeSinkMetadataFromGroupIfWholeUnsynced(
+            BluetoothDevice device, int broadcastId) {
+        if (device == null || broadcastId == BassConstants.INVALID_BROADCAST_ID) {
+            Log.e(
+                    TAG,
+                    "Failed to remove Sink Metadata, invalid parameters (device: "
+                            + device
+                            + ", broadcastId: "
+                            + broadcastId
+                            + ")");
+            return;
+        }
+
+        List<BluetoothDevice> sinks = getTargetDeviceList(device, true);
+        boolean removeSinks = true;
+        // Check if all others sinks than this device are unsynced and not paused by host
+        // This device is removed or should be removed, so it has to be skipped in that check
+        for (BluetoothDevice sink : sinks) {
+            if (sink.equals(device)) {
+                continue;
+            }
+            if (getAllSources(sink).stream().anyMatch(rs -> (rs.getBroadcastId() == broadcastId))
+                    || (isHostPauseType(broadcastId) && !mPausedBroadcastSinks.isEmpty())) {
+                removeSinks = false;
+                break;
+            }
+        }
+        // Then remove such metadata from all of them
+        if (removeSinks) {
+            for (BluetoothDevice sink : sinks) {
+                removeSinkMetadataHelper(sink, broadcastId);
+            }
+        }
+    }
+
+    /**
+     * Removes sink metadata from a group if all other sinks (except the given device) are unsynced
+     * from any broadcast and not paused by the host. If this condition is met, sink metadata is
+     * removed from the entire group, including the given device.
+     *
+     * @param device The Bluetooth device for which group synchronization with the broadcasts should
+     *     be checked. The given device is skipped in the check because even if its sink metadata
+     *     has been removed, it may still be synchronized with the broadcast.
+     */
+    private void removeSinkMetadataFromGroupIfWholeUnsynced(BluetoothDevice device) {
+        if (device == null) {
+            Log.e(
+                    TAG,
+                    "Failed to remove Sink Metadata, invalid parameter (device: " + device + ")");
+            return;
+        }
+
+        List<BluetoothDevice> sinks = getTargetDeviceList(device, true);
+        // Check sync for broadcastIds from all sinks in group as device could be already removed
+        for (BluetoothDevice sink : sinks) {
+            List<Integer> broadcastIds =
+                    new ArrayList<>(
+                            mBroadcastMetadataMap
+                                    .getOrDefault(sink, Collections.emptyMap())
+                                    .keySet());
+            // Check all broadcastIds sync for each sink and remove metadata if group unsynced
+            for (Integer broadcastId : broadcastIds) {
+                // The device is used intentionally instead of a sink, even if we use broadcastIds
+                // from other sinks
+                removeSinkMetadataFromGroupIfWholeUnsynced(device, broadcastId);
+            }
+        }
     }
 
     /**
@@ -4001,7 +4085,12 @@ public class BassClientService extends ProfileService {
             if (!isAnyReceiverSyncedToBroadcast(pausedBroadcastId)) {
                 mTimeoutHandler.stop(pausedBroadcastId, MESSAGE_BIG_MONITOR_TIMEOUT);
                 mTimeoutHandler.stop(pausedBroadcastId, MESSAGE_BROADCAST_MONITOR_TIMEOUT);
-                iterator.remove();
+
+                if (isSinkUnintentionalPauseType(pausedBroadcastId)
+                        || (isHostPauseType(pausedBroadcastId)
+                                && mPausedBroadcastSinks.isEmpty())) {
+                    iterator.remove();
+                }
                 synchronized (mSearchScanCallbackLock) {
                     // when searching is stopped then stop active sync
                     if (!isSearchInProgress()) {
