@@ -7103,6 +7103,51 @@ public class BassClientServiceTest {
         Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
         Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
     })
+    public void multipleSinkMetadata_clearWhenSwitch_duringSuspend() {
+        prepareConnectedDeviceGroup();
+        startSearchingForSources();
+        onScanResult(mSourceDevice, TEST_BROADCAST_ID);
+        onSyncEstablished(mSourceDevice, TEST_SYNC_HANDLE);
+        BluetoothLeBroadcastMetadata meta = createBroadcastMetadata(TEST_BROADCAST_ID);
+        verifyAddSourceForGroup(meta);
+        prepareRemoteSourceState(meta, false, false);
+
+        /* Unicast would like to stream */
+        mBassClientService.handleUnicastSourceStreamStatusChange(
+                3 /* STATUS_LOCAL_STREAM_REQUESTED_NO_CONTEXT_VALIDATE */);
+        verifyRemoveMessageAndInjectSourceRemoval();
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            clearInvocations(sm);
+        }
+
+        // Add another new broadcast source should remove old metadata
+        onScanResult(mSourceDevice2, TEST_BROADCAST_ID + 1);
+        onSyncEstablished(mSourceDevice2, TEST_SYNC_HANDLE + 1);
+        BluetoothLeBroadcastMetadata newMeta = createBroadcastMetadata(TEST_BROADCAST_ID + 1);
+        mBassClientService.addSource(mCurrentDevice, newMeta, true);
+        verifyAllGroupMembersGettingUpdateOrAddSource(newMeta);
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            clearInvocations(sm);
+        }
+        prepareRemoteSourceState(newMeta, false, false);
+
+        // Cache and resume should resume only new broadcast
+        mBassClientService.cacheSuspendingSources(TEST_BROADCAST_ID + 1);
+        mBassClientService.resumeReceiversSourceSynchronization();
+        // Verify that only one message per sink was sent
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+            verify(sm).sendMessage(messageCaptor.capture());
+        }
+        // And this message is to resume broadcast
+        verifyAllGroupMembersGettingUpdateOrAddSource(newMeta);
+    }
+
+    @Test
+    @EnableFlags({
+        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
+        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
+    })
     public void multipleSinkMetadata_clearWhenRemove() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();

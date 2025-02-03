@@ -3174,6 +3174,31 @@ public class BassClientService extends ProfileService {
         }
     }
 
+    private void checkIfBroadcastIsSuspendedBySourceRemovalAndClearData(
+            BluetoothDevice device, BassClientStateMachine stateMachine) {
+        int broadcastIdToRemove = BassConstants.INVALID_BROADCAST_ID;
+        if (mPausedBroadcastSinks.contains(device)) {
+            Map<Integer, BluetoothLeBroadcastMetadata> entry = mBroadcastMetadataMap.get(device);
+            if (entry != null) {
+                if (entry.keySet().size() >= stateMachine.getMaximumSourceCapacity()) {
+                    for (Integer broadcastId : entry.keySet()) {
+                        // Found broadcastId which is paused by host but not synced
+                        if (!getAllSources(device).stream()
+                                        .anyMatch(rs -> (rs.getBroadcastId() == broadcastId))
+                                && isHostPauseType(broadcastId)) {
+                            broadcastIdToRemove = broadcastId;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (broadcastIdToRemove != BassConstants.INVALID_BROADCAST_ID) {
+                stopBigMonitoring(broadcastIdToRemove, false);
+                removeSinkMetadata(device, broadcastIdToRemove);
+            }
+        }
+    }
+
     /**
      * Add a Broadcast Source to the Broadcast Sink
      *
@@ -3378,6 +3403,11 @@ public class BassClientService extends ProfileService {
                     continue;
                 }
             }
+
+            // Even if there is a room for broadcast, it could happen that all broadcasts were
+            // suspended via removing source. In that case, we have to found such broadcast and
+            // remove it from metadata.
+            checkIfBroadcastIsSuspendedBySourceRemovalAndClearData(device, stateMachine);
 
             /* Store metadata for sink device */
             storeSinkMetadata(device, sourceMetadata.getBroadcastId(), sourceMetadata);
