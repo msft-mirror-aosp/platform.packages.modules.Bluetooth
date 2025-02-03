@@ -367,6 +367,43 @@ struct LogMetricLeConnectionCompletion {
 };
 extern struct LogMetricLeConnectionCompletion LogMetricLeConnectionCompletion;
 
+// Name: LogMetricRfcommConnectionAtClose
+// Params: const RawAddress& raw_address, android::bluetooth::rfcomm::PortResult close_reason,
+//         android::bluetooth::rfcomm::SocketConnectionSecurity security,
+//         android::bluetooth::rfcomm::RfcommPortEvent last_event,
+//         android::bluetooth::rfcomm::RfcommPortState previous_state, int32_t open_duration_ms,
+//         int32_t uid, android::bluetooth::BtaStatus sdp_status, bool is_server,
+//         bool sdp_initiated, int32_t sdp_duration_ms
+// Returns: void
+struct LogMetricRfcommConnectionAtClose {
+  std::function<void(
+          const RawAddress& raw_address, android::bluetooth::rfcomm::PortResult close_reason,
+          android::bluetooth::rfcomm::SocketConnectionSecurity security,
+          android::bluetooth::rfcomm::RfcommPortEvent last_event,
+          android::bluetooth::rfcomm::RfcommPortState previous_state, int32_t open_duration_ms,
+          int32_t uid, android::bluetooth::BtaStatus sdp_status, bool is_server, bool sdp_initiated,
+          int32_t sdp_duration_ms)>
+          body{[](const RawAddress& /* raw_address */,
+                  android::bluetooth::rfcomm::PortResult /* close_reason */,
+                  android::bluetooth::rfcomm::SocketConnectionSecurity /* security */,
+                  android::bluetooth::rfcomm::RfcommPortEvent /* last_event */,
+                  android::bluetooth::rfcomm::RfcommPortState /* previous_state */,
+                  int32_t /* open_duration_ms */, int32_t /* uid */,
+                  android::bluetooth::BtaStatus /* sdp_status */, bool /* is_server */,
+                  bool /* sdp_initiated */, int32_t /* sdp_duration_ms */) {}};
+  void operator()(const RawAddress& raw_address,
+                  android::bluetooth::rfcomm::PortResult close_reason,
+                  android::bluetooth::rfcomm::SocketConnectionSecurity security,
+                  android::bluetooth::rfcomm::RfcommPortEvent last_event,
+                  android::bluetooth::rfcomm::RfcommPortState previous_state,
+                  int32_t open_duration_ms, int32_t uid, android::bluetooth::BtaStatus sdp_status,
+                  bool is_server, bool sdp_initiated, int32_t sdp_duration_ms) {
+    body(raw_address, close_reason, security, last_event, previous_state, open_duration_ms, uid,
+         sdp_status, is_server, sdp_initiated, sdp_duration_ms);
+  }
+};
+extern struct LogMetricRfcommConnectionAtClose LogMetricRfcommConnectionAtClose;
+
 }  // namespace main_shim_metrics_api
 }  // namespace mock
 }  // namespace test

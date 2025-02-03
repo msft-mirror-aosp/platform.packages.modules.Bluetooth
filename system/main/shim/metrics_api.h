@@ -290,6 +290,25 @@ void LogMetricLeConnectionLifecycle(hci::Address address, bool is_connect, bool 
  */
 void LogMetricLeConnectionCompletion(hci::Address address, hci::ErrorCode reason,
                                      bool is_locally_initiated);
+/**
+ * Logs an RFCOMM connection when an RFCOMM port closes
+ *
+ * @param address address of peer device
+ * @param close_reason reason that the port was closed
+ * @param security security level of the connection
+ * @param second_previous_state two states prior to "CLOSED"
+ * @param previous_state state prior to "CLOSED"
+ * @param duration_ms that the socket was opened, 0 if connection failed
+ * @param uid UID of the app that called connect
+ */
+void LogMetricRfcommConnectionAtClose(const RawAddress& address,
+                                      android::bluetooth::rfcomm::PortResult close_reason,
+                                      android::bluetooth::rfcomm::SocketConnectionSecurity security,
+                                      android::bluetooth::rfcomm::RfcommPortEvent last_event,
+                                      android::bluetooth::rfcomm::RfcommPortState previous_state,
+                                      int32_t open_duration_ms, int32_t uid,
+                                      android::bluetooth::BtaStatus sdp_status, bool is_server,
+                                      bool sdp_initiated, int32_t sdp_duration_ms);
 
 bool CountCounterMetrics(int32_t key, int64_t count);
 
