@@ -3357,9 +3357,6 @@ public class BassClientService extends ProfileService {
             return;
         }
 
-        /* Update metadata for sink device */
-        storeSinkMetadata(sink, updatedMetadata.getBroadcastId(), updatedMetadata);
-
         byte[] code = updatedMetadata.getBroadcastCode();
         for (Map.Entry<BluetoothDevice, Integer> deviceSourceIdPair : devices.entrySet()) {
             BluetoothDevice device = deviceSourceIdPair.getKey();
@@ -3383,6 +3380,9 @@ public class BassClientService extends ProfileService {
                         device, sourceId, BluetoothStatusCodes.ERROR_ALREADY_IN_TARGET_STATE);
                 continue;
             }
+
+            /* Update metadata for sink device */
+            storeSinkMetadata(device, updatedMetadata.getBroadcastId(), updatedMetadata);
 
             sEventLogger.logd(
                     TAG,
