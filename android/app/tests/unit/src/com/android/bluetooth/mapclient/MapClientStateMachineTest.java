@@ -50,7 +50,6 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.database.Cursor;
 import android.net.Uri;
-import android.os.test.TestLooper;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.FlagsParameterization;
 import android.platform.test.flag.junit.SetFlagsRule;
@@ -66,6 +65,7 @@ import androidx.test.filters.MediumTest;
 import androidx.test.rule.ServiceTestRule;
 
 import com.android.bluetooth.ObexAppParameters;
+import com.android.bluetooth.TestLooper;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.flags.Flags;
 import com.android.obex.HeaderSet;
