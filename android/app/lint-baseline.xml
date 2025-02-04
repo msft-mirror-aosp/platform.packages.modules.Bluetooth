@@ -74,7 +74,7 @@
         errorLine2="                        ^">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/avrcp/AvrcpVolumeManager.java"
-            line="455"
+            line="460"
             column="25"/>
     </issue>
 
@@ -118,7 +118,7 @@
         errorLine2="                                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/le_scan/AppScanStats.java"
-            line="52"
+            line="53"
             column="43"/>
     </issue>
 
@@ -327,7 +327,7 @@
         errorLine2="                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/map/BluetoothMapUtils.java"
-            line="745"
+            line="740"
             column="27"/>
     </issue>
 
@@ -338,7 +338,7 @@
         errorLine2="                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/map/BluetoothMapUtils.java"
-            line="746"
+            line="741"
             column="27"/>
     </issue>
 
@@ -370,20 +370,20 @@
         errorLine1="                SimpleDateFormat parser = new SimpleDateFormat(TIMESTAMP_FORMAT);"
         errorLine2="                                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/pbapclient/PbapClientContactsStorage.java"
-            line="485"
+            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/pbapclient/obex/CallLogPullRequest.java"
+            line="109"
             column="43"/>
     </issue>
 
     <issue
         id="SimpleDateFormat"
         message="To get local formatting use `getDateInstance()`, `getDateTimeInstance()`, or `getTimeInstance()`, or use `new SimpleDateFormat(String template, Locale locale)` with for example `Locale.US` for ASCII dates."
-        errorLine1="                SimpleDateFormat parser = new SimpleDateFormat(TIMESTAMP_FORMAT);"
-        errorLine2="                                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        errorLine1="        SimpleDateFormat parser = new SimpleDateFormat(TIMESTAMP_FORMAT);"
+        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/pbapclient/obex/CallLogPullRequest.java"
-            line="105"
-            column="43"/>
+            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/pbapclient/PbapClientContactsStorage.java"
+            line="505"
+            column="35"/>
     </issue>
 
     <issue
@@ -393,7 +393,7 @@
         errorLine2="        ^">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/a2dp/A2dpStateMachine.java"
-            line="672"
+            line="679"
             column="9"/>
     </issue>
 
@@ -404,7 +404,7 @@
         errorLine2="        ^">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/a2dp/A2dpStateMachine.java"
-            line="672"
+            line="679"
             column="9"/>
     </issue>
 
@@ -415,7 +415,7 @@
         errorLine2="        ^">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/a2dp/A2dpStateMachine.java"
-            line="672"
+            line="679"
             column="9"/>
     </issue>
 
@@ -569,7 +569,7 @@
         errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/a2dp/A2dpService.java"
-            line="816"
+            line="801"
             column="33"/>
     </issue>
 
@@ -580,7 +580,7 @@
         errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/a2dp/A2dpService.java"
-            line="824"
+            line="809"
             column="26"/>
     </issue>
 
@@ -591,7 +591,7 @@
         errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/a2dp/A2dpService.java"
-            line="837"
+            line="822"
             column="33"/>
     </issue>
 
@@ -602,7 +602,7 @@
         errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/a2dp/A2dpService.java"
-            line="857"
+            line="842"
             column="26"/>
     </issue>
 
@@ -613,7 +613,7 @@
         errorLine2="                                            ~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/a2dp/A2dpService.java"
-            line="929"
+            line="917"
             column="45"/>
     </issue>
 
@@ -624,7 +624,7 @@
         errorLine2="                   ~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/btservice/AdapterService.java"
-            line="1144"
+            line="1155"
             column="20"/>
     </issue>
 
@@ -635,7 +635,7 @@
         errorLine2="                   ~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/btservice/AdapterService.java"
-            line="1149"
+            line="1160"
             column="20"/>
     </issue>
 
@@ -646,7 +646,7 @@
         errorLine2="                                          ~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/btservice/AdapterService.java"
-            line="1995"
+            line="2004"
             column="43"/>
     </issue>
 
@@ -657,7 +657,7 @@
         errorLine2="                                            ~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/btservice/AdapterService.java"
-            line="2000"
+            line="2009"
             column="45"/>
     </issue>
 
@@ -668,7 +668,7 @@
         errorLine2="                                 ~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/btservice/AdapterService.java"
-            line="2004"
+            line="2013"
             column="34"/>
     </issue>
 
@@ -679,7 +679,7 @@
         errorLine2="                                ~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/btservice/AdapterService.java"
-            line="2236"
+            line="2245"
             column="33"/>
     </issue>
 
@@ -690,7 +690,7 @@
         errorLine2="                           ~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/btservice/AdapterService.java"
-            line="6989"
+            line="7279"
             column="28"/>
     </issue>
 
@@ -701,7 +701,7 @@
         errorLine2="                           ~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/btservice/AdapterService.java"
-            line="6991"
+            line="7281"
             column="28"/>
     </issue>
 
@@ -1015,1832 +1015,6 @@
 
     <issue
         id="VisibleForTests"
-        message="This class should only be accessed from tests or within private scope"
-        errorLine1="    private BluetoothCall mOldHeldCall = null;"
-        errorLine2="            ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="117"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This class should only be accessed from tests or within private scope"
-        errorLine1="    private final HashMap&lt;Integer, BluetoothCall> mBluetoothConferenceCallInference ="
-        errorLine2="                                   ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="139"
-            column="36"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This class should only be accessed from tests or within private scope"
-        errorLine1="            BluetoothCall call = mCallInfo.getRingingOrSimulatedRingingCall();"
-        errorLine2="            ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="404"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            call.answer(VideoProfile.STATE_AUDIO_ONLY);"
-        errorLine2="                 ~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="408"
-            column="18"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This class should only be accessed from tests or within private scope"
-        errorLine1="            BluetoothCall call = mCallInfo.getForegroundCall();"
-        errorLine2="            ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="418"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This class should only be accessed from tests or within private scope"
-        errorLine1="            BluetoothCall conferenceCall = getBluetoothCallById(call.getParentId());"
-        errorLine2="            ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="423"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            BluetoothCall conferenceCall = getBluetoothCallById(call.getParentId());"
-        errorLine2="                                                                     ~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="423"
-            column="70"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                    &amp;&amp; conferenceCall.getState() == Call.STATE_ACTIVE) {"
-        errorLine2="                                      ~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="425"
-            column="39"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            if (call.getState() == Call.STATE_RINGING) {"
-        errorLine2="                     ~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="429"
-            column="22"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                call.reject(false, &quot;&quot;);"
-        errorLine2="                     ~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="430"
-            column="22"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                call.disconnect();"
-        errorLine2="                     ~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="432"
-            column="22"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This class should only be accessed from tests or within private scope"
-        errorLine1="            BluetoothCall call = mCallInfo.getForegroundCall();"
-        errorLine2="            ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="443"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            call.playDtmfTone((char) dtmf);"
-        errorLine2="                 ~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="449"
-            column="18"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            call.stopDtmfTone();"
-        errorLine2="                 ~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="450"
-            column="18"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This class should only be accessed from tests or within private scope"
-        errorLine1="        BluetoothCall ringingCall = mCallInfo.getRingingOrSimulatedRingingCall();"
-        errorLine2="        ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="584"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This class should only be accessed from tests or within private scope"
-        errorLine1="        BluetoothCall dialingCall = mCallInfo.getOutgoingCall();"
-        errorLine2="        ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="585"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This class should only be accessed from tests or within private scope"
-        errorLine1="        BluetoothCall activeCall = mCallInfo.getActiveCall();"
-        errorLine2="        ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="586"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            isHighDef = ringingCall.isHighDefAudio();"
-        errorLine2="                                    ~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="590"
-            column="37"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            Bundle extras = dialingCall.getDetails().getExtras();"
-        errorLine2="                                        ~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="593"
-            column="41"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                    isHighDef = dialingCall.isHighDefAudio();"
-        errorLine2="                                            ~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="598"
-            column="45"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            isHighDef = activeCall.isHighDefAudio();"
-        errorLine2="                                   ~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="605"
-            column="36"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This class should only be accessed from tests or within private scope"
-        errorLine1="    public void onCallAdded(BluetoothCall call) {"
-        errorLine2="                            ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="626"
-            column="29"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="        if (call.isExternalCall()) {"
-        errorLine2="                 ~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="627"
-            column="18"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="        if (!mBluetoothCallHashMap.containsKey(call.getId())) {"
-        errorLine2="                                                    ~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="631"
-            column="53"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            CallStateCallback callback = new CallStateCallback(call.getState());"
-        errorLine2="                                                                    ~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="633"
-            column="69"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            mCallbacks.put(call.getId(), callback);"
-        errorLine2="                                ~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="634"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            call.registerCallback(callback);"
-        errorLine2="                 ~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="635"
-            column="18"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            mBluetoothCallHashMap.put(call.getId(), call);"
-        errorLine2="                                           ~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="637"
-            column="44"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            if (!call.isConference()) {"
-        errorLine2="                      ~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="638"
-            column="23"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This class should only be accessed from tests or within private scope"
-        errorLine1="        BluetoothCall call = mCallInfo.getForegroundCall();"
-        errorLine2="        ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="659"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="        call.sendCallEvent(BluetoothCallQualityReport.EVENT_BLUETOOTH_CALL_QUALITY_REPORT, b);"
-        errorLine2="             ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="676"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="        onCallAdded(new BluetoothCall(call));"
-        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="683"
-            column="21"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This class should only be accessed from tests or within private scope"
-        errorLine1="    public void onCallRemoved(BluetoothCall call, boolean forceRemoveCallback) {"
-        errorLine2="                              ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="696"
-            column="31"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="        if (callback != null &amp;&amp; (forceRemoveCallback || !call.isExternalCall())) {"
-        errorLine2="                                                              ~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="699"
-            column="63"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            call.unregisterCallback(callback);"
-        errorLine2="                 ~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="700"
-            column="18"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="        if (mBluetoothCallHashMap.containsKey(call.getId())) {"
-        errorLine2="                                                   ~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="703"
-            column="52"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            mBluetoothCallHashMap.remove(call.getId());"
-        errorLine2="                                              ~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="704"
-            column="47"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            DisconnectCause cause = call.getDisconnectCause();"
-        errorLine2="                                         ~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="706"
-            column="42"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                mBluetoothCallQueue.add(call.getId());"
-        errorLine2="                                             ~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="709"
-            column="46"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                mBluetoothConferenceCallInference.put(call.getId(), call);"
-        errorLine2="                                                           ~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="710"
-            column="60"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                            if (call.mClccIndex > -1) {"
-        errorLine2="                                     ~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="716"
-            column="38"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                                        getClccMapKey(call), call.mClccIndex);"
-        errorLine2="                                                                  ~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="718"
-            column="67"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            if (call.isConference()) {"
-        errorLine2="                     ~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="733"
-            column="22"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                    call.getTbsCallId(), getTbsTerminationReason(call));"
-        errorLine2="                         ~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="753"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This class should only be accessed from tests or within private scope"
-        errorLine1="        BluetoothCall bluetoothCall = getBluetoothCallById(System.identityHashCode(call));"
-        errorLine2="        ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="761"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This class should only be accessed from tests or within private scope"
-        errorLine1="    private static boolean isConferenceWithNoChildren(BluetoothCall call) {"
-        errorLine2="                                                      ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="829"
-            column="55"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="        return call.isConference()"
-        errorLine2="                    ~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="830"
-            column="21"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                &amp;&amp; (call.can(Connection.CAPABILITY_CONFERENCE_HAS_NO_CHILDREN)"
-        errorLine2="                         ~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="831"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                        || call.getChildrenIds().isEmpty());"
-        errorLine2="                                ~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="832"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This class should only be accessed from tests or within private scope"
-        errorLine1="        Collection&lt;BluetoothCall> calls = mCallInfo.getBluetoothCalls();"
-        errorLine2="                   ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="837"
-            column="20"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This class should only be accessed from tests or within private scope"
-        errorLine1="        BluetoothCall conferenceCallChildrenNotReady = null;"
-        errorLine2="        ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="840"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            if (call.isConference() &amp;&amp; !mBluetoothConferenceCallInference.isEmpty()) {"
-        errorLine2="                     ~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="843"
-            column="22"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                if (call.getChildrenIds().size() >= 2) {"
-        errorLine2="                         ~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="853"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                if (inferredCall.isCallNull() || inferredCall.getHandle() == null) {"
-        errorLine2="                                 ~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="863"
-            column="34"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                if (inferredCall.isCallNull() || inferredCall.getHandle() == null) {"
-        errorLine2="                                                              ~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="863"
-            column="63"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                int index = inferredCall.mClccIndex;"
-        errorLine2="                                         ~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="868"
-            column="42"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                    if (bluetoothCall.getHandle() == null) {"
-        errorLine2="                                      ~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="876"
-            column="39"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                        Log.w(TAG, &quot;call id: &quot; + bluetoothCall.getId() + &quot; handle is null&quot;);"
-        errorLine2="                                                               ~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="877"
-            column="64"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                                    bluetoothCall.getHandle().toString(),"
-        errorLine2="                                                  ~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="882"
-            column="51"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                                    inferredCall.getHandle().toString(),"
-        errorLine2="                                                 ~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="883"
-            column="50"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                                        + bluetoothCall.getId());"
-        errorLine2="                                                        ~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="890"
-            column="57"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                        bluetoothCall.mClccIndex = inferredCall.mClccIndex;"
-        errorLine2="                                      ~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="891"
-            column="39"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                        bluetoothCall.mClccIndex = inferredCall.mClccIndex;"
-        errorLine2="                                                                ~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="891"
-            column="65"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                int direction = inferredCall.isIncoming() ? 1 : 0;"
-        errorLine2="                                             ~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="896"
-            column="46"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                if (inferredCall.getGatewayInfo() != null) {"
-        errorLine2="                                 ~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="900"
-            column="34"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                    addressUri = inferredCall.getGatewayInfo().getOriginalAddress();"
-        errorLine2="                                              ~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="901"
-            column="47"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                    addressUri = inferredCall.getHandle();"
-        errorLine2="                                              ~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="903"
-            column="47"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                            + call.getChildrenIds().size());"
-        errorLine2="                                   ~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="955"
-            column="36"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            if (!call.isConference() || isConferenceWithNoChildren) {"
-        errorLine2="                      ~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="956"
-            column="23"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This class should only be accessed from tests or within private scope"
-        errorLine1="    private void sendClccForCall(BluetoothCall call, boolean shouldLog) {"
-        errorLine2="                                 ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="973"
-            column="34"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="        boolean isForeground = call.equals(mCallInfo.getForegroundCall());"
-        errorLine2="                                    ~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="974"
-            column="37"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This class should only be accessed from tests or within private scope"
-        errorLine1="        BluetoothCall conferenceCall = getBluetoothCallById(call.getParentId());"
-        errorLine2="        ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="983"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="        BluetoothCall conferenceCall = getBluetoothCallById(call.getParentId());"
-        errorLine2="                                                                 ~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="983"
-            column="66"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            if (conferenceCall.hasProperty(Call.Details.PROPERTY_GENERIC_CONFERENCE)) {"
-        errorLine2="                               ~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="987"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This class should only be accessed from tests or within private scope"
-        errorLine1="                BluetoothCall activeChild ="
-        errorLine2="                ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="997"
-            column="17"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                                conferenceCall.getGenericConferenceActiveChildCallId());"
-        errorLine2="                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="999"
-            column="48"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                            conferenceCall.can(Connection.CAPABILITY_MERGE_CONFERENCE)"
-        errorLine2="                                           ~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1004"
-            column="44"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                                    || (conferenceCall.can(Connection.CAPABILITY_SWAP_CONFERENCE)"
-        errorLine2="                                                       ~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1005"
-            column="56"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                                            &amp;&amp; !conferenceCall.wasConferencePreviouslyMerged());"
-        errorLine2="                                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1006"
-            column="64"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                        if (call.equals(activeChild)) {"
-        errorLine2="                                 ~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1010"
-            column="34"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            if (conferenceCall.getState() == Call.STATE_HOLDING"
-        errorLine2="                               ~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1020"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                    &amp;&amp; conferenceCall.can(Connection.CAPABILITY_MANAGE_CONFERENCE)) {"
-        errorLine2="                                      ~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1021"
-            column="39"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="        int direction = call.isIncoming() ? 1 : 0;"
-        errorLine2="                             ~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1036"
-            column="30"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="        if (call.getGatewayInfo() != null) {"
-        errorLine2="                 ~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1038"
-            column="18"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            addressUri = call.getGatewayInfo().getOriginalAddress();"
-        errorLine2="                              ~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1039"
-            column="31"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            addressUri = call.getHandle();"
-        errorLine2="                              ~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1041"
-            column="31"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            int callCLCCIndex = bluetoothCall.mClccIndex;"
-        errorLine2="                                              ~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1092"
-            column="47"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This class should only be accessed from tests or within private scope"
-        errorLine1="    private int getIndexForCall(BluetoothCall call) {"
-        errorLine2="                                ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1122"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            call.mClccIndex = mConferenceCallClccIndexMap.get(getClccMapKey(call));"
-        errorLine2="                 ~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1131"
-            column="18"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="        if (call.mClccIndex >= 1) {"
-        errorLine2="                 ~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1134"
-            column="18"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            return call.mClccIndex;"
-        errorLine2="                        ~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1135"
-            column="25"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="        if (call.isConference()) {"
-        errorLine2="                 ~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1139"
-            column="18"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="        call.mClccIndex = getNextAvailableClccIndex(index);"
-        errorLine2="             ~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1145"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                    .removeIf(entry -> entry.getValue() == call.mClccIndex);"
-        errorLine2="                                                                ~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1151"
-            column="65"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="        Log.d(TAG, &quot;call &quot; + call.getId() + &quot; CLCC index is &quot; + call.mClccIndex);"
-        errorLine2="                                  ~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1153"
-            column="35"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="        Log.d(TAG, &quot;call &quot; + call.getId() + &quot; CLCC index is &quot; + call.mClccIndex);"
-        errorLine2="                                                                     ~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1153"
-            column="70"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="        return call.mClccIndex;"
-        errorLine2="                    ~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1154"
-            column="21"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This class should only be accessed from tests or within private scope"
-        errorLine1="        BluetoothCall activeCall = mCallInfo.getActiveCall();"
-        errorLine2="        ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1159"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This class should only be accessed from tests or within private scope"
-        errorLine1="        BluetoothCall ringingCall = mCallInfo.getRingingOrSimulatedRingingCall();"
-        errorLine2="        ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1160"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            Log.i(TAG, &quot;ringingCall hashcode: &quot; + ringingCall.hashCode());"
-        errorLine2="                                                              ~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1164"
-            column="63"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This class should only be accessed from tests or within private scope"
-        errorLine1="        BluetoothCall heldCall = mCallInfo.getHeldCall();"
-        errorLine2="        ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1167"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                Log.i(TAG, &quot;reject ringing call &quot; + ringingCall.hashCode());"
-        errorLine2="                                                                ~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1183"
-            column="65"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                ringingCall.reject(false, null);"
-        errorLine2="                            ~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1184"
-            column="29"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                heldCall.disconnect();"
-        errorLine2="                         ~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1187"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This class should only be accessed from tests or within private scope"
-        errorLine1="                BluetoothCall conferenceCall = getBluetoothCallById(activeCall.getParentId());"
-        errorLine2="                ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1197"
-            column="17"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                BluetoothCall conferenceCall = getBluetoothCallById(activeCall.getParentId());"
-        errorLine2="                                                                               ~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1197"
-            column="80"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                        &amp;&amp; conferenceCall.getState() == Call.STATE_ACTIVE) {"
-        errorLine2="                                          ~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1199"
-            column="43"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                    conferenceCall.disconnect();"
-        errorLine2="                                   ~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1201"
-            column="36"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                    activeCall.disconnect();"
-        errorLine2="                               ~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1203"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                ringingCall.answer(ringingCall.getVideoState());"
-        errorLine2="                            ~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1207"
-            column="29"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                ringingCall.answer(ringingCall.getVideoState());"
-        errorLine2="                                               ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1207"
-            column="48"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                heldCall.unhold();"
-        errorLine2="                         ~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1209"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                    &amp;&amp; activeCall.can(Connection.CAPABILITY_SWAP_CONFERENCE)) {"
-        errorLine2="                                  ~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1214"
-            column="35"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                activeCall.swapConference();"
-        errorLine2="                           ~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1215"
-            column="28"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                ringingCall.answer(VideoProfile.STATE_AUDIO_ONLY);"
-        errorLine2="                            ~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1220"
-            column="29"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                heldCall.unhold();"
-        errorLine2="                         ~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1225"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                    &amp;&amp; activeCall.can(Connection.CAPABILITY_HOLD)) {"
-        errorLine2="                                  ~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1228"
-            column="35"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                activeCall.hold();"
-        errorLine2="                           ~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1229"
-            column="28"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                if (activeCall.can(Connection.CAPABILITY_MERGE_CONFERENCE)) {"
-        errorLine2="                               ~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1234"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                    activeCall.mergeConference();"
-        errorLine2="                               ~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1235"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This class should only be accessed from tests or within private scope"
-        errorLine1="                    List&lt;BluetoothCall> conferenceable ="
-        errorLine2="                         ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1238"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                            getBluetoothCallsByIds(activeCall.getConferenceableCalls());"
-        errorLine2="                                                              ~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1239"
-            column="63"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                        activeCall.conference(conferenceable.get(0));"
-        errorLine2="                                   ~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1241"
-            column="36"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This class should only be accessed from tests or within private scope"
-        errorLine1="        BluetoothCall activeCall = mCallInfo.getActiveCall();"
-        errorLine2="        ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1259"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This class should only be accessed from tests or within private scope"
-        errorLine1="        BluetoothCall ringingCall = mCallInfo.getRingingOrSimulatedRingingCall();"
-        errorLine2="        ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1260"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This class should only be accessed from tests or within private scope"
-        errorLine1="        BluetoothCall heldCall = mCallInfo.getHeldCall();"
-        errorLine2="        ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1261"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                &amp;&amp; ringingCall.getHandle() != null"
-        errorLine2="                               ~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1269"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                &amp;&amp; !ringingCall.isSilentRingingRequested()) {"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1270"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            ringingAddress = ringingCall.getHandle().getSchemeSpecificPart();"
-        errorLine2="                                         ~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1271"
-            column="42"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            ringingName = ringingCall.getCallerDisplayName();"
-        errorLine2="                                      ~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1275"
-            column="39"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                ringingName = ringingCall.getContactDisplayName();"
-        errorLine2="                                          ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1277"
-            column="43"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                mCallInfo.isNullCall(activeCall) ? 0 : activeCall.getChildrenIds().size();"
-        errorLine2="                                                                  ~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1287"
-            column="67"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                &amp;&amp; activeCall.isConference()"
-        errorLine2="                              ~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1299"
-            column="31"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                &amp;&amp; !activeCall.can(Connection.CAPABILITY_CONFERENCE_HAS_NO_CHILDREN)) {"
-        errorLine2="                               ~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1300"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            if (activeCall.can(Connection.CAPABILITY_SWAP_CONFERENCE)) {"
-        errorLine2="                           ~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1301"
-            column="28"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                numHeldCalls = activeCall.wasConferencePreviouslyMerged() ? 0 : 1;"
-        errorLine2="                                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1304"
-            column="43"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            } else if (activeCall.can(Connection.CAPABILITY_MERGE_CONFERENCE)) {"
-        errorLine2="                                  ~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1305"
-            column="35"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            for (Integer id : activeCall.getChildrenIds()) {"
-        errorLine2="                                         ~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1309"
-            column="42"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                if (mOldHeldCall != null &amp;&amp; Objects.equals(mOldHeldCall.getId(), id)) {"
-        errorLine2="                                                                        ~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1313"
-            column="73"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This class should only be accessed from tests or within private scope"
-        errorLine1="        BluetoothCall ringingCall = mCallInfo.getRingingOrSimulatedRingingCall();"
-        errorLine2="        ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1402"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This class should only be accessed from tests or within private scope"
-        errorLine1="        BluetoothCall dialingCall = mCallInfo.getOutgoingCall();"
-        errorLine2="        ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1403"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="        if (!mCallInfo.isNullCall(ringingCall) &amp;&amp; !ringingCall.isSilentRingingRequested()) {"
-        errorLine2="                                                               ~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1416"
-            column="64"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This class should only be accessed from tests or within private scope"
-        errorLine1="    private int getBtCallState(BluetoothCall call, boolean isForeground) {"
-        errorLine2="                               ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1427"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="        switch (call.getState()) {"
-        errorLine2="                     ~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1428"
-            column="22"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                if (call.isSilentRingingRequested()) {"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1455"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This class should only be accessed from tests or within private scope"
-        errorLine1="    private Integer getTbsCallState(BluetoothCall call) {"
-        errorLine2="                                    ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1643"
-            column="37"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="        switch (call.getState()) {"
-        errorLine2="                     ~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1644"
-            column="22"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                if (call.isSilentRingingRequested()) {"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1661"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This class should only be accessed from tests or within private scope"
-        errorLine1="    private BluetoothLeCall createTbsCall(BluetoothCall call) {"
-        errorLine2="                                          ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1699"
-            column="43"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This class should only be accessed from tests or within private scope"
-        errorLine1="        BluetoothCall conferenceCall = getBluetoothCallById(call.getParentId());"
-        errorLine2="        ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1707"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="        BluetoothCall conferenceCall = getBluetoothCallById(call.getParentId());"
-        errorLine2="                                                                 ~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1707"
-            column="66"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This class should only be accessed from tests or within private scope"
-        errorLine1="            BluetoothCall activeChild ="
-        errorLine2="            ~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1719"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                    getBluetoothCallById(conferenceCall.getGenericConferenceActiveChildCallId());"
-        errorLine2="                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1720"
-            column="57"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                        conferenceCall.can(Connection.CAPABILITY_MERGE_CONFERENCE)"
-        errorLine2="                                       ~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1725"
-            column="40"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                                || (conferenceCall.can(Connection.CAPABILITY_SWAP_CONFERENCE)"
-        errorLine2="                                                   ~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1726"
-            column="52"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                                        &amp;&amp; !conferenceCall.wasConferencePreviouslyMerged());"
-        errorLine2="                                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1727"
-            column="60"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                    if (call.equals(activeChild)) {"
-        errorLine2="                             ~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1730"
-            column="30"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            if (conferenceCall.getState() == Call.STATE_HOLDING"
-        errorLine2="                               ~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1739"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                    &amp;&amp; conferenceCall.can(Connection.CAPABILITY_MANAGE_CONFERENCE)) {"
-        errorLine2="                                      ~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1740"
-            column="39"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="        if (call.getGatewayInfo() != null) {"
-        errorLine2="                 ~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1755"
-            column="18"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            addressUri = call.getGatewayInfo().getOriginalAddress();"
-        errorLine2="                              ~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1756"
-            column="31"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            addressUri = call.getHandle();"
-        errorLine2="                              ~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1758"
-            column="31"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="        int callFlags = call.isIncoming() ? 0 : BluetoothLeCall.FLAG_OUTGOING_CALL;"
-        errorLine2="                             ~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1762"
-            column="30"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="        String friendlyName = call.getCallerDisplayName();"
-        errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1764"
-            column="36"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            friendlyName = call.getContactDisplayName();"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1766"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="        return new BluetoothLeCall(call.getTbsCallId(), uri, friendlyName, state, callFlags);"
-        errorLine2="                                        ~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/telephony/BluetoothInCallService.java"
-            line="1769"
-            column="41"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
         message="This method should only be accessed from tests or within private scope"
         errorLine1="                            BluetoothMapService.getBluetoothMapService()"
         errorLine2="                                                ~~~~~~~~~~~~~~~~~~~~~~">
@@ -2934,7 +1108,7 @@
         errorLine2="                                                              ~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/csip/CsipSetCoordinatorService.java"
-            line="884"
+            line="859"
             column="63"/>
     </issue>
 
@@ -2945,30 +1119,30 @@
         errorLine2="               ~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hap/HapClientService.java"
-            line="158"
+            line="157"
             column="16"/>
     </issue>
 
     <issue
         id="VisibleForTests"
         message="This method should only be accessed from tests or within private scope"
-        errorLine1="            mNativeInterface.initialize();"
-        errorLine2="                             ~~~~~~~~~~">
+        errorLine1="        mNativeInterface.initialize();"
+        errorLine2="                         ~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfpclient/HeadsetClientService.java"
-            line="127"
-            column="30"/>
+            line="106"
+            column="26"/>
     </issue>
 
     <issue
         id="VisibleForTests"
         message="This method should only be accessed from tests or within private scope"
-        errorLine1="            mNativeInterface.cleanup();"
-        errorLine2="                             ~~~~~~~">
+        errorLine1="        mNativeInterface.cleanup();"
+        errorLine2="                         ~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfpclient/HeadsetClientService.java"
-            line="196"
-            column="30"/>
+            line="176"
+            column="26"/>
     </issue>
 
     <issue
@@ -2989,7 +1163,7 @@
         errorLine2="                             ~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfpclient/HeadsetClientStateMachine.java"
-            line="673"
+            line="671"
             column="30"/>
     </issue>
 
@@ -3000,7 +1174,7 @@
         errorLine2="                             ~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfpclient/HeadsetClientStateMachine.java"
-            line="714"
+            line="712"
             column="30"/>
     </issue>
 
@@ -3011,7 +1185,7 @@
         errorLine2="                             ~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfpclient/HeadsetClientStateMachine.java"
-            line="739"
+            line="737"
             column="30"/>
     </issue>
 
@@ -3022,7 +1196,7 @@
         errorLine2="                                 ~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfpclient/HeadsetClientStateMachine.java"
-            line="762"
+            line="760"
             column="34"/>
     </issue>
 
@@ -3033,7 +1207,7 @@
         errorLine2="                             ~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfpclient/HeadsetClientStateMachine.java"
-            line="1010"
+            line="1008"
             column="30"/>
     </issue>
 
@@ -3044,7 +1218,7 @@
         errorLine2="                                          ~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfpclient/HeadsetClientStateMachine.java"
-            line="1100"
+            line="1098"
             column="43"/>
     </issue>
 
@@ -3055,7 +1229,7 @@
         errorLine2="                                         ~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfpclient/HeadsetClientStateMachine.java"
-            line="1154"
+            line="1152"
             column="42"/>
     </issue>
 
@@ -3066,7 +1240,7 @@
         errorLine2="                                         ~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfpclient/HeadsetClientStateMachine.java"
-            line="1318"
+            line="1316"
             column="42"/>
     </issue>
 
@@ -3077,7 +1251,7 @@
         errorLine2="                                             ~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfpclient/HeadsetClientStateMachine.java"
-            line="1326"
+            line="1324"
             column="46"/>
     </issue>
 
@@ -3088,7 +1262,7 @@
         errorLine2="                                     ~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfpclient/HeadsetClientStateMachine.java"
-            line="1437"
+            line="1435"
             column="38"/>
     </issue>
 
@@ -3099,7 +1273,7 @@
         errorLine2="                                              ~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfpclient/HeadsetClientStateMachine.java"
-            line="1445"
+            line="1443"
             column="47"/>
     </issue>
 
@@ -3110,7 +1284,7 @@
         errorLine2="                                                 ~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfpclient/HeadsetClientStateMachine.java"
-            line="1449"
+            line="1447"
             column="50"/>
     </issue>
 
@@ -3121,7 +1295,7 @@
         errorLine2="                                          ~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfpclient/HeadsetClientStateMachine.java"
-            line="1455"
+            line="1453"
             column="43"/>
     </issue>
 
@@ -3132,7 +1306,7 @@
         errorLine2="                                             ~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfpclient/HeadsetClientStateMachine.java"
-            line="1475"
+            line="1473"
             column="46"/>
     </issue>
 
@@ -3143,7 +1317,7 @@
         errorLine2="                                             ~~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfpclient/HeadsetClientStateMachine.java"
-            line="1485"
+            line="1483"
             column="46"/>
     </issue>
 
@@ -3154,7 +1328,7 @@
         errorLine2="                                             ~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfpclient/HeadsetClientStateMachine.java"
-            line="1507"
+            line="1505"
             column="46"/>
     </issue>
 
@@ -3165,7 +1339,7 @@
         errorLine2="                                             ~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfpclient/HeadsetClientStateMachine.java"
-            line="1528"
+            line="1526"
             column="46"/>
     </issue>
 
@@ -3176,7 +1350,7 @@
         errorLine2="                                         ~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfpclient/HeadsetClientStateMachine.java"
-            line="1539"
+            line="1537"
             column="42"/>
     </issue>
 
@@ -3187,7 +1361,7 @@
         errorLine2="                                         ~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfpclient/HeadsetClientStateMachine.java"
-            line="1570"
+            line="1568"
             column="42"/>
     </issue>
 
@@ -3198,7 +1372,7 @@
         errorLine2="                                         ~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfpclient/HeadsetClientStateMachine.java"
-            line="1577"
+            line="1575"
             column="42"/>
     </issue>
 
@@ -3209,7 +1383,7 @@
         errorLine2="                                                     ~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfpclient/HeadsetClientStateMachine.java"
-            line="1643"
+            line="1641"
             column="54"/>
     </issue>
 
@@ -3220,7 +1394,7 @@
         errorLine2="                              ~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfpclient/HeadsetClientStateMachine.java"
-            line="2546"
+            line="2544"
             column="31"/>
     </issue>
 
@@ -3231,7 +1405,7 @@
         errorLine2="                              ~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfpclient/HeadsetClientStateMachine.java"
-            line="2556"
+            line="2554"
             column="31"/>
     </issue>
 
@@ -3253,7 +1427,7 @@
         errorLine2="                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="273"
+            line="272"
             column="38"/>
     </issue>
 
@@ -3264,7 +1438,7 @@
         errorLine2="                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="275"
+            line="274"
             column="42"/>
     </issue>
 
@@ -3275,7 +1449,7 @@
         errorLine2="                         ~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="288"
+            line="287"
             column="26"/>
     </issue>
 
@@ -3286,7 +1460,7 @@
         errorLine2="                                         ~~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="441"
+            line="440"
             column="42"/>
     </issue>
 
@@ -3297,7 +1471,7 @@
         errorLine2="                             ~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="509"
+            line="512"
             column="30"/>
     </issue>
 
@@ -3308,7 +1482,7 @@
         errorLine2="                                               ~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="909"
+            line="906"
             column="48"/>
     </issue>
 
@@ -3319,7 +1493,7 @@
         errorLine2="                                               ~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="957"
+            line="954"
             column="48"/>
     </issue>
 
@@ -3330,7 +1504,7 @@
         errorLine2="                                 ~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="977"
+            line="974"
             column="34"/>
     </issue>
 
@@ -3341,7 +1515,7 @@
         errorLine2="                                             ~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="978"
+            line="975"
             column="46"/>
     </issue>
 
@@ -3352,7 +1526,7 @@
         errorLine2="                                ~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="1025"
+            line="1022"
             column="33"/>
     </issue>
 
@@ -3363,7 +1537,7 @@
         errorLine2="                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="1139"
+            line="1136"
             column="38"/>
     </issue>
 
@@ -3374,7 +1548,7 @@
         errorLine2="                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="1141"
+            line="1138"
             column="42"/>
     </issue>
 
@@ -3385,7 +1559,7 @@
         errorLine2="                                               ~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="1157"
+            line="1154"
             column="48"/>
     </issue>
 
@@ -3396,7 +1570,7 @@
         errorLine2="                                               ~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="1231"
+            line="1228"
             column="48"/>
     </issue>
 
@@ -3407,7 +1581,7 @@
         errorLine2="                         ~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="1286"
+            line="1283"
             column="26"/>
     </issue>
 
@@ -3418,7 +1592,7 @@
         errorLine2="                             ~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="1421"
+            line="1419"
             column="30"/>
     </issue>
 
@@ -3429,7 +1603,7 @@
         errorLine2="                                  ~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="1464"
+            line="1462"
             column="35"/>
     </issue>
 
@@ -3440,7 +1614,7 @@
         errorLine2="                                 ~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="1475"
+            line="1473"
             column="34"/>
     </issue>
 
@@ -3451,7 +1625,7 @@
         errorLine2="                                                                ~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="1475"
+            line="1473"
             column="65"/>
     </issue>
 
@@ -3462,7 +1636,7 @@
         errorLine2="                                     ~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="1493"
+            line="1491"
             column="38"/>
     </issue>
 
@@ -3473,7 +1647,7 @@
         errorLine2="                                         ~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="1535"
+            line="1530"
             column="42"/>
     </issue>
 
@@ -3484,7 +1658,7 @@
         errorLine2="                             ~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="1594"
+            line="1589"
             column="30"/>
     </issue>
 
@@ -3495,7 +1669,7 @@
         errorLine2="                                             ~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="1619"
+            line="1614"
             column="46"/>
     </issue>
 
@@ -3506,7 +1680,7 @@
         errorLine2="                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="1829"
+            line="1824"
             column="38"/>
     </issue>
 
@@ -3517,7 +1691,7 @@
         errorLine2="                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="1831"
+            line="1826"
             column="42"/>
     </issue>
 
@@ -3528,7 +1702,7 @@
         errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="1913"
+            line="1908"
             column="35"/>
     </issue>
 
@@ -3539,7 +1713,7 @@
         errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="1926"
+            line="1921"
             column="35"/>
     </issue>
 
@@ -3550,7 +1724,7 @@
         errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="1927"
+            line="1922"
             column="34"/>
     </issue>
 
@@ -3561,7 +1735,7 @@
         errorLine2="                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="1954"
+            line="1949"
             column="38"/>
     </issue>
 
@@ -3572,7 +1746,7 @@
         errorLine2="                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="1956"
+            line="1951"
             column="42"/>
     </issue>
 
@@ -3583,7 +1757,7 @@
         errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="1977"
+            line="1972"
             column="35"/>
     </issue>
 
@@ -3594,7 +1768,7 @@
         errorLine2="                                               ~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="2124"
+            line="2119"
             column="48"/>
     </issue>
 
@@ -3605,7 +1779,7 @@
         errorLine2="                                                                                     ~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="2272"
+            line="2267"
             column="86"/>
     </issue>
 
@@ -3616,7 +1790,7 @@
         errorLine2="                                                   ~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="2280"
+            line="2275"
             column="52"/>
     </issue>
 
@@ -3627,7 +1801,7 @@
         errorLine2="                                ~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="2308"
+            line="2303"
             column="33"/>
     </issue>
 
@@ -3638,7 +1812,7 @@
         errorLine2="                                     ~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="2309"
+            line="2304"
             column="38"/>
     </issue>
 
@@ -3649,7 +1823,7 @@
         errorLine2="                                                       ~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="2539"
+            line="2534"
             column="56"/>
     </issue>
 
@@ -3660,7 +1834,7 @@
         errorLine2="                                               ~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="2604"
+            line="2599"
             column="48"/>
     </issue>
 
@@ -3671,7 +1845,7 @@
         errorLine2="                                               ~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="2608"
+            line="2603"
             column="48"/>
     </issue>
 
@@ -3682,7 +1856,7 @@
         errorLine2="                                                                                 ~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="2695"
+            line="2681"
             column="82"/>
     </issue>
 
@@ -3693,7 +1867,7 @@
         errorLine2="                                                                                  ~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="2696"
+            line="2682"
             column="83"/>
     </issue>
 
@@ -3704,7 +1878,7 @@
         errorLine2="                                                                    ~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="2699"
+            line="2685"
             column="69"/>
     </issue>
 
@@ -3715,7 +1889,7 @@
         errorLine2="                                          ~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetService.java"
-            line="2708"
+            line="2694"
             column="43"/>
     </issue>
 
@@ -3913,7 +2087,7 @@
         errorLine2="                                             ~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetStateMachine.java"
-            line="1155"
+            line="1149"
             column="46"/>
     </issue>
 
@@ -3924,7 +2098,7 @@
         errorLine2="                                             ~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetStateMachine.java"
-            line="1158"
+            line="1152"
             column="46"/>
     </issue>
 
@@ -3935,7 +2109,7 @@
         errorLine2="                                             ~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetStateMachine.java"
-            line="1167"
+            line="1161"
             column="46"/>
     </issue>
 
@@ -3946,7 +2120,7 @@
         errorLine2="                                 ~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetStateMachine.java"
-            line="1261"
+            line="1255"
             column="34"/>
     </issue>
 
@@ -3957,7 +2131,7 @@
         errorLine2="                                 ~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetStateMachine.java"
-            line="1282"
+            line="1276"
             column="34"/>
     </issue>
 
@@ -3968,7 +2142,7 @@
         errorLine2="                                              ~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetStateMachine.java"
-            line="1315"
+            line="1309"
             column="47"/>
     </issue>
 
@@ -3979,7 +2153,7 @@
         errorLine2="                                                    ~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetStateMachine.java"
-            line="1342"
+            line="1336"
             column="53"/>
     </issue>
 
@@ -3990,7 +2164,7 @@
         errorLine2="                                          ~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetStateMachine.java"
-            line="1353"
+            line="1347"
             column="43"/>
     </issue>
 
@@ -4001,7 +2175,7 @@
         errorLine2="                                              ~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetStateMachine.java"
-            line="1385"
+            line="1379"
             column="47"/>
     </issue>
 
@@ -4012,7 +2186,7 @@
         errorLine2="                                              ~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetStateMachine.java"
-            line="1401"
+            line="1395"
             column="47"/>
     </issue>
 
@@ -4023,7 +2197,7 @@
         errorLine2="                                              ~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetStateMachine.java"
-            line="1589"
+            line="1583"
             column="47"/>
     </issue>
 
@@ -4034,7 +2208,7 @@
         errorLine2="                                             ~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetStateMachine.java"
-            line="1619"
+            line="1613"
             column="46"/>
     </issue>
 
@@ -4045,8 +2219,19 @@
         errorLine2="                             ~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetStateMachine.java"
-            line="1934"
+            line="1926"
             column="30"/>
+    </issue>
+
+    <issue
+        id="VisibleForTests"
+        message="This method should only be accessed from tests or within private scope"
+        errorLine1="                mNativeInterface.atResponseCode(mDevice, HeadsetHalConstants.AT_RESPONSE_ERROR, 0);"
+        errorLine2="                                 ~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetStateMachine.java"
+            line="1933"
+            column="34"/>
     </issue>
 
     <issue
@@ -4067,18 +2252,7 @@
         errorLine2="                                 ~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetStateMachine.java"
-            line="1949"
-            column="34"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                mNativeInterface.atResponseCode(mDevice, HeadsetHalConstants.AT_RESPONSE_ERROR, 0);"
-        errorLine2="                                 ~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetStateMachine.java"
-            line="1956"
+            line="1948"
             column="34"/>
     </issue>
 
@@ -4089,7 +2263,7 @@
         errorLine2="                             ~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetStateMachine.java"
-            line="1968"
+            line="1960"
             column="30"/>
     </issue>
 
@@ -4100,7 +2274,7 @@
         errorLine2="                                 ~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetStateMachine.java"
-            line="1977"
+            line="1969"
             column="34"/>
     </issue>
 
@@ -4111,7 +2285,7 @@
         errorLine2="                                 ~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetStateMachine.java"
-            line="1981"
+            line="1973"
             column="34"/>
     </issue>
 
@@ -4122,7 +2296,7 @@
         errorLine2="                                 ~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetStateMachine.java"
-            line="1983"
+            line="1975"
             column="34"/>
     </issue>
 
@@ -4133,7 +2307,7 @@
         errorLine2="                             ~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetStateMachine.java"
-            line="1986"
+            line="1978"
             column="30"/>
     </issue>
 
@@ -4144,7 +2318,7 @@
         errorLine2="                                                              ~~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetStateMachine.java"
-            line="2117"
+            line="2108"
             column="63"/>
     </issue>
 
@@ -4155,7 +2329,7 @@
         errorLine2="                         ~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetStateMachine.java"
-            line="2155"
+            line="2146"
             column="26"/>
     </issue>
 
@@ -4166,7 +2340,7 @@
         errorLine2="                         ~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetStateMachine.java"
-            line="2422"
+            line="2413"
             column="26"/>
     </issue>
 
@@ -4177,7 +2351,7 @@
         errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetStateMachine.java"
-            line="2483"
+            line="2474"
             column="26"/>
     </issue>
 
@@ -4188,7 +2362,7 @@
         errorLine2="                             ~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetStateMachine.java"
-            line="2601"
+            line="2592"
             column="30"/>
     </issue>
 
@@ -4199,7 +2373,7 @@
         errorLine2="                             ~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetStateMachine.java"
-            line="2602"
+            line="2593"
             column="30"/>
     </issue>
 
@@ -4210,7 +2384,7 @@
         errorLine2="                                    ~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetStateMachine.java"
-            line="2603"
+            line="2594"
             column="37"/>
     </issue>
 
@@ -4221,7 +2395,7 @@
         errorLine2="                                 ~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetStateMachine.java"
-            line="2610"
+            line="2601"
             column="34"/>
     </issue>
 
@@ -4232,7 +2406,7 @@
         errorLine2="                                  ~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetStateMachine.java"
-            line="2613"
+            line="2604"
             column="35"/>
     </issue>
 
@@ -4243,7 +2417,7 @@
         errorLine2="                         ~~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetStateMachine.java"
-            line="2740"
+            line="2731"
             column="26"/>
     </issue>
 
@@ -4254,7 +2428,7 @@
         errorLine2="                                                ~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hfp/HeadsetStateMachine.java"
-            line="2740"
+            line="2731"
             column="49"/>
     </issue>
 
@@ -4265,7 +2439,7 @@
         errorLine2="                                                  ~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hearingaid/HearingAidService.java"
-            line="624"
+            line="623"
             column="51"/>
     </issue>
 
@@ -4309,7 +2483,7 @@
         errorLine2="    ~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/le_audio/LeAudioService.java"
-            line="189"
+            line="196"
             column="5"/>
     </issue>
 
@@ -4320,7 +2494,7 @@
         errorLine2="                            ~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/le_audio/LeAudioService.java"
-            line="532"
+            line="540"
             column="29"/>
     </issue>
 
@@ -4331,7 +2505,7 @@
         errorLine2="                                      ~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/le_audio/LeAudioService.java"
-            line="578"
+            line="633"
             column="39"/>
     </issue>
 
@@ -4342,7 +2516,7 @@
         errorLine2="                                                                                ~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/le_audio/LeAudioService.java"
-            line="578"
+            line="633"
             column="81"/>
     </issue>
 
@@ -4353,7 +2527,7 @@
         errorLine2="                                                   ~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/le_audio/LeAudioService.java"
-            line="591"
+            line="646"
             column="52"/>
     </issue>
 
@@ -4364,7 +2538,7 @@
         errorLine2="                            ~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/le_audio/LeAudioService.java"
-            line="668"
+            line="706"
             column="29"/>
     </issue>
 
@@ -4375,7 +2549,7 @@
         errorLine2="                                                   ~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/le_audio/LeAudioService.java"
-            line="2721"
+            line="2808"
             column="52"/>
     </issue>
 
@@ -4386,7 +2560,7 @@
         errorLine2="                                                   ~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/le_audio/LeAudioService.java"
-            line="3490"
+            line="3541"
             column="52"/>
     </issue>
 
@@ -4397,7 +2571,7 @@
         errorLine2="                            ~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/le_audio/LeAudioService.java"
-            line="4645"
+            line="4790"
             column="29"/>
     </issue>
 
@@ -4408,7 +2582,7 @@
         errorLine2="                     ~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/mapclient/MceStateMachine.java"
-            line="277"
+            line="287"
             column="22"/>
     </issue>
 
@@ -4419,7 +2593,7 @@
         errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/pan/PanNativeInterface.java"
-            line="83"
+            line="61"
             column="21"/>
     </issue>
 
@@ -4430,7 +2604,7 @@
         errorLine2="                                 ~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/btservice/PhonePolicy.java"
-            line="229"
+            line="196"
             column="34"/>
     </issue>
 
@@ -4441,7 +2615,7 @@
         errorLine2="                                ~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/btservice/PhonePolicy.java"
-            line="234"
+            line="201"
             column="33"/>
     </issue>
 
@@ -4452,7 +2626,7 @@
         errorLine2="                                    ~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/btservice/PhonePolicy.java"
-            line="647"
+            line="586"
             column="37"/>
     </issue>
 
@@ -4485,690 +2659,8 @@
         errorLine2="                                               ~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="171"
+            line="175"
             column="48"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="        if (request.requestedOpcode == TbsGatt.CALL_CONTROL_POINT_OPCODE_TERMINATE) {"
-        errorLine2="                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="434"
-            column="48"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                result = TbsGatt.CALL_CONTROL_POINT_RESULT_SUCCESS;"
-        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="436"
-            column="34"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                result = TbsGatt.CALL_CONTROL_POINT_RESULT_OPERATION_NOT_POSSIBLE;"
-        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="438"
-            column="34"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="        } else if (request.requestedOpcode == TbsGatt.CALL_CONTROL_POINT_OPCODE_ACCEPT) {"
-        errorLine2="                                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="440"
-            column="55"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                result = TbsGatt.CALL_CONTROL_POINT_RESULT_SUCCESS;"
-        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="442"
-            column="34"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                result = TbsGatt.CALL_CONTROL_POINT_RESULT_OPERATION_NOT_POSSIBLE;"
-        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="444"
-            column="34"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="        } else if (request.requestedOpcode == TbsGatt.CALL_CONTROL_POINT_OPCODE_LOCAL_HOLD) {"
-        errorLine2="                                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="446"
-            column="55"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                result = TbsGatt.CALL_CONTROL_POINT_RESULT_SUCCESS;"
-        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="449"
-            column="34"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                result = TbsGatt.CALL_CONTROL_POINT_RESULT_OPERATION_NOT_POSSIBLE;"
-        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="451"
-            column="34"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="        } else if (request.requestedOpcode == TbsGatt.CALL_CONTROL_POINT_OPCODE_LOCAL_RETRIEVE) {"
-        errorLine2="                                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="453"
-            column="55"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                result = TbsGatt.CALL_CONTROL_POINT_RESULT_SUCCESS;"
-        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="456"
-            column="34"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                result = TbsGatt.CALL_CONTROL_POINT_RESULT_OPERATION_NOT_POSSIBLE;"
-        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="458"
-            column="34"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="        } else if (request.requestedOpcode == TbsGatt.CALL_CONTROL_POINT_OPCODE_ORIGINATE) {"
-        errorLine2="                                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="460"
-            column="55"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                result = TbsGatt.CALL_CONTROL_POINT_RESULT_SUCCESS;"
-        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="462"
-            column="34"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                result = TbsGatt.CALL_CONTROL_POINT_RESULT_OPERATION_NOT_POSSIBLE;"
-        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="464"
-            column="34"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="        } else if (request.requestedOpcode == TbsGatt.CALL_CONTROL_POINT_OPCODE_JOIN) {"
-        errorLine2="                                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="466"
-            column="55"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                result = TbsGatt.CALL_CONTROL_POINT_RESULT_OPERATION_NOT_POSSIBLE;"
-        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="471"
-            column="34"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                result = TbsGatt.CALL_CONTROL_POINT_RESULT_SUCCESS;"
-        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="483"
-            column="34"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            result = TbsGatt.CALL_CONTROL_POINT_RESULT_OPERATION_NOT_POSSIBLE;"
-        errorLine2="                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="486"
-            column="30"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            return TbsGatt.CALL_CONTROL_POINT_RESULT_INVALID_CALL_INDEX;"
-        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="497"
-            column="28"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                &amp;&amp; requestedOpcode == TbsGatt.CALL_CONTROL_POINT_OPCODE_ORIGINATE) {"
-        errorLine2="                                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="501"
-            column="47"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            return TbsGatt.CALL_CONTROL_POINT_RESULT_INVALID_OUTGOING_URI;"
-        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="502"
-            column="28"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="        return TbsGatt.CALL_CONTROL_POINT_RESULT_OPERATION_NOT_POSSIBLE;"
-        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="505"
-            column="24"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                    TbsGatt.CALL_CONTROL_POINT_OPCODE_ORIGINATE,"
-        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="773"
-            column="29"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                    TbsGatt.CALL_CONTROL_POINT_RESULT_SUCCESS);"
-        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="775"
-            column="29"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                            TbsGatt.CALL_CONTROL_POINT_OPCODE_ORIGINATE,"
-        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="783"
-            column="37"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                return TbsGatt.CALL_CONTROL_POINT_RESULT_INVALID_OUTGOING_URI;"
-        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="788"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                return TbsGatt.CALL_CONTROL_POINT_RESULT_OPERATION_NOT_POSSIBLE;"
-        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="795"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="        return TbsGatt.CALL_CONTROL_POINT_RESULT_SUCCESS;"
-        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="803"
-            column="24"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                            case TbsGatt.CALL_CONTROL_POINT_OPCODE_ACCEPT:"
-        errorLine2="                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="850"
-            column="42"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                            case TbsGatt.CALL_CONTROL_POINT_OPCODE_TERMINATE:"
-        errorLine2="                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="851"
-            column="42"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                            case TbsGatt.CALL_CONTROL_POINT_OPCODE_LOCAL_HOLD:"
-        errorLine2="                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="852"
-            column="42"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                            case TbsGatt.CALL_CONTROL_POINT_OPCODE_LOCAL_RETRIEVE:"
-        errorLine2="                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="853"
-            column="42"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                                                        .CALL_CONTROL_POINT_RESULT_OPERATION_NOT_POSSIBLE;"
-        errorLine2="                                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="858"
-            column="58"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                                                        .CALL_CONTROL_POINT_RESULT_INVALID_CALL_INDEX;"
-        errorLine2="                                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="867"
-            column="58"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                                        result = TbsGatt.CALL_CONTROL_POINT_RESULT_STATE_MISMATCH;"
-        errorLine2="                                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="873"
-            column="58"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                                        if (opcode == TbsGatt.CALL_CONTROL_POINT_OPCODE_ACCEPT) {"
-        errorLine2="                                                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="883"
-            column="63"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                                                == TbsGatt.CALL_CONTROL_POINT_OPCODE_TERMINATE) {"
-        errorLine2="                                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="888"
-            column="60"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                                                == TbsGatt.CALL_CONTROL_POINT_OPCODE_LOCAL_HOLD) {"
-        errorLine2="                                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="892"
-            column="60"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                                                                .CALL_CONTROL_POINT_RESULT_OPCODE_NOT_SUPPORTED;"
-        errorLine2="                                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="899"
-            column="66"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                                                                .CALL_CONTROL_POINT_RESULT_OPCODE_NOT_SUPPORTED;"
-        errorLine2="                                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="911"
-            column="66"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                                                        .CALL_CONTROL_POINT_RESULT_OPERATION_NOT_POSSIBLE;"
-        errorLine2="                                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="925"
-            column="58"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                                    result = TbsGatt.CALL_CONTROL_POINT_RESULT_SUCCESS;"
-        errorLine2="                                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="932"
-            column="54"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                            case TbsGatt.CALL_CONTROL_POINT_OPCODE_ORIGINATE:"
-        errorLine2="                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="936"
-            column="42"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                            case TbsGatt.CALL_CONTROL_POINT_OPCODE_JOIN:"
-        errorLine2="                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="942"
-            column="42"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                                                        .CALL_CONTROL_POINT_RESULT_OPERATION_NOT_POSSIBLE;"
-        errorLine2="                                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="948"
-            column="58"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                                    result = TbsGatt.CALL_CONTROL_POINT_RESULT_SUCCESS;"
-        errorLine2="                                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="954"
-            column="54"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                                                            .CALL_CONTROL_POINT_RESULT_INVALID_CALL_INDEX;"
-        errorLine2="                                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="960"
-            column="62"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                                                            .CALL_CONTROL_POINT_RESULT_OPERATION_NOT_POSSIBLE;"
-        errorLine2="                                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="975"
-            column="62"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                                    if (result != TbsGatt.CALL_CONTROL_POINT_RESULT_SUCCESS) {"
-        errorLine2="                                                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="982"
-            column="59"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                                                        .CALL_CONTROL_POINT_RESULT_OPERATION_NOT_POSSIBLE;"
-        errorLine2="                                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="1000"
-            column="58"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                                    result = TbsGatt.CALL_CONTROL_POINT_RESULT_SUCCESS;"
-        errorLine2="                                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="1007"
-            column="54"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                                result = TbsGatt.CALL_CONTROL_POINT_RESULT_OPCODE_NOT_SUPPORTED;"
-        errorLine2="                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="1012"
-            column="50"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="                        if (result == TbsGatt.CALL_CONTROL_POINT_RESULT_SUCCESS) {"
-        errorLine2="                                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="1016"
-            column="47"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            case TbsGatt.CALL_CONTROL_POINT_OPCODE_ACCEPT:"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="1028"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            case TbsGatt.CALL_CONTROL_POINT_OPCODE_TERMINATE:"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="1030"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            case TbsGatt.CALL_CONTROL_POINT_OPCODE_LOCAL_HOLD:"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="1032"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            case TbsGatt.CALL_CONTROL_POINT_OPCODE_LOCAL_RETRIEVE:"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="1034"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            case TbsGatt.CALL_CONTROL_POINT_OPCODE_ACCEPT:"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="1216"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            case TbsGatt.CALL_CONTROL_POINT_OPCODE_TERMINATE:"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="1222"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            case TbsGatt.CALL_CONTROL_POINT_OPCODE_LOCAL_HOLD:"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="1226"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope"
-        errorLine1="            case TbsGatt.CALL_CONTROL_POINT_OPCODE_LOCAL_RETRIEVE:"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/tbs/TbsGeneric.java"
-            line="1234"
-            column="26"/>
     </issue>
 
     <issue
@@ -5188,7 +2680,7 @@
         errorLine1="&lt;manifest xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
         errorLine2=" ~~~~~~~~">
         <location
-            file="./out/soong/.intermediates/packages/modules/Bluetooth/android/app/Bluetooth/android_common_apex33/manifest_merger/AndroidManifest.xml"
+            file="./out/soong/.intermediates/packages/modules/Bluetooth/android/app/Bluetooth/android_common_apex35/manifest_merger/AndroidManifest.xml"
             line="2"
             column="2"/>
     </issue>
@@ -5199,7 +2691,7 @@
         errorLine1="&lt;manifest xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
         errorLine2=" ~~~~~~~~">
         <location
-            file="./out/soong/.intermediates/packages/modules/Bluetooth/android/app/Bluetooth/android_common_apex33/manifest_merger/AndroidManifest.xml"
+            file="./out/soong/.intermediates/packages/modules/Bluetooth/android/app/Bluetooth/android_common_apex35/manifest_merger/AndroidManifest.xml"
             line="2"
             column="2"/>
     </issue>
@@ -5210,7 +2702,7 @@
         errorLine1="        &lt;provider"
         errorLine2="         ~~~~~~~~">
         <location
-            file="./out/soong/.intermediates/packages/modules/Bluetooth/android/app/Bluetooth/android_common_apex33/manifest_merger/AndroidManifest.xml"
+            file="./out/soong/.intermediates/packages/modules/Bluetooth/android/app/Bluetooth/android_common_apex35/manifest_merger/AndroidManifest.xml"
             line="144"
             column="10"/>
     </issue>
@@ -5221,7 +2713,7 @@
         errorLine1="        &lt;receiver"
         errorLine2="         ~~~~~~~~">
         <location
-            file="./out/soong/.intermediates/packages/modules/Bluetooth/android/app/Bluetooth/android_common_apex33/manifest_merger/AndroidManifest.xml"
+            file="./out/soong/.intermediates/packages/modules/Bluetooth/android/app/Bluetooth/android_common_apex35/manifest_merger/AndroidManifest.xml"
             line="209"
             column="10"/>
     </issue>
@@ -5232,7 +2724,7 @@
         errorLine1="        &lt;service"
         errorLine2="         ~~~~~~~">
         <location
-            file="./out/soong/.intermediates/packages/modules/Bluetooth/android/app/Bluetooth/android_common_apex33/manifest_merger/AndroidManifest.xml"
+            file="./out/soong/.intermediates/packages/modules/Bluetooth/android/app/Bluetooth/android_common_apex35/manifest_merger/AndroidManifest.xml"
             line="129"
             column="10"/>
     </issue>
@@ -5243,7 +2735,7 @@
         errorLine1="        &lt;service"
         errorLine2="         ~~~~~~~">
         <location
-            file="./out/soong/.intermediates/packages/modules/Bluetooth/android/app/Bluetooth/android_common_apex33/manifest_merger/AndroidManifest.xml"
+            file="./out/soong/.intermediates/packages/modules/Bluetooth/android/app/Bluetooth/android_common_apex35/manifest_merger/AndroidManifest.xml"
             line="348"
             column="10"/>
     </issue>
@@ -5254,7 +2746,7 @@
         errorLine1="                android:permission=&quot;android.permission.ACCESS_BLUETOOTH_SHARE&quot; />"
         errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="./out/soong/.intermediates/packages/modules/Bluetooth/android/app/Bluetooth/android_common_apex33/manifest_merger/AndroidManifest.xml"
+            file="./out/soong/.intermediates/packages/modules/Bluetooth/android/app/Bluetooth/android_common_apex35/manifest_merger/AndroidManifest.xml"
             line="206"
             column="17"/>
     </issue>
@@ -5265,7 +2757,18 @@
         errorLine1="    &lt;uses-permission android:name=&quot;android.permission.QUERY_ALL_PACKAGES&quot; />"
         errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="./out/soong/.intermediates/packages/modules/Bluetooth/android/app/Bluetooth/android_common_apex33/manifest_merger/AndroidManifest.xml"
+            file="./out/soong/.intermediates/packages/modules/Bluetooth/android/app/Bluetooth/android_common_apex35/manifest_merger/AndroidManifest.xml"
+            line="61"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="QueryAllPackagesPermission"
+        message="A `&lt;queries>` declaration should generally be used instead of QUERY_ALL_PACKAGES; see https://g.co/dev/packagevisibility for details"
+        errorLine1="    &lt;uses-permission android:name=&quot;android.permission.QUERY_ALL_PACKAGES&quot; />"
+        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="./out/soong/.intermediates/packages/modules/Bluetooth/android/app/Bluetooth/android_common_apex35/manifest_merger/AndroidManifest.xml"
             line="61"
             column="22"/>
     </issue>
@@ -5310,7 +2813,7 @@
         errorLine2="                                          ~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/sap/SapService.java"
-            line="505"
+            line="511"
             column="43"/>
     </issue>
 
@@ -5321,7 +2824,7 @@
         errorLine2="                ~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/btservice/AdapterService.java"
-            line="6276"
+            line="6560"
             column="17"/>
     </issue>
 
@@ -5387,7 +2890,7 @@
         errorLine2="            ~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/sap/SapService.java"
-            line="296"
+            line="302"
             column="13"/>
     </issue>
 
@@ -5398,8 +2901,19 @@
         errorLine2="                                ~~~~~~~~~~~~~~~~~~~">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/sap/SapService.java"
-            line="494"
+            line="500"
             column="33"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; SDK_INT is always >= 35"
+        errorLine1="@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)"
+        errorLine2="~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/btservice/AdapterSuspend.java"
+            line="36"
+            column="1"/>
     </issue>
 
     <issue
@@ -5420,7 +2934,7 @@
         errorLine2="        ^">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/btservice/AdapterService.java"
-            line="748"
+            line="759"
             column="9"/>
     </issue>
 
@@ -5497,7 +3011,7 @@
         errorLine2="            ^">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/opp/BluetoothOppNotification.java"
-            line="230"
+            line="229"
             column="13"/>
     </issue>
 
@@ -5508,7 +3022,7 @@
         errorLine2="            ^">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/opp/BluetoothOppService.java"
-            line="384"
+            line="370"
             column="13"/>
     </issue>
 
@@ -5530,7 +3044,7 @@
         errorLine2="            ^">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/hid/HidHostService.java"
-            line="376"
+            line="348"
             column="13"/>
     </issue>
 
@@ -5541,7 +3055,7 @@
         errorLine2="            ^">
         <location
             file="packages/modules/Bluetooth/android/app/src/com/android/bluetooth/sap/SapService.java"
-            line="456"
+            line="462"
             column="13"/>
     </issue>
 
