@@ -37,10 +37,10 @@ import static org.mockito.Mockito.verify;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.os.Looper;
-import android.os.test.TestLooper;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.bluetooth.TestLooper;
 import com.android.bluetooth.TestUtils;
 
 import org.junit.Before;

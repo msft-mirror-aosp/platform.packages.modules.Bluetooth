@@ -46,10 +46,11 @@ import static org.mockito.Mockito.verify;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.Intent;
-import android.os.test.TestLooper;
 
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
+
+import com.android.bluetooth.TestLooper;
 
 import org.hamcrest.Matcher;
 import org.hamcrest.core.AllOf;
