@@ -23,8 +23,6 @@ java_defaults {
         "framework-tethering.stubs.module_lib",
         "javax.obex.stubs",
         "libprotobuf-java-micro",
-        "modules-utils-handlerexecutor",
-        "telephony-common",
     ],
 
     static_libs: [
@@ -46,6 +44,7 @@ java_defaults {
         "gson",
         "mmslib",
         "mockito-target",
+        "modules-utils-handlerexecutor",
         "platform-parametric-runner-lib",
         "platform-test-annotations",
         "truth",
@@ -60,7 +59,6 @@ java_defaults {
         include_filter: ["android.bluetooth.*"],
         exclude_filter: [],
     },
-    platform_apis: true,
 
     test_suites: [
         "automotive-general-tests",
