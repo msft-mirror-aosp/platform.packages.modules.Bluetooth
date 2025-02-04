@@ -120,7 +120,7 @@ public class PairingTest {
     @Mock private BluetoothProfile.ServiceListener mProfileServiceListener;
 
     /* Util instance for common test steps with current Context reference */
-    private TestUtil util;
+    private TestUtil mUtil;
     private BluetoothDevice mBumbleDevice;
     private BluetoothDevice mRemoteLeDevice;
     private BluetoothHidHost mHidService;
@@ -129,14 +129,14 @@ public class PairingTest {
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
-        util = new TestUtil.Builder(sTargetContext)
+        mUtil = new TestUtil.Builder(sTargetContext)
                 .setProfileServiceListener(mProfileServiceListener)
                 .setBluetoothAdapter(sAdapter)
                 .build();
 
         // Get profile proxies
-        mHidService = (BluetoothHidHost) util.getProfileProxy(BluetoothProfile.HID_HOST);
-        mHfpService = (BluetoothHeadset) util.getProfileProxy(BluetoothProfile.HEADSET);
+        mHidService = (BluetoothHidHost) mUtil.getProfileProxy(BluetoothProfile.HID_HOST);
+        mHfpService = (BluetoothHeadset) mUtil.getProfileProxy(BluetoothProfile.HEADSET);
 
         mBumbleDevice = mBumble.getRemoteDevice();
         mRemoteLeDevice =
@@ -149,7 +149,7 @@ public class PairingTest {
          *  must be passed instead of NULL.
          */
         for (BluetoothDevice device : sAdapter.getBondedDevices()) {
-            util.removeBond(null, device);
+            mUtil.removeBond(null, device);
         }
     }
 
@@ -163,10 +163,10 @@ public class PairingTest {
          *  must be passed instead of NULL.
          */
         if (bondedDevices.contains(mBumbleDevice)) {
-            util.removeBond(null, mBumbleDevice);
+            mUtil.removeBond(null, mBumbleDevice);
         }
         if (bondedDevices.contains(mRemoteLeDevice)) {
-            util.removeBond(null, mRemoteLeDevice);
+            mUtil.removeBond(null, mRemoteLeDevice);
         }
         mBumbleDevice = null;
         mRemoteLeDevice = null;
