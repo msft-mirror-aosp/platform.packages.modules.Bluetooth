@@ -11,6 +11,7 @@
     </target_preparer>
 
     <target_preparer class="com.android.tradefed.targetprep.PythonVirtualenvPreparer">
+        <!-- TODO(b/267785204): Import python dependencies -->
         <option name="dep-module" value="grpcio==1.51.1" />
         <option name="dep-module" value="cryptography==35" />
     </target_preparer>
@@ -58,5 +59,10 @@
         <option name="collect-on-run-ended-only" value="false" />
         <option name="clean-up" value="false" />
     </metrics_collector>
+
+    <object type="module_controller" class="com.android.tradefed.testtype.suite.module.MainlineTestModuleController">
+        <option name="mainline-module-package-name" value="com.android.bt" />
+        <option name="mainline-module-package-name" value="com.google.android.bt" />
+    </object>
 </configuration>
 
