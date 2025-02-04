@@ -67,57 +67,52 @@ import java.util.UUID;
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class AvrcpControllerStateMachineTest {
+    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+
+    @Rule
+    public final ServiceTestRule mBluetoothBrowserMediaServiceTestRule = new ServiceTestRule();
+
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
+    @Mock private AdapterService mAdapterService;
+    @Mock private A2dpSinkService mA2dpSinkService;
+    @Mock private Resources mMockResources;
+    @Mock private AvrcpControllerService mAvrcpControllerService;
+    @Mock private AvrcpControllerNativeInterface mNativeInterface;
+    @Mock private AvrcpCoverArtManager mCoverArtManager;
+    @Mock private AudioManager mAudioManager;
+
     private static final int ASYNC_CALL_TIMEOUT_MILLIS = 100;
     private static final int KEY_DOWN = 0;
     private static final int KEY_UP = 1;
     private static final int UUID_START = 0;
     private static final int UUID_LENGTH = 25;
 
-    private BluetoothAdapter mAdapter;
-
-    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
-
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
-
-    @Mock private AdapterService mAdapterService;
-
-    @Mock private A2dpSinkService mA2dpSinkService;
-    @Mock private Resources mMockResources;
-
-    @Mock private AvrcpControllerService mAvrcpControllerService;
-    @Mock private AvrcpControllerNativeInterface mNativeInterface;
-    @Mock private AvrcpCoverArtManager mCoverArtManager;
-    @Mock private AudioManager mAudioManager;
-
-    @Rule
-    public final ServiceTestRule mBluetoothBrowserMediaServiceTestRule = new ServiceTestRule();
+    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
+    private final byte[] mTestAddress = new byte[] {01, 01, 01, 01, 01, 01};
+    private final BluetoothDevice mTestDevice = mAdapter.getRemoteDevice(mTestAddress);
 
     private ArgumentCaptor<Intent> mIntentArgument = ArgumentCaptor.forClass(Intent.class);
-
-    private byte[] mTestAddress = new byte[] {01, 01, 01, 01, 01, 01};
-    private BluetoothDevice mTestDevice = null;
-    private AvrcpControllerStateMachine mAvrcpStateMachine = null;
+    private AvrcpControllerStateMachine mAvrcpStateMachine;
+    private BrowseTree mBrowseTree;
 
     @Before
     public void setUp() throws Exception {
-        if (Looper.myLooper() == null) {
-            Looper.prepare();
-        }
+        mBrowseTree = new BrowseTree(null);
 
-        // Set a mock Adapter Service for profile state change notifications
-        TestUtils.setAdapterService(mAdapterService);
-
-        // Set a mock A2dpSinkService for audio focus calls
-        A2dpSinkService.setA2dpSinkService(mA2dpSinkService);
-
-        // Mock an AvrcpControllerService to give to all state machines
         doReturn(BluetoothProfile.STATE_DISCONNECTED).when(mCoverArtManager).getState(any());
+
         doReturn(15).when(mAudioManager).getStreamMaxVolume(anyInt());
         doReturn(8).when(mAudioManager).getStreamVolume(anyInt());
         doReturn(true).when(mAudioManager).isVolumeFixed();
-        when(mMockResources.getBoolean(R.bool.a2dp_sink_automatically_request_audio_focus))
-                .thenReturn(true);
+
+        doReturn(true)
+                .when(mMockResources)
+                .getBoolean(R.bool.a2dp_sink_automatically_request_audio_focus);
+
         doReturn(mMockResources).when(mAvrcpControllerService).getResources();
+        doReturn(mBrowseTree).when(mAvrcpControllerService).getBrowseTree();
+
         doReturn(mAudioManager)
                 .when(mAvrcpControllerService)
                 .getSystemService(Context.AUDIO_SERVICE);
@@ -125,7 +120,13 @@ public class AvrcpControllerStateMachineTest {
                 .when(mAvrcpControllerService)
                 .getSystemServiceName(AudioManager.class);
         doReturn(mCoverArtManager).when(mAvrcpControllerService).getCoverArtManager();
-        mAvrcpControllerService.sBrowseTree = new BrowseTree(null);
+        if (Looper.myLooper() == null) {
+            Looper.prepare();
+        }
+
+        // Set a mock A2dpSinkService for audio focus calls
+        A2dpSinkService.setA2dpSinkService(mA2dpSinkService);
+
         AvrcpControllerService.setAvrcpControllerService(mAvrcpControllerService);
 
         // Start the Bluetooth Media Browser Service
@@ -136,11 +137,6 @@ public class AvrcpControllerStateMachineTest {
         // Ensure our MediaBrowserService starts with a blank state
         BluetoothMediaBrowserService.reset();
 
-        // This line must be called to make sure relevant objects are initialized properly
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
-
-        // Set up device and state machine under test
-        mTestDevice = mAdapter.getRemoteDevice(mTestAddress);
         mAvrcpStateMachine = makeStateMachine(mTestDevice);
 
         setActiveDevice(mTestDevice);
@@ -151,14 +147,13 @@ public class AvrcpControllerStateMachineTest {
         destroyStateMachine(mAvrcpStateMachine);
         A2dpSinkService.setA2dpSinkService(null);
         AvrcpControllerService.setAvrcpControllerService(null);
-        TestUtils.clearAdapterService(mAdapterService);
     }
 
     /** Create a state machine to test */
     private AvrcpControllerStateMachine makeStateMachine(BluetoothDevice device) {
         AvrcpControllerStateMachine sm =
                 new AvrcpControllerStateMachine(
-                        device, mAvrcpControllerService, mNativeInterface, false);
+                        mAdapterService, mAvrcpControllerService, device, mNativeInterface, false);
         sm.start();
         return sm;
     }
@@ -404,9 +399,9 @@ public class AvrcpControllerStateMachineTest {
     @Test
     @FlakyTest
     public void testBrowsingOnly() {
-        assertThat(mAvrcpControllerService.sBrowseTree.mRootNode.getChildrenCount()).isEqualTo(0);
+        assertThat(mBrowseTree.mRootNode.getChildrenCount()).isEqualTo(0);
         int numBroadcastsSent = setUpConnectedState(false, true);
-        assertThat(mAvrcpControllerService.sBrowseTree.mRootNode.getChildrenCount()).isEqualTo(1);
+        assertThat(mBrowseTree.mRootNode.getChildrenCount()).isEqualTo(1);
         assertThat(BluetoothMediaBrowserService.getPlaybackState().getState())
                 .isEqualTo(PlaybackStateCompat.STATE_NONE);
         mAvrcpStateMachine.disconnect();
@@ -1062,7 +1057,11 @@ public class AvrcpControllerStateMachineTest {
         doReturn(false).when(mAudioManager).isVolumeFixed();
         mAvrcpStateMachine =
                 new AvrcpControllerStateMachine(
-                        mTestDevice, mAvrcpControllerService, mNativeInterface, false);
+                        mAdapterService,
+                        mAvrcpControllerService,
+                        mTestDevice,
+                        mNativeInterface,
+                        false);
         mAvrcpStateMachine.start();
         byte label = 42;
         setUpConnectedState(true, true);
@@ -1084,7 +1083,11 @@ public class AvrcpControllerStateMachineTest {
         doReturn(false).when(mAudioManager).isVolumeFixed();
         mAvrcpStateMachine =
                 new AvrcpControllerStateMachine(
-                        mTestDevice, mAvrcpControllerService, mNativeInterface, true);
+                        mAdapterService,
+                        mAvrcpControllerService,
+                        mTestDevice,
+                        mNativeInterface,
+                        true);
         mAvrcpStateMachine.start();
         byte label = 42;
         setUpConnectedState(true, true);
