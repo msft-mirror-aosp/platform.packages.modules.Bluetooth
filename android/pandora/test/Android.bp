@@ -34,7 +34,10 @@ python_test_host {
     required: [
         "aapt",
     ],
-    test_suites: ["general-tests"],
+    test_suites: [
+        "general-tests",
+        "mts-bt",
+    ],
     test_options: {
         unit_test: false,
     },
