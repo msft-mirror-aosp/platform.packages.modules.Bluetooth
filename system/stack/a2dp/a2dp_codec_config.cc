@@ -159,8 +159,6 @@ void A2dpCodecConfig::setDefaultCodecPriority() {
 
 A2dpCodecConfig* A2dpCodecConfig::createCodec(btav_a2dp_codec_index_t codec_index,
                                               btav_a2dp_codec_priority_t codec_priority) {
-  log::info("{}", A2DP_CodecIndexStr(codec_index));
-
   // Hardware offload codec extensibility:
   // management of the codec is moved under the ProviderInfo
   // class of the aidl audio HAL client.
@@ -683,10 +681,6 @@ bool A2dpCodecs::init() {
     A2dpCodecConfig* codec_config = A2dpCodecConfig::createCodec(codec_index, codec_priority);
     if (codec_config == nullptr) {
       continue;
-    }
-
-    if (codec_priority != BTAV_A2DP_CODEC_PRIORITY_DEFAULT) {
-      log::info("updated {} codec priority to {}", codec_config->name(), codec_priority);
     }
 
     // Test if the codec is disabled
