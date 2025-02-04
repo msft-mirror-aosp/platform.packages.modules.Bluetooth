@@ -563,9 +563,8 @@ static void bta_dm_gatt_disc_complete(tCONN_ID conn_id, tGATT_STATUS status) {
     if (bta_dm_discovery_cb.transports & BT_TRANSPORT_BR_EDR) {
       log::info("classic discovery still pending {}", bta_dm_discovery_cb.peer_bdaddr);
       return;
-    } else {
-      bta_dm_discovery_set_state(BTA_DM_DISCOVER_IDLE);
     }
+    bta_dm_discovery_set_state(BTA_DM_DISCOVER_IDLE);
     bta_dm_execute_queued_discovery_request();
   }
 }
