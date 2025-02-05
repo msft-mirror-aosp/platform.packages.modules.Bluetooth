@@ -186,7 +186,6 @@ android_add_library(
       model/controller/sco_connection.cc
       model/controller/vendor_commands/le_apcf.cc
       model/devices/beacon.cc
-      model/devices/beacon_swarm.cc
       model/devices/device.cc
       model/devices/hci_device.cc
       model/devices/link_layer_socket_device.cc
