@@ -1790,7 +1790,6 @@ public class HeadsetStateMachineTest {
     }
 
     @RequiresFlagsEnabled(FLAG_DEPRECATE_STREAM_BT_SCO)
-    @Ignore("b/393399561")
     @Test
     public void testProcessVolumeEvent_withVolumeTypeSpkAndStreamVoiceCall() {
         when(mHeadsetService.getActiveDevice()).thenReturn(mTestDevice);
