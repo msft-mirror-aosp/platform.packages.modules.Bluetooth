@@ -176,10 +176,9 @@ public:
   uint8_t GetSupportedAudioChannelCounts(uint8_t direction) const;
   uint8_t GetPhyBitmask(void) const;
   uint8_t GetPreferredPhyBitmask(uint8_t preferred_phy) const;
-  bool IsAudioSetConfigurationSupported(
-          const set_configurations::AudioSetConfiguration* audio_set_conf) const;
-  bool ConfigureAses(const set_configurations::AudioSetConfiguration* audio_set_conf,
-                     uint8_t group_size, uint8_t direction, types::LeAudioContextType context_type,
+  bool IsAudioSetConfigurationSupported(const types::AudioSetConfiguration* audio_set_conf) const;
+  bool ConfigureAses(const types::AudioSetConfiguration* audio_set_conf, uint8_t group_size,
+                     uint8_t direction, types::LeAudioContextType context_type,
                      uint8_t* number_of_already_active_group_ase,
                      types::AudioLocations& group_audio_locations_out,
                      const types::AudioContexts& metadata_context_types,
@@ -224,7 +223,7 @@ public:
   void Dump(std::stringstream& stream);
 
   void DisconnectAcl(void);
-  std::vector<uint8_t> GetMetadata(types::AudioContexts context_type,
+  types::LeAudioLtvMap GetMetadata(types::AudioContexts context_type,
                                    const std::vector<uint8_t>& ccid_list);
   bool IsMetadataChanged(const types::BidirectionalPair<types::AudioContexts>& context_types,
                          const types::BidirectionalPair<std::vector<uint8_t>>& ccid_lists);

@@ -183,11 +183,11 @@ EXPORT_SYMBOL module_t device_iot_config_module = {.name = DEVICE_IOT_CONFIG_MOD
                                                    .clean_up = device_iot_config_module_clean_up};
 
 void device_iot_config_write(uint16_t event, UNUSED_ATTR char* p_param) {
+  std::unique_lock<std::mutex> lock(config_lock);
   log::assert_that(config != NULL, "assert failed: config != NULL");
   log::assert_that(config_timer != NULL, "assert failed: config_timer != NULL");
 
   log::info("evt={}", event);
-  std::unique_lock<std::mutex> lock(config_lock);
   if (event == IOT_CONFIG_SAVE_TIMER_FIRED_EVT) {
     device_iot_config_set_modified_time();
   }

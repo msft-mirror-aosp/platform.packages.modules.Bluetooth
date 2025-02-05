@@ -1127,16 +1127,16 @@ void BtifAvSource::Init(btav_source_callbacks_t* callbacks, int max_connected_au
                         const std::vector<btav_a2dp_codec_config_t>& offloading_preference,
                         std::vector<btav_a2dp_codec_info_t>* supported_codecs,
                         std::promise<bt_status_t> complete_promise) {
+  callbacks_ = callbacks;
+  max_connected_peers_ = max_connected_audio_devices;
   log::info("max_connected_audio_devices={}", max_connected_audio_devices);
+
   Cleanup();
   CleanupAllPeers();
-  max_connected_peers_ = max_connected_audio_devices;
 
-  /* A2DP OFFLOAD */
   a2dp_offload_enabled_ = GetInterfaceToProfiles()->config->isA2DPOffloadEnabled();
-  log::verbose("a2dp_offload.enable = {}", a2dp_offload_enabled_);
+  log::info("a2dp_offload.enable={}", a2dp_offload_enabled_);
 
-  callbacks_ = callbacks;
   if (a2dp_offload_enabled_) {
     tBTM_BLE_VSC_CB vsc_cb = {};
     BTM_BleGetVendorCapabilities(&vsc_cb);
@@ -1145,12 +1145,14 @@ void BtifAvSource::Init(btav_source_callbacks_t* callbacks, int max_connected_au
     bluetooth::audio::a2dp::update_codec_offloading_capabilities(offloading_preference,
                                                                  supports_a2dp_hw_offload_v2);
   }
+
   bta_av_co_init(codec_priorities, supported_codecs);
 
   if (!btif_a2dp_source_init()) {
     complete_promise.set_value(BT_STATUS_FAIL);
     return;
   }
+
   enabled_ = true;
   btif_enable_service(BTA_A2DP_SOURCE_SERVICE_ID);
   complete_promise.set_value(BT_STATUS_SUCCESS);
@@ -3412,6 +3414,7 @@ bt_status_t btif_av_source_init(btav_source_callbacks_t* callbacks, int max_conn
 // Initializes the AV interface for sink mode
 bt_status_t btif_av_sink_init(btav_sink_callbacks_t* callbacks, int max_connected_audio_devices) {
   log::info("");
+
   std::promise<bt_status_t> init_complete_promise;
   std::future<bt_status_t> init_complete_promise_future = init_complete_promise.get_future();
   const auto status = do_in_main_thread(

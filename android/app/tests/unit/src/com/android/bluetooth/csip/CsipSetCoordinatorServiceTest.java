@@ -54,11 +54,11 @@ import android.bluetooth.IBluetoothCsipSetCoordinatorLockCallback;
 import android.content.Intent;
 import android.os.ParcelUuid;
 import android.os.RemoteException;
-import android.os.test.TestLooper;
 
 import androidx.test.filters.MediumTest;
 import androidx.test.runner.AndroidJUnit4;
 
+import com.android.bluetooth.TestLooper;
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.AdapterService;

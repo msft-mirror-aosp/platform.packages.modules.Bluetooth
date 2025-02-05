@@ -86,6 +86,12 @@ void BTM_SecAddDevice(const RawAddress& bd_addr, DEV_CLASS dev_class, LinkKey li
 
   if (!p_dev_rec) {
     p_dev_rec = btm_sec_allocate_dev_rec();
+
+    if (p_dev_rec == nullptr) {
+      log::warn("device record allocation failed bd_addr:{}", bd_addr);
+      return;
+    }
+
     log::info(
             "Caching new record from config file device: {}, dev_class: {:02x}:{:02x}:{:02x}, "
             "link_key_type: 0x{:x}",
@@ -160,7 +166,7 @@ void BTM_SecAddDevice(const RawAddress& bd_addr, DEV_CLASS dev_class, LinkKey li
  */
 bool BTM_SecDeleteDevice(const RawAddress& bd_addr) {
   tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bd_addr);
-  if (p_dev_rec == NULL) {
+  if (p_dev_rec == nullptr) {
     log::warn("Unable to delete link key for unknown device {}", bd_addr);
     return true;
   }
@@ -206,7 +212,8 @@ bool BTM_SecDeleteDevice(const RawAddress& bd_addr) {
  ******************************************************************************/
 void BTM_SecClearSecurityFlags(const RawAddress& bd_addr) {
   tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bd_addr);
-  if (p_dev_rec == NULL) {
+  if (p_dev_rec == nullptr) {
+    log::warn("Unable to clear security flags for unknown device {}", bd_addr);
     return;
   }
 
@@ -272,6 +279,11 @@ tBTM_SEC_DEV_REC* btm_sec_alloc_dev(const RawAddress& bd_addr) {
   tBTM_INQ_INFO* p_inq_info;
 
   tBTM_SEC_DEV_REC* p_dev_rec = btm_sec_allocate_dev_rec();
+
+  if (p_dev_rec == nullptr) {
+    log::warn("device record allocation failed bd_addr:{}", bd_addr);
+    return NULL;
+  }
 
   log::debug("Allocated device record bd_addr:{}", bd_addr);
 
@@ -567,7 +579,7 @@ tBTM_SEC_DEV_REC* btm_find_or_alloc_dev(const RawAddress& bd_addr) {
   tBTM_SEC_DEV_REC* p_dev_rec;
   log::verbose("btm_find_or_alloc_dev");
   p_dev_rec = btm_find_dev(bd_addr);
-  if (p_dev_rec == NULL) {
+  if (p_dev_rec == nullptr) {
     /* Allocate a new device record or reuse the oldest one */
     p_dev_rec = btm_sec_alloc_dev(bd_addr);
   }
@@ -671,7 +683,7 @@ tBTM_SEC_DEV_REC* btm_sec_allocate_dev_rec(void) {
 tBTM_BOND_TYPE btm_get_bond_type_dev(const RawAddress& bd_addr) {
   tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bd_addr);
 
-  if (p_dev_rec == NULL) {
+  if (p_dev_rec == nullptr) {
     return BOND_TYPE_UNKNOWN;
   }
 
@@ -691,7 +703,7 @@ tBTM_BOND_TYPE btm_get_bond_type_dev(const RawAddress& bd_addr) {
 bool btm_set_bond_type_dev(const RawAddress& bd_addr, tBTM_BOND_TYPE bond_type) {
   tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bd_addr);
 
-  if (p_dev_rec == NULL) {
+  if (p_dev_rec == nullptr) {
     return false;
   }
 
@@ -742,7 +754,7 @@ bool BTM_Sec_AddressKnown(const RawAddress& address) {
   tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(address);
 
   // not a known device, we assume public address
-  if (p_dev_rec == NULL) {
+  if (p_dev_rec == nullptr) {
     log::warn("{}, unknown device", address);
     return true;
   }

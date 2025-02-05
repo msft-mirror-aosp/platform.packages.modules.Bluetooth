@@ -829,8 +829,9 @@ public class HapClientService extends ProfileService {
                             new Intent(BluetoothHapClient.ACTION_HAP_DEVICE_AVAILABLE)
                                     .putExtra(BluetoothDevice.EXTRA_DEVICE, device)
                                     .putExtra(BluetoothHapClient.EXTRA_HAP_FEATURES, features);
-                    sendBroadcastWithMultiplePermissions(
-                            intent, new String[] {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED});
+                    getBaseContext()
+                            .sendBroadcastWithMultiplePermissions(
+                                    intent, new String[] {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED});
                 }
             }
 

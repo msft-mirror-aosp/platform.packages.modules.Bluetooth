@@ -168,9 +168,10 @@ typedef struct {
 
   tPORT_CONNECTION_STATE state; /* State of the application */
 
-  uint8_t scn;      /* Service channel number */
-  uint16_t uuid;    /* Service UUID */
-  uint32_t app_uid; /* UID of the app for which this socket was created */
+  uint8_t scn;              /* Service channel number */
+  uint16_t uuid;            /* Service UUID */
+  uint32_t app_uid;         /* UID of the app for which this socket was created */
+  uint64_t sdp_duration_ms; /* Time it took to perform SDP (for metrics) */
 
   RawAddress bd_addr; /* BD ADDR of the device for the multiplexer channel */
   bool is_server;     /* true if the server application */

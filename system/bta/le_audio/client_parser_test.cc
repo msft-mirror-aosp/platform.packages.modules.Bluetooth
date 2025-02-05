@@ -369,11 +369,12 @@ TEST(LeAudioClientParserTest, testParsePacsValidMeta) {
   ASSERT_EQ(codec_spec_caps[0x03u][0], 0x04u);
   ASSERT_EQ(codec_spec_caps[0x03u][1], 0x05u);
 
-  ASSERT_EQ(pac_recs[0].metadata.size(), 4u);
-  ASSERT_EQ(pac_recs[0].metadata[0], 0x03u);
-  ASSERT_EQ(pac_recs[0].metadata[1], 0x02u);
-  ASSERT_EQ(pac_recs[0].metadata[2], 0x01u);
-  ASSERT_EQ(pac_recs[0].metadata[3], 0x00u);
+  auto pac_metadata = pac_recs[0].metadata.RawPacket();
+  ASSERT_EQ(pac_metadata.size(), 4u);
+  ASSERT_EQ(pac_metadata[0], 0x03u);
+  ASSERT_EQ(pac_metadata[1], 0x02u);
+  ASSERT_EQ(pac_metadata[2], 0x01u);
+  ASSERT_EQ(pac_metadata[3], 0x00u);
 
   // Validate the raw data from ltv matches the original pac record data buffer
   ASSERT_EQ(pac_recs[0].codec_spec_caps.RawPacket(), pac_recs[0].codec_spec_caps_raw);
@@ -465,7 +466,7 @@ TEST(LeAudioClientParserTest, testParsePacsMultipleRecords) {
   ASSERT_EQ(record0.codec_id.vendor_company_id, 0x0203u);
   ASSERT_EQ(record0.codec_id.vendor_codec_id, 0x0405u);
   ASSERT_EQ(record0.codec_spec_caps_raw.size(), 0u);
-  ASSERT_EQ(record0.metadata.size(), 0u);
+  ASSERT_EQ(record0.metadata.Size(), 0u);
 
   // Verify 2nd record
   auto& record1 = pac_recs[1];
@@ -480,11 +481,12 @@ TEST(LeAudioClientParserTest, testParsePacsMultipleRecords) {
   ASSERT_EQ(codec_spec_caps1[0x02u].size(), 1u);
   ASSERT_EQ(codec_spec_caps1[0x02u][0], 0x03u);
 
-  ASSERT_EQ(record1.metadata.size(), 4u);
-  ASSERT_EQ(record1.metadata[0], 0x03u);
-  ASSERT_EQ(record1.metadata[1], 0x02u);
-  ASSERT_EQ(record1.metadata[2], 0x01u);
-  ASSERT_EQ(record1.metadata[3], 0x00u);
+  auto pac_metadata = record1.metadata.RawPacket();
+  ASSERT_EQ(pac_metadata.size(), 4u);
+  ASSERT_EQ(pac_metadata[0], 0x03u);
+  ASSERT_EQ(pac_metadata[1], 0x02u);
+  ASSERT_EQ(pac_metadata[2], 0x01u);
+  ASSERT_EQ(pac_metadata[3], 0x00u);
 
   // Validate the raw data from ltv matches the original pac record data buffer
   ASSERT_EQ(record1.codec_spec_caps.RawPacket(), record1.codec_spec_caps_raw);
@@ -502,11 +504,12 @@ TEST(LeAudioClientParserTest, testParsePacsMultipleRecords) {
   ASSERT_EQ(0, memcmp(record2.codec_spec_caps_raw.data(), value + 28,
                       record2.codec_spec_caps_raw.size()));
 
-  ASSERT_EQ(record2.metadata.size(), 4u);
-  ASSERT_EQ(record2.metadata[0], 0x03u);
-  ASSERT_EQ(record2.metadata[1], 0x12u);
-  ASSERT_EQ(record2.metadata[2], 0x11u);
-  ASSERT_EQ(record2.metadata[3], 0x10u);
+  pac_metadata = record2.metadata.RawPacket();
+  ASSERT_EQ(pac_metadata.size(), 4u);
+  ASSERT_EQ(pac_metadata[0], 0x03u);
+  ASSERT_EQ(pac_metadata[1], 0x12u);
+  ASSERT_EQ(pac_metadata[2], 0x11u);
+  ASSERT_EQ(pac_metadata[3], 0x10u);
 }
 
 TEST(LeAudioClientParserTest, testParsePacsVendorCodecRecords) {

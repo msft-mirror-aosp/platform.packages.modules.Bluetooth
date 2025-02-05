@@ -60,11 +60,11 @@ import android.content.Intent;
 import android.os.Binder;
 import android.os.ParcelUuid;
 import android.os.RemoteException;
-import android.os.test.TestLooper;
 
 import androidx.test.filters.MediumTest;
 import androidx.test.runner.AndroidJUnit4;
 
+import com.android.bluetooth.TestLooper;
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.AdapterService;
@@ -458,7 +458,7 @@ public class HapClientServiceTest {
         mNativeCallback.onDeviceAvailable(getByteAddress(mDevice), features);
 
         verify(mAdapterService)
-                .sendBroadcastMultiplePermissions(
+                .sendBroadcastWithMultiplePermissions(
                         argThat(
                                 allOf(
                                         hasAction(ACTION_HAP_DEVICE_AVAILABLE),
@@ -722,7 +722,7 @@ public class HapClientServiceTest {
     @SafeVarargs
     private void verifyIntentSent(Matcher<Intent>... matchers) {
         mInOrder.verify(mAdapterService)
-                .sendBroadcastMultiplePermissions(
+                .sendBroadcastWithMultiplePermissions(
                         MockitoHamcrest.argThat(AllOf.allOf(matchers)), any());
     }
 

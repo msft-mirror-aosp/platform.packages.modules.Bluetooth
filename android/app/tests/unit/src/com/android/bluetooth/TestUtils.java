@@ -31,7 +31,6 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.os.MessageQueue;
-import android.os.test.TestLooper;
 import android.service.media.MediaBrowserService;
 import android.util.Log;
 

@@ -572,8 +572,7 @@ bool PORT_IsCollisionDetected(RawAddress bd_addr) {
  *
  * Function         PORT_SetAppUid
  *
- * Description      This function configures connection according to the
- *                  specifications in the tPORT_STATE structure.
+ * Description      This function sets app_uid in port structure
  *
  * Parameters:      handle     - Handle returned in the RFCOMM_CreateConnection
  *                  app_uid    - Uid of app that requested the socket
@@ -588,6 +587,30 @@ int PORT_SetAppUid(uint16_t handle, uint32_t app_uid) {
   }
 
   p_port->app_uid = app_uid;
+
+  return PORT_SUCCESS;
+}
+
+/*******************************************************************************
+ *
+ * Function         PORT_SetSdpDuration
+ *
+ * Description      This function saves calculated SDP duration (in
+ *                  milliseconds) to ports structure
+ *
+ * Parameters:      handle          - Handle returned in RFCOMM_CreateConnection
+ *                  sdp_duration_ms - Time spent doing sdp
+ *
+ ******************************************************************************/
+int PORT_SetSdpDuration(uint16_t handle, uint64_t sdp_duration_ms) {
+  tPORT* p_port = get_port_from_handle(handle);
+
+  if (p_port == nullptr) {
+    log::error("Unable to get RFCOMM port control block bad handle:{}", handle);
+    return PORT_BAD_HANDLE;
+  }
+
+  p_port->sdp_duration_ms = sdp_duration_ms;
 
   return PORT_SUCCESS;
 }

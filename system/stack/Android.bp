@@ -87,7 +87,6 @@ cc_library_static {
         "a2dp/a2dp_vendor_aptx_hd.cc",
         "a2dp/a2dp_vendor_aptx_hd_encoder.cc",
         "a2dp/a2dp_vendor_ldac.cc",
-        "a2dp/a2dp_vendor_ldac_decoder.cc",
         "a2dp/a2dp_vendor_ldac_encoder.cc",
         "a2dp/a2dp_vendor_opus.cc",
         "a2dp/a2dp_vendor_opus_decoder.cc",
@@ -495,6 +494,7 @@ cc_fuzz {
         "libbluetooth_l2cap_pdl",
         "libbluetooth_log",
         "libbluetooth_smp_pdl",
+        "libbt-common",
         "libbt-platform-protos-lite",
     ],
 }
@@ -1357,7 +1357,6 @@ cc_test {
         "a2dp/a2dp_vendor_aptx_hd.cc",
         "a2dp/a2dp_vendor_aptx_hd_encoder.cc",
         "a2dp/a2dp_vendor_ldac.cc",
-        "a2dp/a2dp_vendor_ldac_decoder.cc",
         "a2dp/a2dp_vendor_ldac_encoder.cc",
         "a2dp/a2dp_vendor_opus.cc",
         "a2dp/a2dp_vendor_opus_decoder.cc",
@@ -1405,54 +1404,6 @@ cc_test {
         "libaptxhd_enc",
         "libldacBT_abr",
         "libldacBT_enc",
-    ],
-    sanitize: {
-        address: true,
-        cfi: true,
-        misc_undefined: ["bounds"],
-    },
-    header_libs: ["libbluetooth_headers"],
-}
-
-cc_test {
-    name: "net_test_stack_a2dp_native",
-    defaults: [
-        "fluoride_defaults",
-        "mts_defaults",
-    ],
-    test_suites: ["general-tests"],
-    host_supported: true,
-    test_options: {
-        unit_test: true,
-    },
-    include_dirs: [
-        "external/libldac/inc",
-        "packages/modules/Bluetooth/system",
-        "packages/modules/Bluetooth/system/gd",
-        "packages/modules/Bluetooth/system/stack/include",
-    ],
-    srcs: [
-        "a2dp/a2dp_vendor_ldac_decoder.cc",
-        "test/a2dp/a2dp_vendor_ldac_decoder_test.cc",
-        "test/a2dp/misc_fake.cc",
-    ],
-    aidl: {
-        libs: ["bluetooth_constants"],
-    },
-    shared_libs: [
-        "libbinder",
-        "libcrypto",
-        "libcutils",
-    ],
-    static_libs: [
-        "libbase",
-        "libbluetooth_crypto_toolbox",
-        "libbluetooth_log",
-        "libbt-common",
-        "libchrome",
-        "libcom.android.sysprop.bluetooth.wrapped",
-        "liblog",
-        "libosi",
     ],
     sanitize: {
         address: true,
