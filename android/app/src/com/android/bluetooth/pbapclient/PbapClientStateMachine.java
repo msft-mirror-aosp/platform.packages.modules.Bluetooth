@@ -788,7 +788,7 @@ class PbapClientStateMachine extends StateMachine {
             PbapApplicationParameters params =
                     new PbapApplicationParameters(
                             DEFAULT_PROPERTIES, DEFAULT_VCARD_VERSION, numToFetch, batchStart);
-            mObexClient.requestDownloadPhonebook(mPhonebooksToDownload.get(0), params, mAccount);
+            mObexClient.requestDownloadPhonebook(mPhonebooksToDownload.get(0), params);
         }
     }
 

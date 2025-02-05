@@ -269,6 +269,9 @@ class PbapClientContactsStorage {
                     break;
                 }
 
+                // Associate the storage account with this contact
+                contact.setAccount(account);
+
                 // Append current vcard to list of insert operations.
                 int numberOfOperations = operations.size();
                 constructInsertOperationsForContact(contact, operations, contactsProvider);

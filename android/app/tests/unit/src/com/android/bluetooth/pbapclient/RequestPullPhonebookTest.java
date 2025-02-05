@@ -18,11 +18,6 @@ package com.android.bluetooth.pbapclient;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import static org.mockito.Mockito.mock;
-
-import android.accounts.Account;
-import android.util.Log;
-
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.FakeObexServer;
@@ -43,7 +38,6 @@ import java.util.List;
 public class RequestPullPhonebookTest {
 
     private static final String PHONEBOOK_NAME = "phonebook";
-    private static final Account ACCOUNT = mock(Account.class);
 
     private FakePbapObexServer mServer;
     private ClientSession mSession;
@@ -61,7 +55,7 @@ public class RequestPullPhonebookTest {
                         PbapPhonebook.FORMAT_VCARD_30,
                         PbapApplicationParameters.MAX_PHONEBOOK_SIZE,
                         /* startOffset= */ 0);
-        mRequest = new RequestPullPhonebook(PHONEBOOK_NAME, params, ACCOUNT);
+        mRequest = new RequestPullPhonebook(PHONEBOOK_NAME, params);
     }
 
     @Test
@@ -143,8 +137,6 @@ public class RequestPullPhonebookTest {
 
         @Override
         public int onGet(final Operation op) {
-            Log.i(TAG, "onGet()");
-
             if (mResponseCode != ResponseCodes.OBEX_HTTP_OK) {
                 return mResponseCode;
             }
