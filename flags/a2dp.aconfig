@@ -145,3 +145,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "avdt_wait_for_initial_delay_report_as_initiator"
+    namespace: "bluetooth"
+    description: "As signaling initiator wait for delay report for peer sink and only then send open command"
+    bug: "394553654"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
