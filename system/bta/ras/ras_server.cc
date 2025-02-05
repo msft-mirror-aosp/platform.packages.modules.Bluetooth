@@ -407,13 +407,13 @@ public:
       return;
     }
     log::info("Read uuid, {}", getUuidName(uuid));
-    ClientTracker* tracker = &trackers_[p_data->req_data.remote_bda];
     if (trackers_.find(p_data->req_data.remote_bda) == trackers_.end()) {
       log::warn("Can't find tracker for {}", p_data->req_data.remote_bda);
       BTA_GATTS_SendRsp(p_data->req_data.conn_id, p_data->req_data.trans_id, GATT_ILLEGAL_PARAMETER,
                         &p_msg);
       return;
     }
+    ClientTracker* tracker = &trackers_[p_data->req_data.remote_bda];
 
     // Check Characteristic UUID
     switch (uuid.As16Bit()) {
@@ -574,6 +574,7 @@ public:
     }
 
     if (trackers_.find(remote_bda) == trackers_.end()) {
+      log::warn("Can't find tracker for remote_bda {}", remote_bda);
       BTA_GATTS_SendRsp(conn_id, p_data->req_data.trans_id, GATT_ILLEGAL_PARAMETER, &p_msg);
       return;
     }
