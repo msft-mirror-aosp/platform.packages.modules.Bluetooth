@@ -19,7 +19,6 @@ package com.android.bluetooth.pbapclient;
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 
-import android.accounts.Account;
 import android.annotation.RequiresPermission;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
@@ -317,9 +316,8 @@ class PbapClientObexClient {
     }
 
     /** Enqueue a request to download the contents of a phonebook */
-    public void requestDownloadPhonebook(
-            String phonebook, PbapApplicationParameters params, Account account) {
-        RequestPullPhonebook request = new RequestPullPhonebook(phonebook, params, account);
+    public void requestDownloadPhonebook(String phonebook, PbapApplicationParameters params) {
+        RequestPullPhonebook request = new RequestPullPhonebook(phonebook, params);
         mHandler.obtainMessage(MSG_REQUEST, request).sendToTarget();
     }
 
