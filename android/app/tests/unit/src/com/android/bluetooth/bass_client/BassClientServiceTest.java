@@ -25,6 +25,8 @@ import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -168,8 +170,8 @@ public class BassClientServiceTest {
     private final HashMap<BluetoothDevice, BassClientStateMachine> mStateMachines = new HashMap<>();
 
     private final BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-    private final BluetoothDevice mCurrentDevice = TestUtils.getTestDevice(mBluetoothAdapter, 0);
-    private final BluetoothDevice mCurrentDevice1 = TestUtils.getTestDevice(mBluetoothAdapter, 1);
+    private final BluetoothDevice mCurrentDevice = getTestDevice(0);
+    private final BluetoothDevice mCurrentDevice1 = getTestDevice(1);
 
     private BassClientService mBassClientService;
 
@@ -4333,7 +4335,7 @@ public class BassClientServiceTest {
 
         // Update receiver state with PA sync
         injectRemoteSourceStateChanged(meta, true, false);
-        BluetoothDevice invalidDevice = TestUtils.getTestDevice(mBluetoothAdapter, 2);
+        BluetoothDevice invalidDevice = getTestDevice(2);
         // Verify isAnyReceiverActive returns false if invalid device
         expect.that(mBassClientService.isAnyReceiverActive(List.of(invalidDevice))).isFalse();
         // Verify isAnyReceiverActive returns true if PA synced

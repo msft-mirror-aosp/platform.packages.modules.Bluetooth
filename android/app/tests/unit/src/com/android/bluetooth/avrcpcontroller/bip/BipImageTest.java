@@ -22,7 +22,7 @@ import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 
-import androidx.test.InstrumentationRegistry;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestUtils;
@@ -42,7 +42,8 @@ public class BipImageTest {
     @Before
     public void setUp() {
         mTestResources =
-                TestUtils.getTestApplicationResources(InstrumentationRegistry.getTargetContext());
+                TestUtils.getTestApplicationResources(
+                        InstrumentationRegistry.getInstrumentation().getTargetContext());
     }
 
     @Test

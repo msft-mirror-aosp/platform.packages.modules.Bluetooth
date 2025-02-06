@@ -21,7 +21,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothManager;
 import android.bluetooth.le.AdvertiseData;
 import android.bluetooth.le.AdvertisingSetParameters;
 import android.bluetooth.le.IAdvertisingSetCallback;
@@ -29,6 +29,7 @@ import android.bluetooth.le.PeriodicAdvertisingParameters;
 import android.content.AttributionSource;
 
 import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.btservice.AdapterService;
@@ -51,7 +52,11 @@ public class AdvertiseBinderTest {
     @Mock private AdvertiseManager mAdvertiseManager;
 
     private final AttributionSource mAttributionSource =
-            BluetoothAdapter.getDefaultAdapter().getAttributionSource();
+            InstrumentationRegistry.getInstrumentation()
+                    .getTargetContext()
+                    .getSystemService(BluetoothManager.class)
+                    .getAdapter()
+                    .getAttributionSource();
     private AdvertiseBinder mBinder;
 
     @Before

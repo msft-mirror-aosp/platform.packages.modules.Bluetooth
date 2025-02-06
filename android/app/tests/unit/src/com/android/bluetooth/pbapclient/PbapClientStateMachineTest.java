@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.pbapclient;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.any;
@@ -34,7 +36,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import android.accounts.Account;
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.SdpPseRecord;
@@ -44,7 +45,6 @@ import androidx.test.filters.MediumTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestLooper;
-import com.android.bluetooth.TestUtils;
 import com.android.obex.ResponseCodes;
 import com.android.vcard.VCardEntry;
 
@@ -85,7 +85,6 @@ public class PbapClientStateMachineTest {
 
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
-    private BluetoothAdapter mAdapter;
     private BluetoothDevice mTestDevice;
 
     @Mock private Context mMockContext;
@@ -106,8 +105,7 @@ public class PbapClientStateMachineTest {
 
     @Before
     public void setUp() throws Exception {
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
-        mTestDevice = TestUtils.getTestDevice(mAdapter, 1);
+        mTestDevice = getTestDevice(1);
 
         doNothing().when(mMockObexClient).connectL2cap(anyInt());
         doNothing().when(mMockObexClient).connectRfcomm(anyInt());

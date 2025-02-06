@@ -34,6 +34,8 @@ import static android.bluetooth.IBluetoothVolumeControl.VOLUME_CONTROL_UNKNOWN_V
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.any;
@@ -47,6 +49,7 @@ import static org.mockito.Mockito.when;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothUuid;
 import android.bluetooth.BluetoothVolumeControl;
@@ -62,6 +65,7 @@ import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.filters.MediumTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestLooper;
@@ -115,9 +119,13 @@ public class VolumeControlServiceTest {
     private static final int CALL_MAX_VOL = 8;
     private static final int TEST_GROUP_ID = 1;
 
-    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
-    private final BluetoothDevice mDevice = TestUtils.getTestDevice(mAdapter, 134);
-    private final BluetoothDevice mDeviceTwo = TestUtils.getTestDevice(mAdapter, 231);
+    private final BluetoothAdapter mAdapter =
+            InstrumentationRegistry.getInstrumentation()
+                    .getTargetContext()
+                    .getSystemService(BluetoothManager.class)
+                    .getAdapter();
+    private final BluetoothDevice mDevice = getTestDevice(134);
+    private final BluetoothDevice mDeviceTwo = getTestDevice(231);
 
     private AttributionSource mAttributionSource;
     private VolumeControlService mService;

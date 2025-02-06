@@ -33,6 +33,8 @@ import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.any;
@@ -43,7 +45,6 @@ import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothCsipSetCoordinator;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
@@ -59,7 +60,6 @@ import androidx.test.filters.MediumTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestLooper;
-import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.ServiceFactory;
@@ -95,12 +95,9 @@ public class CsipSetCoordinatorServiceTest {
     @Mock private CsipSetCoordinatorNativeInterface mNativeInterface;
     @Mock private IBluetoothCsipSetCoordinatorLockCallback mCsipSetCoordinatorLockCallback;
 
-    // private final Context mTargetContext =
-    //         InstrumentationRegistry.getInstrumentation().getTargetContext();
-    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
-    private final BluetoothDevice mDevice = TestUtils.getTestDevice(mAdapter, 0);
-    private final BluetoothDevice mDevice2 = TestUtils.getTestDevice(mAdapter, 1);
-    private final BluetoothDevice mDevice3 = TestUtils.getTestDevice(mAdapter, 2);
+    private final BluetoothDevice mDevice = getTestDevice(0);
+    private final BluetoothDevice mDevice2 = getTestDevice(1);
+    private final BluetoothDevice mDevice3 = getTestDevice(2);
 
     private CsipSetCoordinatorService mService;
     private InOrder mInOrder;

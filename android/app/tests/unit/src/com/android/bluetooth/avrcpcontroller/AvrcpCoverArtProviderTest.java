@@ -16,12 +16,13 @@
 
 package com.android.bluetooth.avrcpcontroller;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.when;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.net.Uri;
 
@@ -47,8 +48,7 @@ public class AvrcpCoverArtProviderTest {
 
     private static final String TEST_MODE = "test_mode";
 
-    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
-    private final BluetoothDevice mTestDevice = mAdapter.getRemoteDevice("00:01:42:03:04:05");
+    private final BluetoothDevice mTestDevice = getTestDevice(48);
 
     private AvrcpCoverArtProvider mArtProvider;
 

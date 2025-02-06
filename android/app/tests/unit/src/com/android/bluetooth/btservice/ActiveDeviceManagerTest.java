@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.btservice;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -33,7 +35,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothLeBroadcastMetadata;
 import android.bluetooth.BluetoothProfile;
@@ -80,7 +81,6 @@ import java.util.Objects;
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class ActiveDeviceManagerTest {
-    private BluetoothAdapter mAdapter;
     private BluetoothDevice mA2dpDevice;
     private BluetoothDevice mHeadsetDevice;
     private BluetoothDevice mA2dpHeadsetDevice;
@@ -135,19 +135,18 @@ public class ActiveDeviceManagerTest {
 
         mActiveDeviceManager = new ActiveDeviceManager(mAdapterService, mServiceFactory);
         mActiveDeviceManager.start();
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
 
         // Get devices for testing
-        mA2dpDevice = TestUtils.getTestDevice(mAdapter, 0);
-        mHeadsetDevice = TestUtils.getTestDevice(mAdapter, 1);
-        mA2dpHeadsetDevice = TestUtils.getTestDevice(mAdapter, 2);
-        mHearingAidDevice = TestUtils.getTestDevice(mAdapter, 3);
-        mLeAudioDevice = TestUtils.getTestDevice(mAdapter, 4);
-        mLeHearingAidDevice = TestUtils.getTestDevice(mAdapter, 5);
-        mSecondaryAudioDevice = TestUtils.getTestDevice(mAdapter, 6);
-        mDualModeAudioDevice = TestUtils.getTestDevice(mAdapter, 7);
-        mLeAudioDevice2 = TestUtils.getTestDevice(mAdapter, 8);
-        mLeAudioDevice3 = TestUtils.getTestDevice(mAdapter, 9);
+        mA2dpDevice = getTestDevice(0);
+        mHeadsetDevice = getTestDevice(1);
+        mA2dpHeadsetDevice = getTestDevice(2);
+        mHearingAidDevice = getTestDevice(3);
+        mLeAudioDevice = getTestDevice(4);
+        mLeHearingAidDevice = getTestDevice(5);
+        mSecondaryAudioDevice = getTestDevice(6);
+        mDualModeAudioDevice = getTestDevice(7);
+        mLeAudioDevice2 = getTestDevice(8);
+        mLeAudioDevice3 = getTestDevice(9);
         mDeviceConnectionStack = new ArrayList<>();
         mMostRecentDevice = null;
         mOriginalDualModeAudioState = Utils.isDualModeAudioEnabled();
