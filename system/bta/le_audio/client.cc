@@ -5731,9 +5731,9 @@ public:
       index++;
     }
 
-    if (handles.num_attr - 1 != index) {
+    if (handles.num_attr != index) {
       log::warn("Attempted to read {} handles, but received just {} values", +handles.num_attr,
-                index + 1);
+                index);
     }
   }
 
