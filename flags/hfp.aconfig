@@ -118,3 +118,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "non_conference_call_hangup"
+    namespace: "bluetooth"
+    description: "Active call hangup when conference call is in holding state "
+    bug: "388159341"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
