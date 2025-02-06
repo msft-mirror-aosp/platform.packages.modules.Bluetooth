@@ -386,12 +386,14 @@ class PbapClientConnectionHandler extends Handler {
                                 numberOfContactsToDownload,
                                 startOffset);
 
-                RequestPullPhonebook request = new RequestPullPhonebook(path, params, mAccount);
+                RequestPullPhonebook request = new RequestPullPhonebook(path, params);
                 request.execute(mObexSession);
                 List<VCardEntry> vcards = request.getList();
-                if (PbapPhonebook.FAVORITES_PATH.equals(path)) {
+                for (VCardEntry v : vcards) {
+                    v.setAccount(mAccount);
+
                     // mark each vcard as a favorite
-                    for (VCardEntry v : vcards) {
+                    if (PbapPhonebook.FAVORITES_PATH.equals(path)) {
                         v.setStarred(true);
                     }
                 }
@@ -422,7 +424,7 @@ class PbapClientConnectionHandler extends Handler {
                             0,
                             0);
 
-            RequestPullPhonebook request = new RequestPullPhonebook(path, params, mAccount);
+            RequestPullPhonebook request = new RequestPullPhonebook(path, params);
             request.execute(mObexSession);
             CallLogPullRequest processor =
                     new CallLogPullRequest(

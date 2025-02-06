@@ -944,7 +944,7 @@ static void bta_dm_acl_down_(const RawAddress& bd_addr, tBT_TRANSPORT transport)
 }
 
 static void bta_dm_acl_down(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
-  log::verbose("Device {} disconnected over transport {}", bd_addr, bt_transport_text(transport));
+  log::info("Device {} disconnected over transport {}", bd_addr, bt_transport_text(transport));
   if (!com::android::bluetooth::flags::wait_for_disconnect_before_unbond()) {
     bta_dm_acl_down_(bd_addr, transport);
     return;

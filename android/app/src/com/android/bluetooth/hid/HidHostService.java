@@ -483,16 +483,10 @@ public class HidHostService extends ProfileService {
 
     private void handleMessageOnVirtualUnplug(Message msg) {
         BluetoothDevice device = mAdapterService.getDeviceFromByte((byte[]) msg.obj);
-        if (Flags.removeInputDeviceOnVup()) {
-            updateConnectionState(
-                    device, getTransport(device), BluetoothProfile.STATE_DISCONNECTED);
-            mInputDevices.remove(device);
-        } else {
-            int transport = msg.arg1;
-            if (!checkTransport(device, transport, msg.what)) {
-                return;
-            }
-        }
+
+        updateConnectionState(device, getTransport(device), BluetoothProfile.STATE_DISCONNECTED);
+        mInputDevices.remove(device);
+
         int status = msg.arg2;
         broadcastVirtualUnplugStatus(device, status);
     }

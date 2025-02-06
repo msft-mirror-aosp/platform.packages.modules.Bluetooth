@@ -51,7 +51,6 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.util.Log;
@@ -59,7 +58,6 @@ import android.util.Log;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 
-import com.android.bluetooth.flags.Flags;
 import com.android.compatibility.common.util.AdoptShellPermissionsRule;
 
 import com.google.protobuf.Empty;
@@ -524,7 +522,6 @@ public class HidHostTest {
      */
     @SuppressLint("MissingPermission")
     @Test
-    @RequiresFlagsEnabled({Flags.FLAG_REMOVE_INPUT_DEVICE_ON_VUP})
     public void hidVirtualUnplugFromHidDeviceTest() throws Exception {
         mHidBlockingStub.virtualCableUnplugHost(Empty.getDefaultInstance());
         verifyIntentReceived(
