@@ -461,7 +461,6 @@ public class MetricsLogger {
         cancelPendingDrain();
         drainBufferedCounters();
         mAlarmManager = null;
-        mAdapterService = null;
         mInitialized = false;
         mBloomFilterInitialized = false;
         mMedicalDeviceBloomFilterInitialized = false;

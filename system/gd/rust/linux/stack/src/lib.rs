@@ -619,7 +619,7 @@ impl Stack {
                     // to know whether a socket is open or not.
                     if bluetooth_gatt.lock().unwrap().get_connected_applications(&addr)
                         == vec![bas_app_uuid]
-                        && !bluetooth.lock().unwrap().is_hh_connected(&addr)
+                        && !bluetooth.lock().unwrap().is_initiated_hh_connection(&addr)
                         && bluetooth_media.lock().unwrap().get_connected_profiles(&addr).is_empty()
                     {
                         info!(

@@ -32,6 +32,7 @@
 #include "bta/ag/bta_ag_at.h"
 #include "bta/include/bta_ag_api.h"
 #include "bta/include/bta_api.h"
+#include "bta/include/bta_jv_api.h"
 #include "bta/sys/bta_sys.h"
 #include "internal_include/bt_target.h"
 #include "stack/include/bt_hdr.h"
@@ -231,6 +232,14 @@ typedef struct {
   uint8_t scn;
 } tBTA_AG_PROFILE;
 
+/* type for sdp rfc metrics */
+typedef struct {
+  tBTA_JV_STATUS status;
+  uint64_t sdp_start_ms;
+  uint64_t sdp_end_ms;
+  bool sdp_initiated;
+} tBTA_AG_SDP_METRICS_CB;
+
 typedef enum {
   BTA_AG_SCO_CVSD_SETTINGS_S4 = 0, /* preferred/default when codec is CVSD */
   BTA_AG_SCO_CVSD_SETTINGS_S3,
@@ -276,6 +285,7 @@ struct tBTA_AG_SCB {
   tBTA_AG_AT_CB at_cb;                  /* AT command interpreter */
   RawAddress peer_addr;                 /* peer bd address */
   tSDP_DISCOVERY_DB* p_disc_db;         /* pointer to discovery database */
+  tBTA_AG_SDP_METRICS_CB sdp_metrics;   /* SDP information for metrics */
   tBTA_SERVICE_MASK reg_services;       /* services specified in register API */
   tBTA_SERVICE_MASK open_services;      /* services specified in open API */
   uint16_t conn_handle;                 /* RFCOMM handle of connected service */

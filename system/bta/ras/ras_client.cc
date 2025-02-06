@@ -910,7 +910,8 @@ public:
 
   void SetTimeOutAlarm(std::shared_ptr<RasTracker> tracker, uint16_t interval_ms,
                        TimeoutType timeout_type) {
-    log::debug("ranging_type_: {}, {}", (uint8_t)tracker->ranging_type_, (uint8_t)timeout_type);
+    log::debug("ranging_type_: {}, timeout_type: {}", (uint8_t)tracker->ranging_type_,
+               (uint8_t)timeout_type);
     tracker->timeout_type_ = timeout_type;
     tracker->ranging_data_timeout_timer_ = alarm_new("Ranging Data Timeout");
     alarm_set_on_mloop(

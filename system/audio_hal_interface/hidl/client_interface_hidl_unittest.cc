@@ -126,7 +126,7 @@ constexpr btav_a2dp_codec_index_t codec_indexes[] = {
         BTAV_A2DP_CODEC_INDEX_SOURCE_SBC,  BTAV_A2DP_CODEC_INDEX_SOURCE_AAC,
         BTAV_A2DP_CODEC_INDEX_SOURCE_APTX, BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_HD,
         BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC, BTAV_A2DP_CODEC_INDEX_SINK_SBC,
-        BTAV_A2DP_CODEC_INDEX_SINK_AAC,    BTAV_A2DP_CODEC_INDEX_SINK_LDAC};
+        BTAV_A2DP_CODEC_INDEX_SINK_AAC};
 constexpr uint16_t kPeerMtus[5] = {660, 663, 883, 1005, 1500};
 
 class TestSinkTransport : public bluetooth::audio::hidl::IBluetoothSinkTransportInstance {

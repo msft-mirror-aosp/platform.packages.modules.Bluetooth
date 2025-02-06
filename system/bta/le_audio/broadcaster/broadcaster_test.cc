@@ -242,14 +242,13 @@ public:
   MOCK_METHOD((void), ConfirmStreamingRequest, (), (override));
   MOCK_METHOD((void), CancelStreamingRequest, (), (override));
   MOCK_METHOD((void), UpdateRemoteDelay, (uint16_t delay), (override));
-  MOCK_METHOD((void), UpdateAudioConfigToHal, (const ::bluetooth::le_audio::offload_config&),
+  MOCK_METHOD((void), UpdateAudioConfigToHal, (const ::bluetooth::le_audio::stream_config&),
               (override));
   MOCK_METHOD((std::optional<broadcaster::BroadcastConfiguration>), GetBroadcastConfig,
               ((const std::vector<std::pair<types::LeAudioContextType, uint8_t>>&),
                (const std::optional<std::vector<::bluetooth::le_audio::types::acs_ac_record>>&)),
               (const override));
-  MOCK_METHOD((std::optional<::le_audio::set_configurations::AudioSetConfiguration>),
-              GetUnicastConfig,
+  MOCK_METHOD((std::optional<::le_audio::types::AudioSetConfiguration>), GetUnicastConfig,
               (const CodecManager::UnicastConfigurationRequirements& requirements),
               (const override));
   MOCK_METHOD((void), UpdateBroadcastAudioConfigToHal,

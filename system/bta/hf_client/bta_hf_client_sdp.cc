@@ -37,6 +37,7 @@
 #include "bta/sys/bta_sys.h"
 #include "bta_hfp_api.h"
 #include "common/bind.h"
+#include "common/time_util.h"
 #include "internal_include/bt_target.h"
 #include "osi/include/allocator.h"
 #include "sdp_status.h"
@@ -86,6 +87,10 @@ static void bta_hf_client_sdp_cback(tBTA_HF_CLIENT_CB* client_cb, const RawAddre
   p_buf->hdr.event = event;
   p_buf->hdr.layer_specific = client_cb->handle;
   p_buf->status = status;
+
+  client_cb->sdp_metrics.status =
+          (status == tSDP_STATUS::SDP_SUCCESS) ? tBTA_JV_STATUS::SUCCESS : tBTA_JV_STATUS::FAILURE;
+  client_cb->sdp_metrics.sdp_end_ms = common::time_gettimeofday_us() / 1000;
 
   bta_sys_sendmsg(p_buf);
 }
@@ -388,6 +393,9 @@ void bta_hf_client_do_disc(tBTA_HF_CLIENT_CB* client_cb) {
     msg.hdr.layer_specific = client_cb->handle;
     bta_hf_client_sm_execute(BTA_HF_CLIENT_DISC_FAIL_EVT, &msg);
   }
+
+  // Successfully started - record time SDP started
+  client_cb->sdp_metrics.sdp_start_ms = common::time_gettimeofday_us() / 1000;
 }
 
 /*******************************************************************************

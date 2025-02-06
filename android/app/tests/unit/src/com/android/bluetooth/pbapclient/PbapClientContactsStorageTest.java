@@ -263,8 +263,7 @@ public class PbapClientContactsStorageTest {
         Account account = mStorage.getStorageAccountForDevice(device);
         mStorage.addAccount(account);
 
-        assertThat(mStorage.insertFavorites(account, getMockContacts(account, TEST_CONTACTS_SIZE)))
-                .isTrue();
+        assertThat(mStorage.insertFavorites(account, getMockContacts(TEST_CONTACTS_SIZE))).isTrue();
         verifyDbAccounts(1);
         verifyDbFavorites(TEST_CONTACTS_SIZE);
         verifyDbRawContacts(TEST_CONTACTS_SIZE);
@@ -280,9 +279,7 @@ public class PbapClientContactsStorageTest {
         Account account = mStorage.getStorageAccountForDevice(device);
         mStorage.addAccount(account);
 
-        assertThat(
-                        mStorage.insertLocalContacts(
-                                account, getMockContacts(account, TEST_CONTACTS_SIZE)))
+        assertThat(mStorage.insertLocalContacts(account, getMockContacts(TEST_CONTACTS_SIZE)))
                 .isTrue();
         verifyDbAccounts(1);
         verifyDbFavorites(0);
@@ -299,9 +296,7 @@ public class PbapClientContactsStorageTest {
         Account account = mStorage.getStorageAccountForDevice(device);
         mStorage.addAccount(account);
 
-        assertThat(
-                        mStorage.insertSimContacts(
-                                account, getMockContacts(account, TEST_CONTACTS_SIZE)))
+        assertThat(mStorage.insertSimContacts(account, getMockContacts(TEST_CONTACTS_SIZE)))
                 .isTrue();
         verifyDbAccounts(1);
         verifyDbFavorites(0);
@@ -324,7 +319,7 @@ public class PbapClientContactsStorageTest {
                         mStorage.insertIncomingCallHistory(
                                 account,
                                 getMockCallHistory(
-                                        account, CallLog.Calls.INCOMING_TYPE, TEST_CONTACTS_SIZE)))
+                                        CallLog.Calls.INCOMING_TYPE, TEST_CONTACTS_SIZE)))
                 .isTrue();
         verifyDbAccounts(0);
         verifyDbFavorites(0);
@@ -345,7 +340,7 @@ public class PbapClientContactsStorageTest {
                         mStorage.insertOutgoingCallHistory(
                                 account,
                                 getMockCallHistory(
-                                        account, CallLog.Calls.OUTGOING_TYPE, TEST_CONTACTS_SIZE)))
+                                        CallLog.Calls.OUTGOING_TYPE, TEST_CONTACTS_SIZE)))
                 .isTrue();
         verifyDbAccounts(0);
         verifyDbFavorites(0);
@@ -365,8 +360,7 @@ public class PbapClientContactsStorageTest {
         assertThat(
                         mStorage.insertMissedCallHistory(
                                 account,
-                                getMockCallHistory(
-                                        account, CallLog.Calls.MISSED_TYPE, TEST_CONTACTS_SIZE)))
+                                getMockCallHistory(CallLog.Calls.MISSED_TYPE, TEST_CONTACTS_SIZE)))
                 .isTrue();
         verifyDbAccounts(0);
         verifyDbFavorites(0);
@@ -422,18 +416,15 @@ public class PbapClientContactsStorageTest {
         BluetoothDevice device = TestUtils.getTestDevice(mAdapter, 1);
         Account account = mStorage.getStorageAccountForDevice(device);
 
-        assertThat(mStorage.insertFavorites(account, getMockContacts(account, TEST_CONTACTS_SIZE)))
+        assertThat(mStorage.insertFavorites(account, getMockContacts(TEST_CONTACTS_SIZE)))
                 .isFalse();
     }
 
     @Test
     public void testInsertContacts_accountNull_insertFails() {
         testStartStorage_withoutExistingAccounts_storageReadyWithNoAccounts();
-        BluetoothDevice device = TestUtils.getTestDevice(mAdapter, 1);
-        Account account = mStorage.getStorageAccountForDevice(device);
 
-        assertThat(mStorage.insertFavorites(null, getMockContacts(account, TEST_CONTACTS_SIZE)))
-                .isFalse();
+        assertThat(mStorage.insertFavorites(null, getMockContacts(TEST_CONTACTS_SIZE))).isFalse();
     }
 
     @Test
@@ -477,21 +468,19 @@ public class PbapClientContactsStorageTest {
                         mStorage.insertIncomingCallHistory(
                                 account,
                                 getMockCallHistory(
-                                        account, CallLog.Calls.INCOMING_TYPE, TEST_CONTACTS_SIZE)))
+                                        CallLog.Calls.INCOMING_TYPE, TEST_CONTACTS_SIZE)))
                 .isFalse();
     }
 
     @Test
     public void testInsertCallHistory_accountNull_insertFails() {
         testStartStorage_withoutExistingAccounts_storageReadyWithNoAccounts();
-        BluetoothDevice device = TestUtils.getTestDevice(mAdapter, 1);
-        Account account = mStorage.getStorageAccountForDevice(device);
 
         assertThat(
                         mStorage.insertIncomingCallHistory(
                                 null,
                                 getMockCallHistory(
-                                        account, CallLog.Calls.INCOMING_TYPE, TEST_CONTACTS_SIZE)))
+                                        CallLog.Calls.INCOMING_TYPE, TEST_CONTACTS_SIZE)))
                 .isFalse();
     }
 
@@ -561,10 +550,10 @@ public class PbapClientContactsStorageTest {
         return new Account(device.getAddress(), ACCOUNT_TYPE);
     }
 
-    private List<VCardEntry> getMockContacts(Account account, int numContacts) {
+    private List<VCardEntry> getMockContacts(int numContacts) {
         List<VCardEntry> contacts = new ArrayList<VCardEntry>();
         for (int i = 0; i < numContacts; i++) {
-            VCardEntry card = new VCardEntry(VCardConfig.VCARD_TYPE_V21_GENERIC, account);
+            VCardEntry card = new VCardEntry(VCardConfig.VCARD_TYPE_V21_GENERIC);
             VCardProperty property = new VCardProperty();
             property.setName(VCardConstants.PROPERTY_TEL);
             property.addValues(String.valueOf(i));
@@ -575,7 +564,7 @@ public class PbapClientContactsStorageTest {
         return contacts;
     }
 
-    private List<VCardEntry> getMockCallHistory(Account account, int type, int numEntries) {
+    private List<VCardEntry> getMockCallHistory(int type, int numEntries) {
         String typeIndicator = "";
         if (type == CallLog.Calls.INCOMING_TYPE) {
             typeIndicator = "RECEIVED";
@@ -587,7 +576,7 @@ public class PbapClientContactsStorageTest {
 
         List<VCardEntry> callHistory = new ArrayList<VCardEntry>();
         for (int i = 0; i < numEntries; i++) {
-            VCardEntry card = new VCardEntry(VCardConfig.VCARD_TYPE_V21_GENERIC, account);
+            VCardEntry card = new VCardEntry(VCardConfig.VCARD_TYPE_V21_GENERIC);
 
             ZonedDateTime zonedDateTime =
                     ZonedDateTime.ofInstant(Instant.ofEpochSecond(i), ZoneId.of("UTC"));

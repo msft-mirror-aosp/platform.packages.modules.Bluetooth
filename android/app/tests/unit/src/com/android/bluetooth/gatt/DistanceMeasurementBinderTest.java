@@ -41,6 +41,7 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
+import java.util.Collections;
 import java.util.UUID;
 
 /** Test cases for {@link DistanceMeasurementBinder}. */
@@ -61,7 +62,7 @@ public class DistanceMeasurementBinderTest {
     public void setUp() {
         mBinder = new DistanceMeasurementBinder(mAdapterService, mDistanceMeasurementManager);
         when(mDistanceMeasurementManager.getSupportedDistanceMeasurementMethods())
-                .thenReturn(new DistanceMeasurementMethod[0]);
+                .thenReturn(Collections.emptyList());
     }
 
     @Test

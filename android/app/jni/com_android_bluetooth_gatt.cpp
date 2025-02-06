@@ -1524,16 +1524,6 @@ static void gattClientReadRemoteRssiNative(JNIEnv* env, jobject /* object */, ji
   sGattIf->client->read_remote_rssi(clientif, str2addr(env, address));
 }
 
-void set_scan_params_cmpl_cb(int client_if, uint8_t status) {
-  std::shared_lock<std::shared_mutex> lock(callbacks_mutex);
-  CallbackEnv sCallbackEnv(__func__);
-  if (!sCallbackEnv.valid() || !mScanCallbacksObj) {
-    return;
-  }
-  sCallbackEnv->CallVoidMethod(mScanCallbacksObj, method_onScanParamSetupCompleted, status,
-                               client_if);
-}
-
 static void gattSetScanParametersNative(JNIEnv* /* env */, jobject /* object */, jint client_if,
                                         jint scan_interval_unit, jint scan_window_unit,
                                         jint scan_phy) {
@@ -1541,8 +1531,7 @@ static void gattSetScanParametersNative(JNIEnv* /* env */, jobject /* object */,
     return;
   }
   sScanner->SetScanParameters(client_if, /* use active scan */ 0x01, scan_interval_unit,
-                              scan_window_unit, scan_phy,
-                              base::Bind(&set_scan_params_cmpl_cb, client_if));
+                              scan_window_unit, scan_phy);
 }
 
 void scan_filter_param_cb(uint8_t client_if, uint8_t avbl_space, uint8_t action, uint8_t status) {
@@ -1714,6 +1703,7 @@ static void gattClientScanFilterAddNative(JNIEnv* env, jobject /* object */, jin
       for (int j = 0; j < len; j++) {
         curr.irk[j] = irkBytes[j];
       }
+      env->ReleaseByteArrayElements(irkByteArray.get(), irkBytes, JNI_ABORT);
     }
 
     ScopedLocalRef<jobject> uuid(env, env->GetObjectField(current.get(), uuidFid));
@@ -1924,6 +1914,7 @@ static void gattClientMsftAdvMonitorAddNative(JNIEnv* env, jobject /* object*/,
       for (int j = 0; j < env->GetArrayLength(patternByteArray.get()); j++) {
         native_msft_adv_monitor_pattern.pattern.push_back(patternBytes[j]);
       }
+      env->ReleaseByteArrayElements(patternByteArray.get(), patternBytes, 0);
     }
 
     patterns.push_back(native_msft_adv_monitor_pattern);

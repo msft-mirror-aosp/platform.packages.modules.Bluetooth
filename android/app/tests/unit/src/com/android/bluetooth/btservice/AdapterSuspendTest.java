@@ -26,11 +26,12 @@ import static org.mockito.Mockito.verify;
 
 import android.content.Context;
 import android.hardware.devicestate.DeviceStateManager;
-import android.os.test.TestLooper;
 
 import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
+
+import com.android.bluetooth.TestLooper;
 
 import org.junit.Before;
 import org.junit.Rule;

@@ -52,12 +52,12 @@ import android.media.AudioManager;
 import android.media.BluetoothProfileConnectionInfo;
 import android.os.ParcelUuid;
 import android.os.UserHandle;
-import android.os.test.TestLooper;
 import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
+import com.android.bluetooth.TestLooper;
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.ActiveDeviceManager;
 import com.android.bluetooth.btservice.AdapterService;

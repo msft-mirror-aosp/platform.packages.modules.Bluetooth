@@ -25,17 +25,16 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import android.accounts.Account;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
-import android.os.test.TestLooper;
 import android.util.Log;
 
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.FakeObexServer;
 import com.android.bluetooth.ObexAppParameters;
+import com.android.bluetooth.TestLooper;
 import com.android.bluetooth.TestUtils;
 import com.android.obex.ApplicationParameter;
 import com.android.obex.HeaderSet;
@@ -94,7 +93,6 @@ public class PbapClientObexClientTest {
     private TestLooper mTestLooper;
     private FakePbapObexServer mServer;
 
-    @Mock Account mMockAccount;
     @Captor ArgumentCaptor<PbapPhonebookMetadata> mMetadataCaptor;
     @Captor ArgumentCaptor<PbapPhonebook> mPhonebookCaptor;
 
@@ -255,8 +253,7 @@ public class PbapClientObexClientTest {
         PbapApplicationParameters params =
                 new PbapApplicationParameters(
                         DEFAULT_PROPERTIES, DEFAULT_VCARD_VERSION, numToFetch, batchStart);
-        mObexClient.requestDownloadPhonebook(
-                PbapPhonebook.LOCAL_PHONEBOOK_PATH, params, mMockAccount);
+        mObexClient.requestDownloadPhonebook(PbapPhonebook.LOCAL_PHONEBOOK_PATH, params);
         mTestLooper.dispatchAll();
 
         verify(mMockCallback)
@@ -416,8 +413,7 @@ public class PbapClientObexClientTest {
         PbapApplicationParameters params =
                 new PbapApplicationParameters(
                         DEFAULT_PROPERTIES, DEFAULT_VCARD_VERSION, numToFetch, batchStart);
-        mObexClient.requestDownloadPhonebook(
-                PbapPhonebook.LOCAL_PHONEBOOK_PATH, params, mMockAccount);
+        mObexClient.requestDownloadPhonebook(PbapPhonebook.LOCAL_PHONEBOOK_PATH, params);
 
         mObexClient.disconnect();
         mTestLooper.dispatchAll();

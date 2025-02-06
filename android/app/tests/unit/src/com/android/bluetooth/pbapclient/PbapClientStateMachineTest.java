@@ -39,11 +39,11 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.SdpPseRecord;
 import android.content.Context;
-import android.os.test.TestLooper;
 
 import androidx.test.filters.MediumTest;
 import androidx.test.runner.AndroidJUnit4;
 
+import com.android.bluetooth.TestLooper;
 import com.android.bluetooth.TestUtils;
 import com.android.obex.ResponseCodes;
 import com.android.vcard.VCardEntry;
@@ -893,7 +893,6 @@ public class PbapClientStateMachineTest {
                             return null;
                         })
                 .when(mMockObexClient)
-                .requestDownloadPhonebook(
-                        eq(phonebook), any(PbapApplicationParameters.class), any(Account.class));
+                .requestDownloadPhonebook(eq(phonebook), any(PbapApplicationParameters.class));
     }
 }

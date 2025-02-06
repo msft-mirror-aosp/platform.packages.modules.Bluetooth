@@ -26,13 +26,8 @@ import android.bluetooth.BluetoothDevice;
 import android.net.Uri;
 
 import androidx.test.filters.SmallTest;
-import androidx.test.rule.ServiceTestRule;
 import androidx.test.runner.AndroidJUnit4;
 
-import com.android.bluetooth.TestUtils;
-import com.android.bluetooth.btservice.AdapterService;
-
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -46,34 +41,20 @@ import java.io.FileNotFoundException;
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class AvrcpCoverArtProviderTest {
-    private static final String TEST_MODE = "test_mode";
-
-    private final byte[] mTestAddress = new byte[] {01, 01, 01, 01, 01, 01};
-
-    private BluetoothAdapter mAdapter;
-    private BluetoothDevice mTestDevice = null;
-    private AvrcpCoverArtProvider mArtProvider;
-
-    @Rule public final ServiceTestRule mServiceRule = new ServiceTestRule();
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
     @Mock private Uri mUri;
-    @Mock private AdapterService mAdapterService;
-    @Mock private AvrcpControllerNativeInterface mNativeInterface;
+
+    private static final String TEST_MODE = "test_mode";
+
+    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
+    private final BluetoothDevice mTestDevice = mAdapter.getRemoteDevice("00:01:42:03:04:05");
+
+    private AvrcpCoverArtProvider mArtProvider;
 
     @Before
     public void setUp() throws Exception {
-        TestUtils.setAdapterService(mAdapterService);
-        AvrcpControllerNativeInterface.setInstance(mNativeInterface);
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
-        mTestDevice = mAdapter.getRemoteDevice(mTestAddress);
         mArtProvider = new AvrcpCoverArtProvider();
-    }
-
-    @After
-    public void tearDown() throws Exception {
-        AvrcpControllerNativeInterface.setInstance(null);
-        TestUtils.clearAdapterService(mAdapterService);
     }
 
     @Test

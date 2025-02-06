@@ -139,6 +139,7 @@ public class GattClientTest {
         if (bondedDevices.contains(mRemoteLeDevice)) {
             mRemoteLeDevice.removeBond();
         }
+        mHost.close();
     }
 
     @Test

@@ -18,8 +18,6 @@ package com.android.bluetooth.pbapclient;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import android.accounts.Account;
-
 import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.Rule;
@@ -39,7 +37,6 @@ import java.util.Arrays;
 public class PbapPhonebookTest {
 
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
-    @Mock private Account mMockAccount;
 
     // *********************************************************************************************
     // * Create Phonebook
@@ -156,7 +153,6 @@ public class PbapPhonebookTest {
                         PbapPhonebook.FAVORITES_PATH,
                         PbapPhonebook.FORMAT_VCARD_21,
                         0,
-                        mMockAccount,
                         stream);
 
         assertThat(phonebook.getPhonebook()).isEqualTo(PbapPhonebook.FAVORITES_PATH);
@@ -190,7 +186,6 @@ public class PbapPhonebookTest {
                         PbapPhonebook.LOCAL_PHONEBOOK_PATH,
                         PbapPhonebook.FORMAT_VCARD_21,
                         0,
-                        mMockAccount,
                         stream);
 
         assertThat(phonebook.getPhonebook()).isEqualTo(PbapPhonebook.LOCAL_PHONEBOOK_PATH);
@@ -224,7 +219,6 @@ public class PbapPhonebookTest {
                         PbapPhonebook.SIM_PHONEBOOK_PATH,
                         PbapPhonebook.FORMAT_VCARD_21,
                         0,
-                        mMockAccount,
                         stream);
 
         assertThat(phonebook.getPhonebook()).isEqualTo(PbapPhonebook.SIM_PHONEBOOK_PATH);
@@ -262,7 +256,6 @@ public class PbapPhonebookTest {
                         PbapPhonebook.ICH_PATH,
                         PbapPhonebook.FORMAT_VCARD_21,
                         0,
-                        mMockAccount,
                         stream);
 
         assertThat(phonebook.getPhonebook()).isEqualTo(PbapPhonebook.ICH_PATH);
@@ -296,7 +289,6 @@ public class PbapPhonebookTest {
                         PbapPhonebook.OCH_PATH,
                         PbapPhonebook.FORMAT_VCARD_21,
                         0,
-                        mMockAccount,
                         stream);
 
         assertThat(phonebook.getPhonebook()).isEqualTo(PbapPhonebook.OCH_PATH);
@@ -330,7 +322,6 @@ public class PbapPhonebookTest {
                         PbapPhonebook.MCH_PATH,
                         PbapPhonebook.FORMAT_VCARD_21,
                         0,
-                        mMockAccount,
                         stream);
 
         assertThat(phonebook.getPhonebook()).isEqualTo(PbapPhonebook.MCH_PATH);
@@ -364,7 +355,6 @@ public class PbapPhonebookTest {
                         PbapPhonebook.SIM_ICH_PATH,
                         PbapPhonebook.FORMAT_VCARD_21,
                         0,
-                        mMockAccount,
                         stream);
 
         assertThat(phonebook.getPhonebook()).isEqualTo(PbapPhonebook.SIM_ICH_PATH);
@@ -398,7 +388,6 @@ public class PbapPhonebookTest {
                         PbapPhonebook.SIM_OCH_PATH,
                         PbapPhonebook.FORMAT_VCARD_21,
                         0,
-                        mMockAccount,
                         stream);
 
         assertThat(phonebook.getPhonebook()).isEqualTo(PbapPhonebook.SIM_OCH_PATH);
@@ -432,7 +421,6 @@ public class PbapPhonebookTest {
                         PbapPhonebook.SIM_MCH_PATH,
                         PbapPhonebook.FORMAT_VCARD_21,
                         0,
-                        mMockAccount,
                         stream);
 
         assertThat(phonebook.getPhonebook()).isEqualTo(PbapPhonebook.SIM_MCH_PATH);
@@ -470,7 +458,6 @@ public class PbapPhonebookTest {
                         PbapPhonebook.SIM_PHONEBOOK_PATH,
                         PbapPhonebook.FORMAT_VCARD_30,
                         0,
-                        mMockAccount,
                         stream);
 
         assertThat(phonebook.getPhonebook()).isEqualTo(PbapPhonebook.SIM_PHONEBOOK_PATH);
@@ -504,7 +491,6 @@ public class PbapPhonebookTest {
                         PbapPhonebook.SIM_PHONEBOOK_PATH,
                         PbapPhonebook.FORMAT_VCARD_21,
                         0,
-                        mMockAccount,
                         stream);
 
         assertThat(phonebook.getPhonebook()).isEqualTo(PbapPhonebook.SIM_PHONEBOOK_PATH);
@@ -538,7 +524,6 @@ public class PbapPhonebookTest {
                         PbapPhonebook.SIM_PHONEBOOK_PATH,
                         PbapPhonebook.FORMAT_VCARD_21,
                         0,
-                        mMockAccount,
                         stream);
 
         assertThat(phonebook.getPhonebook()).isEqualTo(PbapPhonebook.SIM_PHONEBOOK_PATH);

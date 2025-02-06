@@ -32,12 +32,12 @@ import android.media.AudioManager;
 import android.media.session.MediaSessionManager;
 import android.net.Uri;
 import android.os.UserManager;
-import android.os.test.TestLooper;
 
 import androidx.test.filters.SmallTest;
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
+import com.android.bluetooth.TestLooper;
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.audio_util.Image;
 import com.android.bluetooth.audio_util.Metadata;
