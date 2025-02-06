@@ -281,9 +281,15 @@ struct ProcedureDataV2 {
 
 struct RangingResult {
   double result_meters_;
+  double error_meters_;
+
   // A normalized value from 0 (low confidence) to 100 (high confidence) representing the confidence
   // of estimated distance. The value is -1 when unavailable.
   int8_t confidence_level_;
+  double delay_spread_meters_;
+  uint8_t detected_attack_level_;
+  double velocity_meters_per_second_;
+  int64_t elapsed_timestamp_nanos_;
 };
 
 class RangingHalCallback {

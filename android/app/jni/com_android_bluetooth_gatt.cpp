@@ -122,6 +122,16 @@ static std::vector<uint8_t> toVector(JNIEnv* env, jbyteArray ba) {
   return data_vec;
 }
 
+static std::string jstr_to_str(JNIEnv* env, jstring js) {
+  const char* cstr = env->GetStringUTFChars(js, NULL);
+  if (cstr == nullptr) {
+    return "";
+  }
+  std::string ret = std::string(cstr);
+  env->ReleaseStringUTFChars(js, cstr);
+  return ret;
+}
+
 namespace android {
 
 /**
@@ -1155,8 +1165,10 @@ public:
   void OnDistanceMeasurementResult(RawAddress address, uint32_t centimeter,
                                    uint32_t error_centimeter, int azimuth_angle,
                                    int error_azimuth_angle, int altitude_angle,
-                                   int error_altitude_angle, uint64_t elapsedRealtimeNanos,
-                                   int8_t confidence_level, uint8_t method) {
+                                   int error_altitude_angle, uint64_t elapsed_realtime_nanos,
+                                   int8_t confidence_level, double delay_spread_meters,
+                                   uint8_t detected_attack_level, double velocity_meters_per_second,
+                                   uint8_t method) {
     std::shared_lock<std::shared_mutex> lock(callbacks_mutex);
     CallbackEnv sCallbackEnv(__func__);
     if (!sCallbackEnv.valid() || !mDistanceMeasurementCallbacksObj) {
@@ -1166,7 +1178,8 @@ public:
     sCallbackEnv->CallVoidMethod(
             mDistanceMeasurementCallbacksObj, method_onDistanceMeasurementResult, addr.get(),
             centimeter, error_centimeter, azimuth_angle, error_azimuth_angle, altitude_angle,
-            error_altitude_angle, elapsedRealtimeNanos, confidence_level, method);
+            error_altitude_angle, elapsed_realtime_nanos, confidence_level, delay_spread_meters,
+            detected_attack_level, velocity_meters_per_second, method);
   }
 };
 
@@ -1259,13 +1272,13 @@ static int gattClientGetDeviceTypeNative(JNIEnv* env, jobject /* object */, jstr
   return sGattIf->client->get_device_type(str2addr(env, address));
 }
 
-static void gattClientRegisterAppNative(JNIEnv* /* env */, jobject /* object */, jlong app_uuid_lsb,
-                                        jlong app_uuid_msb, jboolean eatt_support) {
+static void gattClientRegisterAppNative(JNIEnv* env, jobject /* object */, jlong app_uuid_lsb,
+                                        jlong app_uuid_msb, jstring name, jboolean eatt_support) {
   if (!sGattIf) {
     return;
   }
   Uuid uuid = from_java_uuid(app_uuid_msb, app_uuid_lsb);
-  sGattIf->client->register_client(uuid, eatt_support);
+  sGattIf->client->register_client(uuid, jstr_to_str(env, name).c_str(), eatt_support);
 }
 
 static void gattClientUnregisterAppNative(JNIEnv* /* env */, jobject /* object */, jint clientIf) {
@@ -1511,16 +1524,6 @@ static void gattClientReadRemoteRssiNative(JNIEnv* env, jobject /* object */, ji
   sGattIf->client->read_remote_rssi(clientif, str2addr(env, address));
 }
 
-void set_scan_params_cmpl_cb(int client_if, uint8_t status) {
-  std::shared_lock<std::shared_mutex> lock(callbacks_mutex);
-  CallbackEnv sCallbackEnv(__func__);
-  if (!sCallbackEnv.valid() || !mScanCallbacksObj) {
-    return;
-  }
-  sCallbackEnv->CallVoidMethod(mScanCallbacksObj, method_onScanParamSetupCompleted, status,
-                               client_if);
-}
-
 static void gattSetScanParametersNative(JNIEnv* /* env */, jobject /* object */, jint client_if,
                                         jint scan_interval_unit, jint scan_window_unit,
                                         jint scan_phy) {
@@ -1528,8 +1531,7 @@ static void gattSetScanParametersNative(JNIEnv* /* env */, jobject /* object */,
     return;
   }
   sScanner->SetScanParameters(client_if, /* use active scan */ 0x01, scan_interval_unit,
-                              scan_window_unit, scan_phy,
-                              base::Bind(&set_scan_params_cmpl_cb, client_if));
+                              scan_window_unit, scan_phy);
 }
 
 void scan_filter_param_cb(uint8_t client_if, uint8_t avbl_space, uint8_t action, uint8_t status) {
@@ -1701,6 +1703,7 @@ static void gattClientScanFilterAddNative(JNIEnv* env, jobject /* object */, jin
       for (int j = 0; j < len; j++) {
         curr.irk[j] = irkBytes[j];
       }
+      env->ReleaseByteArrayElements(irkByteArray.get(), irkBytes, JNI_ABORT);
     }
 
     ScopedLocalRef<jobject> uuid(env, env->GetObjectField(current.get(), uuidFid));
@@ -1911,6 +1914,7 @@ static void gattClientMsftAdvMonitorAddNative(JNIEnv* env, jobject /* object*/,
       for (int j = 0; j < env->GetArrayLength(patternByteArray.get()); j++) {
         native_msft_adv_monitor_pattern.pattern.push_back(patternBytes[j]);
       }
+      env->ReleaseByteArrayElements(patternByteArray.get(), patternBytes, 0);
     }
 
     patterns.push_back(native_msft_adv_monitor_pattern);
@@ -2914,7 +2918,7 @@ static int register_com_android_bluetooth_gatt_distance_measurement(JNIEnv* env)
            &method_onDistanceMeasurementStarted},
           {"onDistanceMeasurementStopped", "(Ljava/lang/String;II)V",
            &method_onDistanceMeasurementStopped},
-          {"onDistanceMeasurementResult", "(Ljava/lang/String;IIIIIIJII)V",
+          {"onDistanceMeasurementResult", "(Ljava/lang/String;IIIIIIJIDIDI)V",
            &method_onDistanceMeasurementResult},
   };
   GET_JAVA_METHODS(env, "com/android/bluetooth/gatt/DistanceMeasurementNativeInterface",
@@ -2929,7 +2933,8 @@ static int register_com_android_bluetooth_gatt_(JNIEnv* env) {
           {"cleanupNative", "()V", (void*)cleanupNative},
           {"gattClientGetDeviceTypeNative", "(Ljava/lang/String;)I",
            (void*)gattClientGetDeviceTypeNative},
-          {"gattClientRegisterAppNative", "(JJZ)V", (void*)gattClientRegisterAppNative},
+          {"gattClientRegisterAppNative", "(JJLjava/lang/String;Z)V",
+           (void*)gattClientRegisterAppNative},
           {"gattClientUnregisterAppNative", "(I)V", (void*)gattClientUnregisterAppNative},
           {"gattClientConnectNative", "(ILjava/lang/String;IZIZII)V",
            (void*)gattClientConnectNative},

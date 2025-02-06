@@ -2,13 +2,6 @@ package: "com.android.bluetooth.flags"
 container: "com.android.bt"
 
 flag {
-    name: "rfcomm_always_use_mitm"
-    namespace: "bluetooth"
-    description: "Use MITM initially to avoid abrupt peer disconnection b/312840315"
-    bug: "316824288"
-}
-
-flag {
     name: "rfcomm_prevent_unnecessary_collisions"
     namespace: "bluetooth"
     description: "Restrict collision handling to exclude unrelated connections"

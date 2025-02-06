@@ -145,13 +145,6 @@ bt_status_t btif_storage_add_hid_device_info(const tAclLinkSpec& link_spec, uint
   log::verbose("link spec: {}", link_spec.ToRedactedStringForLogging());
   std::string bdstr = link_spec.addrt.bda.ToString();
 
-  if (!com::android::bluetooth::flags::allow_switching_hid_and_hogp()) {
-    btif_storage_hid_device_info(bdstr, attr_mask, sub_class, app_id, vendor_id, product_id,
-                                 version, ctry_code, ssr_max_latency, ssr_min_tout, dl_len,
-                                 dsc_list);
-    return BT_STATUS_SUCCESS;
-  }
-
   if (link_spec.transport == BT_TRANSPORT_AUTO) {
     log::error("Unexpected transport!");
     return BT_STATUS_UNHANDLED;
@@ -291,9 +284,7 @@ bt_status_t btif_storage_load_bonded_hid_info(void) {
     link_spec.transport = BT_TRANSPORT_AUTO;
 
     int db_version = 0;
-    if (com::android::bluetooth::flags::allow_switching_hid_and_hogp()) {
-      btif_config_get_int(name, BTIF_STORAGE_KEY_HID_DB_VERSION, &db_version);
-    }
+    btif_config_get_int(name, BTIF_STORAGE_KEY_HID_DB_VERSION, &db_version);
 
     log::info("link spec: {}; db version: {}", link_spec, db_version);
 
@@ -338,22 +329,20 @@ bt_status_t btif_storage_remove_hid_info(const tAclLinkSpec& link_spec) {
   btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_REPORT);
   btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_REPORT_VERSION);
 
-  if (com::android::bluetooth::flags::allow_switching_hid_and_hogp()) {
-    int db_version = 0;
-    btif_config_get_int(bdstr, BTIF_STORAGE_KEY_HID_DB_VERSION, &db_version);
-    if (db_version == STORAGE_HID_DB_VERSION) {
-      btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_ATTR_MASK);
-      btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_SUB_CLASS);
-      btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_APP_ID);
-      btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_VENDOR_ID);
-      btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_PRODUCT_ID);
-      btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_VERSION);
-      btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_COUNTRY_CODE);
-      btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_DESCRIPTOR);
-      btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_RECONNECT_ALLOWED);
-    }
-    btif_config_remove(bdstr, BTIF_STORAGE_KEY_HID_DB_VERSION);
+  int db_version = 0;
+  btif_config_get_int(bdstr, BTIF_STORAGE_KEY_HID_DB_VERSION, &db_version);
+  if (db_version == STORAGE_HID_DB_VERSION) {
+    btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_ATTR_MASK);
+    btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_SUB_CLASS);
+    btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_APP_ID);
+    btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_VENDOR_ID);
+    btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_PRODUCT_ID);
+    btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_VERSION);
+    btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_COUNTRY_CODE);
+    btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_DESCRIPTOR);
+    btif_config_remove(bdstr, BTIF_STORAGE_KEY_HOGP_RECONNECT_ALLOWED);
   }
+  btif_config_remove(bdstr, BTIF_STORAGE_KEY_HID_DB_VERSION);
   return BT_STATUS_SUCCESS;
 }
 
@@ -657,6 +646,21 @@ void btif_storage_leaudio_update_handles_bin(const RawAddress& addr) {
   }
 }
 
+/** Store GMAP information */
+void btif_storage_leaudio_update_gmap_bin(const RawAddress& addr) {
+  std::vector<uint8_t> gmap;
+
+  if (LeAudioClient::GetGmapForStorage(addr, gmap)) {
+    do_in_jni_thread(Bind(
+            [](const RawAddress& bd_addr, std::vector<uint8_t> gmap) {
+              auto bdstr = bd_addr.ToString();
+              btif_config_set_bin(bdstr, BTIF_STORAGE_KEY_LEAUDIO_GMAP_BIN, gmap.data(),
+                                  gmap.size());
+            },
+            addr, std::move(gmap)));
+  }
+}
+
 /** Store PACs information */
 void btif_storage_leaudio_update_pacs_bin(const RawAddress& addr) {
   std::vector<uint8_t> sink_pacs;
@@ -805,10 +809,16 @@ void btif_storage_load_bonded_leaudio() {
       btif_config_get_bin(name, BTIF_STORAGE_KEY_LEAUDIO_ASES_BIN, ases.data(), &buffer_size);
     }
 
+    buffer_size = btif_config_get_bin_length(name, BTIF_STORAGE_KEY_LEAUDIO_GMAP_BIN);
+    std::vector<uint8_t> gmap(buffer_size);
+    if (buffer_size > 0) {
+      btif_config_get_bin(name, BTIF_STORAGE_KEY_LEAUDIO_GMAP_BIN, gmap.data(), &buffer_size);
+    }
+
     do_in_main_thread(Bind(&LeAudioClient::AddFromStorage, bd_addr, autoconnect,
                            sink_audio_location, source_audio_location, sink_supported_context_type,
                            source_supported_context_type, std::move(handles), std::move(sink_pacs),
-                           std::move(source_pacs), std::move(ases)));
+                           std::move(source_pacs), std::move(ases), std::move(gmap)));
   }
 }
 
@@ -817,6 +827,7 @@ void btif_storage_leaudio_clear_service_data(const RawAddress& address) {
   btif_config_remove(bdstr, BTIF_STORAGE_KEY_LEAUDIO_HANDLES_BIN);
   btif_config_remove(bdstr, BTIF_STORAGE_KEY_LEAUDIO_SINK_PACS_BIN);
   btif_config_remove(bdstr, BTIF_STORAGE_KEY_LEAUDIO_ASES_BIN);
+  btif_config_remove(bdstr, BTIF_STORAGE_KEY_LEAUDIO_GMAP_BIN);
 }
 
 /** Remove the Le Audio device from storage */

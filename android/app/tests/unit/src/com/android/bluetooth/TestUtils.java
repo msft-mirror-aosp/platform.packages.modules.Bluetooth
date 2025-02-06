@@ -31,7 +31,6 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.os.MessageQueue;
-import android.os.test.TestLooper;
 import android.service.media.MediaBrowserService;
 import android.util.Log;
 
@@ -41,7 +40,6 @@ import androidx.test.uiautomator.UiDevice;
 import com.android.bluetooth.avrcpcontroller.BluetoothMediaBrowserService;
 import com.android.bluetooth.btservice.AdapterService;
 
-import org.junit.Assert;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
@@ -112,11 +110,11 @@ public class TestUtils {
      *     TestUtils#setAdapterService(AdapterService)}
      */
     public static void clearAdapterService(AdapterService adapterService) {
-        Assert.assertSame(
-                "AdapterService.getAdapterService() must return the same object as the"
-                        + " supplied adapterService in this method",
-                adapterService,
-                AdapterService.getAdapterService());
+        assertWithMessage(
+                        "AdapterService.getAdapterService() must return the same object as the"
+                                + " supplied adapterService in this method")
+                .that(adapterService)
+                .isSameInstanceAs(AdapterService.getAdapterService());
         assertThat(adapterService).isNotNull();
         AdapterService.clearAdapterService(adapterService);
     }
@@ -157,10 +155,7 @@ public class TestUtils {
             return context.getPackageManager()
                     .getResourcesForApplication("com.android.bluetooth.tests");
         } catch (PackageManager.NameNotFoundException e) {
-            assertWithMessage(
-                            "Setup Failure: Unable to get test application resources"
-                                    + e.toString())
-                    .fail();
+            assertWithMessage("Unable to get test application resources: " + e.toString()).fail();
             return null;
         }
     }
@@ -178,7 +173,7 @@ public class TestUtils {
             assertThat(intent).isNotNull();
             return intent;
         } catch (InterruptedException e) {
-            Assert.fail("Cannot obtain an Intent from the queue: " + e.getMessage());
+            assertWithMessage("Cannot obtain an Intent from the queue: " + e.toString()).fail();
         }
         return null;
     }
@@ -194,7 +189,7 @@ public class TestUtils {
             Intent intent = queue.poll(timeoutMs, TimeUnit.MILLISECONDS);
             assertThat(intent).isNull();
         } catch (InterruptedException e) {
-            Assert.fail("Cannot obtain an Intent from the queue: " + e.getMessage());
+            assertWithMessage("Cannot obtain an Intent from the queue: " + e.toString()).fail();
         }
     }
 

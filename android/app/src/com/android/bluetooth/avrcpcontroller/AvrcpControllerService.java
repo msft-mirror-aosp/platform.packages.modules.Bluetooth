@@ -27,7 +27,6 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.IBluetoothAvrcpController;
 import android.content.AttributionSource;
-import android.content.Context;
 import android.content.Intent;
 import android.media.AudioManager;
 import android.support.v4.media.MediaBrowserCompat.MediaItem;
@@ -98,19 +97,22 @@ public class AvrcpControllerService extends ProfileService {
     public static final int DEVICE_STATE_INACTIVE = 0;
     public static final int DEVICE_STATE_ACTIVE = 1;
 
-    static BrowseTree sBrowseTree;
     private static AvrcpControllerService sService;
 
-    private AdapterService mAdapterService;
-    private final AvrcpControllerNativeInterface mNativeInterface;
-
-    protected Map<BluetoothDevice, AvrcpControllerStateMachine> mDeviceStateMap =
-            new ConcurrentHashMap<>(1);
-    private BluetoothDevice mActiveDevice = null;
     private final Object mActiveDeviceLock = new Object();
 
-    private boolean mCoverArtEnabled = false;
-    protected AvrcpCoverArtManager mCoverArtManager;
+    private final AdapterService mAdapterService;
+    private final AvrcpControllerNativeInterface mNativeInterface;
+    private final AvrcpCoverArtManager mCoverArtManager;
+    private final boolean mCoverArtEnabled;
+
+    private final BrowseTree mBrowseTree;
+
+    @VisibleForTesting
+    final Map<BluetoothDevice, AvrcpControllerStateMachine> mDeviceStateMap =
+            new ConcurrentHashMap<>();
+
+    private BluetoothDevice mActiveDevice = null;
 
     private class ImageDownloadCallback implements AvrcpCoverArtManager.Callback {
         @Override
@@ -135,38 +137,37 @@ public class AvrcpControllerService extends ProfileService {
         }
     }
 
-    public AvrcpControllerService(Context ctx) {
-        super(ctx);
-        mNativeInterface = requireNonNull(AvrcpControllerNativeInterface.getInstance());
+    public AvrcpControllerService(AdapterService adapterService) {
+        this(adapterService, AvrcpControllerNativeInterface.getInstance());
     }
 
     @VisibleForTesting
-    public AvrcpControllerService(Context ctx, AvrcpControllerNativeInterface nativeInterface) {
-        super(ctx);
+    public AvrcpControllerService(
+            AdapterService adapterService, AvrcpControllerNativeInterface nativeInterface) {
+        super(requireNonNull(adapterService));
+        mAdapterService = adapterService;
         mNativeInterface = requireNonNull(nativeInterface);
-    }
-
-    public static boolean isEnabled() {
-        return BluetoothProperties.isProfileAvrcpControllerEnabled().orElse(false);
-    }
-
-    @Override
-    public synchronized void start() {
         mNativeInterface.init(this);
+
         setComponentAvailable(ON_ERROR_SETTINGS_ACTIVITY, true);
-        mAdapterService = AdapterService.getAdapterService();
         mCoverArtEnabled = getResources().getBoolean(R.bool.avrcp_controller_enable_cover_art);
         if (mCoverArtEnabled) {
             setComponentAvailable(COVER_ART_PROVIDER, true);
             mCoverArtManager = new AvrcpCoverArtManager(this, new ImageDownloadCallback());
+        } else {
+            mCoverArtManager = null;
         }
-        sBrowseTree = new BrowseTree(null);
+
+        mBrowseTree = new BrowseTree(null);
         setAvrcpControllerService(this);
 
         // Start the media browser service.
         Intent startIntent = new Intent(this, BluetoothMediaBrowserService.class);
         startService(startIntent);
-        setActiveDevice(null);
+    }
+
+    public static boolean isEnabled() {
+        return BluetoothProperties.isProfileAvrcpControllerEnabled().orElse(false);
     }
 
     @Override
@@ -180,14 +181,16 @@ public class AvrcpControllerService extends ProfileService {
         mDeviceStateMap.clear();
 
         setAvrcpControllerService(null);
-        sBrowseTree = null;
         if (mCoverArtManager != null) {
             mCoverArtManager.cleanup();
-            mCoverArtManager = null;
             setComponentAvailable(COVER_ART_PROVIDER, false);
         }
         setComponentAvailable(ON_ERROR_SETTINGS_ACTIVITY, false);
         mNativeInterface.cleanup();
+    }
+
+    BrowseTree getBrowseTree() {
+        return mBrowseTree;
     }
 
     public static synchronized AvrcpControllerService getAvrcpControllerService() {
@@ -276,7 +279,7 @@ public class AvrcpControllerService extends ProfileService {
     void playItem(String parentMediaId) {
         Log.d(TAG, "playItem(" + parentMediaId + ")");
         // Check if the requestedNode is a player rather than a song
-        BrowseTree.BrowseNode requestedNode = sBrowseTree.findBrowseNodeByID(parentMediaId);
+        BrowseTree.BrowseNode requestedNode = mBrowseTree.findBrowseNodeByID(parentMediaId);
         if (requestedNode == null) {
             for (AvrcpControllerStateMachine stateMachine : mDeviceStateMap.values()) {
                 // Check each state machine for the song and then play it
@@ -306,7 +309,7 @@ public class AvrcpControllerService extends ProfileService {
     public synchronized BrowseResult getContents(String parentMediaId) {
         Log.d(TAG, "getContents(" + parentMediaId + ")");
 
-        BrowseTree.BrowseNode requestedNode = sBrowseTree.findBrowseNodeByID(parentMediaId);
+        BrowseTree.BrowseNode requestedNode = mBrowseTree.findBrowseNodeByID(parentMediaId);
         if (requestedNode == null) {
             for (AvrcpControllerStateMachine stateMachine : mDeviceStateMap.values()) {
                 requestedNode = stateMachine.findNode(parentMediaId);
@@ -316,23 +319,17 @@ public class AvrcpControllerService extends ProfileService {
             }
         }
 
-        Log.d(
-                TAG,
-                "getContents("
-                        + parentMediaId
-                        + "): "
-                        + (requestedNode == null
-                                ? "Failed to find node"
-                                : "node="
-                                        + requestedNode
-                                        + ", device="
-                                        + requestedNode.getDevice()));
-
         // If we don't find a node in the tree then do not have any way to browse for the contents.
         // Return an empty list instead.
         if (requestedNode == null) {
+            Log.e(TAG, "getContents(" + parentMediaId + "): Failed to find node");
             return new BrowseResult(new ArrayList(0), BrowseResult.ERROR_MEDIA_ID_INVALID);
         }
+        Log.d(
+                TAG,
+                ("getContents(" + parentMediaId + "): ")
+                        + ("node=" + requestedNode)
+                        + (", device=" + requestedNode.getDevice()));
         if (parentMediaId.equals(BrowseTree.ROOT) && requestedNode.getChildrenCount() == 0) {
             return new BrowseResult(null, BrowseResult.NO_DEVICE_CONNECTED);
         }
@@ -741,8 +738,9 @@ public class AvrcpControllerService extends ProfileService {
     protected AvrcpControllerStateMachine getOrCreateStateMachine(BluetoothDevice device) {
         AvrcpControllerStateMachine newStateMachine =
                 new AvrcpControllerStateMachine(
-                        device,
+                        mAdapterService,
                         this,
+                        device,
                         mNativeInterface,
                         Utils.isAutomotive(getApplicationContext()));
         AvrcpControllerStateMachine existingStateMachine =
@@ -807,7 +805,7 @@ public class AvrcpControllerService extends ProfileService {
             stateMachine.dump(sb);
         }
         sb.append("\n  BrowseTree:\n");
-        sBrowseTree.dump(sb);
+        mBrowseTree.dump(sb);
 
         sb.append("\n  Cover Artwork Enabled: ").append((mCoverArtEnabled ? "True" : "False"));
         if (mCoverArtManager != null) {

@@ -30,9 +30,6 @@
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 namespace {
 TimestampedStringCircularBuffer gatt_history_{50};
 constexpr char kTimeFormatString[] = "%Y-%m-%d %H:%M:%S";
@@ -70,10 +67,11 @@ gatt_interface_t default_gatt_interface = {
                   BTA_GATTC_GetGattDb(conn_id, start_handle, end_handle, db, count);
                 },
         .BTA_GATTC_AppRegister =
-                [](tBTA_GATTC_CBACK* p_client_cb, BtaAppRegisterCallback cb, bool eatt_support) {
+                [](const std::string& name, tBTA_GATTC_CBACK* p_client_cb,
+                   BtaAppRegisterCallback cb, bool eatt_support) {
                   gatt_history_.Push(std::format("{:<32s} eatt_support:{:c}", "GATTC_AppRegister",
                                                  eatt_support ? 'T' : 'F'));
-                  BTA_GATTC_AppRegister(p_client_cb, cb, eatt_support);
+                  BTA_GATTC_AppRegister(name, p_client_cb, cb, eatt_support);
                 },
         .BTA_GATTC_Close =
                 [](tCONN_ID conn_id) {
@@ -118,18 +116,10 @@ void DumpsysBtaDmGattClient(int fd) {
 }
 #undef DUMPSYS_TAG
 
-void bluetooth::testing::set_gatt_interface(const gatt_interface_t& interface) {
-  *gatt_interface = interface;
-}
-
-namespace bluetooth {
-namespace legacy {
-namespace testing {
+namespace bluetooth::testing {
 
 std::vector<bluetooth::common::TimestampedEntry<std::string>> PullCopyOfGattHistory() {
   return gatt_history_.Pull();
 }
 
-}  // namespace testing
-}  // namespace legacy
-}  // namespace bluetooth
+}  // namespace bluetooth::testing

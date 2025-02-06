@@ -148,8 +148,6 @@ public class BluetoothInCallService extends InCallService {
 
     private final CallInfo mCallInfo;
 
-    protected boolean mOnCreateCalled = false;
-
     private int mMaxNumberOfCalls = 0;
 
     private BluetoothAdapter mAdapter = null;
@@ -367,7 +365,6 @@ public class BluetoothInCallService extends InCallService {
     private BluetoothInCallService(CallInfo callInfo) {
         Log.i(TAG, "BluetoothInCallService is created");
         mCallInfo = Objects.requireNonNullElseGet(callInfo, () -> new CallInfo());
-        sInstance = this;
         mExecutor = Executors.newSingleThreadExecutor();
     }
 
@@ -425,6 +422,19 @@ public class BluetoothInCallService extends InCallService {
                     && conferenceCall.getState() == Call.STATE_ACTIVE) {
                 Log.i(TAG, "BT - hanging up conference call");
                 call = conferenceCall;
+            } else if (Flags.nonConferenceCallHangup()
+                    && !mCallInfo.isNullCall(conferenceCall)
+                    && conferenceCall.getState() == Call.STATE_HOLDING) {
+                Log.i(TAG, "BT - hanging up active call other than conference call");
+                /* Find active call other than conference */
+                for (BluetoothCall btCall : mCallInfo.getBluetoothCalls()) {
+                    if (!btCall.isConference()
+                            && btCall.getState() == Call.STATE_ACTIVE
+                            && btCall.getParentId() == null) {
+                        call = btCall;
+                        break;
+                    }
+                }
             }
             if (call.getState() == Call.STATE_RINGING) {
                 call.reject(false, "");
@@ -546,10 +556,6 @@ public class BluetoothInCallService extends InCallService {
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, MODIFY_PHONE_STATE})
     public boolean listCurrentCalls() {
         synchronized (LOCK) {
-            if (!mOnCreateCalled) {
-                Log.w(TAG, "listcurrentCalls() is called before onCreate()");
-                return false;
-            }
             enforceModifyPermission();
             // only log if it is after we recently updated the headset state or else it can
             // clog the android log since this can be queried every second.
@@ -780,25 +786,28 @@ public class BluetoothInCallService extends InCallService {
 
     @Override
     public void onCreate() {
-        Log.d(TAG, "onCreate");
         super.onCreate();
-        mAdapter = requireNonNull(getSystemService(BluetoothManager.class)).getAdapter();
-        mTelephonyManager = requireNonNull(getSystemService(TelephonyManager.class));
-        mTelecomManager = requireNonNull(getSystemService(TelecomManager.class));
-        mAdapter.getProfileProxy(this, mProfileListener, BluetoothProfile.HEADSET);
-        mAdapter.getProfileProxy(this, mProfileListener, BluetoothProfile.LE_CALL_CONTROL);
-        mBluetoothAdapterReceiver = new BluetoothAdapterReceiver();
-        IntentFilter intentFilter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
-        intentFilter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
-        registerReceiver(mBluetoothAdapterReceiver, intentFilter);
-        mOnCreateCalled = true;
+        synchronized (LOCK) {
+            Log.d(TAG, "onCreate");
+            mAdapter = requireNonNull(getSystemService(BluetoothManager.class)).getAdapter();
+            mTelephonyManager = requireNonNull(getSystemService(TelephonyManager.class));
+            mTelecomManager = requireNonNull(getSystemService(TelecomManager.class));
+            mAdapter.getProfileProxy(this, mProfileListener, BluetoothProfile.HEADSET);
+            mAdapter.getProfileProxy(this, mProfileListener, BluetoothProfile.LE_CALL_CONTROL);
+            mBluetoothAdapterReceiver = new BluetoothAdapterReceiver();
+            IntentFilter intentFilter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
+            intentFilter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
+            registerReceiver(mBluetoothAdapterReceiver, intentFilter);
+            sInstance = this;
+        }
     }
 
     @Override
     public void onDestroy() {
-        Log.d(TAG, "onDestroy");
-        clear();
-        mOnCreateCalled = false;
+        synchronized (LOCK) {
+            Log.d(TAG, "onDestroy");
+            clear();
+        }
         super.onDestroy();
     }
 

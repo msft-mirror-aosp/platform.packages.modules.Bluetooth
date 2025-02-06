@@ -50,6 +50,7 @@ import android.os.Message;
 import android.util.Log;
 
 import com.android.bluetooth.btservice.ProfileService;
+import com.android.bluetooth.flags.Flags;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
@@ -276,7 +277,12 @@ final class LeAudioStateMachine extends StateMachine {
 
             switch (message.what) {
                 case CONNECT:
-                    deferMessage(message);
+                    if (Flags.leaudioSmIgnoreConnectEventsInConnectingState()
+                            && !hasDeferredMessages(DISCONNECT)) {
+                        Log.w(TAG, "Connecting: CONNECT ignored: " + mDevice);
+                    } else {
+                        deferMessage(message);
+                    }
                     break;
                 case CONNECT_TIMEOUT:
                     Log.w(TAG, "Connecting connection timeout: " + mDevice);

@@ -40,12 +40,12 @@
 #include "le_audio/le_audio_types.h"
 #include "le_audio_set_configuration_provider.h"
 
-using bluetooth::le_audio::set_configurations::AseConfiguration;
-using bluetooth::le_audio::set_configurations::AudioSetConfiguration;
-using bluetooth::le_audio::set_configurations::AudioSetConfigurations;
-using bluetooth::le_audio::set_configurations::CodecConfigSetting;
-using bluetooth::le_audio::set_configurations::QosConfigSetting;
+using bluetooth::le_audio::types::AseConfiguration;
+using bluetooth::le_audio::types::AudioSetConfiguration;
+using bluetooth::le_audio::types::AudioSetConfigurations;
+using bluetooth::le_audio::types::CodecConfigSetting;
 using bluetooth::le_audio::types::LeAudioContextType;
+using bluetooth::le_audio::types::QosConfigSetting;
 
 namespace bluetooth::le_audio {
 
@@ -624,7 +624,7 @@ AudioSetConfigurationProvider* AudioSetConfigurationProvider::Get() {
   return config_provider.get();
 }
 
-const set_configurations::AudioSetConfigurations* AudioSetConfigurationProvider::GetConfigurations(
+const types::AudioSetConfigurations* AudioSetConfigurationProvider::GetConfigurations(
         ::bluetooth::le_audio::types::LeAudioContextType content_type) const {
   if (pimpl_->IsRunning()) {
     return pimpl_->config_provider_impl_->GetConfigurationsByContextType(content_type);
@@ -634,7 +634,7 @@ const set_configurations::AudioSetConfigurations* AudioSetConfigurationProvider:
 }
 
 bool AudioSetConfigurationProvider::CheckConfigurationIsBiDirSwb(
-        const set_configurations::AudioSetConfiguration& set_configuration) const {
+        const types::AudioSetConfiguration& set_configuration) const {
   uint8_t dir = 0;
 
   for (auto direction :
@@ -650,7 +650,7 @@ bool AudioSetConfigurationProvider::CheckConfigurationIsBiDirSwb(
 }
 
 bool AudioSetConfigurationProvider::CheckConfigurationIsDualBiDirSwb(
-        const set_configurations::AudioSetConfiguration& set_configuration) const {
+        const types::AudioSetConfiguration& set_configuration) const {
   types::BidirectionalPair<uint8_t> swb_direction_counter = {0, 0};
 
   for (auto direction :

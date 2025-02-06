@@ -115,3 +115,11 @@ bool PORT_IsCollisionDetected(RawAddress /* bd_addr */) {
   inc_func_call_count(__func__);
   return false;
 }
+int PORT_SetAppUid(uint16_t /* handle */, uint32_t /* app_uid */) {
+  inc_func_call_count(__func__);
+  return 0;
+}
+int PORT_SetSdpDuration(uint16_t /* handle */, uint64_t /* sdp_duration_ms */) {
+  inc_func_call_count(__func__);
+  return 0;
+}

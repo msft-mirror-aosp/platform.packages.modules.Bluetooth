@@ -25,7 +25,6 @@
 #include <ostream>
 #include <string>
 
-#include "os/logging/log_adapter.h"
 #include "packet/custom_field_fixed_size_interface.h"
 #include "storage/serializable.h"
 

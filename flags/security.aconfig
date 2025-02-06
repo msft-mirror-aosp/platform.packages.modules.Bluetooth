@@ -9,6 +9,16 @@ flag {
 }
 
 flag {
+    name: "key_missing_ble_peripheral"
+    namespace: "bluetooth"
+    description: "Key missing broadcast for LE devices in peripheral role"
+    bug: "392895615"
+    metadata {
+      purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
     name: "key_missing_as_ordered_broadcast"
     namespace: "bluetooth"
     description: "Key missing broadcast would be send as ordered broadcast"
@@ -36,20 +46,10 @@ flag {
 }
 
 flag {
-  name: "le_enc_on_reconnection"
+  name: "le_enc_on_reconnect"
   namespace: "bluetooth"
   description: "Encrypt LE link on reconnection with bonded devices"
-  bug: "356201480"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
-  name: "btsec_avdt_msg_ind_type_confusion"
-  namespace: "bluetooth"
-  description: "Properly check current state and sig value of avdt rej/rsp messages before parsing"
-  bug: "358212054"
+  bug: "388864535"
   metadata {
     purpose: PURPOSE_BUGFIX
   }
@@ -64,17 +64,6 @@ flag {
     purpose: PURPOSE_BUGFIX
   }
 }
-
-flag {
-  name: "btsec_le_oob_pairing"
-  namespace: "bluetooth"
-  description: "Drop connection if a peer claims it has OOB data but no local OOB data is stored"
-  bug: "374376990"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
 
 flag {
   name: "opp_check_content_uri_permissions"
@@ -111,6 +100,16 @@ flag {
     namespace: "bluetooth"
     description: "Disconnect ACL link when encryption fails"
     bug: "378764380"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "upgrade_temp_bonding_on_auth_req"
+    namespace: "bluetooth"
+    description: "Upgrade security If it is on temp bonding & authentication is requirement"
+    bug: "385747513"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

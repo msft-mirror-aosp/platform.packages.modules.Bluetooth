@@ -766,6 +766,7 @@ void Device::GetElementAttributesResponse(uint8_t label,
                                           SongInfo info) {
   auto get_element_attributes_pkt = pkt;
   auto attributes_requested = get_element_attributes_pkt->GetAttributesRequested();
+  bool all_attributes_flag = com::android::bluetooth::flags::get_all_element_attributes_empty();
 
   auto response = GetElementAttributesResponseBuilder::MakeBuilder(ctrl_mtu_);
 
@@ -780,10 +781,12 @@ void Device::GetElementAttributesResponse(uint8_t label,
     for (const auto& attribute : attributes_requested) {
       if (info.attributes.find(attribute) != info.attributes.end()) {
         response->AddAttributeEntry(*info.attributes.find(attribute));
+      } else if (all_attributes_flag) {
+        response->AddAttributeEntry(attribute, std::string());
       }
     }
   } else {  // zero attributes requested which means all attributes requested
-    if (!com::android::bluetooth::flags::get_all_element_attributes_empty()) {
+    if (!all_attributes_flag) {
       for (const auto& attribute : info.attributes) {
         response->AddAttributeEntry(attribute);
       }

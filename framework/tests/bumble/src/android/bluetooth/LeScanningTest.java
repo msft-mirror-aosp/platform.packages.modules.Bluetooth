@@ -68,7 +68,7 @@ import java.util.stream.Stream;
 @RunWith(TestParameterInjector.class)
 public class LeScanningTest {
     private static final String TAG = "LeScanningTest";
-    private static final int TIMEOUT_SCANNING_MS = 2000;
+    private static final int TIMEOUT_SCANNING_MS = 3000;
     private static final String TEST_UUID_STRING = "00001805-0000-1000-8000-00805f9b34fb";
     private static final String TEST_ADDRESS_RANDOM_STATIC = "F0:43:A8:23:10:11";
     private static final String ACTION_DYNAMIC_RECEIVER_SCAN_RESULT =
@@ -376,6 +376,7 @@ public class LeScanningTest {
     // Test against UUIDs that are close to TEST_UUID_STRING, one that has a few bits unset and one
     // that has an extra bit set.
     @Test
+    @VirtualOnly
     public void startBleScan_withServiceData_uuidDoesntMatch(
             @TestParameter({"00001800", "00001815"}) String uuid) {
         advertiseWithBumbleWithServiceData();

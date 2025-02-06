@@ -26,7 +26,6 @@ import static org.mockito.Mockito.when;
 
 import android.content.Context;
 import android.content.pm.PackageManager;
-import android.telephony.SmsManager;
 import android.telephony.SmsMessage;
 import android.telephony.TelephonyManager;
 
@@ -62,7 +61,6 @@ public class BluetoothMapSmsPduTest {
     private int TEST_ENCODING;
     private int TEST_LANGUAGE_TABLE;
 
-    private SmsManager mSmsManager = SmsManager.getDefault();
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
     @Mock private Context mTargetContext;
@@ -72,7 +70,7 @@ public class BluetoothMapSmsPduTest {
     public void setUp() throws Exception {
         PackageManager packageManager =
                 InstrumentationRegistry.getTargetContext().getPackageManager();
-        assumeTrue(packageManager.isPackageAvailable(FEATURE_TELEPHONY_MESSAGING));
+        assumeTrue(packageManager.hasSystemFeature(FEATURE_TELEPHONY_MESSAGING));
         when(mTargetContext.getSystemServiceName(TelephonyManager.class))
                 .thenReturn("TELEPHONY_SERVICE");
         when(mTargetContext.getSystemService("TELEPHONY_SERVICE")).thenReturn(mTelephonyManager);
@@ -110,15 +108,13 @@ public class BluetoothMapSmsPduTest {
 
     @Test
     public void getSubmitPdus_withTypeGSM_whenMsgCountIsMoreThanOne() throws Exception {
-        // Do not run test if sms is not supported
-        assumeTrue(mSmsManager.isImsSmsSupported());
         when(mTelephonyManager.getCurrentPhoneType()).thenReturn(TelephonyManager.PHONE_TYPE_GSM);
 
         List<SmsPdu> pdus =
                 BluetoothMapSmsPdu.getSubmitPdus(
                         mTargetContext, TEST_TEXT_WITH_TWO_SMS_PARTS, null);
 
-        assertThat(pdus.size()).isEqualTo(2);
+        assertThat(pdus).hasSize(2);
         assertThat(pdus.get(0).getType()).isEqualTo(BluetoothMapSmsPdu.SMS_TYPE_GSM);
 
         BluetoothMapbMessageSms messageSmsToEncode = new BluetoothMapbMessageSms();
@@ -139,13 +135,11 @@ public class BluetoothMapSmsPduTest {
 
     @Test
     public void getSubmitPdus_withTypeCDMA() throws Exception {
-        // Do not run test if sms is not supported
-        assumeTrue(mSmsManager.isImsSmsSupported());
         when(mTelephonyManager.getCurrentPhoneType()).thenReturn(TelephonyManager.PHONE_TYPE_CDMA);
 
         List<SmsPdu> pdus = BluetoothMapSmsPdu.getSubmitPdus(mTargetContext, TEST_TEXT, null);
 
-        assertThat(pdus.size()).isEqualTo(1);
+        assertThat(pdus).hasSize(1);
         assertThat(pdus.get(0).getType()).isEqualTo(BluetoothMapSmsPdu.SMS_TYPE_CDMA);
 
         BluetoothMapbMessageSms messageSmsToEncode = new BluetoothMapbMessageSms();
@@ -164,15 +158,13 @@ public class BluetoothMapSmsPduTest {
 
     @Test
     public void getDeliverPdus_withTypeGSM() throws Exception {
-        // Do not run test if sms is not supported
-        assumeTrue(mSmsManager.isImsSmsSupported());
         when(mTelephonyManager.getCurrentPhoneType()).thenReturn(TelephonyManager.PHONE_TYPE_GSM);
 
         List<SmsPdu> pdus =
                 BluetoothMapSmsPdu.getDeliverPdus(
                         mTargetContext, TEST_TEXT, TEST_DESTINATION_ADDRESS, TEST_DATE);
 
-        assertThat(pdus.size()).isEqualTo(1);
+        assertThat(pdus).hasSize(1);
         assertThat(pdus.get(0).getType()).isEqualTo(BluetoothMapSmsPdu.SMS_TYPE_GSM);
 
         BluetoothMapbMessageSms messageSmsToEncode = new BluetoothMapbMessageSms();
@@ -193,15 +185,13 @@ public class BluetoothMapSmsPduTest {
 
     @Test
     public void getDeliverPdus_withTypeCDMA() throws Exception {
-        // Do not run test if sms is not supported
-        assumeTrue(mSmsManager.isImsSmsSupported());
         when(mTelephonyManager.getCurrentPhoneType()).thenReturn(TelephonyManager.PHONE_TYPE_CDMA);
 
         List<SmsPdu> pdus =
                 BluetoothMapSmsPdu.getDeliverPdus(
                         mTargetContext, TEST_TEXT, TEST_DESTINATION_ADDRESS, TEST_DATE);
 
-        assertThat(pdus.size()).isEqualTo(1);
+        assertThat(pdus).hasSize(1);
         assertThat(pdus.get(0).getType()).isEqualTo(BluetoothMapSmsPdu.SMS_TYPE_CDMA);
 
         BluetoothMapbMessageSms messageSmsToEncode = new BluetoothMapbMessageSms();

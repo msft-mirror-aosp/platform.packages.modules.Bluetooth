@@ -23,6 +23,7 @@
 
 #include <cstring>
 
+#include "bta/dm/bta_dm_sec_int.h"
 #include "btif/include/btif_common.h"
 #include "btif/include/core_callbacks.h"
 #include "btif/include/stack_manager_t.h"
@@ -34,6 +35,7 @@
 #include "stack/btm/btm_ble_sec.h"
 #include "stack/btm/btm_dev.h"
 #include "stack/btm/btm_sec.h"
+#include "stack/include/acl_api.h"
 #include "stack/include/bt_octets.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_client_interface.h"
@@ -548,6 +550,21 @@ void smp_proc_pair_cmd(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
 
   /* erase all keys if it is peripheral proc pairing req */
   if (p_dev_rec && (p_cb->role == HCI_ROLE_PERIPHERAL)) {
+    if (com::android::bluetooth::flags::key_missing_ble_peripheral()) {
+      tBTM_SEC_DEV_REC* p_rec = btm_find_dev(p_cb->pairing_bda);
+      /* If we bonded, but not encrypted, it's a key missing - disconnect.
+       * If we are bonded, its key upgrade and ok to continue.
+       * If we are not bonded, its new device pairing and ok.
+       */
+      if (p_rec != NULL && p_rec->sec_rec.is_le_link_key_known() &&
+          !p_rec->sec_rec.is_le_device_encrypted()) {
+        log::warn("bonded unencrypted central wants to pair {}", p_cb->pairing_bda);
+        bta_dm_remote_key_missing(p_cb->pairing_bda);
+        acl_disconnect_from_handle(p_rec->ble_hci_handle, HCI_ERR_AUTH_FAILURE,
+                                   "bonded unencrypted central wants to pair");
+        return;
+      }
+    }
     btm_sec_clear_ble_keys(p_dev_rec);
   }
 
@@ -1954,16 +1971,14 @@ void smp_process_secure_connection_oob_data(tSMP_CB* p_cb, tSMP_INT_DATA* /* p_d
     p_cb->local_random = {0};
   }
 
-  if (com::android::bluetooth::flags::btsec_le_oob_pairing()) {
-    if (p_cb->peer_oob_flag == SMP_OOB_PRESENT && !p_sc_oob_data->loc_oob_data.present) {
-      log::warn(
-              "local OOB data is not present but peer claims to have received it; dropping "
-              "connection");
-      tSMP_INT_DATA smp_int_data{};
-      smp_int_data.status = SMP_OOB_FAIL;
-      smp_sm_event(p_cb, SMP_AUTH_CMPL_EVT, &smp_int_data);
-      return;
-    }
+  if (p_cb->peer_oob_flag == SMP_OOB_PRESENT && !p_sc_oob_data->loc_oob_data.present) {
+    log::warn(
+            "local OOB data is not present but peer claims to have received it; dropping "
+            "connection");
+    tSMP_INT_DATA smp_int_data{};
+    smp_int_data.status = SMP_OOB_FAIL;
+    smp_sm_event(p_cb, SMP_AUTH_CMPL_EVT, &smp_int_data);
+    return;
   }
 
   if (!p_sc_oob_data->peer_oob_data.present) {

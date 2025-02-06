@@ -57,6 +57,8 @@ constexpr tAPP_ID CLIENT2 = 2;
 constexpr tAPP_ID CLIENT3 = 3;
 constexpr tAPP_ID CLIENT10 = 10;
 
+std::string get_client_name(uint8_t /* gatt_if */) { return ""; }
+
 const tBLE_BD_ADDR BTM_Sec_GetAddressWithType(const RawAddress& bd_addr) {
   return tBLE_BD_ADDR{.type = BLE_ADDR_PUBLIC, .bda = bd_addr};
 }

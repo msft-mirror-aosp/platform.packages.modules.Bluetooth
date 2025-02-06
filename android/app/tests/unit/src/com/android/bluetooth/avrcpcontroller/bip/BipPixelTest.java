@@ -16,9 +16,10 @@
 
 package com.android.bluetooth.avrcpcontroller;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import androidx.test.runner.AndroidJUnit4;
 
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -35,44 +36,44 @@ public class BipPixelTest {
             int maxHeight,
             String pixelStr) {
         BipPixel pixel = new BipPixel(input);
-        Assert.assertEquals(pixelType, pixel.getType());
-        Assert.assertEquals(minWidth, pixel.getMinWidth());
-        Assert.assertEquals(minHeight, pixel.getMinHeight());
-        Assert.assertEquals(maxWidth, pixel.getMaxWidth());
-        Assert.assertEquals(maxHeight, pixel.getMaxHeight());
-        Assert.assertEquals(pixelStr, pixel.toString());
+        assertThat(pixel.getType()).isEqualTo(pixelType);
+        assertThat(pixel.getMinWidth()).isEqualTo(minWidth);
+        assertThat(pixel.getMinHeight()).isEqualTo(minHeight);
+        assertThat(pixel.getMaxWidth()).isEqualTo(maxWidth);
+        assertThat(pixel.getMaxHeight()).isEqualTo(maxHeight);
+        assertThat(pixel.toString()).isEqualTo(pixelStr);
     }
 
     private void testFixed(int width, int height, String pixelStr) {
         BipPixel pixel = BipPixel.createFixed(width, height);
-        Assert.assertEquals(BipPixel.TYPE_FIXED, pixel.getType());
-        Assert.assertEquals(width, pixel.getMinWidth());
-        Assert.assertEquals(height, pixel.getMinHeight());
-        Assert.assertEquals(width, pixel.getMaxWidth());
-        Assert.assertEquals(height, pixel.getMaxHeight());
-        Assert.assertEquals(pixelStr, pixel.toString());
+        assertThat(pixel.getType()).isEqualTo(BipPixel.TYPE_FIXED);
+        assertThat(pixel.getMinWidth()).isEqualTo(width);
+        assertThat(pixel.getMinHeight()).isEqualTo(height);
+        assertThat(pixel.getMaxWidth()).isEqualTo(width);
+        assertThat(pixel.getMaxHeight()).isEqualTo(height);
+        assertThat(pixel.toString()).isEqualTo(pixelStr);
     }
 
     private void testResizableModified(
             int minWidth, int minHeight, int maxWidth, int maxHeight, String pixelStr) {
         BipPixel pixel = BipPixel.createResizableModified(minWidth, minHeight, maxWidth, maxHeight);
-        Assert.assertEquals(BipPixel.TYPE_RESIZE_MODIFIED_ASPECT_RATIO, pixel.getType());
-        Assert.assertEquals(minWidth, pixel.getMinWidth());
-        Assert.assertEquals(minHeight, pixel.getMinHeight());
-        Assert.assertEquals(maxWidth, pixel.getMaxWidth());
-        Assert.assertEquals(maxHeight, pixel.getMaxHeight());
-        Assert.assertEquals(pixelStr, pixel.toString());
+        assertThat(pixel.getType()).isEqualTo(BipPixel.TYPE_RESIZE_MODIFIED_ASPECT_RATIO);
+        assertThat(pixel.getMinWidth()).isEqualTo(minWidth);
+        assertThat(pixel.getMinHeight()).isEqualTo(minHeight);
+        assertThat(pixel.getMaxWidth()).isEqualTo(maxWidth);
+        assertThat(pixel.getMaxHeight()).isEqualTo(maxHeight);
+        assertThat(pixel.toString()).isEqualTo(pixelStr);
     }
 
     private void testResizableFixed(int minWidth, int maxWidth, int maxHeight, String pixelStr) {
         int minHeight = (minWidth * maxHeight) / maxWidth; // spec defined
         BipPixel pixel = BipPixel.createResizableFixed(minWidth, maxWidth, maxHeight);
-        Assert.assertEquals(BipPixel.TYPE_RESIZE_FIXED_ASPECT_RATIO, pixel.getType());
-        Assert.assertEquals(minWidth, pixel.getMinWidth());
-        Assert.assertEquals(minHeight, pixel.getMinHeight());
-        Assert.assertEquals(maxWidth, pixel.getMaxWidth());
-        Assert.assertEquals(maxHeight, pixel.getMaxHeight());
-        Assert.assertEquals(pixelStr, pixel.toString());
+        assertThat(pixel.getType()).isEqualTo(BipPixel.TYPE_RESIZE_FIXED_ASPECT_RATIO);
+        assertThat(pixel.getMinWidth()).isEqualTo(minWidth);
+        assertThat(pixel.getMinHeight()).isEqualTo(minHeight);
+        assertThat(pixel.getMaxWidth()).isEqualTo(maxWidth);
+        assertThat(pixel.getMaxHeight()).isEqualTo(maxHeight);
+        assertThat(pixel.toString()).isEqualTo(pixelStr);
     }
 
     @Test

@@ -27,6 +27,7 @@
 #include "hci/msft.h"
 #include "hci/remote_name_request.h"
 #include "lpp/lpp_offload_manager.h"
+#include "main/shim/shim.h"
 #include "main/shim/stack.h"
 #include "metrics/counter_metrics.h"
 #include "os/handler.h"
@@ -71,13 +72,13 @@ storage::StorageModule* GetStorage() {
 
 hci::AclManager* GetAclManager() { return Stack::GetInstance()->GetInstance<hci::AclManager>(); }
 
-metrics::CounterMetrics* GetCounterMetrics() {
-  return Stack::GetInstance()->GetInstance<metrics::CounterMetrics>();
-}
+metrics::CounterMetrics* GetCounterMetrics() { return Stack::GetInstance()->GetCounterMetrics(); }
 
 hci::MsftExtensionManager* GetMsftExtensionManager() {
   return Stack::GetInstance()->GetInstance<hci::MsftExtensionManager>();
 }
+
+bool is_gd_stack_started_up() { return Stack::GetInstance()->IsRunning(); }
 
 }  // namespace shim
 }  // namespace bluetooth

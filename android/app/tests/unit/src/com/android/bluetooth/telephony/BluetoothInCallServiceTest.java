@@ -30,6 +30,7 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.Bundle;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.telecom.BluetoothCallQualityReport;
 import android.telecom.Call;
@@ -51,7 +52,6 @@ import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.hfp.BluetoothHeadsetProxy;
 import com.android.bluetooth.tbs.BluetoothLeCallControlProxy;
 
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -172,7 +172,7 @@ public class BluetoothInCallServiceTest {
         doReturn(fakePhoneAccount).when(mMockCallInfo).getBestPhoneAccount();
 
         String networkOperator = mBluetoothInCallService.getNetworkOperator();
-        Assert.assertEquals(networkOperator, "label0");
+        assertThat(networkOperator).isEqualTo("label0");
     }
 
     @Test
@@ -181,7 +181,7 @@ public class BluetoothInCallServiceTest {
         doReturn(fakeOperator).when(mMockTelephonyManager).getNetworkOperatorName();
 
         String networkOperator = mBluetoothInCallService.getNetworkOperator();
-        Assert.assertEquals(networkOperator, fakeOperator);
+        assertThat(networkOperator).isEqualTo(fakeOperator);
     }
 
     @Test
@@ -190,7 +190,7 @@ public class BluetoothInCallServiceTest {
         doReturn(fakePhoneAccount).when(mMockCallInfo).getBestPhoneAccount();
 
         String subscriberNumber = mBluetoothInCallService.getSubscriberNumber();
-        Assert.assertEquals(subscriberNumber, TEST_ACCOUNT_ADDRESS + TEST_ACCOUNT_INDEX);
+        assertThat(subscriberNumber).isEqualTo(TEST_ACCOUNT_ADDRESS + TEST_ACCOUNT_INDEX);
     }
 
     @Test
@@ -199,7 +199,7 @@ public class BluetoothInCallServiceTest {
         doReturn(fakeNumber).when(mMockTelephonyManager).getLine1Number();
 
         String subscriberNumber = mBluetoothInCallService.getSubscriberNumber();
-        Assert.assertEquals(subscriberNumber, fakeNumber);
+        assertThat(subscriberNumber).isEqualTo(fakeNumber);
     }
 
     @Test
@@ -253,12 +253,12 @@ public class BluetoothInCallServiceTest {
         BluetoothCallQualityReport report =
                 (BluetoothCallQualityReport)
                         bundle.get(BluetoothCallQualityReport.EXTRA_BLUETOOTH_CALL_QUALITY_REPORT);
-        Assert.assertEquals(10, report.getSentTimestampMillis());
-        Assert.assertEquals(20, report.getRssiDbm());
-        Assert.assertEquals(30, report.getSnrDb());
-        Assert.assertEquals(40, report.getRetransmittedPacketsCount());
-        Assert.assertEquals(50, report.getPacketsNotReceivedCount());
-        Assert.assertEquals(60, report.getNegativeAcknowledgementCount());
+        assertThat(report.getSentTimestampMillis()).isEqualTo(10);
+        assertThat(report.getRssiDbm()).isEqualTo(20);
+        assertThat(report.getSnrDb()).isEqualTo(30);
+        assertThat(report.getRetransmittedPacketsCount()).isEqualTo(40);
+        assertThat(report.getPacketsNotReceivedCount()).isEqualTo(50);
+        assertThat(report.getNegativeAcknowledgementCount()).isEqualTo(60);
     }
 
     @Test
@@ -907,7 +907,7 @@ public class BluetoothInCallServiceTest {
 
         // parent call arrived, but children have not, then do inference on children
         calls.add(conferenceCall);
-        Assert.assertEquals(calls.size(), 1);
+        assertThat(calls).hasSize(1);
         mBluetoothInCallService.onCallAdded(conferenceCall);
 
         clearInvocations(mMockBluetoothHeadset);
@@ -946,7 +946,7 @@ public class BluetoothInCallServiceTest {
         mBluetoothInCallService.onCallRemoved(holdingCall, true);
         calls.remove(activeCall);
         calls.remove(holdingCall);
-        Assert.assertEquals(calls.size(), 1);
+        assertThat(calls).hasSize(1);
 
         clearInvocations(mMockBluetoothHeadset);
         mBluetoothInCallService.listCurrentCalls();
@@ -978,6 +978,75 @@ public class BluetoothInCallServiceTest {
                         anyBoolean(),
                         nullable(String.class),
                         anyInt());
+    }
+
+    @Test
+    @EnableFlags({Flags.FLAG_NON_CONFERENCE_CALL_HANGUP})
+    public void endActivecallWhenConferenceCallInHoldState() {
+        doReturn("").when(mMockTelephonyManager).getNetworkCountryIso();
+
+        List<BluetoothCall> calls = new ArrayList<>();
+        doReturn(calls).when(mMockCallInfo).getBluetoothCalls();
+
+        // Call 1 active call is added
+        BluetoothCall activeCall_1 = createActiveCall(UUID.randomUUID());
+        calls.add(activeCall_1);
+        ManageCall(activeCall_1, "tel:555-0001", Call.STATE_ACTIVE);
+
+        // Call 2 holding call is added
+        BluetoothCall activeCall_2 = createHeldCall(UUID.randomUUID());
+        calls.add(activeCall_2);
+        ManageCall(activeCall_2, "tel:555-0002", Call.STATE_HOLDING);
+        doReturn(true).when(activeCall_2).isIncoming();
+
+        // calls merged for conference call
+        DisconnectCause cause =
+                new DisconnectCause(DisconnectCause.OTHER, "IMS_MERGED_SUCCESSFULLY");
+        doReturn(cause).when(activeCall_1).getDisconnectCause();
+        doReturn(cause).when(activeCall_2).getDisconnectCause();
+        mBluetoothInCallService.onCallRemoved(activeCall_1, true);
+        mBluetoothInCallService.onCallRemoved(activeCall_2, true);
+
+        BluetoothCall conferenceCall = createActiveCall(UUID.randomUUID());
+        addCallCapability(conferenceCall, Connection.CAPABILITY_MANAGE_CONFERENCE);
+
+        doReturn(Uri.parse("tel:555-1234")).when(conferenceCall).getHandle();
+        doReturn(true).when(conferenceCall).isConference();
+        doReturn(Call.STATE_ACTIVE).when(conferenceCall).getState();
+        doReturn(true).when(conferenceCall).hasProperty(Call.Details.PROPERTY_GENERIC_CONFERENCE);
+        doReturn(true).when(conferenceCall).isIncoming();
+        doReturn(calls).when(mMockCallInfo).getBluetoothCalls();
+
+        // Conference created
+        calls.add(conferenceCall);
+        doReturn(3).when(conferenceCall).getParentId();
+        doReturn(3).when(conferenceCall).getId();
+        mBluetoothInCallService.onCallAdded(conferenceCall);
+
+        // Call_1 and Call_2 are part of conference
+        calls.add(activeCall_1);
+        mBluetoothInCallService.onCallAdded(activeCall_1);
+        doReturn(true).when(activeCall_1).isConference();
+        calls.add(activeCall_2);
+        mBluetoothInCallService.onCallAdded(activeCall_2);
+        doReturn(Call.STATE_ACTIVE).when(activeCall_2).getState();
+        doReturn(true).when(activeCall_2).isConference();
+        doReturn(List.of(1, 2)).when(conferenceCall).getChildrenIds();
+        doReturn(conferenceCall).when(mMockCallInfo).getForegroundCall();
+
+        // Call 3 is added
+        BluetoothCall activeCall_3 = createActiveCall(UUID.randomUUID());
+        doReturn(null).when(activeCall_3).getParentId();
+        calls.add(activeCall_3);
+
+        // Call 3 active call, Conference on hold
+        doReturn(Call.STATE_HOLDING).when(conferenceCall).getState();
+        ManageCall(activeCall_3, "tel:555-0003", Call.STATE_ACTIVE);
+        doReturn(true).when(activeCall_3).isIncoming();
+
+        mBluetoothInCallService.hangupCall();
+
+        verify(activeCall_3).disconnect();
     }
 
     @Test
@@ -1042,7 +1111,7 @@ public class BluetoothInCallServiceTest {
 
         // parent call arrived, but children have not, then do inference on children
         calls.add(conferenceCall);
-        Assert.assertEquals(calls.size(), 1);
+        assertThat(calls).hasSize(1);
         mBluetoothInCallService.onCallAdded(conferenceCall);
 
         clearInvocations(mMockBluetoothHeadset);
@@ -1080,7 +1149,7 @@ public class BluetoothInCallServiceTest {
         mBluetoothInCallService.onCallRemoved(activeCall_1, true);
         doReturn(false).when(activeCall_1).isConference();
         calls.remove(activeCall_1);
-        Assert.assertEquals(calls.size(), 2);
+        assertThat(calls).hasSize(2);
 
         // Call 2 removed from conf
         doReturn(cause).when(activeCall_2).getDisconnectCause();
@@ -1690,134 +1759,110 @@ public class BluetoothInCallServiceTest {
         doReturn(TelephonyManager.NETWORK_TYPE_GSM)
                 .when(mMockTelephonyManager)
                 .getDataNetworkType();
-        Assert.assertEquals(
-                mBluetoothInCallService.getBearerTechnology(),
-                BluetoothLeCallControlProxy.BEARER_TECHNOLOGY_GSM);
+        assertThat(mBluetoothInCallService.getBearerTechnology())
+                .isEqualTo(BluetoothLeCallControlProxy.BEARER_TECHNOLOGY_GSM);
 
         doReturn(TelephonyManager.NETWORK_TYPE_GPRS)
                 .when(mMockTelephonyManager)
                 .getDataNetworkType();
-        Assert.assertEquals(
-                mBluetoothInCallService.getBearerTechnology(),
-                BluetoothLeCallControlProxy.BEARER_TECHNOLOGY_2G);
+        assertThat(mBluetoothInCallService.getBearerTechnology())
+                .isEqualTo(BluetoothLeCallControlProxy.BEARER_TECHNOLOGY_2G);
 
         doReturn(TelephonyManager.NETWORK_TYPE_EVDO_B)
                 .when(mMockTelephonyManager)
                 .getDataNetworkType();
-        Assert.assertEquals(
-                mBluetoothInCallService.getBearerTechnology(),
-                BluetoothLeCallControlProxy.BEARER_TECHNOLOGY_3G);
+        assertThat(mBluetoothInCallService.getBearerTechnology())
+                .isEqualTo(BluetoothLeCallControlProxy.BEARER_TECHNOLOGY_3G);
 
         doReturn(TelephonyManager.NETWORK_TYPE_TD_SCDMA)
                 .when(mMockTelephonyManager)
                 .getDataNetworkType();
-        Assert.assertEquals(
-                mBluetoothInCallService.getBearerTechnology(),
-                BluetoothLeCallControlProxy.BEARER_TECHNOLOGY_WCDMA);
+        assertThat(mBluetoothInCallService.getBearerTechnology())
+                .isEqualTo(BluetoothLeCallControlProxy.BEARER_TECHNOLOGY_WCDMA);
 
         doReturn(TelephonyManager.NETWORK_TYPE_LTE)
                 .when(mMockTelephonyManager)
                 .getDataNetworkType();
-        Assert.assertEquals(
-                mBluetoothInCallService.getBearerTechnology(),
-                BluetoothLeCallControlProxy.BEARER_TECHNOLOGY_LTE);
+        assertThat(mBluetoothInCallService.getBearerTechnology())
+                .isEqualTo(BluetoothLeCallControlProxy.BEARER_TECHNOLOGY_LTE);
 
         doReturn(TelephonyManager.NETWORK_TYPE_1xRTT)
                 .when(mMockTelephonyManager)
                 .getDataNetworkType();
-        Assert.assertEquals(
-                mBluetoothInCallService.getBearerTechnology(),
-                BluetoothLeCallControlProxy.BEARER_TECHNOLOGY_CDMA);
+        assertThat(mBluetoothInCallService.getBearerTechnology())
+                .isEqualTo(BluetoothLeCallControlProxy.BEARER_TECHNOLOGY_CDMA);
 
         doReturn(TelephonyManager.NETWORK_TYPE_HSPAP)
                 .when(mMockTelephonyManager)
                 .getDataNetworkType();
-        Assert.assertEquals(
-                mBluetoothInCallService.getBearerTechnology(),
-                BluetoothLeCallControlProxy.BEARER_TECHNOLOGY_4G);
+        assertThat(mBluetoothInCallService.getBearerTechnology())
+                .isEqualTo(BluetoothLeCallControlProxy.BEARER_TECHNOLOGY_4G);
 
         doReturn(TelephonyManager.NETWORK_TYPE_IWLAN)
                 .when(mMockTelephonyManager)
                 .getDataNetworkType();
-        Assert.assertEquals(
-                mBluetoothInCallService.getBearerTechnology(),
-                BluetoothLeCallControlProxy.BEARER_TECHNOLOGY_WIFI);
+        assertThat(mBluetoothInCallService.getBearerTechnology())
+                .isEqualTo(BluetoothLeCallControlProxy.BEARER_TECHNOLOGY_WIFI);
 
         doReturn(TelephonyManager.NETWORK_TYPE_NR).when(mMockTelephonyManager).getDataNetworkType();
-        Assert.assertEquals(
-                mBluetoothInCallService.getBearerTechnology(),
-                BluetoothLeCallControlProxy.BEARER_TECHNOLOGY_5G);
-
-        doReturn(TelephonyManager.NETWORK_TYPE_LTE_CA)
-                .when(mMockTelephonyManager)
-                .getDataNetworkType();
-        Assert.assertEquals(
-                mBluetoothInCallService.getBearerTechnology(),
-                BluetoothLeCallControlProxy.BEARER_TECHNOLOGY_GSM);
+        assertThat(mBluetoothInCallService.getBearerTechnology())
+                .isEqualTo(BluetoothLeCallControlProxy.BEARER_TECHNOLOGY_5G);
     }
 
     @Test
     public void getTbsTerminationReason() {
         BluetoothCall call = getMockCall(UUID.randomUUID());
 
-        Assert.assertEquals(
-                mBluetoothInCallService.getTbsTerminationReason(call),
-                BluetoothLeCallControl.TERMINATION_REASON_FAIL);
+        assertThat(mBluetoothInCallService.getTbsTerminationReason(call))
+                .isEqualTo(BluetoothLeCallControl.TERMINATION_REASON_FAIL);
 
         DisconnectCause cause = new DisconnectCause(DisconnectCause.BUSY, null, null, null, 1);
         doReturn(cause).when(call).getDisconnectCause();
-        Assert.assertEquals(
-                mBluetoothInCallService.getTbsTerminationReason(call),
-                BluetoothLeCallControl.TERMINATION_REASON_LINE_BUSY);
+        assertThat(mBluetoothInCallService.getTbsTerminationReason(call))
+                .isEqualTo(BluetoothLeCallControl.TERMINATION_REASON_LINE_BUSY);
 
         cause = new DisconnectCause(DisconnectCause.REJECTED, null, null, null, 1);
         doReturn(cause).when(call).getDisconnectCause();
-        Assert.assertEquals(
-                mBluetoothInCallService.getTbsTerminationReason(call),
-                BluetoothLeCallControl.TERMINATION_REASON_REMOTE_HANGUP);
+        assertThat(mBluetoothInCallService.getTbsTerminationReason(call))
+                .isEqualTo(BluetoothLeCallControl.TERMINATION_REASON_REMOTE_HANGUP);
 
         cause = new DisconnectCause(DisconnectCause.LOCAL, null, null, null, 1);
         doReturn(cause).when(call).getDisconnectCause();
         mBluetoothInCallService.mIsTerminatedByClient = false;
-        Assert.assertEquals(
-                mBluetoothInCallService.getTbsTerminationReason(call),
-                BluetoothLeCallControl.TERMINATION_REASON_SERVER_HANGUP);
+        assertThat(mBluetoothInCallService.getTbsTerminationReason(call))
+                .isEqualTo(BluetoothLeCallControl.TERMINATION_REASON_SERVER_HANGUP);
 
         cause = new DisconnectCause(DisconnectCause.LOCAL, null, null, null, 1);
         doReturn(cause).when(call).getDisconnectCause();
         mBluetoothInCallService.mIsTerminatedByClient = true;
-        Assert.assertEquals(
-                mBluetoothInCallService.getTbsTerminationReason(call),
-                BluetoothLeCallControl.TERMINATION_REASON_CLIENT_HANGUP);
+        assertThat(mBluetoothInCallService.getTbsTerminationReason(call))
+                .isEqualTo(BluetoothLeCallControl.TERMINATION_REASON_CLIENT_HANGUP);
 
         cause = new DisconnectCause(DisconnectCause.ERROR, null, null, null, 1);
         doReturn(cause).when(call).getDisconnectCause();
-        Assert.assertEquals(
-                mBluetoothInCallService.getTbsTerminationReason(call),
-                BluetoothLeCallControl.TERMINATION_REASON_NETWORK_CONGESTION);
+        assertThat(mBluetoothInCallService.getTbsTerminationReason(call))
+                .isEqualTo(BluetoothLeCallControl.TERMINATION_REASON_NETWORK_CONGESTION);
 
         cause =
                 new DisconnectCause(
                         DisconnectCause.CONNECTION_MANAGER_NOT_SUPPORTED, null, null, null, 1);
         doReturn(cause).when(call).getDisconnectCause();
-        Assert.assertEquals(
-                mBluetoothInCallService.getTbsTerminationReason(call),
-                BluetoothLeCallControl.TERMINATION_REASON_INVALID_URI);
+        assertThat(mBluetoothInCallService.getTbsTerminationReason(call))
+                .isEqualTo(BluetoothLeCallControl.TERMINATION_REASON_INVALID_URI);
 
         cause = new DisconnectCause(DisconnectCause.ERROR, null, null, null, 1);
         doReturn(cause).when(call).getDisconnectCause();
-        Assert.assertEquals(
-                mBluetoothInCallService.getTbsTerminationReason(call),
-                BluetoothLeCallControl.TERMINATION_REASON_NETWORK_CONGESTION);
+        assertThat(mBluetoothInCallService.getTbsTerminationReason(call))
+                .isEqualTo(BluetoothLeCallControl.TERMINATION_REASON_NETWORK_CONGESTION);
     }
 
     @Test
     public void onDestroy() {
-        assertThat(mBluetoothInCallService.mOnCreateCalled).isTrue();
+        assertThat(BluetoothInCallService.getInstance()).isNotNull();
 
         mBluetoothInCallService.onDestroy();
 
-        assertThat(mBluetoothInCallService.mOnCreateCalled).isFalse();
+        assertThat(BluetoothInCallService.getInstance()).isNull();
     }
 
     @Test
@@ -2027,7 +2072,6 @@ public class BluetoothInCallServiceTest {
                 .setSubscriptionAddress(Uri.parse("tel:555-000" + idx))
                 .setCapabilities(idx)
                 .setShortDescription("desc" + idx)
-                .setIsEnabled(true)
                 .build();
     }
 
@@ -2036,5 +2080,12 @@ public class BluetoothInCallServiceTest {
         Integer integerUuid = uuid.hashCode();
         doReturn(integerUuid).when(call).getId();
         return call;
+    }
+
+    private void ManageCall(BluetoothCall call, String TeleString, int STATE) {
+        mBluetoothInCallService.onCallAdded(call);
+        doReturn(STATE).when(call).getState();
+        doReturn(Uri.parse(TeleString)).when(call).getHandle();
+        doReturn(new GatewayInfo(null, null, Uri.parse(TeleString))).when(call).getGatewayInfo();
     }
 }

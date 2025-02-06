@@ -36,7 +36,6 @@
 #include "device/include/interop.h"
 #include "internal_include/bt_target.h"
 #include "main/shim/dumpsys.h"
-#include "os/logging/log_adapter.h"
 #include "osi/include/allocator.h"
 #include "stack/btm/btm_dev.h"
 #include "stack/include/bt_name.h"
@@ -52,9 +51,6 @@
 #ifdef TARGET_FLOSS
 #include "stack/include/srvc_api.h"
 #endif
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using bluetooth::Uuid;
 using namespace bluetooth::legacy::stack::sdp;
@@ -107,8 +103,8 @@ struct gatt_interface_t {
   void (*BTA_GATTC_Refresh)(const RawAddress& remote_bda);
   void (*BTA_GATTC_GetGattDb)(tCONN_ID conn_id, uint16_t start_handle, uint16_t end_handle,
                               btgatt_db_element_t** db, int* count);
-  void (*BTA_GATTC_AppRegister)(tBTA_GATTC_CBACK* p_client_cb, BtaAppRegisterCallback cb,
-                                bool eatt_support);
+  void (*BTA_GATTC_AppRegister)(const std::string& name, tBTA_GATTC_CBACK* p_client_cb,
+                                BtaAppRegisterCallback cb, bool eatt_support);
   void (*BTA_GATTC_Close)(tCONN_ID conn_id);
   void (*BTA_GATTC_ServiceSearchRequest)(tCONN_ID conn_id, const bluetooth::Uuid* p_srvc_uuid);
   void (*BTA_GATTC_Open)(tGATT_IF client_if, const RawAddress& remote_bda,
@@ -126,8 +122,9 @@ struct gatt_interface_t {
                   BTA_GATTC_GetGattDb(conn_id, start_handle, end_handle, db, count);
                 },
         .BTA_GATTC_AppRegister =
-                [](tBTA_GATTC_CBACK* p_client_cb, BtaAppRegisterCallback cb, bool eatt_support) {
-                  BTA_GATTC_AppRegister(p_client_cb, cb, eatt_support);
+                [](const std::string& name, tBTA_GATTC_CBACK* p_client_cb,
+                   BtaAppRegisterCallback cb, bool eatt_support) {
+                  BTA_GATTC_AppRegister(name, p_client_cb, cb, eatt_support);
                 },
         .BTA_GATTC_Close = [](tCONN_ID conn_id) { BTA_GATTC_Close(conn_id); },
         .BTA_GATTC_ServiceSearchRequest =
@@ -467,7 +464,8 @@ void bta_dm_disc_gattc_register(void) {
     return;
   }
   get_gatt_interface().BTA_GATTC_AppRegister(
-          bta_dm_gattc_callback, base::Bind([](uint8_t client_id, uint8_t status) {
+          "bta_dm_disc_gatt", bta_dm_gattc_callback,
+          base::Bind([](uint8_t client_id, uint8_t status) {
             tGATT_STATUS gatt_status = static_cast<tGATT_STATUS>(status);
             if (static_cast<tGATT_STATUS>(status) == GATT_SUCCESS) {
               log::info("Registered device discovery search gatt client tGATT_IF:{}", client_id);
@@ -513,7 +511,7 @@ static void bta_dm_gatt_disc_complete(tCONN_ID conn_id, tGATT_STATUS status) {
   log::verbose("conn_id = {}, status = {}, sdp_pending = {}, le_pending = {}", conn_id, status,
                sdp_pending, le_pending);
 
-  if (com::android::bluetooth::flags::bta_dm_discover_both() && sdp_pending && !le_pending) {
+  if (sdp_pending && !le_pending) {
     /* LE Service discovery finished, and services were reported, but SDP is not
      * finished yet. gatt_close_timer closed the connection, and we received
      * this callback because of disconnection */
@@ -562,13 +560,11 @@ static void bta_dm_gatt_disc_complete(tCONN_ID conn_id, tGATT_STATUS status) {
     } else {
       bta_dm_discovery_cb.conn_id = GATT_INVALID_CONN_ID;
     }
-    if (com::android::bluetooth::flags::fix_le_evt_cancelling_sdp_discovery() &&
-        (bta_dm_discovery_cb.transports & BT_TRANSPORT_BR_EDR)) {
+    if (bta_dm_discovery_cb.transports & BT_TRANSPORT_BR_EDR) {
       log::info("classic discovery still pending {}", bta_dm_discovery_cb.peer_bdaddr);
       return;
-    } else {
-      bta_dm_discovery_set_state(BTA_DM_DISCOVER_IDLE);
     }
+    bta_dm_discovery_set_state(BTA_DM_DISCOVER_IDLE);
     bta_dm_execute_queued_discovery_request();
   }
 }
@@ -717,10 +713,6 @@ tBT_TRANSPORT bta_dm_determine_discovery_transport(const RawAddress& bd_addr) {
   return ::bta_dm_determine_discovery_transport(bd_addr);
 }
 
-void bta_dm_sdp_result(tSDP_STATUS sdp_status, tBTA_DM_SDP_STATE* state) {
-  ::bta_dm_sdp_result(sdp_status, state);
-}
-
 }  // namespace testing
 }  // namespace legacy
 }  // namespace bluetooth
@@ -790,8 +782,7 @@ static void bta_dm_disc_sm_execute(tBTA_DM_DISC_EVT event, std::unique_ptr<tBTA_
                            "bad message type: {}", msg->index());
 
           auto req = std::get<tBTA_DM_API_DISCOVER>(*msg);
-          if (com::android::bluetooth::flags::bta_dm_discover_both() &&
-              is_same_device(req.bd_addr, bta_dm_discovery_cb.peer_bdaddr)) {
+          if (is_same_device(req.bd_addr, bta_dm_discovery_cb.peer_bdaddr)) {
             bta_dm_discover_services(std::get<tBTA_DM_API_DISCOVER>(*msg));
           } else {
             bta_dm_queue_disc(std::get<tBTA_DM_API_DISCOVER>(*msg));
@@ -847,13 +838,3 @@ void DumpsysBtaDmDisc(int fd) {
               bta_dm_state_text(bta_dm_discovery_get_state()).c_str());
 }
 #undef DUMPSYS_TAG
-
-namespace bluetooth {
-namespace legacy {
-namespace testing {
-
-tBTA_DM_SERVICE_DISCOVERY_CB& bta_dm_discovery_cb() { return ::bta_dm_discovery_cb; }
-
-}  // namespace testing
-}  // namespace legacy
-}  // namespace bluetooth

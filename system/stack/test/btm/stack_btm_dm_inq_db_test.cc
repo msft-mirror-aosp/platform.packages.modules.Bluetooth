@@ -23,6 +23,7 @@
 
 #include "stack/btm/btm_int_types.h"
 #include "stack/btm/neighbor_inquiry.h"
+#include "stack/include/btm_inq.h"
 #include "stack/include/inq_hci_link_interface.h"
 #include "test/common/mock_functions.h"
 #include "test/fake/fake_looper.h"
@@ -32,8 +33,6 @@
 #include "test/mock/mock_osi_thread.h"
 
 extern tBTM_CB btm_cb;
-extern void btm_init_inq_result_flt(void);
-extern void btm_clr_inq_result_flt(void);
 
 namespace {
 constexpr size_t kNumberOfThreads = 8;

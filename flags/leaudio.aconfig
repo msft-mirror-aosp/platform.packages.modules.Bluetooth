@@ -18,13 +18,6 @@ flag {
 }
 
 flag {
-    name: "leaudio_multicodec_aidl_support"
-    namespace: "bluetooth"
-    description: "Enables support for the multicodec AIDL"
-    bug: "313054645"
-}
-
-flag {
     name: "metadata_api_inactive_audio_device_upon_connection"
     is_exported: true
     namespace: "bluetooth"
@@ -90,16 +83,6 @@ flag {
     namespace: "bluetooth"
     description: "Introduce getting active state for LE Audio to avoid unnecessary broadcast handover when changing active group"
     bug: "331387253"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "le_audio_base_ecosystem_interval"
-    namespace: "bluetooth"
-    description: "Set base ecosystem interval when LE Audio is in use"
-    bug: "332574780"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -257,16 +240,6 @@ flag {
     namespace: "bluetooth"
     description: "Only control broadcast primary group volume"
     bug: "354201794"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "unbonded_profile_forbid_fix"
-    namespace: "bluetooth"
-    description: "Do not mark profiles as forbidden for unbonded devices"
-    bug: "356325069"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -437,6 +410,46 @@ flag {
     namespace: "bluetooth"
     description: "Use Audio Recording listener instead of monitoring sink session"
     bug: "381054654"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_sm_ignore_connect_events_in_connecting_state"
+    namespace: "bluetooth"
+    description: "When received CONNECT event in Connecting state, with no prior DISCONNECT - ignore the event"
+    bug: "384460395"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_disable_broadcast_for_hap_device"
+    namespace: "bluetooth"
+    description: "Disable broadcast feature for HAP device"
+    bug: "391702876"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_bass_scan_with_internal_scan_controller"
+    namespace: "bluetooth"
+    description: "Use internal scan controller for BASS service scan"
+    bug: "392953619"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_broadcast_prevent_resume_interruption"
+    namespace: "bluetooth"
+    description: "Prevent addSource/resumeSource iterruption by start/stop searching"
+    bug: "391773917"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

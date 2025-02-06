@@ -32,9 +32,9 @@
 #include "bta/ag/bta_ag_at.h"
 #include "bta/include/bta_ag_api.h"
 #include "bta/include/bta_api.h"
+#include "bta/include/bta_jv_api.h"
 #include "bta/sys/bta_sys.h"
 #include "internal_include/bt_target.h"
-#include "os/logging/log_adapter.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/btm_api_types.h"
 #include "stack/include/sdp_status.h"
@@ -135,6 +135,24 @@ typedef enum : uint8_t {
   BTA_AG_SCO_SHUTTING_ST    /* sco shutting down */
 } tBTA_AG_SCO;
 
+inline std::string bta_ag_sco_state_text(const tBTA_AG_SCO& state) {
+  switch (state) {
+    CASE_RETURN_TEXT(BTA_AG_SCO_SHUTDOWN_ST);
+    CASE_RETURN_TEXT(BTA_AG_SCO_LISTEN_ST);
+    CASE_RETURN_TEXT(BTA_AG_SCO_CODEC_ST);
+    CASE_RETURN_TEXT(BTA_AG_SCO_OPENING_ST);
+    CASE_RETURN_TEXT(BTA_AG_SCO_OPEN_CL_ST);
+    CASE_RETURN_TEXT(BTA_AG_SCO_OPEN_XFER_ST);
+    CASE_RETURN_TEXT(BTA_AG_SCO_OPEN_ST);
+    CASE_RETURN_TEXT(BTA_AG_SCO_CLOSING_ST);
+    CASE_RETURN_TEXT(BTA_AG_SCO_CLOSE_OP_ST);
+    CASE_RETURN_TEXT(BTA_AG_SCO_CLOSE_XFER_ST);
+    CASE_RETURN_TEXT(BTA_AG_SCO_SHUTTING_ST);
+    default:
+      return std::string("unknown_bta_ag_sco_state: ") +
+             std::to_string(static_cast<uint8_t>(state));
+  }
+}
 /*****************************************************************************
  *  Data types
  ****************************************************************************/
@@ -214,6 +232,14 @@ typedef struct {
   uint8_t scn;
 } tBTA_AG_PROFILE;
 
+/* type for sdp rfc metrics */
+typedef struct {
+  tBTA_JV_STATUS status;
+  uint64_t sdp_start_ms;
+  uint64_t sdp_end_ms;
+  bool sdp_initiated;
+} tBTA_AG_SDP_METRICS_CB;
+
 typedef enum {
   BTA_AG_SCO_CVSD_SETTINGS_S4 = 0, /* preferred/default when codec is CVSD */
   BTA_AG_SCO_CVSD_SETTINGS_S3,
@@ -246,7 +272,7 @@ struct formatter<tBTA_AG_SCO_LC3_SETTINGS> : enum_formatter<tBTA_AG_SCO_LC3_SETT
 template <>
 struct formatter<tBTA_AG_SCO_APTX_SWB_SETTINGS> : enum_formatter<tBTA_AG_SCO_APTX_SWB_SETTINGS> {};
 template <>
-struct formatter<tBTA_AG_SCO> : enum_formatter<tBTA_AG_SCO> {};
+struct formatter<tBTA_AG_SCO> : string_formatter<tBTA_AG_SCO, &bta_ag_sco_state_text> {};
 }  // namespace std
 
 /* state machine states */
@@ -259,6 +285,7 @@ struct tBTA_AG_SCB {
   tBTA_AG_AT_CB at_cb;                  /* AT command interpreter */
   RawAddress peer_addr;                 /* peer bd address */
   tSDP_DISCOVERY_DB* p_disc_db;         /* pointer to discovery database */
+  tBTA_AG_SDP_METRICS_CB sdp_metrics;   /* SDP information for metrics */
   tBTA_SERVICE_MASK reg_services;       /* services specified in register API */
   tBTA_SERVICE_MASK open_services;      /* services specified in open API */
   uint16_t conn_handle;                 /* RFCOMM handle of connected service */

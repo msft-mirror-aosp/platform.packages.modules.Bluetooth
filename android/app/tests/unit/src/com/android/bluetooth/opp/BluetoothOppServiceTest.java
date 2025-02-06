@@ -81,7 +81,6 @@ public class BluetoothOppServiceTest {
 
         AdapterService adapterService = new AdapterService(mTargetContext);
         mService = new BluetoothOppService(adapterService);
-        mService.start();
         mService.setAvailable(true);
         mIsBluetoothOppServiceStarted = true;
 

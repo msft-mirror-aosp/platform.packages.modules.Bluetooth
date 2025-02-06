@@ -34,7 +34,6 @@ import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -88,7 +87,7 @@ public class McpServiceTest {
     public void testGetService() {
         McpService mMcpServiceDuplicate = McpService.getMcpService();
         assertThat(mMcpServiceDuplicate).isNotNull();
-        Assert.assertSame(mMcpServiceDuplicate, mMcpService);
+        assertThat(mMcpServiceDuplicate).isSameInstanceAs(mMcpService);
     }
 
     @Test
@@ -100,13 +99,13 @@ public class McpServiceTest {
 
         mMcpService.setDeviceAuthorized(device0, true);
         verify(mMediaControlProfile).onDeviceAuthorizationSet(eq(device0));
-        Assert.assertEquals(
-                BluetoothDevice.ACCESS_ALLOWED, mMcpService.getDeviceAuthorization(device0));
+        assertThat(mMcpService.getDeviceAuthorization(device0))
+                .isEqualTo(BluetoothDevice.ACCESS_ALLOWED);
 
         mMcpService.setDeviceAuthorized(device1, false);
         verify(mMediaControlProfile).onDeviceAuthorizationSet(eq(device1));
-        Assert.assertEquals(
-                BluetoothDevice.ACCESS_REJECTED, mMcpService.getDeviceAuthorization(device1));
+        assertThat(mMcpService.getDeviceAuthorization(device1))
+                .isEqualTo(BluetoothDevice.ACCESS_REJECTED);
     }
 
     @Test

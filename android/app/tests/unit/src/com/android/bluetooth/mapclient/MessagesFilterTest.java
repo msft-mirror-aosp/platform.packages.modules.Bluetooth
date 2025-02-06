@@ -39,10 +39,10 @@ public class MessagesFilterTest {
         assertThat(filter.originator).isEqualTo(originator);
 
         filter.setOriginator("");
-        assertThat(filter.originator).isEqualTo(null); // Empty string is stored as null
+        assertThat(filter.originator).isNull(); // Empty string is stored as null
 
         filter.setOriginator(null);
-        assertThat(filter.originator).isEqualTo(null);
+        assertThat(filter.originator).isNull();
     }
 
     @Test
@@ -74,10 +74,10 @@ public class MessagesFilterTest {
         assertThat(filter.recipient).isEqualTo(recipient);
 
         filter.setRecipient("");
-        assertThat(filter.recipient).isEqualTo(null); // Empty string is stored as null
+        assertThat(filter.recipient).isNull(); // Empty string is stored as null
 
         filter.setRecipient(null);
-        assertThat(filter.recipient).isEqualTo(null);
+        assertThat(filter.recipient).isNull();
     }
 
     /** Test Builder creates and sets everything correctly. */

@@ -466,8 +466,8 @@ using BtaAppRegisterCallback = base::Callback<void(uint8_t /* app_id */, uint8_t
  *module.
  * p_client_cb - pointer to the application callback function.
  **/
-void BTA_GATTC_AppRegister(tBTA_GATTC_CBACK* p_client_cb, BtaAppRegisterCallback cb,
-                           bool eatt_support);
+void BTA_GATTC_AppRegister(const std::string& name, tBTA_GATTC_CBACK* p_client_cb,
+                           BtaAppRegisterCallback cb, bool eatt_support);
 
 /*******************************************************************************
  *

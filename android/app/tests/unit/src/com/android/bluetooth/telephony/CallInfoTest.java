@@ -308,7 +308,6 @@ public class CallInfoTest {
                 .setSubscriptionAddress(Uri.parse("tel:555-000" + idx))
                 .setCapabilities(idx)
                 .setShortDescription("desc" + idx)
-                .setIsEnabled(true)
                 .build();
     }
 

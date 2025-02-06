@@ -39,7 +39,6 @@ import com.android.bluetooth.a2dp.A2dpService;
 import com.android.bluetooth.hfp.HeadsetService;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -122,7 +121,7 @@ public class SilenceDeviceManagerTest {
         // Set silence state and check whether state changed successfully
         assertThat(mSilenceDeviceManager.setSilenceMode(mTestDevice, enableSilence)).isTrue();
         TestUtils.waitForLooperToFinishScheduledTask(mLooper);
-        Assert.assertEquals(enableSilence, mSilenceDeviceManager.getSilenceMode(mTestDevice));
+        assertThat(mSilenceDeviceManager.getSilenceMode(mTestDevice)).isEqualTo(enableSilence);
 
         // Check for silence state changed intent
         if (wasSilenced != enableSilence) {
@@ -163,8 +162,9 @@ public class SilenceDeviceManagerTest {
     }
 
     void verifySilenceStateIntent(Intent intent) {
-        Assert.assertEquals(BluetoothDevice.ACTION_SILENCE_MODE_CHANGED, intent.getAction());
-        Assert.assertEquals(mTestDevice, intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE));
+        assertThat(intent.getAction()).isEqualTo(BluetoothDevice.ACTION_SILENCE_MODE_CHANGED);
+        assertThat(intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice.class))
+                .isEqualTo(mTestDevice);
     }
 
     /** Helper to indicate A2dp connected for a device. */

@@ -67,6 +67,7 @@ namespace shim {
 
 struct Stack::impl {
   Acl* acl_ = nullptr;
+  metrics::CounterMetrics* counter_metrics_ = nullptr;
 };
 
 Stack::Stack() { pimpl_ = std::make_shared<Stack::impl>(); }
@@ -82,6 +83,11 @@ void Stack::StartEverything() {
   log::info("Starting Gd stack");
   ModuleList modules;
 
+  stack_thread_ = new os::Thread("gd_stack_thread", os::Thread::Priority::REAL_TIME);
+  stack_handler_ = new os::Handler(stack_thread_);
+
+  pimpl_->counter_metrics_ = new metrics::CounterMetrics(new Handler(stack_thread_));
+
 #if TARGET_FLOSS
   modules.add<sysprops::SyspropsModule>();
 #else
@@ -89,7 +95,6 @@ void Stack::StartEverything() {
     modules.add<lpp::LppOffloadManager>();
   }
 #endif
-  modules.add<metrics::CounterMetrics>();
   modules.add<hal::HciHal>();
   modules.add<hci::HciLayer>();
   modules.add<storage::StorageModule>();
@@ -103,14 +108,30 @@ void Stack::StartEverything() {
   modules.add<hci::LeScanningManager>();
   modules.add<hci::DistanceMeasurementManager>();
 
-  stack_thread_ = new os::Thread("gd_stack_thread", os::Thread::Priority::REAL_TIME);
-  StartUp(&modules, stack_thread_);
+  management_thread_ = new Thread("management_thread", Thread::Priority::NORMAL);
+  management_handler_ = new Handler(management_thread_);
 
-  stack_handler_ = new os::Handler(stack_thread_);
+  WakelockManager::Get().Acquire();
+
+  std::promise<void> promise;
+  auto future = promise.get_future();
+  management_handler_->Post(common::BindOnce(&Stack::handle_start_up, common::Unretained(this),
+                                             &modules, std::move(promise)));
+
+  auto init_status = future.wait_for(
+          std::chrono::milliseconds(get_gd_stack_timeout_ms(/* is_start = */ true)));
+
+  WakelockManager::Get().Release();
+
+  log::info("init_status == {}", int(init_status));
+
+  log::assert_that(init_status == std::future_status::ready, "Can't start stack, last instance: {}",
+                   registry_.last_instance_);
 
   log::info("Successfully toggled Gd stack");
 
   is_running_ = true;
+
   // Make sure the leaf modules are started
   log::assert_that(GetInstance<storage::StorageModule>() != nullptr,
                    "assert failed: GetInstance<storage::StorageModule>() != nullptr");
@@ -125,19 +146,6 @@ void Stack::StartEverything() {
   bluetooth::shim::init_advertising_manager();
   bluetooth::shim::init_scanning_manager();
   bluetooth::shim::init_distance_measurement_manager();
-}
-
-void Stack::StartModuleStack(const ModuleList* modules, const os::Thread* thread) {
-  std::lock_guard<std::recursive_mutex> lock(mutex_);
-  log::assert_that(!is_running_, "Gd stack already running");
-  stack_thread_ = const_cast<os::Thread*>(thread);
-  log::info("Starting Gd stack");
-
-  StartUp(const_cast<ModuleList*>(modules), stack_thread_);
-  stack_handler_ = new os::Handler(stack_thread_);
-
-  num_modules_ = modules->NumModules();
-  is_running_ = true;
 }
 
 void Stack::Stop() {
@@ -192,11 +200,17 @@ bool Stack::IsRunning() {
   return is_running_;
 }
 
-Acl* Stack::GetAcl() {
+Acl* Stack::GetAcl() const {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
   log::assert_that(is_running_, "assert failed: is_running_");
   log::assert_that(pimpl_->acl_ != nullptr, "Acl shim layer has not been created");
   return pimpl_->acl_;
+}
+
+metrics::CounterMetrics* Stack::GetCounterMetrics() const {
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
+  log::assert_that(is_running_, "assert failed: is_running_");
+  return pimpl_->counter_metrics_;
 }
 
 os::Handler* Stack::GetHandler() {
@@ -222,32 +236,9 @@ void Stack::Dump(int fd, std::promise<void> promise) const {
   }
 }
 
-void Stack::StartUp(ModuleList* modules, Thread* stack_thread) {
-  management_thread_ = new Thread("management_thread", Thread::Priority::NORMAL);
-  management_handler_ = new Handler(management_thread_);
-
-  WakelockManager::Get().Acquire();
-
-  std::promise<void> promise;
-  auto future = promise.get_future();
-  management_handler_->Post(common::BindOnce(&Stack::handle_start_up, common::Unretained(this),
-                                             modules, stack_thread, std::move(promise)));
-
-  auto init_status = future.wait_for(
-          std::chrono::milliseconds(get_gd_stack_timeout_ms(/* is_start = */ true)));
-
-  WakelockManager::Get().Release();
-
-  log::info("init_status == {}", int(init_status));
-
-  log::assert_that(init_status == std::future_status::ready, "Can't start stack, last instance: {}",
-                   registry_.last_instance_);
-
-  log::info("init complete");
-}
-
-void Stack::handle_start_up(ModuleList* modules, Thread* stack_thread, std::promise<void> promise) {
-  registry_.Start(modules, stack_thread);
+void Stack::handle_start_up(ModuleList* modules, std::promise<void> promise) {
+  pimpl_->counter_metrics_->Start();
+  registry_.Start(modules, stack_thread_);
   promise.set_value();
 }
 

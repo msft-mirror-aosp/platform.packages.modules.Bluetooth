@@ -84,6 +84,9 @@ public:
   virtual ~Module() = default;
 
 protected:
+  Module() = default;
+  Module(os::Handler* handler) : handler_(handler) {}
+
   // Populate the provided list with modules that must start before yours
   virtual void ListDependencies(ModuleList* list) const = 0;
 
@@ -120,7 +123,7 @@ private:
 
   ::bluetooth::os::Handler* handler_ = nullptr;
   ModuleList dependencies_;
-  const ModuleRegistry* registry_;
+  const ModuleRegistry* registry_ = nullptr;
 };
 
 class ModuleRegistry {

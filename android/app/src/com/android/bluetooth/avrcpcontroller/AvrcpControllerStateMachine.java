@@ -52,7 +52,7 @@ import java.util.Set;
 
 /**
  * Provides Bluetooth AVRCP Controller State Machine responsible for all remote control connections
- * and interactions with a remote controlable device.
+ * and interactions with a remote controllable device.
  */
 class AvrcpControllerStateMachine extends StateMachine {
     static final String TAG = AvrcpControllerStateMachine.class.getSimpleName();
@@ -101,44 +101,40 @@ class AvrcpControllerStateMachine extends StateMachine {
     // 400->499 Events for Cover Artwork
     static final int MESSAGE_PROCESS_IMAGE_DOWNLOADED = 400;
 
-    /*
-     * Base value for absolute volume from JNI
-     */
+    // Base value for absolute volume from JNI
     private static final int ABS_VOL_BASE = 127;
 
-    /*
-     * Notification types for Avrcp protocol JNI.
-     */
+    // Notification types for Avrcp protocol JNI.
     private static final byte NOTIFICATION_RSP_TYPE_INTERIM = 0x00;
 
+    private final AdapterService mAdapterService;
     private final AudioManager mAudioManager;
-    private boolean mShouldSendPlayOnFocusRecovery = false;
+    private final GetFolderList mGetFolderList;
     private final boolean mIsVolumeFixed;
+    private final SparseArray<AvrcpPlayer> mAvailablePlayerList;
+
+    @VisibleForTesting final BrowseTree mBrowseTree;
 
     protected final BluetoothDevice mDevice;
     protected final byte[] mDeviceAddress;
     protected final AvrcpControllerService mService;
     protected final AvrcpControllerNativeInterface mNativeInterface;
-    protected int mCoverArtPsm;
     protected final AvrcpCoverArtManager mCoverArtManager;
     protected final Disconnected mDisconnected;
     protected final Connecting mConnecting;
     protected final Connected mConnected;
     protected final Disconnecting mDisconnecting;
 
+    protected int mCoverArtPsm;
     protected int mMostRecentState = BluetoothProfile.STATE_DISCONNECTED;
 
-    boolean mRemoteControlConnected = false;
-    boolean mBrowsingConnected = false;
-    final BrowseTree mBrowseTree;
+    private boolean mShouldSendPlayOnFocusRecovery = false;
+    private boolean mRemoteControlConnected = false;
+    private boolean mBrowsingConnected = false;
 
     private AvrcpPlayer mAddressedPlayer;
     private int mAddressedPlayerId;
-    private SparseArray<AvrcpPlayer> mAvailablePlayerList;
-
     private int mVolumeNotificationLabel = -1;
-
-    GetFolderList mGetFolderList = null;
 
     // Number of items to get in a single fetch
     static final int ITEM_PAGE_SIZE = 20;
@@ -146,11 +142,13 @@ class AvrcpControllerStateMachine extends StateMachine {
     static final int ABS_VOL_TIMEOUT_MILLIS = 1000; // 1s
 
     AvrcpControllerStateMachine(
-            BluetoothDevice device,
+            AdapterService adapterService,
             AvrcpControllerService service,
+            BluetoothDevice device,
             AvrcpControllerNativeInterface nativeInterface,
             boolean isControllerAbsoluteVolumeEnabled) {
         super(TAG);
+        mAdapterService = adapterService;
         mDevice = device;
         mDeviceAddress = Utils.getByteAddress(mDevice);
         mService = service;
@@ -462,8 +460,9 @@ class AvrcpControllerStateMachine extends StateMachine {
         public void enter() {
             if (mMostRecentState == BluetoothProfile.STATE_CONNECTING) {
                 broadcastConnectionStateChanged(BluetoothProfile.STATE_CONNECTED);
-                mService.sBrowseTree.mRootNode.addChild(mBrowseTree.mRootNode);
-                BluetoothMediaBrowserService.onBrowseNodeChanged(mService.sBrowseTree.mRootNode);
+                mService.getBrowseTree().mRootNode.addChild(mBrowseTree.mRootNode);
+                BluetoothMediaBrowserService.onBrowseNodeChanged(
+                        mService.getBrowseTree().mRootNode);
                 connectCoverArt(); // only works if we have a valid PSM
             } else {
                 debug("Connected: Re-entering Connected ");
@@ -1191,10 +1190,8 @@ class AvrcpControllerStateMachine extends StateMachine {
             debug("Disconnecting: Entered Disconnecting");
             disconnectCoverArt();
             onBrowsingDisconnected();
-            if (mService.sBrowseTree != null) {
-                mService.sBrowseTree.mRootNode.removeChild(mBrowseTree.mRootNode);
-                BluetoothMediaBrowserService.onBrowseNodeChanged(mService.sBrowseTree.mRootNode);
-            }
+            mService.getBrowseTree().mRootNode.removeChild(mBrowseTree.mRootNode);
+            BluetoothMediaBrowserService.onBrowseNodeChanged(mService.getBrowseTree().mRootNode);
             broadcastConnectionStateChanged(BluetoothProfile.STATE_DISCONNECTING);
             transitionTo(mDisconnected);
         }
@@ -1410,11 +1407,8 @@ class AvrcpControllerStateMachine extends StateMachine {
             MetricsLogger.logProfileConnectionEvent(
                     BluetoothMetricsProto.ProfileId.AVRCP_CONTROLLER);
         }
-        AdapterService adapterService = AdapterService.getAdapterService();
-        if (adapterService != null) {
-            adapterService.updateProfileConnectionAdapterProperties(
-                    mDevice, BluetoothProfile.AVRCP_CONTROLLER, currentState, mMostRecentState);
-        }
+        mAdapterService.updateProfileConnectionAdapterProperties(
+                mDevice, BluetoothProfile.AVRCP_CONTROLLER, currentState, mMostRecentState);
 
         debug("Connection state : " + mMostRecentState + "->" + currentState);
         Intent intent = new Intent(BluetoothAvrcpController.ACTION_CONNECTION_STATE_CHANGED);

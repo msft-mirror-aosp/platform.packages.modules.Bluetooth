@@ -40,11 +40,9 @@ import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
-import com.android.bluetooth.R;
 import com.android.bluetooth.TestUtils;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -76,7 +74,6 @@ public class BrowserPlayerWrapperTest {
     private HandlerThread mThread;
 
     @Mock Context mMockContext;
-    @Mock Resources mMockResources;
     private Context mTargetContext;
     private Resources mTestResources;
     private MockContentResolver mTestContentResolver;
@@ -117,8 +114,7 @@ public class BrowserPlayerWrapperTest {
                 });
 
         when(mMockContext.getContentResolver()).thenReturn(mTestContentResolver);
-        when(mMockResources.getBoolean(R.bool.avrcp_target_cover_art_uri_images)).thenReturn(true);
-        when(mMockContext.getResources()).thenReturn(mMockResources);
+        Util.sUriImagesSupport = true;
 
         // Set up Looper thread for the timeout handler
         mThread = new HandlerThread("MediaPlayerWrapperTestThread");
@@ -139,6 +135,7 @@ public class BrowserPlayerWrapperTest {
         mTestBitmap = null;
         mTestResources = null;
         mTargetContext = null;
+        Util.sUriImagesSupport = false;
     }
 
     private Bitmap loadImage(int resId) {
@@ -274,7 +271,7 @@ public class BrowserPlayerWrapperTest {
         MediaBrowser.ConnectionCallback browserConnCb = mBrowserConnCb.getValue();
         browserConnCb.onConnected();
 
-        Assert.assertEquals("root_folder", wrapper.getRootId());
+        assertThat(wrapper.getRootId()).isEqualTo("root_folder");
         verify(mMockBrowser).disconnect();
     }
 
@@ -392,22 +389,22 @@ public class BrowserPlayerWrapperTest {
         for (int i = 0; i < item_list.size(); i++) {
             MediaItem expected = items.get(i);
             ListItem item = item_list.get(i);
-            Assert.assertEquals(expected.isBrowsable(), item.isFolder);
+            assertThat(item.isFolder).isEqualTo(expected.isBrowsable());
             if (item.isFolder) {
                 Folder folder = item.folder;
                 assertThat(folder).isNotNull();
                 assertThat(folder.isPlayable).isFalse();
-                Assert.assertEquals(expected.getDescription().getMediaId(), folder.mediaId);
-                Assert.assertEquals(expected.getDescription().getTitle().toString(), folder.title);
+                assertThat(folder.mediaId).isEqualTo(expected.getDescription().getMediaId());
+                assertThat(folder.title).isEqualTo(expected.getDescription().getTitle().toString());
             } else {
                 Metadata song = item.song;
                 assertThat(song).isNotNull();
-                Assert.assertEquals(expected.getDescription().getMediaId(), song.mediaId);
-                Assert.assertEquals(expected.getDescription().getTitle().toString(), song.title);
-                Assert.assertEquals(
-                        expected.getDescription().getSubtitle().toString(), song.artist);
-                Assert.assertEquals(
-                        expected.getDescription().getDescription().toString(), song.album);
+                assertThat(song.mediaId).isEqualTo(expected.getDescription().getMediaId());
+                assertThat(song.title).isEqualTo(expected.getDescription().getTitle().toString());
+                assertThat(song.artist)
+                        .isEqualTo(expected.getDescription().getSubtitle().toString());
+                assertThat(song.album)
+                        .isEqualTo(expected.getDescription().getDescription().toString());
                 if (expected.getDescription().getIconBitmap() != null) {
                     assertThat(song.image).isNotNull();
                     Bitmap expectedBitmap = expected.getDescription().getIconBitmap();
@@ -415,7 +412,7 @@ public class BrowserPlayerWrapperTest {
                 } else if (expected.getDescription().getIconUri() != null) {
                     assertThat(mTestBitmap.sameAs(song.image.getImage())).isTrue();
                 } else {
-                    Assert.assertEquals(null, song.image);
+                    assertThat(song.image).isNull();
                 }
             }
         }

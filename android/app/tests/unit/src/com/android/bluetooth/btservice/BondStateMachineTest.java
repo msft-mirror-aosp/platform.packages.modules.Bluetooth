@@ -40,7 +40,6 @@ import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.Utils;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -219,7 +218,7 @@ public class BondStateMachineTest {
 
         RemoteDevices.DeviceProperties testDeviceProperties =
                 mRemoteDevices.addDeviceProperties(TEST_BT_ADDR_BYTES);
-        testDeviceProperties.mUuids = TEST_UUIDS;
+        testDeviceProperties.mUuidsBrEdr = TEST_UUIDS;
         BluetoothDevice testDevice = testDeviceProperties.getDevice();
         assertThat(testDevice).isNotNull();
 
@@ -229,7 +228,7 @@ public class BondStateMachineTest {
         bondingMsg.arg2 = AbstractionLayer.BT_STATUS_RMT_DEV_DOWN;
         mBondStateMachine.sendMessage(bondingMsg);
 
-        pendingDeviceProperties.mUuids = TEST_UUIDS;
+        pendingDeviceProperties.mUuidsBrEdr = TEST_UUIDS;
         Message uuidUpdateMsg = mBondStateMachine.obtainMessage(BondStateMachine.UUID_UPDATE);
         uuidUpdateMsg.obj = pendingDevice;
 
@@ -587,7 +586,7 @@ public class BondStateMachineTest {
 
         // Properties are removed when bond is removed
         if (newState != BluetoothDevice.BOND_NONE) {
-            Assert.assertEquals(expectedNewState, mDeviceProperties.getBondState());
+            assertThat(mDeviceProperties.getBondState()).isEqualTo(expectedNewState);
         }
 
         // Check for bond state Intent status.
@@ -635,7 +634,7 @@ public class BondStateMachineTest {
             }
             if (uuids != null) {
                 // Add dummy UUID for the device.
-                mDeviceProperties.mUuids = TEST_UUIDS;
+                mDeviceProperties.mUuidsBrEdr = TEST_UUIDS;
             }
             testSendIntentCase(
                     oldState,
@@ -739,16 +738,17 @@ public class BondStateMachineTest {
 
     private void verifyBondStateChangeIntent(int oldState, int newState, Intent intent) {
         assertThat(intent).isNotNull();
-        Assert.assertEquals(BluetoothDevice.ACTION_BOND_STATE_CHANGED, intent.getAction());
-        Assert.assertEquals(mDevice, intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE));
-        Assert.assertEquals(newState, intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, -1));
-        Assert.assertEquals(
-                oldState, intent.getIntExtra(BluetoothDevice.EXTRA_PREVIOUS_BOND_STATE, -1));
+        assertThat(intent.getAction()).isEqualTo(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
+        assertThat(intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice.class))
+                .isEqualTo(mDevice);
+        assertThat(intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, -1)).isEqualTo(newState);
+        assertThat(intent.getIntExtra(BluetoothDevice.EXTRA_PREVIOUS_BOND_STATE, -1))
+                .isEqualTo(oldState);
         if (newState == BOND_NONE) {
-            Assert.assertEquals(
-                    TEST_BOND_REASON, intent.getIntExtra(BluetoothDevice.EXTRA_UNBOND_REASON, -1));
+            assertThat(intent.getIntExtra(BluetoothDevice.EXTRA_UNBOND_REASON, -1))
+                    .isEqualTo(TEST_BOND_REASON);
         } else {
-            Assert.assertEquals(-1, intent.getIntExtra(BluetoothDevice.EXTRA_UNBOND_REASON, -1));
+            assertThat(intent.getIntExtra(BluetoothDevice.EXTRA_UNBOND_REASON, -1)).isEqualTo(-1);
         }
     }
 }

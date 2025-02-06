@@ -58,13 +58,12 @@ struct BTM_SecBondCancel BTM_SecBondCancel;
 struct BTM_SecClrService BTM_SecClrService;
 struct BTM_SecClrServiceByPsm BTM_SecClrServiceByPsm;
 struct BTM_SecGetDeviceLinkKeyType BTM_SecGetDeviceLinkKeyType;
-struct BTM_SecIsSecurityPending BTM_SecIsSecurityPending;
+struct BTM_SecIsLeSecurityPending BTM_SecIsLeSecurityPending;
 struct BTM_SecRegister BTM_SecRegister;
 struct BTM_SetEncryption BTM_SetEncryption;
 struct BTM_SetPinType BTM_SetPinType;
 struct BTM_SetSecurityLevel BTM_SetSecurityLevel;
 struct BTM_update_version_info BTM_update_version_info;
-struct NotifyBondingCanceled NotifyBondingCanceled;
 struct btm_create_conn_cancel_complete btm_create_conn_cancel_complete;
 struct btm_get_dev_class btm_get_dev_class;
 struct btm_io_capabilities_req btm_io_capabilities_req;
@@ -121,7 +120,7 @@ tBTM_STATUS BTM_SecBondCancel::return_value = tBTM_STATUS::BTM_SUCCESS;
 uint8_t BTM_SecClrService::return_value = 0;
 uint8_t BTM_SecClrServiceByPsm::return_value = 0;
 tBTM_LINK_KEY_TYPE BTM_SecGetDeviceLinkKeyType::return_value = 0;
-bool BTM_SecIsSecurityPending::return_value = false;
+bool BTM_SecIsLeSecurityPending::return_value = false;
 bool BTM_SecRegister::return_value = false;
 tBTM_STATUS BTM_SetEncryption::return_value = tBTM_STATUS::BTM_SUCCESS;
 bool BTM_SetSecurityLevel::return_value = false;
@@ -204,9 +203,9 @@ tBTM_LINK_KEY_TYPE BTM_SecGetDeviceLinkKeyType(const RawAddress& bd_addr) {
   inc_func_call_count(__func__);
   return test::mock::stack_btm_sec::BTM_SecGetDeviceLinkKeyType(bd_addr);
 }
-bool BTM_SecIsSecurityPending(const RawAddress& bd_addr) {
+bool BTM_SecIsLeSecurityPending(const RawAddress& bd_addr) {
   inc_func_call_count(__func__);
-  return test::mock::stack_btm_sec::BTM_SecIsSecurityPending(bd_addr);
+  return test::mock::stack_btm_sec::BTM_SecIsLeSecurityPending(bd_addr);
 }
 bool BTM_SecRegister(const tBTM_APPL_INFO* p_cb_info) {
   inc_func_call_count(__func__);
@@ -234,10 +233,6 @@ void BTM_update_version_info(const RawAddress& bd_addr,
                              const remote_version_info& remote_version_info) {
   inc_func_call_count(__func__);
   test::mock::stack_btm_sec::BTM_update_version_info(bd_addr, remote_version_info);
-}
-void NotifyBondingCanceled(tBTM_STATUS btm_status) {
-  inc_func_call_count(__func__);
-  test::mock::stack_btm_sec::NotifyBondingCanceled(btm_status);
 }
 void btm_create_conn_cancel_complete(uint8_t status, const RawAddress bd_addr) {
   inc_func_call_count(__func__);

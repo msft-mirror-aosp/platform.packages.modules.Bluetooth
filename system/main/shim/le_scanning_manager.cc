@@ -25,6 +25,7 @@
 #include <hardware/bluetooth.h>
 
 #include "btif/include/btif_common.h"
+#include "btif/include/btif_dm.h"
 #include "hci/address.h"
 #include "hci/le_scanning_manager.h"
 #include "hci/msft.h"
@@ -34,8 +35,10 @@
 #include "main/shim/helpers.h"
 #include "main/shim/le_scanning_manager.h"
 #include "main/shim/shim.h"
+#include "main_thread.h"
 #include "stack/btm/btm_int_types.h"
 #include "stack/include/advertise_data_parser.h"
+#include "stack/include/ble_hci_link_interface.h"
 #include "stack/include/bt_dev_class.h"
 #include "stack/include/btm_log_history.h"
 #include "stack/include/btm_sec_api.h"
@@ -112,20 +115,6 @@ private:
 ::ScanningCallbacks* bluetooth::shim::default_scanning_callback =
         static_cast<::ScanningCallbacks*>(&default_scanning_callback_);
 extern ::ScanningCallbacks* bluetooth::shim::default_scanning_callback;
-
-void btm_ble_process_adv_pkt_cont_for_inquiry(uint16_t event_type, tBLE_ADDR_TYPE address_type,
-                                              const RawAddress& raw_address, uint8_t primary_phy,
-                                              uint8_t secondary_phy, uint8_t advertising_sid,
-                                              int8_t tx_power, int8_t rssi,
-                                              uint16_t periodic_adv_int,
-                                              std::vector<uint8_t> advertising_data);
-
-extern void btif_update_remote_properties(const RawAddress& bd_addr, BD_NAME bd_name,
-                                          DEV_CLASS dev_class, tBT_DEVICE_TYPE dev_type);
-
-void btm_ble_process_adv_addr(RawAddress& raw_address, tBLE_ADDR_TYPE* address_type);
-
-extern DEV_CLASS btm_ble_get_appearance_as_cod(std::vector<uint8_t> const& data);
 
 using bluetooth::shim::BleScannerInterfaceImpl;
 
@@ -314,8 +303,7 @@ void BleScannerInterfaceImpl::OnMsftAdvMonitorEnable(bool enable,
 
 /** Sets the LE scan interval and window in units of N*0.625 msec */
 void BleScannerInterfaceImpl::SetScanParameters(int scanner_id, uint8_t scan_type,
-                                                int scan_interval, int scan_window, int scan_phy,
-                                                Callback /* cb */) {
+                                                int scan_interval, int scan_window, int scan_phy) {
   log::info("in shim layer, scannerId={}", scanner_id);
   if (BTM_BLE_ISVALID_PARAM(scan_interval, BTM_BLE_SCAN_INT_MIN, BTM_BLE_EXT_SCAN_INT_MAX) &&
       BTM_BLE_ISVALID_PARAM(scan_window, BTM_BLE_SCAN_WIN_MIN, BTM_BLE_EXT_SCAN_WIN_MAX)) {
@@ -455,12 +443,12 @@ void BleScannerInterfaceImpl::OnSetScannerParameterComplete(bluetooth::hci::Scan
                                   base::Unretained(scanning_callbacks_), scanner_id, status));
 }
 
-void BleScannerInterfaceImpl::OnScanResult(uint16_t event_type, uint8_t address_type,
-                                           bluetooth::hci::Address address, uint8_t primary_phy,
-                                           uint8_t secondary_phy, uint8_t advertising_sid,
-                                           int8_t tx_power, int8_t rssi,
-                                           uint16_t periodic_advertising_interval,
-                                           std::vector<uint8_t> advertising_data) {
+void BleScannerInterfaceImpl::on_scan_result(uint16_t event_type, uint8_t address_type,
+                                             bluetooth::hci::Address address, uint8_t primary_phy,
+                                             uint8_t secondary_phy, uint8_t advertising_sid,
+                                             int8_t tx_power, int8_t rssi,
+                                             uint16_t periodic_advertising_interval,
+                                             std::vector<uint8_t> advertising_data) {
   RawAddress raw_address = ToRawAddress(address);
   tBLE_ADDR_TYPE ble_addr_type = to_ble_addr_type(address_type);
 
@@ -486,6 +474,25 @@ void BleScannerInterfaceImpl::OnScanResult(uint16_t event_type, uint8_t address_
   btm_ble_process_adv_pkt_cont_for_inquiry(event_type, ble_addr_type, raw_address, primary_phy,
                                            secondary_phy, advertising_sid, tx_power, rssi,
                                            periodic_advertising_interval, advertising_data);
+}
+
+void BleScannerInterfaceImpl::OnScanResult(uint16_t event_type, uint8_t address_type,
+                                           bluetooth::hci::Address address, uint8_t primary_phy,
+                                           uint8_t secondary_phy, uint8_t advertising_sid,
+                                           int8_t tx_power, int8_t rssi,
+                                           uint16_t periodic_advertising_interval,
+                                           std::vector<uint8_t> advertising_data) {
+  if (!com::android::bluetooth::flags::scan_results_in_main_thread()) {
+    BleScannerInterfaceImpl::on_scan_result(event_type, address_type, address, primary_phy,
+                                            secondary_phy, advertising_sid, tx_power, rssi,
+                                            periodic_advertising_interval, advertising_data);
+    return;
+  }
+
+  do_in_main_thread(base::BindOnce(&BleScannerInterfaceImpl::on_scan_result, base::Unretained(this),
+                                   event_type, address_type, address, primary_phy, secondary_phy,
+                                   advertising_sid, tx_power, rssi, periodic_advertising_interval,
+                                   advertising_data));
 }
 
 void BleScannerInterfaceImpl::OnTrackAdvFoundLost(

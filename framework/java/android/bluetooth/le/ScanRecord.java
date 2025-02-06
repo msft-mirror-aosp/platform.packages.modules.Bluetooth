@@ -28,8 +28,6 @@ import android.util.ArrayMap;
 import android.util.Log;
 import android.util.SparseArray;
 
-import com.android.bluetooth.flags.Flags;
-
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.nio.ByteBuffer;
@@ -644,18 +642,14 @@ public final class ScanRecord {
                                         + (scanRecord[currentPos] & 0xFF);
                         byte[] manufacturerDataBytes =
                                 extractBytes(scanRecord, currentPos + 2, dataLength - 2);
-                        if (Flags.scanRecordManufacturerDataMerge()) {
-                            if (manufacturerData.contains(manufacturerId)) {
-                                byte[] firstValue = manufacturerData.get(manufacturerId);
-                                ByteBuffer buffer =
-                                        ByteBuffer.allocate(
-                                                firstValue.length + manufacturerDataBytes.length);
-                                buffer.put(firstValue);
-                                buffer.put(manufacturerDataBytes);
-                                manufacturerData.put(manufacturerId, buffer.array());
-                            } else {
-                                manufacturerData.put(manufacturerId, manufacturerDataBytes);
-                            }
+                        if (manufacturerData.contains(manufacturerId)) {
+                            byte[] firstValue = manufacturerData.get(manufacturerId);
+                            ByteBuffer buffer =
+                                    ByteBuffer.allocate(
+                                            firstValue.length + manufacturerDataBytes.length);
+                            buffer.put(firstValue);
+                            buffer.put(manufacturerDataBytes);
+                            manufacturerData.put(manufacturerId, buffer.array());
                         } else {
                             manufacturerData.put(manufacturerId, manufacturerDataBytes);
                         }

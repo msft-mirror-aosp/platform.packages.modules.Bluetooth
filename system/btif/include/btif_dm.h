@@ -104,6 +104,7 @@ void btif_dm_clear_event_filter();
 void btif_dm_clear_event_mask();
 void btif_dm_clear_filter_accept_list();
 void btif_dm_disconnect_all_acls();
+void btif_dm_disconnect_acl(const RawAddress& bd_addr, tBT_TRANSPORT transport);
 
 void btif_dm_le_rand(bluetooth::hci::LeRandCallback callback);
 void btif_dm_set_event_filter_connection_setup_all_devices();
@@ -150,6 +151,7 @@ void btif_dm_get_ble_local_keys(tBTA_DM_BLE_LOCAL_KEY_MASK* p_key_mask, Octet16*
                                 tBTA_BLE_LOCAL_ID_KEYS* p_id_keys);
 void btif_update_remote_properties(const RawAddress& bd_addr, BD_NAME bd_name, DEV_CLASS dev_class,
                                    tBT_DEVICE_TYPE dev_type);
+bool btif_is_interesting_le_service(const bluetooth::Uuid& uuid);
 
 bool check_cod_hid(const RawAddress& bd_addr);
 bool check_cod_hid_major(const RawAddress& bd_addr, uint32_t cod);

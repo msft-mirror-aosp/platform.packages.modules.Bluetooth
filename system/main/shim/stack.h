@@ -25,10 +25,13 @@
 
 // The shim layer implementation on the Gd stack side.
 namespace bluetooth {
+namespace metrics {
+class CounterMetrics;
+}
+
 namespace shim {
 
 class Acl;
-class Btm;
 
 // GD shim stack, having modes corresponding to legacy stack
 class Stack {
@@ -39,7 +42,7 @@ public:
   Stack(const Stack&) = delete;
   Stack& operator=(const Stack&) = delete;
 
-  ~Stack() = default;
+  virtual ~Stack() = default;
 
   // Running mode, everything is up
   void StartEverything();
@@ -57,16 +60,12 @@ public:
     return registry_.IsStarted(&T::Factory);
   }
 
-  Acl* GetAcl();
+  virtual Acl* GetAcl() const;
+  virtual metrics::CounterMetrics* GetCounterMetrics() const;
 
   os::Handler* GetHandler();
 
   void Dump(int fd, std::promise<void> promise) const;
-
-  // Start the list of modules with the given stack manager thread
-  void StartModuleStack(const ModuleList* modules, const os::Thread* thread);
-
-  size_t NumModules() const { return num_modules_; }
 
 private:
   struct impl;
@@ -76,15 +75,12 @@ private:
   bool is_running_ = false;
   os::Thread* stack_thread_ = nullptr;
   os::Handler* stack_handler_ = nullptr;
-  size_t num_modules_{0};
-
-  void StartUp(ModuleList* modules, os::Thread* stack_thread);
 
   os::Thread* management_thread_ = nullptr;
   os::Handler* management_handler_ = nullptr;
   ModuleRegistry registry_;
 
-  void handle_start_up(ModuleList* modules, os::Thread* stack_thread, std::promise<void> promise);
+  void handle_start_up(ModuleList* modules, std::promise<void> promise);
   void handle_shut_down(std::promise<void> promise);
   static std::chrono::milliseconds get_gd_stack_timeout_ms(bool is_start);
 };

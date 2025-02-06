@@ -110,7 +110,6 @@ public class HidHostServiceBinderTest {
 
     @Test
     public void setPreferredTransport_callsServiceMethod() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_ALLOW_SWITCHING_HID_AND_HOGP);
         int preferredTransport = BluetoothDevice.TRANSPORT_AUTO;
         mBinder.setPreferredTransport(mRemoteDevice, preferredTransport, null);
 
@@ -119,7 +118,6 @@ public class HidHostServiceBinderTest {
 
     @Test
     public void getPreferredTransport_callsServiceMethod() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_ALLOW_SWITCHING_HID_AND_HOGP);
         mBinder.getPreferredTransport(mRemoteDevice, null);
 
         verify(mService).getPreferredTransport(mRemoteDevice);

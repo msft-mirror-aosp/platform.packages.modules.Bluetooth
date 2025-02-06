@@ -9,13 +9,6 @@ flag {
 }
 
 flag {
-    name: "bta_dm_discover_both"
-    namespace: "bluetooth"
-    description: "perform both LE and Classic service discovery simulteanously on capable devices"
-    bug: "339217881"
-}
-
-flag {
     name: "cancel_open_discovery_client"
     namespace: "bluetooth"
     description: "Cancel connection from discovery client correctly"
@@ -26,10 +19,10 @@ flag {
 }
 
 flag {
-    name: "fix_le_evt_cancelling_sdp_discovery"
+    name: "extend_and_randomize_role_switch_delay"
     namespace: "bluetooth"
-    description: "Fix LE service discovery cancelling SDP discovery"
-    bug: "360936118"
+    description: "Fix the possible conflicts between role switch and authentication"
+    bug: "388459732"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

@@ -58,7 +58,7 @@ rust_defaults {
             ],
         },
     },
-    apex_available: ["com.android.btservices"],
+    apex_available: ["com.android.bt"],
 }
 
 rust_ffi_static {
@@ -123,7 +123,7 @@ cc_library_static {
     ],
     host_supported: true,
     generated_sources: ["libbluetooth_core_rs_bridge_codegen"],
-    apex_available: ["com.android.btservices"],
+    apex_available: ["com.android.bt"],
     min_sdk_version: "Tiramisu",
     // Bug: 286537287 this library gets linked with Rust objects but cross-language LTO
     // isn't supported yet.

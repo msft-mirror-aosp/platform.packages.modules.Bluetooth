@@ -1486,14 +1486,7 @@ bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr, tBLE_ADDR_TYPE ad
       /* Consider to remove gatt_act_connect at all */
       ret = gatt_act_connect(p_reg, bd_addr, addr_type, transport, initiating_phys);
     } else {
-      log::verbose("Connecting without tcb address: {}", bd_addr);
-
-      if (p_reg->direct_connect_request.count(bd_addr) == 0) {
-        p_reg->direct_connect_request.insert(bd_addr);
-      } else {
-        log::warn("{} already added to gatt_if {} direct conn list", bd_addr, gatt_if);
-      }
-
+      log::verbose("Connecting without tcb to: {}", bd_addr);
       ret = connection_manager::direct_connect_add(gatt_if, bd_addr, addr_type);
     }
 
