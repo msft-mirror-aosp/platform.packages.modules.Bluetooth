@@ -341,6 +341,7 @@ android_app {
         enabled: true,
         shrink: true,
         optimize: false,
+        ignore_warnings: false,
         proguard_flags_files: ["proguard.flags"],
     },
 
