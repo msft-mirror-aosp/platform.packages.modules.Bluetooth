@@ -52,6 +52,7 @@ import android.bluetooth.BluetoothStatusCodes;
 import android.bluetooth.BluetoothUuid;
 import android.bluetooth.IBluetoothLeBroadcastAssistantCallback;
 import android.bluetooth.le.PeriodicAdvertisingReport;
+import android.bluetooth.le.IScannerCallback;
 import android.bluetooth.le.ScanCallback;
 import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanRecord;
@@ -82,6 +83,7 @@ import com.android.bluetooth.btservice.storage.DatabaseManager;
 import com.android.bluetooth.csip.CsipSetCoordinatorService;
 import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.le_audio.LeAudioService;
+import com.android.bluetooth.le_scan.ScanController;
 
 import com.google.common.truth.Expect;
 
@@ -155,6 +157,7 @@ public class BassClientServiceTest {
     private BluetoothDevice mSourceDevice;
     private BluetoothDevice mSourceDevice2;
     private ArgumentCaptor<ScanCallback> mCallbackCaptor;
+    private ArgumentCaptor<IScannerCallback> mBassScanCallbackCaptor;
 
     private InOrder mInOrderMethodProxy;
 
@@ -167,6 +170,7 @@ public class BassClientServiceTest {
     @Mock private DatabaseManager mDatabaseManager;
     @Mock private BluetoothLeScannerWrapper mBluetoothLeScannerWrapper;
     @Mock private ServiceFactory mServiceFactory;
+    @Mock private ScanController mScanController;
     @Mock private CsipSetCoordinatorService mCsipService;
     @Mock private LeAudioService mLeAudioService;
     @Mock private IBluetoothLeBroadcastAssistantCallback mCallback;
@@ -277,6 +281,7 @@ public class BassClientServiceTest {
                         })
                 .when(mAdapterService)
                 .getBondedDevices();
+        doReturn(mScanController).when(mAdapterService).getBluetoothScanController();
 
         // Mock methods in BassObjectsFactory
         doAnswer(
@@ -457,7 +462,11 @@ public class BassClientServiceTest {
 
         mBassClientService.startSearchingForSources(scanFilters);
 
-        verify(mBluetoothLeScannerWrapper).startScan(notNull(), notNull(), notNull());
+        if (Flags.leaudioBassScanWithInternalScanController()) {
+            verify(mScanController).registerScannerInternal(any(), any(), any());
+        } else {
+            verify(mBluetoothLeScannerWrapper).startScan(notNull(), notNull(), notNull());
+        }
         for (BassClientStateMachine sm : mStateMachines.values()) {
             verify(sm).sendMessage(BassClientStateMachine.START_SCAN_OFFLOAD);
         }
@@ -468,6 +477,7 @@ public class BassClientServiceTest {
      * BluetoothLeScannerWrapper.startScan() when the scanner instance cannot be achieved.
      */
     @Test
+    @DisableFlags(Flags.FLAG_LEAUDIO_BASS_SCAN_WITH_INTERNAL_SCAN_CONTROLLER)
     public void testStartSearchingForSources_whenScannerIsNull() {
         doReturn(null).when(mObjectsFactory).getBluetoothLeScannerWrapper(any());
         List<ScanFilter> scanFilters = new ArrayList<>();
@@ -553,6 +563,7 @@ public class BassClientServiceTest {
 
     private void startSearchingForSources() {
         List<ScanFilter> scanFilters = new ArrayList<>();
+        int scannerId = 1;
 
         assertThat(mStateMachines).hasSize(2);
         for (BassClientStateMachine sm : mStateMachines.values()) {
@@ -560,13 +571,26 @@ public class BassClientServiceTest {
         }
 
         clearInvocations(mBluetoothLeScannerWrapper);
+        clearInvocations(mScanController);
 
         mBassClientService.startSearchingForSources(scanFilters);
 
-        mCallbackCaptor = ArgumentCaptor.forClass(ScanCallback.class);
+        if (Flags.leaudioBassScanWithInternalScanController()) {
+            mBassScanCallbackCaptor = ArgumentCaptor.forClass(IScannerCallback.class);
+            verify(mScanController)
+                    .registerScannerInternal(mBassScanCallbackCaptor.capture(), any(), any());
 
-        verify(mBluetoothLeScannerWrapper)
-                .startScan(notNull(), notNull(), mCallbackCaptor.capture());
+            try {
+                mBassScanCallbackCaptor.getValue().onScannerRegistered(0, scannerId);
+            } catch (RemoteException e) {
+                // the mocked onScannerRegistered doesn't throw RemoteException
+            }
+            verify(mScanController).startScanInternal(eq(scannerId), any(), any());
+        } else {
+            mCallbackCaptor = ArgumentCaptor.forClass(ScanCallback.class);
+            verify(mBluetoothLeScannerWrapper)
+                    .startScan(notNull(), notNull(), mCallbackCaptor.capture());
+        }
         for (BassClientStateMachine sm : mStateMachines.values()) {
             verify(sm).sendMessage(BassClientStateMachine.START_SCAN_OFFLOAD);
         }
@@ -593,8 +617,12 @@ public class BassClientServiceTest {
 
         // Stop searching
         mBassClientService.stopSearchingForSources();
+        if (Flags.leaudioBassScanWithInternalScanController()) {
+            verify(mScanController).stopScanInternal(anyInt());
 
-        verify(mBluetoothLeScannerWrapper).stopScan(mCallbackCaptor.getValue());
+        } else {
+            verify(mBluetoothLeScannerWrapper).stopScan(mCallbackCaptor.getValue());
+        }
         for (BassClientStateMachine sm : mStateMachines.values()) {
             verify(sm).sendMessage(BassClientStateMachine.STOP_SCAN_OFFLOAD);
         }
@@ -630,8 +658,11 @@ public class BassClientServiceTest {
 
         // Stop
         mBassClientService.stop();
-
-        verify(mBluetoothLeScannerWrapper).stopScan(mCallbackCaptor.getValue());
+        if (Flags.leaudioBassScanWithInternalScanController()) {
+            verify(mScanController).stopScanInternal(anyInt());
+        } else {
+            verify(mBluetoothLeScannerWrapper).stopScan(mCallbackCaptor.getValue());
+        }
 
         // Check if unsyced
         mInOrderMethodProxy
@@ -1352,6 +1383,18 @@ public class BassClientServiceTest {
         };
     }
 
+    private void generateScanResult(ScanResult result) {
+        if (Flags.leaudioBassScanWithInternalScanController()) {
+            try {
+                mBassScanCallbackCaptor.getValue().onScanResult(result);
+            } catch (RemoteException e) {
+                // the mocked onScanResult doesn't throw RemoteException
+            }
+        } else {
+            mCallbackCaptor.getValue().onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, result);
+        }
+    }
+
     private void onScanResult(BluetoothDevice testDevice, int broadcastId) {
         byte[] scanRecord = getScanRecord(broadcastId);
         ScanResult scanResult =
@@ -1366,8 +1409,7 @@ public class BassClientServiceTest {
                         0,
                         ScanRecord.parseFromBytes(scanRecord),
                         0);
-
-        mCallbackCaptor.getValue().onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult);
+        generateScanResult(scanResult);
     }
 
     private byte[] getPAScanRecord() {
@@ -2670,7 +2712,7 @@ public class BassClientServiceTest {
 
         prepareConnectedDeviceGroup();
         startSearchingForSources();
-        mCallbackCaptor.getValue().onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult);
+        generateScanResult(scanResult);
         verify(mMethodProxy, never())
                 .periodicAdvertisingManagerRegisterSync(
                         any(), any(), anyInt(), anyInt(), any(), any());
@@ -2772,7 +2814,7 @@ public class BassClientServiceTest {
 
         prepareConnectedDeviceGroup();
         startSearchingForSources();
-        mCallbackCaptor.getValue().onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult);
+        generateScanResult(scanResult);
         verify(mMethodProxy)
                 .periodicAdvertisingManagerRegisterSync(
                         any(), any(), anyInt(), anyInt(), any(), any());
@@ -2850,7 +2892,7 @@ public class BassClientServiceTest {
 
         prepareConnectedDeviceGroup();
         startSearchingForSources();
-        mCallbackCaptor.getValue().onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult);
+        generateScanResult(scanResult);
         verify(mMethodProxy)
                 .periodicAdvertisingManagerRegisterSync(
                         any(), any(), anyInt(), anyInt(), any(), any());
@@ -3628,33 +3670,19 @@ public class BassClientServiceTest {
         startSearchingForSources();
 
         // Added and executed immediately as no other in queue
-        mCallbackCaptor
-                .getValue()
-                .onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult1);
+        generateScanResult(scanResult1);
         // Added to queue with worst rssi
-        mCallbackCaptor
-                .getValue()
-                .onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult2);
+        generateScanResult(scanResult2);
         // Added to queue with best rssi
-        mCallbackCaptor
-                .getValue()
-                .onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult3);
+        generateScanResult(scanResult3);
         // Added to queue with medium rssi
-        mCallbackCaptor
-                .getValue()
-                .onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult4);
+        generateScanResult(scanResult4);
         // Added to queue with worst rssi (increase priority after all)
-        mCallbackCaptor
-                .getValue()
-                .onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult5);
+        generateScanResult(scanResult5);
         // Added to queue with best rssi (increase priority after all)
-        mCallbackCaptor
-                .getValue()
-                .onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult6);
+        generateScanResult(scanResult6);
         // Added to queue with medium rssi (increase priority after all)
-        mCallbackCaptor
-                .getValue()
-                .onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult7);
+        generateScanResult(scanResult7);
 
         // Increase priority of last 3 of them
         mBassClientService.addSelectSourceRequest(broadcastId5, true);
@@ -3824,19 +3852,12 @@ public class BassClientServiceTest {
         startSearchingForSources();
 
         // Test using onSyncEstablishedFailed
-
         // Added and executed immediately as no other in queue, high rssi
-        mCallbackCaptor
-                .getValue()
-                .onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult1);
+        generateScanResult(scanResult1);
         // Added to queue, medium rssi
-        mCallbackCaptor
-                .getValue()
-                .onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult2);
+        generateScanResult(scanResult2);
         // Added to queue, low rssi
-        mCallbackCaptor
-                .getValue()
-                .onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult3);
+        generateScanResult(scanResult3);
 
         ArgumentCaptor<ScanResult> resultCaptor = ArgumentCaptor.forClass(ScanResult.class);
         mInOrderMethodProxy
@@ -3867,9 +3888,7 @@ public class BassClientServiceTest {
                 .isEqualTo(broadcastId2);
 
         // Added to queue again, high rssi
-        mCallbackCaptor
-                .getValue()
-                .onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult1);
+        generateScanResult(scanResult1);
 
         onSyncEstablishedFailed(device2, TEST_SYNC_HANDLE + 1);
         mInOrderMethodProxy
@@ -3907,19 +3926,12 @@ public class BassClientServiceTest {
         startSearchingForSources();
 
         // Test using onSyncLost
-
         // Added and executed immediately as no other in queue, high rssi
-        mCallbackCaptor
-                .getValue()
-                .onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult1);
+        generateScanResult(scanResult1);
         // Added to queue, medium rssi
-        mCallbackCaptor
-                .getValue()
-                .onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult2);
+        generateScanResult(scanResult2);
         // Added to queue, low rssi
-        mCallbackCaptor
-                .getValue()
-                .onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult3);
+        generateScanResult(scanResult3);
 
         mInOrderMethodProxy
                 .verify(mMethodProxy)
@@ -3950,9 +3962,7 @@ public class BassClientServiceTest {
         onSyncLost();
 
         // Added to queue again, high rssi
-        mCallbackCaptor
-                .getValue()
-                .onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult1);
+        generateScanResult(scanResult1);
 
         onSyncEstablished(device2, TEST_SYNC_HANDLE + 1);
         mInOrderMethodProxy
@@ -5288,8 +5298,8 @@ public class BassClientServiceTest {
                         0,
                         ScanRecord.parseFromBytes(broadcastScanRecord),
                         0);
+        generateScanResult(scanResult);
 
-        mCallbackCaptor.getValue().onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, scanResult);
         onSyncEstablished(mSourceDevice, TEST_SYNC_HANDLE);
         assertThat(mBassClientService.getActiveSyncedSources()).hasSize(1);
         assertThat(mBassClientService.getActiveSyncedSources()).containsExactly(TEST_SYNC_HANDLE);
