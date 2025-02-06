@@ -203,10 +203,9 @@ public class BluetoothOppTransferHistory extends Activity
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-            case R.id.transfer_menu_clear_all:
-                promptClearList();
-                return true;
+        if (item.getItemId() == R.id.transfer_menu_clear_all) {
+            promptClearList();
+            return true;
         }
         return false;
     }
@@ -218,18 +217,18 @@ public class BluetoothOppTransferHistory extends Activity
             return true;
         }
         mTransferCursor.moveToPosition(mContextMenuPosition);
-        switch (item.getItemId()) {
-            case R.id.transfer_menu_open:
-                openCompleteTransfer();
-                updateNotificationWhenBtDisabled();
-                return true;
+        if (item.getItemId() == R.id.transfer_menu_open) {
+            openCompleteTransfer();
+            updateNotificationWhenBtDisabled();
+            return true;
+        }
 
-            case R.id.transfer_menu_clear:
-                int sessionId = mTransferCursor.getInt(mIdColumnId);
-                Uri contentUri = Uri.parse(BluetoothShare.CONTENT_URI + "/" + sessionId);
-                BluetoothOppUtility.updateVisibilityToHidden(this, contentUri);
-                updateNotificationWhenBtDisabled();
-                return true;
+        if (item.getItemId() == R.id.transfer_menu_clear) {
+            int sessionId = mTransferCursor.getInt(mIdColumnId);
+            Uri contentUri = Uri.parse(BluetoothShare.CONTENT_URI + "/" + sessionId);
+            BluetoothOppUtility.updateVisibilityToHidden(this, contentUri);
+            updateNotificationWhenBtDisabled();
+            return true;
         }
         return false;
     }
