@@ -82,3 +82,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "disconnect_acls_by_bredr_disabled"
+    namespace: "bluetooth"
+    description: "Fix ACL Link still connected even BREDR is disabled"
+    bug: "391263869"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
