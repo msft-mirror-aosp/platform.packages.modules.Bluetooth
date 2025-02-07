@@ -19,19 +19,17 @@ package com.android.bluetooth.mcp;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.verify;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.Context;
-import android.os.Looper;
 
 import androidx.test.filters.MediumTest;
-import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestUtils;
-import com.android.bluetooth.btservice.AdapterService;
 
 import org.junit.After;
 import org.junit.Before;
@@ -45,42 +43,25 @@ import org.mockito.junit.MockitoRule;
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class McpServiceTest {
-    private BluetoothAdapter mAdapter;
-    private McpService mMcpService;
-    private Context mTargetContext;
-
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
-    @Mock private AdapterService mAdapterService;
     @Mock private MediaControlProfile mMediaControlProfile;
+    @Mock private Context mContext;
+
+    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
+
+    private McpService mMcpService;
 
     @Before
     public void setUp() throws Exception {
-        mTargetContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
-        if (Looper.myLooper() == null) {
-            Looper.prepare();
-        }
-
-        TestUtils.setAdapterService(mAdapterService);
-
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
-
-        mMcpService = new McpService(mTargetContext, mMediaControlProfile);
-        mMcpService.start();
+        mMcpService = new McpService(mContext, mMediaControlProfile);
         mMcpService.setAvailable(true);
     }
 
     @After
-    public void tearDown() throws Exception {
-        if (mMcpService == null) {
-            return;
-        }
-
+    public void tearDown() {
         mMcpService.stop();
-        mMcpService = McpService.getMcpService();
-        assertThat(mMcpService).isNull();
-        reset(mMediaControlProfile);
-        TestUtils.clearAdapterService(mAdapterService);
+        assertThat(McpService.getMcpService()).isNull();
     }
 
     @Test
@@ -95,8 +76,6 @@ public class McpServiceTest {
         BluetoothDevice device0 = TestUtils.getTestDevice(mAdapter, 0);
         BluetoothDevice device1 = TestUtils.getTestDevice(mAdapter, 1);
 
-        doNothing().when(mMediaControlProfile).onDeviceAuthorizationSet(any(BluetoothDevice.class));
-
         mMcpService.setDeviceAuthorized(device0, true);
         verify(mMediaControlProfile).onDeviceAuthorizationSet(eq(device0));
         assertThat(mMcpService.getDeviceAuthorization(device0))
@@ -106,15 +85,6 @@ public class McpServiceTest {
         verify(mMediaControlProfile).onDeviceAuthorizationSet(eq(device1));
         assertThat(mMcpService.getDeviceAuthorization(device1))
                 .isEqualTo(BluetoothDevice.ACCESS_REJECTED);
-    }
-
-    @Test
-    public void testStopMcpService() {
-        InstrumentationRegistry.getInstrumentation().runOnMainSync(mMcpService::stop);
-        assertThat(McpService.getMcpService()).isNull();
-
-        // Try to restart the service. Note: must be done on the main thread
-        InstrumentationRegistry.getInstrumentation().runOnMainSync(mMcpService::start);
     }
 
     @Test

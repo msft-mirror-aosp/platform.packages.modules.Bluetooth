@@ -430,7 +430,7 @@ public class MediaControlGattService implements MediaControlGattServiceInterface
                             offset,
                             value) -> {
                         Log.d(TAG, "SEARCH_CONTROL_POINT write request");
-                        // TODO: There is no Object Trasfer Service implementation.
+                        // TODO: There is no Object Transfer Service implementation.
                         if (responseNeeded) {
                             mBluetoothGattServer.sendResponse(device, requestId, 0, offset, value);
                         }
