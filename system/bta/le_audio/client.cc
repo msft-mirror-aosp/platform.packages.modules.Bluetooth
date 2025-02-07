@@ -2274,6 +2274,7 @@ public:
 
       /* Guard consistency of PAC records structure */
       if (!bluetooth::le_audio::client_parser::pacs::ParsePacs(pac_recs, len, value)) {
+        log::error("Sink PACs corrupted");
         return;
       }
 
@@ -2302,6 +2303,7 @@ public:
 
       /* Guard consistency of PAC records structure */
       if (!bluetooth::le_audio::client_parser::pacs::ParsePacs(pac_recs, len, value)) {
+        log::error("Source PACs corrupted");
         return;
       }
 
