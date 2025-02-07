@@ -58,6 +58,10 @@ public class McpService extends ProfileService {
         } else {
             mGmcs = mediaControlProfile;
         }
+
+        setMcpService(this); // Mark service as started
+
+        mGmcs.init();
     }
 
     public static boolean isEnabled() {
@@ -85,20 +89,6 @@ public class McpService extends ProfileService {
     @Override
     protected IProfileServiceBinder initBinder() {
         return new BluetoothMcpServiceBinder(this);
-    }
-
-    @Override
-    public void start() {
-        Log.d(TAG, "start()");
-
-        if (sMcpService != null) {
-            throw new IllegalStateException("start() called twice");
-        }
-
-        // Mark service as started
-        setMcpService(this);
-
-        mGmcs.init();
     }
 
     @Override
@@ -173,7 +163,7 @@ public class McpService extends ProfileService {
         mGmcs.onDeviceAuthorizationSet(device);
     }
 
-    public int getDeviceAuthorization(BluetoothDevice device) {
+    int getDeviceAuthorization(BluetoothDevice device) {
         /* Media control is allowed for
          * 1. in PTS mode
          * 2. authorized devices
