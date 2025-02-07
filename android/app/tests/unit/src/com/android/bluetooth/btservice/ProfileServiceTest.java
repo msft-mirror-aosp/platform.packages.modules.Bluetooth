@@ -41,7 +41,6 @@ import com.android.bluetooth.btservice.storage.DatabaseManager;
 import com.android.bluetooth.hearingaid.HearingAidNativeInterface;
 import com.android.bluetooth.hfp.HeadsetNativeInterface;
 import com.android.bluetooth.hfpclient.NativeInterface;
-import com.android.bluetooth.hid.HidDeviceNativeInterface;
 import com.android.bluetooth.hid.HidHostNativeInterface;
 import com.android.bluetooth.le_audio.LeAudioNativeInterface;
 
@@ -85,7 +84,6 @@ public class ProfileServiceTest {
     @Mock private HeadsetNativeInterface mHeadsetNativeInterface;
     @Mock private NativeInterface mHeadsetClientNativeInterface;
     @Mock private HearingAidNativeInterface mHearingAidNativeInterface;
-    @Mock private HidDeviceNativeInterface mHidDeviceNativeInterface;
     @Mock private HidHostNativeInterface mHidHostNativeInterface;
     @Mock private LeAudioNativeInterface mLeAudioInterface;
 
@@ -150,6 +148,7 @@ public class ProfileServiceTest {
                                                 && profile != BluetoothProfile.VOLUME_CONTROL
                                                 && profile != BluetoothProfile.CSIP_SET_COORDINATOR
                                                 && profile != BluetoothProfile.GATT
+                                                && profile != BluetoothProfile.HID_DEVICE
                                                 && profile != BluetoothProfile.PAN
                                                 && profile != BluetoothProfile.A2DP)
                         .toArray();
@@ -163,7 +162,6 @@ public class ProfileServiceTest {
         HeadsetNativeInterface.setInstance(mHeadsetNativeInterface);
         /* HeadsetClient */ NativeInterface.setInstance(mHeadsetClientNativeInterface);
         HearingAidNativeInterface.setInstance(mHearingAidNativeInterface);
-        HidDeviceNativeInterface.setInstance(mHidDeviceNativeInterface);
         HidHostNativeInterface.setInstance(mHidHostNativeInterface);
         LeAudioNativeInterface.setInstance(mLeAudioInterface);
     }
@@ -180,7 +178,6 @@ public class ProfileServiceTest {
         HeadsetNativeInterface.setInstance(null);
         /* HeadsetClient */ NativeInterface.setInstance(null);
         HearingAidNativeInterface.setInstance(null);
-        HidDeviceNativeInterface.setInstance(null);
         HidHostNativeInterface.setInstance(null);
         LeAudioNativeInterface.setInstance(null);
     }

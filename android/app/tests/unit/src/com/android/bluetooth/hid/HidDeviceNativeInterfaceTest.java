@@ -19,12 +19,11 @@ package com.android.bluetooth.hid;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import android.bluetooth.BluetoothHidDevice;
 
-import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 
 import org.junit.After;
@@ -46,17 +45,15 @@ public class HidDeviceNativeInterfaceTest {
     private HidDeviceNativeInterface mNativeInterface;
 
     @Before
-    public void setUp() throws Exception {
-        when(mService.isAvailable()).thenReturn(true);
+    public void setUp() {
+        doReturn(true).when(mService).isAvailable();
         HidDeviceService.setHidDeviceService(mService);
-        TestUtils.setAdapterService(mAdapterService);
-        mNativeInterface = HidDeviceNativeInterface.getInstance();
+        mNativeInterface = new HidDeviceNativeInterface(mAdapterService);
     }
 
     @After
     public void tearDown() throws Exception {
         HidDeviceService.setHidDeviceService(null);
-        TestUtils.clearAdapterService(mAdapterService);
     }
 
     @Test
