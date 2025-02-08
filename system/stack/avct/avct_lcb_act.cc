@@ -185,7 +185,7 @@ void avct_lcb_chnl_open(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* /* p_data */) {
 
   p_lcb->ch_state = AVCT_CH_CONN;
   p_lcb->ch_lcid = L2CA_ConnectReqWithSecurity(AVCT_PSM, p_lcb->peer_addr,
-                                               BTA_SEC_AUTHENTICATE);
+                                               BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT);
   if (p_lcb->ch_lcid == 0) {
     /* if connect req failed, send ourselves close event */
     tAVCT_LCB_EVT avct_lcb_evt;
@@ -723,9 +723,12 @@ void avct_lcb_msg_ind(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
     p = (uint8_t*)(p_buf + 1) + p_buf->offset;
     AVCT_BUILD_HDR(p, label, AVCT_PKT_TYPE_SINGLE, AVCT_REJ);
     UINT16_TO_BE_STREAM(p, pid);
+
+    uint16_t len = p_buf->len;
+
     if (L2CA_DataWrite(p_lcb->ch_lcid, p_buf) != L2CAP_DW_SUCCESS) {
       log::warn("Unable to write L2CAP data peer:{} cid:{} len:{}",
-                p_lcb->peer_addr, p_lcb->ch_lcid, p_buf->len);
+                p_lcb->peer_addr, p_lcb->ch_lcid, len);
     }
   }
 }
