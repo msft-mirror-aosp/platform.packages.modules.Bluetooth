@@ -848,31 +848,12 @@ static void hh_vc_unplug_handler(tBTA_HH_CBDATA& dev_status) {
     return;
   }
 
-  if (!com::android::bluetooth::flags::remove_input_device_on_vup() &&
-      p_dev->link_spec.transport == BT_TRANSPORT_LE) {
-    log::error("Unexpected for {}", p_dev->link_spec);
-    return;
-  }
-
   log::info("Device {} status {}", p_dev->link_spec, dev_status.status);
 
   /* Stop the VUP timer */
   btif_hh_stop_vup_timer(p_dev->link_spec);
   p_dev->dev_status = hh_get_state_on_disconnect(p_dev->link_spec);
   BTHH_STATE_UPDATE(p_dev->link_spec, p_dev->dev_status);
-
-  if (!com::android::bluetooth::flags::remove_input_device_on_vup()) {
-    if (p_dev->local_vup || check_cod_hid(p_dev->link_spec.addrt.bda)) {
-      p_dev->local_vup = false;
-      BTA_DmRemoveDevice(p_dev->link_spec.addrt.bda);
-    } else {
-      log_counter_metrics_btif(android::bluetooth::CodePathCounterKeyEnum::
-                                       HIDH_COUNT_VIRTUAL_UNPLUG_REQUESTED_BY_REMOTE_DEVICE,
-                               1);
-      btif_hh_remove_device(p_dev->link_spec);
-    }
-    return;
-  }
 
   if (!p_dev->local_vup) {
     log_counter_metrics_btif(android::bluetooth::CodePathCounterKeyEnum::
@@ -1005,14 +986,15 @@ void btif_hh_remove_device(const tAclLinkSpec& link_spec) {
     }
   }
 
-  if (com::android::bluetooth::flags::remove_input_device_on_vup() && announce_vup) {
-    do_in_jni_thread(base::Bind(
-            [](tAclLinkSpec link_spec) {
-              HAL_CBACK(bt_hh_callbacks, virtual_unplug_cb, &link_spec.addrt.bda,
-                        link_spec.addrt.type, link_spec.transport, BTHH_OK);
-            },
-            link_spec));
+  if (!announce_vup) {
+    return;
   }
+  do_in_jni_thread(base::Bind(
+          [](tAclLinkSpec link_spec) {
+            HAL_CBACK(bt_hh_callbacks, virtual_unplug_cb, &link_spec.addrt.bda,
+                      link_spec.addrt.type, link_spec.transport, BTHH_OK);
+          },
+          link_spec));
 }
 
 /*******************************************************************************
@@ -1047,17 +1029,15 @@ bt_status_t btif_hh_virtual_unplug(const tAclLinkSpec& link_spec) {
   log::info("Device {} not opened, state = {}", link_spec, btif_hh_status_text(btif_hh_cb.status));
 
   // Remove the connecting or added device
-  if (com::android::bluetooth::flags::remove_input_device_on_vup()) {
-    if (btif_hh_find_dev_by_link_spec(link_spec) != nullptr ||
-        btif_hh_find_added_dev(link_spec) != nullptr) {
-      // Remove pending connection if address matches
-      btif_hh_cb.new_connection_requests.remove_if(
-              [link_spec](auto ls) { return ls.addrt.bda == link_spec.addrt.bda; });
+  if (btif_hh_find_dev_by_link_spec(link_spec) != nullptr ||
+      btif_hh_find_added_dev(link_spec) != nullptr) {
+    // Remove pending connection if address matches
+    btif_hh_cb.new_connection_requests.remove_if(
+            [link_spec](auto ls) { return ls.addrt.bda == link_spec.addrt.bda; });
 
-      btif_hh_remove_device(link_spec);
-      BTA_DmRemoveDevice(link_spec.addrt.bda);
-      return BT_STATUS_SUCCESS;
-    }
+    btif_hh_remove_device(link_spec);
+    BTA_DmRemoveDevice(link_spec.addrt.bda);
+    return BT_STATUS_SUCCESS;
   }
 
   // Abort outgoing initial connection attempt
@@ -1520,8 +1500,6 @@ static void btif_hh_transport_select(tAclLinkSpec& link_spec) {
   bool hogp_available = false;
   bool headtracker_available = false;
   bool le_preferred = false;
-  bluetooth::Uuid remote_uuids[BT_MAX_NUM_UUIDS] = {};
-  bt_property_t remote_properties = {BT_PROPERTY_UUIDS, sizeof(remote_uuids), &remote_uuids};
   const RawAddress& bd_addr = link_spec.addrt.bda;
 
   // Find the device type
@@ -1534,23 +1512,22 @@ static void btif_hh_transport_select(tAclLinkSpec& link_spec) {
           get_btm_client_interface().peer.BTM_IsAclConnectionUp(bd_addr, BT_TRANSPORT_BR_EDR);
   bool le_acl = get_btm_client_interface().peer.BTM_IsAclConnectionUp(bd_addr, BT_TRANSPORT_LE);
 
-  // Find which services known to be available
-  if (btif_storage_get_remote_device_property(&bd_addr, &remote_properties) == BT_STATUS_SUCCESS) {
-    int count = remote_properties.len / sizeof(remote_uuids[0]);
-    for (int i = 0; i < count; i++) {
-      if (remote_uuids[i].Is16Bit()) {
-        if (remote_uuids[i].As16Bit() == UUID_SERVCLASS_HUMAN_INTERFACE) {
-          hid_available = true;
-        } else if (remote_uuids[i].As16Bit() == UUID_SERVCLASS_LE_HID) {
-          hogp_available = true;
-        }
-      } else if (remote_uuids[i] == ANDROID_HEADTRACKER_SERVICE_UUID) {
-        headtracker_available = true;
+  // Find available services
+  std::vector<bluetooth::Uuid> remote_uuids = btif_storage_get_services(bd_addr);
+  for (const auto& uuid : remote_uuids) {
+    if (uuid.Is16Bit()) {
+      if (uuid.As16Bit() == UUID_SERVCLASS_HUMAN_INTERFACE) {
+        hid_available = true;
+      } else if (uuid.As16Bit() == UUID_SERVCLASS_LE_HID) {
+        hogp_available = true;
       }
+    } else if (uuid == ANDROID_HEADTRACKER_SERVICE_UUID) {
+      headtracker_available = true;
+    }
 
-      if (hid_available && (hogp_available || headtracker_available)) {
-        break;
-      }
+    if (hid_available && (hogp_available || headtracker_available)) {
+      // HOGP and Android Headtracker Service are mutually exclusive
+      break;
     }
   }
 
@@ -1705,24 +1682,17 @@ static bt_status_t virtual_unplug(RawAddress* bd_addr, tBLE_ADDR_TYPE addr_type,
   BTHH_CHECK_NOT_DISABLED();
 
   btif_hh_device_t* p_dev = btif_hh_find_dev_by_link_spec(link_spec);
-  if (com::android::bluetooth::flags::remove_input_device_on_vup()) {
-    bool pending_connection = false;
-    for (auto ls : btif_hh_cb.new_connection_requests) {
-      if (ls.addrt.bda == link_spec.addrt.bda) {
-        pending_connection = true;
-        break;
-      }
+  bool pending_connection = false;
+  for (auto ls : btif_hh_cb.new_connection_requests) {
+    if (ls.addrt.bda == link_spec.addrt.bda) {
+      pending_connection = true;
+      break;
     }
+  }
 
-    if (p_dev == nullptr && btif_hh_find_added_dev(link_spec) && !pending_connection) {
-      BTHH_LOG_UNKNOWN_LINK(link_spec);
-      return BT_STATUS_DEVICE_NOT_FOUND;
-    }
-  } else {
-    if (p_dev == nullptr) {
-      BTHH_LOG_UNKNOWN_LINK(link_spec);
-      return BT_STATUS_DEVICE_NOT_FOUND;
-    }
+  if (p_dev == nullptr && btif_hh_find_added_dev(link_spec) && !pending_connection) {
+    BTHH_LOG_UNKNOWN_LINK(link_spec);
+    return BT_STATUS_DEVICE_NOT_FOUND;
   }
 
   btif_transfer_context(btif_hh_handle_evt, BTIF_HH_VUP_REQ_EVT, (char*)&link_spec,

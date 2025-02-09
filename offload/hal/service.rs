@@ -16,7 +16,7 @@ use crate::ffi::{CInterface, CStatus, Callbacks, DataCallbacks, Ffi};
 use android_hardware_bluetooth::aidl::android::hardware::bluetooth::{
     IBluetoothHci::IBluetoothHci, IBluetoothHciCallbacks::IBluetoothHciCallbacks, Status::Status,
 };
-use binder::{DeathRecipient, ExceptionCode, Interface, Result as BinderResult, Strong};
+use binder::{DeathRecipient, ExceptionCode, IBinder, Interface, Result as BinderResult, Strong};
 use bluetooth_offload_hci::{Module, ModuleBuilder};
 use std::sync::{Arc, RwLock};
 
@@ -41,7 +41,6 @@ struct SinkModule<T: Callbacks> {
 
 enum State {
     Closed,
-    Opening { ffi: Arc<Ffi<FfiCallbacks>>, proxy: Arc<dyn Module> },
     Opened { proxy: Arc<dyn Module>, _death_recipient: DeathRecipient },
 }
 
@@ -73,10 +72,25 @@ impl IBluetoothHci for HciHalProxy {
             for m in self.modules.iter().rev() {
                 proxy = m.build(proxy);
             }
-            let callbacks = FfiCallbacks::new(callbacks.clone(), proxy.clone(), self.state.clone());
 
-            *state = State::Opening { ffi: self.ffi.clone(), proxy: proxy.clone() };
-            (self.ffi.clone(), callbacks)
+            let mut death_recipient = {
+                let (ffi, state) = (self.ffi.clone(), self.state.clone());
+                DeathRecipient::new(move || {
+                    log::info!("Bluetooth stack has died");
+                    let mut state = state.write().unwrap();
+                    if !matches!(*state, State::Closed) {
+                        ffi.close();
+                    }
+                    *state = State::Closed;
+                })
+            };
+            callbacks.as_binder().link_to_death(&mut death_recipient)?;
+
+            *state = State::Opened { proxy: proxy.clone(), _death_recipient: death_recipient };
+            (
+                self.ffi.clone(),
+                FfiCallbacks::new(callbacks.clone(), proxy.clone(), self.state.clone()),
+            )
         };
 
         ffi.initialize(callbacks);
@@ -185,31 +199,12 @@ impl FfiCallbacks {
 impl Callbacks for FfiCallbacks {
     fn initialization_complete(&self, status: CStatus) {
         let mut state = self.state.write().unwrap();
-        match status {
-            CStatus::Success => {
-                let State::Opening { ref ffi, ref proxy } = *state else {
-                    panic!("Initialization completed called in bad state");
-                };
-
-                *state = State::Opened {
-                    proxy: proxy.clone(),
-                    _death_recipient: {
-                        let (ffi, state) = (ffi.clone(), self.state.clone());
-                        DeathRecipient::new(move || {
-                            log::info!("Bluetooth stack has died");
-                            *state.write().unwrap() = State::Closed;
-                            ffi.close();
-                        })
-                    },
-                };
-            }
-
-            CStatus::AlreadyInitialized => panic!("Initialization completed called in bad state"),
-            _ => *state = State::Closed,
-        };
-
+        if status != CStatus::Success {
+            *state = State::Closed;
+        }
         if let Err(e) = self.callbacks.initializationComplete(status.into()) {
             log::error!("Cannot call-back client: {:?}", e);
+            *state = State::Closed;
         }
     }
 }

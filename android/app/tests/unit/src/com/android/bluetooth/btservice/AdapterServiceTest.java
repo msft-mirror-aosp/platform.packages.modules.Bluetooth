@@ -54,12 +54,9 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.os.PowerManager;
-import android.os.Process;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.os.UserManager;
-import android.os.test.TestLooper;
-import android.permission.PermissionCheckerManager;
 import android.permission.PermissionManager;
 import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
@@ -74,6 +71,7 @@ import android.util.Log;
 import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.MediumTest;
 
+import com.android.bluetooth.TestLooper;
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.bluetoothkeystore.BluetoothKeystoreNativeInterface;
@@ -85,7 +83,6 @@ import com.android.bluetooth.le_audio.LeAudioService;
 import com.android.bluetooth.le_scan.PeriodicScanNativeInterface;
 import com.android.bluetooth.le_scan.ScanNativeInterface;
 import com.android.bluetooth.sdp.SdpManagerNativeInterface;
-import com.android.internal.app.IBatteryStats;
 
 import libcore.util.HexEncoding;
 
@@ -132,8 +129,8 @@ public class AdapterServiceTest {
 
         int mSetProfileServiceStateCounter = 0;
 
-        MockAdapterService(Looper looper) {
-            super(looper);
+        MockAdapterService(Looper looper, Context ctx) {
+            super(looper, ctx);
         }
 
         @Override
@@ -153,7 +150,6 @@ public class AdapterServiceTest {
     private @Mock ProfileService mMockService2;
     private @Mock IBluetoothCallback mIBluetoothCallback;
     private @Mock Binder mBinder;
-    private @Mock android.app.Application mApplication;
     private @Mock MetricsLogger mMockMetricsLogger;
     private @Mock AdapterNativeInterface mNativeInterface;
     private @Mock BluetoothKeystoreNativeInterface mKeystoreNativeInterface;
@@ -174,12 +170,7 @@ public class AdapterServiceTest {
     private CompanionDeviceManager mCompanionDeviceManager;
     private DisplayManager mDisplayManager;
     private PowerManager mPowerManager;
-    private PermissionCheckerManager mPermissionCheckerManager;
     private PermissionManager mPermissionManager;
-    // BatteryStatsManager is final and cannot be mocked with regular mockito, so just mock the
-    // underlying binder calls.
-    final BatteryStatsManager mBatteryStatsManager =
-            new BatteryStatsManager(mock(IBatteryStats.class));
 
     private static final int CONTEXT_SWITCH_MS = 100;
 
@@ -249,7 +240,8 @@ public class AdapterServiceTest {
         ScanNativeInterface.setInstance(mScanNativeInterface);
 
         // Post the creation of AdapterService since it rely on Looper.myLooper()
-        handler.post(() -> mAdapterService = new MockAdapterService(mLooper.getLooper()));
+        handler.post(
+                () -> mAdapterService = new MockAdapterService(mLooper.getLooper(), mMockContext));
         assertThat(mLooper.dispatchAll()).isEqualTo(1);
         assertThat(mAdapterService).isNotNull();
 
@@ -272,7 +264,6 @@ public class AdapterServiceTest {
         mBluetoothManager = targetContext.getSystemService(BluetoothManager.class);
         mCompanionDeviceManager = targetContext.getSystemService(CompanionDeviceManager.class);
         mDisplayManager = targetContext.getSystemService(DisplayManager.class);
-        mPermissionCheckerManager = targetContext.getSystemService(PermissionCheckerManager.class);
         mPermissionManager = targetContext.getSystemService(PermissionManager.class);
         mPowerManager = targetContext.getSystemService(PowerManager.class);
 
@@ -285,7 +276,6 @@ public class AdapterServiceTest {
         when(mMockContext.createContextAsUser(UserHandle.SYSTEM, /* flags= */ 0))
                 .thenReturn(mMockContext);
         when(mMockContext.getResources()).thenReturn(mMockResources);
-        when(mMockContext.getUserId()).thenReturn(Process.BLUETOOTH_UID);
         when(mMockContext.getPackageManager()).thenReturn(mMockPackageManager);
 
         mockGetSystemService(Context.ALARM_SERVICE, AlarmManager.class);
@@ -298,18 +288,18 @@ public class AdapterServiceTest {
         doReturn(false).when(dpm).isCommonCriteriaModeEnabled(any());
         mockGetSystemService(Context.USER_SERVICE, UserManager.class);
 
+        // BatteryStatsManager is final and cannot be mocked with regular mockito, so just return
+        // real implementation
         mockGetSystemService(
-                Context.BATTERY_STATS_SERVICE, BatteryStatsManager.class, mBatteryStatsManager);
+                Context.BATTERY_STATS_SERVICE,
+                BatteryStatsManager.class,
+                targetContext.getSystemService(BatteryStatsManager.class));
         mockGetSystemService(Context.BLUETOOTH_SERVICE, BluetoothManager.class, mBluetoothManager);
         mockGetSystemService(
                 Context.COMPANION_DEVICE_SERVICE,
                 CompanionDeviceManager.class,
                 mCompanionDeviceManager);
         mockGetSystemService(Context.DISPLAY_SERVICE, DisplayManager.class, mDisplayManager);
-        mockGetSystemService(
-                Context.PERMISSION_CHECKER_SERVICE,
-                PermissionCheckerManager.class,
-                mPermissionCheckerManager);
         mockGetSystemService(
                 Context.PERMISSION_SERVICE, PermissionManager.class, mPermissionManager);
         mockGetSystemService(Context.POWER_SERVICE, PowerManager.class, mPowerManager);
@@ -335,10 +325,6 @@ public class AdapterServiceTest {
 
         when(mIBluetoothCallback.asBinder()).thenReturn(mBinder);
 
-        doReturn(Process.BLUETOOTH_UID)
-                .when(mMockPackageManager)
-                .getPackageUidAsUser(any(), anyInt(), anyInt());
-
         when(mMockGattService.getName()).thenReturn("GattService");
         when(mMockService.getName()).thenReturn("Service1");
         when(mMockService2.getName()).thenReturn("Service2");
@@ -348,8 +334,6 @@ public class AdapterServiceTest {
 
         MetricsLogger.setInstanceForTesting(mMockMetricsLogger);
 
-        // Attach a context to the service for permission checks.
-        mAdapterService.attach(mMockContext, null, null, null, mApplication, null);
         mAdapterService.onCreate();
 
         mLooper.dispatchAll();
@@ -623,7 +607,6 @@ public class AdapterServiceTest {
         when(mockContext.getContentResolver()).thenReturn(mMockContentResolver);
         when(mockContext.getApplicationContext()).thenReturn(mockContext);
         when(mockContext.getResources()).thenReturn(mockResources);
-        when(mockContext.getUserId()).thenReturn(Process.BLUETOOTH_UID);
         when(mockContext.getPackageManager()).thenReturn(mMockPackageManager);
 
         // Config is set to PBAP, PAN and GATT by default. Turn off PAN and PBAP.

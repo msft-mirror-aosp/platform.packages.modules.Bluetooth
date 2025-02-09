@@ -30,6 +30,7 @@ public class ScanClient {
     public ScanSettings settings;
     public int scanModeApp;
     public boolean started = false;
+    public boolean isInternalClient = false;
     public int appUid;
     public List<ScanFilter> filters;
     // App associated with the scan client died.

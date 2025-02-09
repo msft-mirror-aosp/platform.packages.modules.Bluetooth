@@ -2616,13 +2616,15 @@ public class BassClientService extends ProfileService {
             if (broadcastName != null) {
                 metaData.setBroadcastName(broadcastName);
             }
+
+            // update the rssi value
+            ScanResult scanRes = getCachedBroadcast(broadcastId);
+            if (scanRes != null) {
+                metaData.setRssi(scanRes.getRssi());
+            }
         }
         metaData.setEncrypted(encrypted);
-        // update the rssi value
-        ScanResult scanRes = getCachedBroadcast(result.getBroadcastId());
-        if (scanRes != null) {
-            metaData.setRssi(scanRes.getRssi());
-        }
+
         return metaData.build();
     }
 

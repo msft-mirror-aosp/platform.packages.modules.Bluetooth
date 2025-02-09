@@ -6,18 +6,23 @@ java_defaults {
     name: "BluetoothInstrumentationTestsDefaults",
     defaults: [
         "bluetooth_errorprone_rules",
-        "framework-bluetooth-tests-defaults",
     ],
 
+    sdk_version: "module_current",
     min_sdk_version: "Tiramisu",
     target_sdk_version: "current",
     libs: [
         "android.test.base.stubs",
         "android.test.mock.stubs",
         "android.test.runner.stubs",
+        "framework-annotations-lib",
+        "framework-configinfrastructure.stubs.module_lib",
+        "framework-connectivity.stubs.module_lib",
+        "framework-location.stubs.module_lib",
+        "framework-mediaprovider.stubs.module_lib",
+        "framework-tethering.stubs.module_lib",
         "javax.obex.stubs",
         "libprotobuf-java-micro",
-        "telephony-common",
     ],
 
     static_libs: [
@@ -36,9 +41,10 @@ java_defaults {
         "com.android.sysprop.bluetooth",
         "flag-junit",
         "framework-bluetooth-pre-jarjar",
-        "frameworks-base-testutils",
         "gson",
+        "mmslib",
         "mockito-target",
+        "modules-utils-handlerexecutor",
         "platform-parametric-runner-lib",
         "platform-test-annotations",
         "truth",
@@ -53,7 +59,6 @@ java_defaults {
         include_filter: ["android.bluetooth.*"],
         exclude_filter: [],
     },
-    platform_apis: true,
 
     test_suites: [
         "automotive-general-tests",

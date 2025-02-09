@@ -166,7 +166,7 @@ void bta_jv_l2cap_write(uint32_t handle, uint32_t req_id, BT_HDR* msg, uint32_t 
                         tBTA_JV_L2C_CB* p_cb);
 void bta_jv_rfcomm_connect(tBTA_SEC sec_mask, uint8_t remote_scn, const RawAddress& peer_bd_addr,
                            tBTA_JV_RFCOMM_CBACK* p_cback, uint32_t rfcomm_slot_id,
-                           RfcommCfgInfo cfg, uint32_t app_uid);
+                           RfcommCfgInfo cfg, uint32_t app_uid, uint64_t sdp_duration_ms);
 void bta_jv_rfcomm_close(uint32_t handle, uint32_t rfcomm_slot_id);
 void bta_jv_rfcomm_start_server(tBTA_SEC sec_mask, uint8_t local_scn, uint8_t max_session,
                                 tBTA_JV_RFCOMM_CBACK* p_cback, uint32_t rfcomm_slot_id,

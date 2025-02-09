@@ -20,6 +20,7 @@ import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static android.Manifest.permission.BLUETOOTH_SCAN;
 import static android.Manifest.permission.UPDATE_DEVICE_STATS;
 
+import static com.android.bluetooth.flags.Flags.leaudioBassScanWithInternalScanController;
 import static com.android.bluetooth.Utils.checkCallerTargetSdk;
 
 import static java.util.Objects.requireNonNull;
@@ -582,6 +583,10 @@ public class ScanController {
 
     /** Determines if the given scan client has the appropriate permissions to receive callbacks. */
     private boolean hasScanResultPermission(final ScanClient client) {
+        if (leaudioBassScanWithInternalScanController() && client.isInternalClient) {
+            // Bypass permission check for internal clients
+            return true;
+        }
         if (client.hasNetworkSettingsPermission
                 || client.hasNetworkSetupWizardPermission
                 || client.hasScanWithoutLocationPermission) {
@@ -1256,6 +1261,7 @@ public class ScanController {
     /** Intended for internal use within the Bluetooth app. Bypass permission check */
     public void startScanInternal(int scannerId, ScanSettings settings, List<ScanFilter> filters) {
         final ScanClient scanClient = new ScanClient(scannerId, settings, filters);
+        scanClient.isInternalClient = true;
         scanClient.userHandle = Binder.getCallingUserHandle();
         scanClient.eligibleForSanitizedExposureNotification = false;
         scanClient.hasDisavowedLocation = false;

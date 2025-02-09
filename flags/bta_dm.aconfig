@@ -19,16 +19,6 @@ flag {
 }
 
 flag {
-    name: "fix_le_evt_cancelling_sdp_discovery"
-    namespace: "bluetooth"
-    description: "Fix LE service discovery cancelling SDP discovery"
-    bug: "360936118"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "extend_and_randomize_role_switch_delay"
     namespace: "bluetooth"
     description: "Fix the possible conflicts between role switch and authentication"

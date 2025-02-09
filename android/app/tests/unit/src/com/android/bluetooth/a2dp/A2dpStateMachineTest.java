@@ -47,13 +47,13 @@ import android.bluetooth.BluetoothCodecStatus;
 import android.bluetooth.BluetoothDevice;
 import android.content.Intent;
 import android.os.Bundle;
-import android.os.test.TestLooper;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.filters.MediumTest;
 import androidx.test.runner.AndroidJUnit4;
 
+import com.android.bluetooth.TestLooper;
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.flags.Flags;
 

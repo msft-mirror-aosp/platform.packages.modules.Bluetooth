@@ -1454,6 +1454,29 @@ void btif_storage_remove_gatt_cl_db_hash(const RawAddress& bd_addr) {
           bd_addr));
 }
 
+std::vector<bluetooth::Uuid> btif_storage_get_services(const RawAddress& bd_addr) {
+  uint8_t count = 0;
+  std::array<bluetooth::Uuid, BT_MAX_NUM_UUIDS> uuids = {};
+
+  // Get BR/EDR services from storage
+  bt_property_t remote_properties = {BT_PROPERTY_UUIDS, sizeof(uuids), &uuids};
+  if (btif_storage_get_remote_device_property(&bd_addr, &remote_properties) == BT_STATUS_SUCCESS) {
+    count = remote_properties.len / sizeof(uuids[0]);
+  }
+
+  // Get LE services from storage
+  if (com::android::bluetooth::flags::separate_service_storage()) {
+    int size = (uuids.size() - count) * sizeof(uuids[0]);
+    remote_properties = {BT_PROPERTY_UUIDS_LE, size, &uuids[count]};
+    if (btif_storage_get_remote_device_property(&bd_addr, &remote_properties) ==
+        BT_STATUS_SUCCESS) {
+      count += remote_properties.len / sizeof(uuids[0]);
+    }
+  }
+
+  return std::vector<bluetooth::Uuid>(uuids.begin(), uuids.begin() + count);
+}
+
 // TODO(b/369381361) Remove this function after all devices are migrated
 void btif_storage_migrate_services() {
   for (const auto& mac_address : btif_config_get_paired_devices()) {

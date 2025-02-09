@@ -211,6 +211,8 @@ class A2dpTest(base_test.BaseTestClass):  # type: ignore[misc]
     ref1: PandoraDevice
     ref2: PandoraDevice
 
+    any = Any()
+
     @avatar.asynchronous
     async def setup_class(self) -> None:
         self.devices = PandoraDevices(self)
@@ -299,7 +301,6 @@ class A2dpTest(base_test.BaseTestClass):  # type: ignore[misc]
         2. Start streaming
         4. Stop streaming
         """
-        any = Any()
 
         # Connect and pair RD1.
         dut_ref1, ref1_dut = await asyncio.gather(
@@ -310,73 +311,29 @@ class A2dpTest(base_test.BaseTestClass):  # type: ignore[misc]
         connection = pandora_snippet.get_raw_connection(device=self.ref1, connection=ref1_dut)
         channel = SignalingChannel.accept(connection)
 
-        async def acceptor_avdt_open(channel: SignalingChannel):
-
-            avdtp_future = asyncio.get_running_loop().create_future()
-
-            def on_avdtp_connection():
-                logger.info(f"AVDTP Opened")
-                nonlocal avdtp_future
-                avdtp_future.set_result(None)
-
-            channel.on('connection', on_avdtp_connection)
-
-            cmd = await channel.expect_signal(DiscoverCommand(transaction_label=any))
-
-            seid_information = [SeidInformation(acp_seid=0x01, tsep=Tsep.SINK, media_type=AVDTP_AUDIO_MEDIA_TYPE)]
-
-            channel.send_signal(
-                DiscoverResponse(transaction_label=cmd.transaction_label, seid_information=seid_information))
-
-            cmd = await channel.expect_signal(GetAllCapabilitiesCommand(acp_seid=any, transaction_label=any))
-
-            acceptor_service_capabilities = [
-                MediaTransportCapability(),
-                MediaCodecCapability(service_category=ServiceCategory.MEDIA_CODEC,
-                                     media_codec_specific_information_elements=[255, 255, 2, 53])
-            ]
-
-            channel.send_signal(
-                GetAllCapabilitiesResponse(transaction_label=cmd.transaction_label,
-                                           service_capabilities=acceptor_service_capabilities))
-
-            cmd = await channel.expect_signal(
-                SetConfigurationCommand(transaction_label=any,
-                                        acp_seid=any,
-                                        int_seid=any,
-                                        service_capabilities=[MediaTransportCapability(), any]))
-
-            channel.send_signal(SetConfigurationResponse(transaction_label=cmd.transaction_label))
-
-            cmd = await channel.expect_signal(OpenCommand(transaction_label=any, acp_seid=any))
-
-            channel.send_signal(OpenResponse(transaction_label=cmd.transaction_label))
-
-            await asyncio.wait_for(avdtp_future, timeout=10.0)
+        seid_information = [SeidInformation(acp_seid=0x01, tsep=Tsep.SINK, media_type=AVDTP_AUDIO_MEDIA_TYPE)]
+        acceptor_service_capabilities = [
+            MediaTransportCapability(),
+            MediaCodecCapability(service_category=ServiceCategory.MEDIA_CODEC,
+                                 media_codec_specific_information_elements=[255, 255, 2, 53])
+        ]
 
         # Connect AVDTP to RD1.
-        _, dut_ref1_source = await asyncio.gather(acceptor_avdt_open(channel), open_source(self.dut, dut_ref1))
-
-        async def acceptor_avdt_start(channel: SignalingChannel):
-            cmd = await channel.expect_signal(StartCommand(transaction_label=any, acp_seid=any))
-
-            channel.send_signal(StartResponse(transaction_label=cmd.transaction_label))
+        _, dut_ref1_source = await asyncio.gather(
+            channel.accept_open_stream(seid_information=seid_information,
+                                       service_capabilities=acceptor_service_capabilities),
+            open_source(self.dut, dut_ref1))
 
         # Start streaming to RD1.
-        await asyncio.gather(self.dut.a2dp.Start(source=dut_ref1_source), acceptor_avdt_start(channel))
+        await asyncio.gather(self.dut.a2dp.Start(source=dut_ref1_source), channel.accept_start())
 
         audio = AudioSignal(self.dut.a2dp, dut_ref1_source, 0.8, 44100)
 
         # Verify that at least one audio frame is received on the transport channel.
         await asyncio.wait_for(channel.expect_media(), 5.0)
 
-        async def acceptor_avdt_suspend(channel: SignalingChannel):
-            cmd = await channel.expect_signal(SuspendCommand(transaction_label=any, acp_seid=any))
-
-            channel.send_signal(SuspendResponse(transaction_label=cmd.transaction_label))
-
         # Stop streaming to RD1.
-        await asyncio.gather(self.dut.a2dp.Suspend(source=dut_ref1_source), acceptor_avdt_suspend(channel))
+        await asyncio.gather(self.dut.a2dp.Suspend(source=dut_ref1_source), channel.accept_suspend())
 
     @avatar.asynchronous
     async def test_avdtp_autoconnect_when_only_avctp_connected(self) -> None:
@@ -413,124 +370,6 @@ class A2dpTest(base_test.BaseTestClass):  # type: ignore[misc]
 
         # Wait for AVDTP L2CAP channel
         await asyncio.wait_for(avdtp_future, timeout=10.0)
-
-    @avatar.asynchronous
-    async def test_avdt_signaling_channel_connection_collision_case1(self) -> None:
-        """Test AVDTP signaling channel connection collision.
-
-        Test steps after DUT and RD1 connected and paired:
-        1. RD1 connects DUT over AVDTP - first AVDTP signaling channel
-        2. AVDTP signaling channel configuration postponed until DUT tries to initiate AVDTP signaling channel connection
-        3. DUT tries connecting RD1 - collision simulated
-        4. RD1 rejects AVDTP signaling channel connection request from DUT
-        5. RD1 proceeds with first AVDTP signaling channel configuration
-        6. Channel established - collision avoided
-        """
-
-        @dataclasses.dataclass
-        class L2capConfigurationRequest:
-            connection: Optional[Connection] = None
-            cid: Optional[int] = None
-            request: Optional[L2CAP_Configure_Request] = None
-
-        global pending_configuration_request
-        pending_configuration_request = L2capConfigurationRequest()
-
-        class TestChannelManager(ChannelManager):
-
-            def __init__(
-                self,
-                device: BumblePandoraDevice,
-            ) -> None:
-                super().__init__(
-                    device.l2cap_channel_manager.extended_features,
-                    device.l2cap_channel_manager.connectionless_mtu,
-                )
-                self.register_fixed_channel(bumble.smp.SMP_CID, device.on_smp_pdu)
-                device.sdp_server.register(self)
-                self.register_fixed_channel(bumble.att.ATT_CID, device.on_gatt_pdu)
-                self.host = device.host
-
-            def on_l2cap_connection_request(self, connection: Connection, cid: int, request) -> None:
-                global pending_configuration_request
-                if request.psm == AVDTP_PSM and pending_configuration_request is not None:
-                    logger.info("<< 4. RD1 rejects AVDTP connection request from DUT >>")
-                    self.send_control_frame(
-                        connection,
-                        cid,
-                        L2CAP_Connection_Response(
-                            identifier=request.identifier,
-                            destination_cid=0,
-                            source_cid=request.source_cid,
-                            result=L2CAP_Connection_Response.CONNECTION_REFUSED_NO_RESOURCES_AVAILABLE,
-                            status=0x0000,
-                        ),
-                    )
-                    logger.info("<< 5. RD1 proceeds with first AVDTP channel configuration >>")
-                    chan_connection = pending_configuration_request.connection
-                    chan_cid = pending_configuration_request.cid
-                    chan_request = pending_configuration_request.request
-                    pending_configuration_request = None
-                    super().on_control_frame(connection=chan_connection, cid=chan_cid, control_frame=chan_request)
-                    return
-                super().on_l2cap_connection_request(connection, cid, request)
-
-        class TestClassicChannel(ClassicChannel):
-
-            def on_connection_response(self, response):
-                assert self.state == self.State.WAIT_CONNECT_RSP
-                assert (response.result == L2CAP_Connection_Response.CONNECTION_SUCCESSFUL
-                       ), f"Connection response: {response}"
-                self.destination_cid = response.destination_cid
-                self._change_state(self.State.WAIT_CONFIG)
-                logger.info("<< 2. RD1 connected DUT, configuration postponed >>")
-
-            def on_configure_request(self, request) -> None:
-                global pending_configuration_request
-                if pending_configuration_request is not None:
-                    logger.info("<< 3. Block RD1 until DUT tries AVDTP channel connection >>")
-                    pending_configuration_request.connection = self.connection
-                    pending_configuration_request.cid = self.source_cid
-                    pending_configuration_request.request = request
-                else:
-                    super().on_configure_request(request)
-
-        # Override L2CAP Channel Manager to control signaling
-        self.ref1.device.l2cap_channel_manager = TestChannelManager(self.ref1.device)
-
-        # Connect and pair DUT -> RD1.
-        dut_ref1, ref1_dut = await asyncio.gather(
-            initiate_pairing(self.dut, self.ref1.address),
-            accept_pairing(self.ref1, self.dut.address),
-        )
-
-        # Retrieve Bumble connection object from Pandora connection token
-        connection = pandora_snippet.get_raw_connection(device=self.ref1, connection=ref1_dut)
-        # Find a free CID for a new channel
-        connection_channels = self.ref1.device.l2cap_channel_manager.channels.setdefault(connection.handle, {})
-        source_cid = self.ref1.device.l2cap_channel_manager.find_free_br_edr_cid(connection_channels)
-        assert source_cid is not None, "source_cid is None"
-
-        spec = ClassicChannelSpec(AVDTP_PSM)
-        channel = TestClassicChannel(
-            self.ref1.device.l2cap_channel_manager,
-            connection,
-            L2CAP_SIGNALING_CID,
-            AVDTP_PSM,
-            source_cid,
-            spec.mtu,
-        )
-        connection_channels[source_cid] = channel
-
-        logger.info("<< 1. RD1 connects DUT over AVDTP - first channel >>")
-        await channel.connect()
-        logger.info(f"<< 6. Channel established: {channel} >>")
-        assert channel.state == ClassicChannel.State.OPEN
-
-        # Initiate AVDTP with connected L2CAP signaling channel
-        protocol = Protocol(channel)
-        protocol.add_sink(sbc_codec_capabilities())
-        logger.info("<< Test finished! >>")
 
     @avatar.asynchronous
     async def test_reconfigure_codec_success(self) -> None:
@@ -656,60 +495,9 @@ class A2dpTest(base_test.BaseTestClass):  # type: ignore[misc]
 
         Test steps after DUT and RD1 connected and paired:
         1. Start streaming to RD1.
-        2. Suspend streaming, RD1 will simulate failure response - AVDTP_BAD_STATE_ERROR.
+        2. Suspend streaming, RD1 will simulate failure response - AVDTP_BAD_STATE.
         3. The DUT closes the AVDTP connection.
         """
-
-        class TestAvdtProtocol(Protocol):
-
-            def on_suspend_command(self, command):
-                logger.info("<< Simulate suspend reject >>")
-                for seid in command.acp_seids:
-                    endpoint = self.get_local_endpoint_by_seid(seid)
-                    if endpoint:
-                        logger.info(f"<< Reject on endpoint: {endpoint} >>")
-                        return Suspend_Reject(seid, AVDTP_BAD_STATE_ERROR)
-
-        class TestA2dpListener(Listener):
-
-            @classmethod
-            def for_device(cls, device: bumble.device.Device, version: Tuple[int, int] = (1, 3)) -> Listener:
-                listener = TestA2dpListener(registrar=None, version=version)
-                l2cap_server = device.create_l2cap_server(spec=ClassicChannelSpec(psm=AVDTP_PSM))
-                l2cap_server.on('connection', listener.on_l2cap_connection)
-                return listener
-
-            def on_l2cap_connection(self, channel: ClassicChannel) -> None:
-                logger.info(f"<<< incoming L2CAP connection: {channel}")
-
-                if channel.connection.handle in self.servers:
-                    # This is a channel for a stream endpoint
-                    server = self.servers[channel.connection.handle]
-                    server.on_l2cap_connection(channel)
-                else:
-                    # This is a new command/response channel
-                    def on_channel_open():
-                        logger.info('setting up new TestAvdtProtocol for the connection')
-                        server = TestAvdtProtocol(channel, self.version)
-                        self.set_server(channel.connection, server)
-                        self.emit('connection', server)
-
-                    def on_channel_close():
-                        logger.info('removing TestAvdtProtocol for the connection')
-                        self.remove_server(channel.connection)
-
-                    channel.on('open', on_channel_open)
-                    channel.on('close', on_channel_close)
-
-        self.ref1.device.l2cap_channel_manager.servers.pop(AVDTP_PSM)
-        self.ref1.a2dp = TestA2dpListener.for_device(self.ref1.device)
-        self.ref1.a2dp_sink = None
-
-        def on_ref1_avdtp_connection(server):
-            logger.info("<< RD1: On AVDTP Connection, adding sink >>")
-            self.ref1.a2dp_sink = server.add_sink(sbc_codec_capabilities())
-
-        self.ref1.a2dp.on('connection', on_ref1_avdtp_connection)
 
         # Connect and pair RD1.
         dut_ref1, ref1_dut = await asyncio.gather(
@@ -717,33 +505,38 @@ class A2dpTest(base_test.BaseTestClass):  # type: ignore[misc]
             accept_pairing(self.ref1, self.dut.address),
         )
 
+        connection = pandora_snippet.get_raw_connection(device=self.ref1, connection=ref1_dut)
+        channel = SignalingChannel.accept(connection)
+
         # Connect AVDTP to RD1.
-        dut_ref1_source = await open_source(self.dut, dut_ref1)
-        assert_is_not_none(self.ref1.a2dp_sink)
-        assert_is_not_none(self.ref1.a2dp_sink.stream)
-        assert_in(self.ref1.a2dp_sink.stream.state, [AVDTP_OPEN_STATE, AVDTP_STREAMING_STATE])
-
-        # Create a listener to wait for AVDTP close
-        avdtp_future = asyncio.get_running_loop().create_future()
-
-        def on_ref1_avdtp_close():
-            nonlocal avdtp_future
-            logger.info("AVDTP Close received")
-            avdtp_future.set_result(None)
-
-        self.ref1.a2dp_sink.on('close', on_ref1_avdtp_close)
+        _, dut_ref1_source = await asyncio.gather(
+            channel.accept_open_stream(
+                seid_information=[SeidInformation(acp_seid=0x01, tsep=Tsep.SINK, media_type=AVDTP_AUDIO_MEDIA_TYPE)],
+                service_capabilities=[
+                    MediaTransportCapability(),
+                    MediaCodecCapability(service_category=ServiceCategory.MEDIA_CODEC,
+                                         media_codec_specific_information_elements=[255, 255, 2, 53])
+                ]), open_source(self.dut, dut_ref1))
 
         # Start streaming to RD1.
-        await self.dut.a2dp.Start(source=dut_ref1_source)
+        await asyncio.gather(self.dut.a2dp.Start(source=dut_ref1_source), channel.accept_start())
+
         audio = AudioSignal(self.dut.a2dp, dut_ref1_source, 0.8, 44100)
-        assert_equal(self.ref1.a2dp_sink.stream.state, AVDTP_STREAMING_STATE)
 
-        # Suspend streaming, peer device will simulate failure response.
-        # The stack should close the stream.
-        await self.dut.a2dp.Suspend(source=dut_ref1_source)
+        # Verify that at least one audio frame is received on the transport channel.
+        await asyncio.wait_for(channel.expect_media(), 5.0)
 
-        # Wait for AVDTP Close
-        await asyncio.wait_for(avdtp_future, timeout=10.0)
+        # Stop streaming to RD1.
+        _, cmd = await asyncio.gather(
+            self.dut.a2dp.Suspend(source=dut_ref1_source),
+            channel.expect_signal(SuspendCommand(transaction_label=self.any, acp_seid=self.any)))
+
+        # Simulate AVDTP_BAD_STATE response.
+        channel.send_signal(SuspendReject(transaction_label=cmd.transaction_label,
+                                          error_code=ErrorCode.AVDTP_BAD_STATE))
+
+        # Expect the DUT to close connection.
+        await channel.accept_close(timeout=10.0)
 
     @avatar.asynchronous
     @enableFlag(AVDTP_HANDLE_SIGNALING_ON_PEER_FAILURE)
@@ -807,6 +600,124 @@ class A2dpTest(base_test.BaseTestClass):  # type: ignore[misc]
 
         # Wait for AVDTP Open from DUT
         await asyncio.wait_for(avdtp_future, timeout=10.0)
+
+    @avatar.asynchronous
+    async def test_avdt_signaling_channel_connection_collision_case1(self) -> None:
+        """Test AVDTP signaling channel connection collision.
+
+        Test steps after DUT and RD1 connected and paired:
+        1. RD1 connects DUT over AVDTP - first AVDTP signaling channel
+        2. AVDTP signaling channel configuration postponed until DUT tries to initiate AVDTP signaling channel connection
+        3. DUT tries connecting RD1 - collision simulated
+        4. RD1 rejects AVDTP signaling channel connection request from DUT
+        5. RD1 proceeds with first AVDTP signaling channel configuration
+        6. Channel established - collision avoided
+        """
+
+        @dataclasses.dataclass
+        class L2capConfigurationRequest:
+            connection: Optional[Connection] = None
+            cid: Optional[int] = None
+            request: Optional[L2CAP_Configure_Request] = None
+
+        global pending_configuration_request
+        pending_configuration_request = L2capConfigurationRequest()
+
+        class TestChannelManager(ChannelManager):
+
+            def __init__(
+                self,
+                device: BumblePandoraDevice,
+            ) -> None:
+                super().__init__(
+                    device.l2cap_channel_manager.extended_features,
+                    device.l2cap_channel_manager.connectionless_mtu,
+                )
+                self.register_fixed_channel(bumble.smp.SMP_CID, device.on_smp_pdu)
+                device.sdp_server.register(self)
+                self.register_fixed_channel(bumble.att.ATT_CID, device.on_gatt_pdu)
+                self.host = device.host
+
+            def on_l2cap_connection_request(self, connection: Connection, cid: int, request) -> None:
+                global pending_configuration_request
+                if request.psm == AVDTP_PSM and pending_configuration_request is not None:
+                    logger.info("<< 4. RD1 rejects AVDTP connection request from DUT >>")
+                    self.send_control_frame(
+                        connection,
+                        cid,
+                        L2CAP_Connection_Response(
+                            identifier=request.identifier,
+                            destination_cid=0,
+                            source_cid=request.source_cid,
+                            result=L2CAP_Connection_Response.CONNECTION_REFUSED_NO_RESOURCES_AVAILABLE,
+                            status=0x0000,
+                        ),
+                    )
+                    logger.info("<< 5. RD1 proceeds with first AVDTP channel configuration >>")
+                    chan_connection = pending_configuration_request.connection
+                    chan_cid = pending_configuration_request.cid
+                    chan_request = pending_configuration_request.request
+                    pending_configuration_request = None
+                    super().on_control_frame(connection=chan_connection, cid=chan_cid, control_frame=chan_request)
+                    return
+                super().on_l2cap_connection_request(connection, cid, request)
+
+        class TestClassicChannel(ClassicChannel):
+
+            def on_connection_response(self, response):
+                assert self.state == self.State.WAIT_CONNECT_RSP
+                assert (response.result == L2CAP_Connection_Response.CONNECTION_SUCCESSFUL
+                       ), f"Connection response: {response}"
+                self.destination_cid = response.destination_cid
+                self._change_state(self.State.WAIT_CONFIG)
+                logger.info("<< 2. RD1 connected DUT, configuration postponed >>")
+
+            def on_configure_request(self, request) -> None:
+                global pending_configuration_request
+                if pending_configuration_request is not None:
+                    logger.info("<< 3. Block RD1 until DUT tries AVDTP channel connection >>")
+                    pending_configuration_request.connection = self.connection
+                    pending_configuration_request.cid = self.source_cid
+                    pending_configuration_request.request = request
+                else:
+                    super().on_configure_request(request)
+
+        # Override L2CAP Channel Manager to control signaling
+        self.ref1.device.l2cap_channel_manager = TestChannelManager(self.ref1.device)
+
+        # Connect and pair DUT -> RD1.
+        dut_ref1, ref1_dut = await asyncio.gather(
+            initiate_pairing(self.dut, self.ref1.address),
+            accept_pairing(self.ref1, self.dut.address),
+        )
+
+        # Retrieve Bumble connection object from Pandora connection token
+        connection = pandora_snippet.get_raw_connection(device=self.ref1, connection=ref1_dut)
+        # Find a free CID for a new channel
+        connection_channels = self.ref1.device.l2cap_channel_manager.channels.setdefault(connection.handle, {})
+        source_cid = self.ref1.device.l2cap_channel_manager.find_free_br_edr_cid(connection_channels)
+        assert source_cid is not None, "source_cid is None"
+
+        spec = ClassicChannelSpec(AVDTP_PSM)
+        channel = TestClassicChannel(
+            self.ref1.device.l2cap_channel_manager,
+            connection,
+            L2CAP_SIGNALING_CID,
+            AVDTP_PSM,
+            source_cid,
+            spec.mtu,
+        )
+        connection_channels[source_cid] = channel
+
+        logger.info("<< 1. RD1 connects DUT over AVDTP - first channel >>")
+        await channel.connect()
+        logger.info(f"<< 6. Channel established: {channel} >>")
+        assert channel.state == ClassicChannel.State.OPEN
+
+        # Initiate AVDTP with connected L2CAP signaling channel
+        protocol = Protocol(channel)
+        protocol.add_sink(sbc_codec_capabilities())
+        logger.info("<< Test finished! >>")
 
     @avatar.asynchronous
     @enableFlag(A2DP_SM_IGNORE_CONNECT_EVENTS_IN_CONNECTING_STATE)

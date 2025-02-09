@@ -36,6 +36,7 @@
 #include "btif/include/btif_sock_sdp.h"
 #include "btif/include/btif_sock_thread.h"
 #include "btif/include/btif_sock_util.h"
+#include "common/time_util.h"
 #include "gd/os/rand.h"
 #include "include/hardware/bt_sock.h"
 #include "lpp/lpp_offload_interface.h"
@@ -88,6 +89,8 @@ typedef struct {
   int mtu;
   uint8_t* packet;
   int sdp_handle;
+  uint64_t sdp_start_time_ms;
+  uint64_t sdp_end_time_ms;
   int rfc_handle;
   int rfc_port_handle;
   int role;
@@ -458,7 +461,7 @@ bt_status_t btsock_rfc_connect(const RawAddress* bd_addr, const Uuid* service_uu
 
   if (!service_uuid || service_uuid->IsEmpty()) {
     tBTA_JV_STATUS ret = BTA_JvRfcommConnect(slot->security, slot->scn, slot->addr, rfcomm_cback,
-                                             slot->id, RfcommCfgInfo{}, slot->app_uid);
+                                             slot->id, RfcommCfgInfo{}, slot->app_uid, 0);
     if (ret != tBTA_JV_STATUS::SUCCESS) {
       log::error("unable to initiate RFCOMM connection. status:{}, scn:{}, bd_addr:{}",
                  bta_jv_status_text(ret), slot->scn, slot->addr);
@@ -475,6 +478,7 @@ bt_status_t btsock_rfc_connect(const RawAddress* bd_addr, const Uuid* service_uu
     log::info("service_uuid:{}, bd_addr:{}, slot_id:{}", service_uuid->ToString(), *bd_addr,
               slot->id);
     if (!is_requesting_sdp()) {
+      slot->sdp_start_time_ms = common::time_gettimeofday_us() / 1000;
       BTA_JvStartDiscovery(*bd_addr, 1, service_uuid, slot->id);
       slot->f.pending_sdp_request = false;
       slot->f.doing_sdp_request = true;
@@ -1097,6 +1101,7 @@ static void jv_dm_cback(tBTA_JV_EVT event, tBTA_JV* p_data, uint32_t id) {
       rfc_slot_t* slot = find_rfc_slot_by_pending_sdp();
       if (slot) {
         BTA_JvStartDiscovery(slot->addr, 1, &slot->service_uuid, slot->id);
+        slot->sdp_start_time_ms = common::time_gettimeofday_us() / 1000;
         slot->f.pending_sdp_request = false;
         slot->f.doing_sdp_request = true;
       }
@@ -1110,16 +1115,19 @@ static void jv_dm_cback(tBTA_JV_EVT event, tBTA_JV* p_data, uint32_t id) {
 }
 
 static void handle_discovery_comp(tBTA_JV_STATUS status, int scn, uint32_t id) {
+  uint64_t sdp_duration_ms;
   rfc_slot_t* slot = find_rfc_slot_by_id(id);
   if (!slot) {
     log::error("RFCOMM slot_id {} not found. event: BTA_JV_DISCOVERY_COMP_EVT", id);
     return;
   }
-
   if (!slot->f.doing_sdp_request) {
     log::error("SDP response returned but RFCOMM slot_id {} did not request SDP record.", id);
     return;
   }
+
+  slot->sdp_end_time_ms = common::time_gettimeofday_us() / 1000;
+  sdp_duration_ms = slot->sdp_end_time_ms - slot->sdp_start_time_ms;
 
   if (status != tBTA_JV_STATUS::SUCCESS || !scn) {
     log::error(
@@ -1145,7 +1153,7 @@ static void handle_discovery_comp(tBTA_JV_STATUS status, int scn, uint32_t id) {
   }
 
   if (BTA_JvRfcommConnect(slot->security, scn, slot->addr, rfcomm_cback, slot->id, cfg,
-                          slot->app_uid) != tBTA_JV_STATUS::SUCCESS) {
+                          slot->app_uid, sdp_duration_ms) != tBTA_JV_STATUS::SUCCESS) {
     log::warn("BTA_JvRfcommConnect() returned BTA_JV_FAILURE for RFCOMM slot_id:{}", id);
     cleanup_rfc_slot(slot);
     return;

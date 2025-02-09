@@ -29,7 +29,6 @@ pub struct LeAudioModuleBuilder {}
 pub(crate) struct LeAudioModule {
     next_module: Arc<dyn Module>,
     state: Mutex<State>,
-    service: Service,
 }
 
 #[derive(Default)]
@@ -145,13 +144,14 @@ impl Stream {
 impl ModuleBuilder for LeAudioModuleBuilder {
     /// Build the HCI-Proxy module from the next module in the chain
     fn build(&self, next_module: Arc<dyn Module>) -> Arc<dyn Module> {
+        Service::register();
         Arc::new(LeAudioModule::new(next_module))
     }
 }
 
 impl LeAudioModule {
     pub(crate) fn new(next_module: Arc<dyn Module>) -> Self {
-        Self { next_module, state: Mutex::new(Default::default()), service: Service::new() }
+        Self { next_module, state: Mutex::new(Default::default()) }
     }
 
     #[cfg(test)]
@@ -216,7 +216,7 @@ impl Module for LeAudioModule {
                         ret.iso_data_packet_length.into(),
                         ret.total_num_iso_data_packets.into(),
                     )));
-                    self.service.reset(Arc::downgrade(state.arbiter.as_ref().unwrap()));
+                    Service::reset(Arc::downgrade(state.arbiter.as_ref().unwrap()));
                 }
 
                 ReturnParameters::LeSetCigParameters(ref ret) if ret.status == Status::Success => {
@@ -249,7 +249,7 @@ impl Module for LeAudioModule {
                         IsoType::Bis { ref c_to_p } => c_to_p,
                     };
 
-                    self.service.start_stream(
+                    Service::start_stream(
                         ret.connection_handle,
                         StreamConfiguration {
                             isoIntervalUs: stream.iso_interval_us as i32,
@@ -265,7 +265,7 @@ impl Module for LeAudioModule {
                     let mut state = self.state.lock().unwrap();
                     let stream = state.stream.get_mut(&ret.connection_handle).unwrap();
                     if stream.state == StreamState::Enabled {
-                        self.service.stop_stream(ret.connection_handle);
+                        Service::stop_stream(ret.connection_handle);
                     }
                     stream.state = StreamState::Disabled;
                 }

@@ -466,6 +466,68 @@ class RfcommTest {
     }
 
     /*
+       Test Steps:
+       1. Disable inquiry and page scan
+       2. Create RFCOMM socket
+       3. Attempt to connect to socket: expect not connected
+       4. Wait 3 seconds
+       5. Before page timeout of 5 seconds, close the socket
+       6. Enable page scan
+       7. Create and connect to an RFCOMM socket - verify proper connection
+    */
+    @RequiresFlagsEnabled(Flags.FLAG_RFCOMM_CANCEL_ONGOING_SDP_ON_CLOSE)
+    @Test
+    fun clientConnectToOpenServerSocketAfterPageTimeout() {
+        updateSecurityConfig()
+        // 1. Disable inquiry and page scan
+        mBumble
+            .hostBlocking()
+            .setDiscoverabilityMode(
+                HostProto.SetDiscoverabilityModeRequest.newBuilder()
+                    .setMode(HostProto.DiscoverabilityMode.NOT_DISCOVERABLE)
+                    .build()
+            )
+        mBumble
+            .hostBlocking()
+            .setConnectabilityMode(
+                HostProto.SetConnectabilityModeRequest.newBuilder()
+                    .setMode(HostProto.ConnectabilityMode.NOT_CONNECTABLE)
+                    .build()
+            )
+        // 2. Create RFCOMM socket
+        val socket = mRemoteDevice.createRfcommSocketToServiceRecord(UUID.fromString(TEST_UUID))
+
+        // 3. Attempt to connect to socket: expect not connected
+        val t = thread {
+            try {
+                socket.connect()
+            } catch (e: IOException) {
+                Log.i(TAG, "Expect socket connection failure $e")
+            }
+            Log.i(TAG, "Done connecting to socket")
+        }
+        // 4. Wait 3 seconds
+        Thread.sleep(3000)
+
+        Truth.assertThat(socket.isConnected).isFalse()
+        // 5. Before page timeout of 5 seconds, close the socket
+        socket.close()
+
+        t.join()
+
+        // 6. Enable page scan
+        mBumble
+            .hostBlocking()
+            .setConnectabilityMode(
+                HostProto.SetConnectabilityModeRequest.newBuilder()
+                    .setMode(HostProto.ConnectabilityMode.CONNECTABLE)
+                    .build()
+            )
+        // 7. Create and connect to an RFCOMM socket - verify proper connection
+        startServer { serverId -> createConnectAcceptSocket(isSecure = false, serverId) }
+    }
+
+    /*
       Test Steps:
         1. Create an insecure socket
         2. Connect to the socket
@@ -692,6 +754,9 @@ class RfcommTest {
     ) {
         val request =
             RfcommProto.StartServerRequest.newBuilder().setName(name).setUuid(uuid).build()
+        Truth.assertThat(request).isNotNull()
+        Truth.assertThat(request.uuid).isNotNull()
+        Truth.assertThat(request.uuid).isNotEmpty()
         val response = mBumble.rfcommBlocking().startServer(request)
 
         try {

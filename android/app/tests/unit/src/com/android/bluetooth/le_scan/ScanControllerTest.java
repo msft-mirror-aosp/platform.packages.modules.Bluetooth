@@ -43,12 +43,12 @@ import android.location.LocationManager;
 import android.os.Binder;
 import android.os.RemoteException;
 import android.os.WorkSource;
-import android.os.test.TestLooper;
 import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
 
+import com.android.bluetooth.TestLooper;
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.CompanionManager;

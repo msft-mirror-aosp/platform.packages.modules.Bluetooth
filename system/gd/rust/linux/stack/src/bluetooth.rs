@@ -374,7 +374,7 @@ struct BluetoothDeviceContext {
     pub info: BluetoothDevice,
     pub last_seen: Instant,
     pub properties: HashMap<BtPropertyType, BluetoothProperty>,
-    pub is_hh_connected: bool,
+    pub is_initiated_hh_connection: bool,
 
     /// If user wants to connect to all profiles, when new profiles are discovered we will also try
     /// to connect them.
@@ -398,7 +398,7 @@ impl BluetoothDeviceContext {
             info,
             last_seen,
             properties: HashMap::new(),
-            is_hh_connected: false,
+            is_initiated_hh_connection: false,
             connect_to_new_profiles: false,
         };
         device.update_properties(&properties);
@@ -1302,8 +1302,11 @@ impl Bluetooth {
             || self.pending_create_bond.is_some()
     }
 
-    pub fn is_hh_connected(&self, device_address: &RawAddress) -> bool {
-        self.remote_devices.get(&device_address).map_or(false, |context| context.is_hh_connected)
+    /// Checks whether a Hid/Hog connection is being established or active.
+    pub fn is_initiated_hh_connection(&self, device_address: &RawAddress) -> bool {
+        self.remote_devices
+            .get(&device_address)
+            .map_or(false, |context| context.is_initiated_hh_connection)
     }
 
     /// Checks whether the list of device properties contains some UUID we should connect now
@@ -3018,12 +3021,16 @@ impl BtifHHCallbacks for Bluetooth {
 
         let tx = self.tx.clone();
         self.remote_devices.entry(address).and_modify(|context| {
-            if context.is_hh_connected && state != BthhConnectionState::Connected {
+            if context.is_initiated_hh_connection
+                && (state != BthhConnectionState::Connected
+                    && state != BthhConnectionState::Connecting)
+            {
                 tokio::spawn(async move {
                     let _ = tx.send(Message::ProfileDisconnected(address)).await;
                 });
             }
-            context.is_hh_connected = state == BthhConnectionState::Connected;
+            context.is_initiated_hh_connection =
+                state == BthhConnectionState::Connected || state == BthhConnectionState::Connecting;
         });
 
         if BtBondState::Bonded != self.get_bond_state_by_addr(&address)

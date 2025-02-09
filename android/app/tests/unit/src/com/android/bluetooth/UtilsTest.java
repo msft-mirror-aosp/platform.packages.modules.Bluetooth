@@ -20,16 +20,12 @@ import static com.android.bluetooth.Utils.formatSimple;
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertThrows;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.Context;
 import android.location.LocationManager;
-import android.os.Build;
 import android.os.ParcelUuid;
 import android.os.UserHandle;
 
@@ -46,11 +42,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
@@ -112,7 +103,7 @@ public class UtilsTest {
     @Test
     public void blockedByLocationOff() throws Exception {
         Context context = InstrumentationRegistry.getTargetContext();
-        UserHandle userHandle = new UserHandle(UserHandle.USER_SYSTEM);
+        UserHandle userHandle = UserHandle.SYSTEM;
         LocationManager locationManager = context.getSystemService(LocationManager.class);
         boolean enableStatus = locationManager.isLocationEnabledForUser(userHandle);
         assertThat(Utils.blockedByLocationOff(context, userHandle)).isEqualTo(!enableStatus);
@@ -126,7 +117,7 @@ public class UtilsTest {
     @Test
     public void checkCallerHasCoarseLocation_doesNotCrash() {
         Context context = InstrumentationRegistry.getTargetContext();
-        UserHandle userHandle = new UserHandle(UserHandle.USER_SYSTEM);
+        UserHandle userHandle = UserHandle.SYSTEM;
         LocationManager locationManager = context.getSystemService(LocationManager.class);
         boolean enabledStatus = locationManager.isLocationEnabledForUser(userHandle);
 
@@ -146,7 +137,7 @@ public class UtilsTest {
     @Test
     public void checkCallerHasCoarseOrFineLocation_doesNotCrash() {
         Context context = InstrumentationRegistry.getTargetContext();
-        UserHandle userHandle = new UserHandle(UserHandle.USER_SYSTEM);
+        UserHandle userHandle = UserHandle.SYSTEM;
         LocationManager locationManager = context.getSystemService(LocationManager.class);
         boolean enabledStatus = locationManager.isLocationEnabledForUser(userHandle);
 
