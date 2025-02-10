@@ -236,6 +236,7 @@ bool LeAudioDeviceGroup::Activate(LeAudioContextType context_type,
         return false;
       }
       is_activate = true;
+      SetMetadataContexts(metadata_context_types);
     }
   }
   return is_activate;
@@ -1823,7 +1824,7 @@ bool LeAudioDeviceGroup::ConfigureAses(
             audio_set_conf->name);
 
   configuration_context_type_ = context_type;
-  metadata_context_type_ = metadata_context_types;
+  SetMetadataContexts(metadata_context_types);
   return true;
 }
 

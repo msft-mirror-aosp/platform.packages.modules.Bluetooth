@@ -307,6 +307,12 @@ public:
     return configuration_context_type_;
   }
 
+  inline void SetMetadataContexts(const types::BidirectionalPair<types::AudioContexts>& metadata) {
+    log::debug("group_id: {}, sink: {}, source: {}", group_id_, common::ToString(metadata.sink),
+               common::ToString(metadata.source));
+    metadata_context_type_ = metadata;
+  }
+
   inline types::BidirectionalPair<types::AudioContexts> GetMetadataContexts() const {
     return metadata_context_type_;
   }
