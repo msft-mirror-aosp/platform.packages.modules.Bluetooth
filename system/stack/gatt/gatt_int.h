@@ -256,7 +256,8 @@ inline std::string gatt_channel_state_text(const tGATT_CH_STATE& state) {
 #define GATT_GMCS_START_HANDLE 40
 #define GATT_GTBS_START_HANDLE 90
 #define GATT_TMAS_START_HANDLE 130
-#define GATT_APP_START_HANDLE 134
+#define GATT_GMAS_START_HANDLE 133
+#define GATT_APP_START_HANDLE 144
 
 typedef struct hdl_cfg {
   uint16_t gatt_start_hdl;
@@ -264,6 +265,7 @@ typedef struct hdl_cfg {
   uint16_t gmcs_start_hdl;
   uint16_t gtbs_start_hdl;
   uint16_t tmas_start_hdl;
+  uint16_t gmas_start_hdl;
   uint16_t app_start_hdl;
 } tGATT_HDL_CFG;
 
