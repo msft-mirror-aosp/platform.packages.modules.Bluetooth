@@ -4349,7 +4349,7 @@ public class BassClientService extends ProfileService {
                         device ->
                                 getAllSources(device).stream()
                                         .anyMatch(rs -> rs.getBroadcastId() == broadcastId))
-                .toList();
+                .collect(Collectors.toUnmodifiableList());
     }
 
     private boolean isSyncedToBroadcastStream(Long syncState) {
