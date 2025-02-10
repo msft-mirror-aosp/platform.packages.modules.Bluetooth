@@ -16,6 +16,7 @@
 
 package com.android.bluetooth.le_scan;
 
+import static android.bluetooth.BluetoothDevice.PHY_LE_1M;
 import static android.bluetooth.BluetoothDevice.PHY_LE_1M_MASK;
 import static android.bluetooth.BluetoothDevice.PHY_LE_CODED;
 import static android.bluetooth.BluetoothDevice.PHY_LE_CODED_MASK;
@@ -34,6 +35,10 @@ import static android.bluetooth.le.ScanSettings.SCAN_MODE_SCREEN_OFF_BALANCED;
 import static com.android.bluetooth.btservice.AdapterService.DeviceConfigListener.DEFAULT_SCAN_DOWNGRADE_DURATION_BT_CONNECTING_MILLIS;
 import static com.android.bluetooth.btservice.AdapterService.DeviceConfigListener.DEFAULT_SCAN_TIMEOUT_MILLIS;
 import static com.android.bluetooth.btservice.AdapterService.DeviceConfigListener.DEFAULT_SCAN_UPGRADE_DURATION_MILLIS;
+import static com.android.bluetooth.le_scan.ScanManager.SCAN_MODE_BALANCED_INTERVAL_MS;
+import static com.android.bluetooth.le_scan.ScanManager.SCAN_MODE_BALANCED_WINDOW_MS;
+import static com.android.bluetooth.le_scan.ScanManager.SCAN_MODE_LOW_LATENCY_INTERVAL_MS;
+import static com.android.bluetooth.le_scan.ScanManager.SCAN_MODE_LOW_LATENCY_WINDOW_MS;
 import static com.android.bluetooth.le_scan.ScanManager.SCAN_MODE_SCREEN_OFF_BALANCED_INTERVAL_MS;
 import static com.android.bluetooth.le_scan.ScanManager.SCAN_MODE_SCREEN_OFF_BALANCED_WINDOW_MS;
 import static com.android.bluetooth.le_scan.ScanManager.SCAN_MODE_SCREEN_OFF_LOW_POWER_INTERVAL_MS;
@@ -79,12 +84,12 @@ import android.util.SparseIntArray;
 
 import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
-import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.TestLooper;
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.TestUtils.FakeTimeProvider;
+import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.BluetoothAdapterProxy;
 import com.android.bluetooth.btservice.MetricsLogger;
@@ -92,6 +97,9 @@ import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.gatt.GattNativeInterface;
 import com.android.bluetooth.gatt.GattObjectsFactory;
 import com.android.bluetooth.util.SystemProperties;
+
+import com.google.testing.junit.testparameterinjector.TestParameter;
+import com.google.testing.junit.testparameterinjector.TestParameterInjector;
 
 import org.junit.After;
 import org.junit.Before;
@@ -114,7 +122,7 @@ import java.util.UUID;
 
 /** Test cases for {@link ScanManager}. */
 @SmallTest
-@RunWith(AndroidJUnit4.class)
+@RunWith(TestParameterInjector.class)
 public class ScanManagerTest {
     @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
@@ -1885,9 +1893,43 @@ public class ScanManagerTest {
                 .isEqualTo(DEFAULT_TOTAL_NUM_OF_TRACKABLE_ADVERTISEMENTS / 4);
     }
 
-    private void phytest(int phy, int expectedPhy) {
+    // PHY_LE_1M: 1, PHY_LE_CODED: 3, PHY_LE_ALL_SUPPORTED: 255
+    @Test
+    @EnableFlags(Flags.FLAG_PHY_TO_NATIVE)
+    public void startScan_basicPhyTest(@TestParameter({"1", "3", "255"}) int phy) {
+        doPhyTest(phy, true);
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_PHY_TO_NATIVE)
+    public void startScan_basicPhyTest_ignorePhy(@TestParameter({"1", "3", "255"}) int phy) {
+        doPhyTest(phy, false);
+    }
+
+    private void doPhyTest(int phy, boolean respectPhy) {
         final boolean isFiltered = false;
         final boolean isEmptyFilter = false;
+        final boolean expect1m;
+        final boolean expectCoded;
+        final int expectedPhyMask;
+        switch (phy) {
+            case PHY_LE_1M:
+                expectedPhyMask = PHY_LE_1M_MASK;
+                expect1m = true;
+                expectCoded = false;
+                break;
+            case PHY_LE_CODED:
+                expectedPhyMask = respectPhy ? PHY_LE_CODED_MASK : PHY_LE_1M_MASK;
+                expectCoded = respectPhy;
+                expect1m = !respectPhy;
+                break;
+            case PHY_LE_ALL_SUPPORTED:
+            default:
+                expectedPhyMask = respectPhy ? PHY_LE_1M_MASK | PHY_LE_CODED_MASK : PHY_LE_1M_MASK;
+                expect1m = true;
+                expectCoded = respectPhy;
+                break;
+        }
 
         defaultScanMode.forEach(
                 (scanMode, expectedScanMode) -> {
@@ -1904,19 +1946,84 @@ public class ScanManagerTest {
                     sendMessageWaitForProcessed(createStartStopScanMessage(true, client));
 
                     assertThat(client.settings.getPhy()).isEqualTo(phy);
-                    verify(mScanNativeInterface, atLeastOnce())
-                            .gattSetScanParameters(anyInt(), anyInt(), anyInt(), eq(expectedPhy));
+                    verify(mScanNativeInterface)
+                            .gattSetScanParameters(
+                                    eq(expect1m ? mClientId : 0),
+                                    anyInt(),
+                                    anyInt(),
+                                    eq(expectCoded ? mClientId : 0),
+                                    anyInt(),
+                                    anyInt(),
+                                    eq(expectedPhyMask));
+
+                    // Stop scan
+                    sendMessageWaitForProcessed(createStartStopScanMessage(false, client));
                 });
     }
 
     @Test
-    public void startScan_whenPhyCoded_isStarted() {
-        phytest(PHY_LE_CODED, PHY_LE_CODED_MASK);
-    }
+    @EnableFlags(Flags.FLAG_PHY_TO_NATIVE)
+    public void startScan_phyTestMultiplexing() {
+        int clientId1m = ++mClientId;
+        int clientIdCoded = ++mClientId;
 
-    @Test
-    public void startScan_whenPhyAllSupported_isStarted() {
-        phytest(PHY_LE_ALL_SUPPORTED, PHY_LE_1M_MASK);
+        // Turn on screen
+        sendMessageWaitForProcessed(createScreenOnOffMessage(true));
+
+        // Create 1m scan client
+        ScanClient client1m =
+                createScanClientWithPhy(clientId1m, true, false, SCAN_MODE_LOW_LATENCY, PHY_LE_1M);
+
+        // Start scan on 1m
+        sendMessageWaitForProcessed(createStartStopScanMessage(true, client1m));
+
+        assertThat(client1m.settings.getPhy()).isEqualTo(PHY_LE_1M);
+        verify(mScanNativeInterface)
+                .gattSetScanParameters(
+                        eq(clientId1m),
+                        eq(Utils.millsToUnit(SCAN_MODE_LOW_LATENCY_INTERVAL_MS)),
+                        eq(Utils.millsToUnit(SCAN_MODE_LOW_LATENCY_WINDOW_MS)),
+                        eq(0),
+                        anyInt(),
+                        anyInt(),
+                        eq(PHY_LE_1M_MASK));
+
+        // Create coded scan client
+        ScanClient clientCoded =
+                createScanClientWithPhy(
+                        clientIdCoded, true, false, SCAN_MODE_BALANCED, PHY_LE_CODED);
+
+        // Start scan on coded
+        sendMessageWaitForProcessed(createStartStopScanMessage(true, clientCoded));
+
+        assertThat(clientCoded.settings.getPhy()).isEqualTo(PHY_LE_CODED);
+        verify(mScanNativeInterface)
+                .gattSetScanParameters(
+                        eq(clientId1m),
+                        eq(Utils.millsToUnit(SCAN_MODE_LOW_LATENCY_INTERVAL_MS)),
+                        eq(Utils.millsToUnit(SCAN_MODE_LOW_LATENCY_WINDOW_MS)),
+                        eq(clientIdCoded),
+                        eq(Utils.millsToUnit(SCAN_MODE_BALANCED_INTERVAL_MS)),
+                        eq(Utils.millsToUnit(SCAN_MODE_BALANCED_WINDOW_MS)),
+                        eq(PHY_LE_1M_MASK | PHY_LE_CODED_MASK));
+
+        // Stop scan on 1m
+        sendMessageWaitForProcessed(createStartStopScanMessage(false, client1m));
+
+        verify(mScanNativeInterface)
+                .gattSetScanParameters(
+                        eq(0),
+                        anyInt(),
+                        anyInt(),
+                        eq(clientIdCoded),
+                        eq(Utils.millsToUnit(SCAN_MODE_BALANCED_INTERVAL_MS)),
+                        eq(Utils.millsToUnit(SCAN_MODE_BALANCED_WINDOW_MS)),
+                        eq(PHY_LE_CODED_MASK));
+
+        // Stop scan on coded
+        sendMessageWaitForProcessed(createStartStopScanMessage(false, clientCoded));
+
+        verify(mScanNativeInterface, atLeastOnce()).gattClientScan(false);
     }
 
     @Test

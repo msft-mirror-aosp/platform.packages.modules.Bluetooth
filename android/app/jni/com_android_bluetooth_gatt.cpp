@@ -1524,14 +1524,16 @@ static void gattClientReadRemoteRssiNative(JNIEnv* env, jobject /* object */, ji
   sGattIf->client->read_remote_rssi(clientif, str2addr(env, address));
 }
 
-static void gattSetScanParametersNative(JNIEnv* /* env */, jobject /* object */, jint client_if,
-                                        jint scan_interval_unit, jint scan_window_unit,
-                                        jint scan_phy) {
+static void gattSetScanParametersNative(JNIEnv* /* env */, jobject /* object */, jint client_if_1m,
+                                        jint scan_interval_unit_1m, jint scan_window_unit_1m,
+                                        jint client_if_coded, jint scan_interval_unit_coded,
+                                        jint scan_window_unit_coded, jint scan_phy) {
   if (!sScanner) {
     return;
   }
-  sScanner->SetScanParameters(client_if, /* use active scan */ 0x01, scan_interval_unit,
-                              scan_window_unit, scan_phy);
+  sScanner->SetScanParameters(/* use active scan */ 0x01, client_if_1m, scan_interval_unit_1m,
+                              scan_window_unit_1m, client_if_coded, scan_interval_unit_coded,
+                              scan_window_unit_coded, scan_phy);
 }
 
 void scan_filter_param_cb(uint8_t client_if, uint8_t avbl_space, uint8_t action, uint8_t status) {
@@ -2778,7 +2780,7 @@ static int register_com_android_bluetooth_gatt_scan(JNIEnv* env) {
            (void*)gattClientScanFilterAddNative},
           {"gattClientScanFilterClearNative", "(II)V", (void*)gattClientScanFilterClearNative},
           {"gattClientScanFilterEnableNative", "(IZ)V", (void*)gattClientScanFilterEnableNative},
-          {"gattSetScanParametersNative", "(IIII)V", (void*)gattSetScanParametersNative},
+          {"gattSetScanParametersNative", "(IIIIIII)V", (void*)gattSetScanParametersNative},
           // MSFT HCI Extension functions.
           {"gattClientIsMsftSupportedNative", "()Z", (bool*)gattClientIsMsftSupportedNative},
           {"gattClientMsftAdvMonitorAddNative",

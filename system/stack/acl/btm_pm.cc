@@ -908,10 +908,21 @@ uint32_t BTM_PM_ReadBleScanDutyCycle(void) {
   if (!btm_cb.ble_ctr_cb.is_ble_scan_active()) {
     return 0;
   }
-  uint32_t scan_window = btm_cb.ble_ctr_cb.inq_var.scan_window;
-  uint32_t scan_interval = btm_cb.ble_ctr_cb.inq_var.scan_interval;
-  log::debug("LE scan_window:{} scan interval:{}", scan_window, scan_interval);
-  return (scan_window * 100) / scan_interval;
+  uint32_t duty_cycle_1m = 0;
+  uint32_t duty_cycle_coded = 0;
+  if (btm_cb.ble_ctr_cb.inq_var.is_1m_phy_configured()) {
+    uint32_t scan_window = btm_cb.ble_ctr_cb.inq_var.scan_window_1m;
+    uint32_t scan_interval = btm_cb.ble_ctr_cb.inq_var.scan_interval_1m;
+    log::debug("LE 1m scan_window:{} scan interval:{}", scan_window, scan_interval);
+    duty_cycle_1m = (scan_window * 100) / scan_interval;
+  }
+  if (btm_cb.ble_ctr_cb.inq_var.is_coded_phy_configured()) {
+    uint32_t scan_window = btm_cb.ble_ctr_cb.inq_var.scan_window_coded;
+    uint32_t scan_interval = btm_cb.ble_ctr_cb.inq_var.scan_interval_coded;
+    log::debug("LE coded scan_window:{} scan interval:{}", scan_window, scan_interval);
+    duty_cycle_coded = (scan_window * 100) / scan_interval;
+  }
+  return std::max(duty_cycle_1m, duty_cycle_coded);
 }
 
 void btm_pm_on_mode_change(tHCI_STATUS status, uint16_t handle, tHCI_MODE current_mode,

@@ -136,8 +136,9 @@ public:
   virtual void MsftAdvMonitorEnable(bool enable, MsftAdvMonitorEnableCallback cb) = 0;
 
   /** Sets the LE scan interval and window in units of N*0.625 msec */
-  virtual void SetScanParameters(int scanner_id, uint8_t scan_type, int scan_interval,
-                                 int scan_window, int scan_phy) = 0;
+  virtual void SetScanParameters(uint8_t scan_type, int scanner_id_1m, int scan_interval_1m,
+                                 int scan_window_1m, int scanner_id_coded, int scan_interval_coded,
+                                 int scan_window_coded, int scan_phy) = 0;
 
   /* Configure the batchscan storage */
   virtual void BatchscanConfigStorage(int client_if, int batch_scan_full_max,

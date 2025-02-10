@@ -44,6 +44,8 @@ import android.util.SparseBooleanArray;
 import android.util.SparseIntArray;
 import android.view.Display;
 
+import androidx.annotation.Nullable;
+
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.Utils.TimeProvider;
 import com.android.bluetooth.btservice.AdapterService;
@@ -110,7 +112,8 @@ public class ScanManager {
     private static final int OPERATION_TIME_OUT_MILLIS = 500;
     private static final int MAX_IS_UID_FOREGROUND_MAP_SIZE = 500;
 
-    private int mLastConfiguredScanSetting = Integer.MIN_VALUE;
+    private int mLastConfiguredScanSetting1m = Integer.MIN_VALUE;
+    private int mLastConfiguredScanSettingCoded = Integer.MIN_VALUE;
     // Scan parameters for batch scan.
     private BatchScanParams mBatchScanParams;
 
@@ -1078,71 +1081,87 @@ public class ScanManager {
 
         void configureRegularScanParams() {
             Log.d(TAG, "configureRegularScanParams() - queue=" + mRegularScanClients.size());
-            int curScanSetting = Integer.MIN_VALUE;
-            ScanClient client = getAggressiveClient(mRegularScanClients);
-            if (client != null) {
-                curScanSetting = client.settings.getScanMode();
+            int newScanSetting1m = Integer.MIN_VALUE;
+            int newScanSettingCoded = Integer.MIN_VALUE;
+            ScanClient client1m = getAggressiveClient(mRegularScanClients, true, false);
+            ScanClient clientCoded = getAggressiveClient(mRegularScanClients, false, false);
+            if (client1m != null) {
+                newScanSetting1m = client1m.settings.getScanMode();
+            }
+            if (clientCoded != null) {
+                newScanSettingCoded = clientCoded.settings.getScanMode();
             }
 
-            if (curScanSetting != Integer.MIN_VALUE
-                    && curScanSetting != ScanSettings.SCAN_MODE_OPPORTUNISTIC) {
-                if (curScanSetting != mLastConfiguredScanSetting) {
-                    int scanWindowMs = getScanWindowMillis(client.settings);
-                    int scanIntervalMs = getScanIntervalMillis(client.settings);
+            int curPhyMask =
+                    getScanPhyMask(
+                            mLastConfiguredScanSetting1m != Integer.MIN_VALUE,
+                            mLastConfiguredScanSettingCoded != Integer.MIN_VALUE);
+            int scanPhyMask = getScanPhyMask(client1m != null, clientCoded != null);
 
-                    // convert scanWindow and scanInterval from ms to LE scan units(0.625ms)
-                    int scanWindow = Utils.millsToUnit(scanWindowMs);
-                    int scanInterval = Utils.millsToUnit(scanIntervalMs);
-                    int scanPhyMask = getScanPhyMask(client.settings);
-                    mNativeInterface.gattClientScan(false);
-                    if (!AppScanStats.recordScanRadioStop(mTimeProvider)) {
-                        Log.w(TAG, "There is no scan radio to stop");
-                    }
-                    Log.d(
-                            TAG,
-                            "Start gattClientScanNative with"
-                                    + " old scanMode "
-                                    + mLastConfiguredScanSetting
-                                    + " new scanMode "
-                                    + curScanSetting
-                                    + " ( in MS: "
-                                    + scanIntervalMs
-                                    + " / "
-                                    + scanWindowMs
-                                    + ", in scan unit: "
-                                    + scanInterval
-                                    + " / "
-                                    + scanWindow
-                                    + ", "
-                                    + "scanPhyMask: "
-                                    + scanPhyMask
-                                    + " )"
-                                    + client);
-                    mNativeInterface.gattSetScanParameters(
-                            client.scannerId, scanInterval, scanWindow, scanPhyMask);
-                    mNativeInterface.gattClientScan(true);
-                    if (client.stats != null
-                            && !AppScanStats.recordScanRadioStart(
-                                    client.scanModeApp,
-                                    client.scannerId,
-                                    client.stats,
-                                    scanWindowMs,
-                                    scanIntervalMs,
-                                    mTimeProvider)) {
-                        Log.w(TAG, "Scan radio already started");
-                    }
-                    mLastConfiguredScanSetting = curScanSetting;
+            if (shouldUpdateScan(newScanSetting1m, mLastConfiguredScanSetting1m)
+                    || shouldUpdateScan(newScanSettingCoded, mLastConfiguredScanSettingCoded)
+                    || curPhyMask != scanPhyMask) {
+                int scanWindow1m = getScanWindow(client1m);
+                int scanInterval1m = getScanInterval(client1m);
+                int scanWindowCoded = getScanWindow(clientCoded);
+                int scanIntervalCoded = getScanInterval(clientCoded);
+                mNativeInterface.gattClientScan(false);
+                if (!AppScanStats.recordScanRadioStop(mTimeProvider)) {
+                    Log.w(TAG, "There is no scan radio to stop");
                 }
+                Log.d(
+                        TAG,
+                        "Start gattClientScanNative with"
+                                + " old 1M scanMode "
+                                + mLastConfiguredScanSetting1m
+                                + " new 1M scanMode "
+                                + newScanSetting1m
+                                + " ( in scan unit: "
+                                + scanInterval1m
+                                + " / "
+                                + scanWindow1m
+                                + ", "
+                                + " old coded scanMode "
+                                + mLastConfiguredScanSettingCoded
+                                + " new coded scanMode "
+                                + newScanSettingCoded
+                                + " ( in scan unit: "
+                                + scanIntervalCoded
+                                + " / "
+                                + scanWindowCoded
+                                + ", "
+                                + "scanPhyMask: "
+                                + scanPhyMask
+                                + " ) "
+                                + client1m
+                                + " / "
+                                + clientCoded);
+                mNativeInterface.gattSetScanParameters(
+                        client1m == null ? 0 : client1m.scannerId,
+                        scanInterval1m,
+                        scanWindow1m,
+                        clientCoded == null ? 0 : clientCoded.scannerId,
+                        scanIntervalCoded,
+                        scanWindowCoded,
+                        scanPhyMask);
+                mNativeInterface.gattClientScan(true);
+                recordScanRadioStart(client1m, clientCoded, newScanSetting1m, newScanSettingCoded);
             } else {
-                mLastConfiguredScanSetting = curScanSetting;
                 Log.d(TAG, "configureRegularScanParams() - queue empty, scan stopped");
             }
+            mLastConfiguredScanSetting1m = newScanSetting1m;
+            mLastConfiguredScanSettingCoded = newScanSettingCoded;
         }
 
-        ScanClient getAggressiveClient(Set<ScanClient> cList) {
+        private ScanClient getAggressiveClient(
+                Set<ScanClient> cList, boolean use1mPhy, boolean isBatch) {
             ScanClient result = null;
             int currentScanModePriority = Integer.MIN_VALUE;
             for (ScanClient client : cList) {
+                // Batch is only done on the 1M PHY and the client PHY setting is ignored
+                if (!isBatch && !isPhyConfigured(client, use1mPhy)) {
+                    continue;
+                }
                 int priority = mPriorityMap.get(client.settings.getScanMode());
                 if (priority > currentScanModePriority) {
                     result = client;
@@ -1150,6 +1169,63 @@ public class ScanManager {
                 }
             }
             return result;
+        }
+
+        private static boolean isPhyConfigured(ScanClient client, boolean use1mPhy) {
+            if (!Flags.phyToNative()) {
+                // When the flag is off the PHY setting is ignored and all clients scan on 1m
+                return use1mPhy;
+            }
+            if (client.settings.getPhy() == ScanSettings.PHY_LE_ALL_SUPPORTED) {
+                return true;
+            }
+            return use1mPhy
+                    ? client.settings.getPhy() == BluetoothDevice.PHY_LE_1M
+                    : client.settings.getPhy() == BluetoothDevice.PHY_LE_CODED;
+        }
+
+        private static boolean shouldUpdateScan(int newScanSetting, int oldScanSetting) {
+            return newScanSetting != Integer.MIN_VALUE
+                    && newScanSetting != ScanSettings.SCAN_MODE_OPPORTUNISTIC
+                    && newScanSetting != oldScanSetting;
+        }
+
+        private int getScanWindow(@Nullable ScanClient client) {
+            return client == null ? 0 : Utils.millsToUnit(getScanWindowMillis(client.settings));
+        }
+
+        private int getScanInterval(@Nullable ScanClient client) {
+            // convert scanWindow and scanInterval from ms to LE scan units(0.625ms)
+            return client == null ? 0 : Utils.millsToUnit(getScanIntervalMillis(client.settings));
+        }
+
+        private void recordScanRadioStart(
+                @Nullable ScanClient client1m,
+                @Nullable ScanClient clientCoded,
+                int setting1m,
+                int settingCoded) {
+            ScanClient chosenClient;
+            if (client1m == null) {
+                chosenClient = clientCoded;
+            } else if (clientCoded == null) {
+                chosenClient = client1m;
+            } else {
+                chosenClient =
+                        mPriorityMap.get(setting1m) >= mPriorityMap.get(settingCoded)
+                                ? client1m
+                                : clientCoded;
+            }
+            if (chosenClient != null
+                    && chosenClient.stats != null
+                    && !AppScanStats.recordScanRadioStart(
+                            chosenClient.scanModeApp,
+                            chosenClient.scannerId,
+                            chosenClient.stats,
+                            getScanWindowMillis(chosenClient.settings),
+                            getScanIntervalMillis(chosenClient.settings),
+                            mTimeProvider)) {
+                Log.w(TAG, "Scan radio already started");
+            }
         }
 
         void startRegularScan(ScanClient client) {
@@ -1305,7 +1381,7 @@ public class ScanManager {
                 return null;
             }
             BatchScanParams params = new BatchScanParams();
-            ScanClient winner = getAggressiveClient(mBatchClients);
+            ScanClient winner = getAggressiveClient(mBatchClients, true, true);
             if (winner != null) {
                 params.mScanMode = winner.settings.getScanMode();
             }
@@ -1860,30 +1936,15 @@ public class ScanManager {
             }
         }
 
-        private int getScanPhy(ScanSettings settings) {
-            if (settings == null) {
-                return BluetoothDevice.PHY_LE_1M;
+        private static int getScanPhyMask(boolean usePhy1m, boolean usePhyCoded) {
+            int phy = 0;
+            if (usePhy1m) {
+                phy |= BluetoothDevice.PHY_LE_1M_MASK;
             }
-            return settings.getPhy();
-        }
-
-        private int getScanPhyMask(ScanSettings settings) {
-            int phy = getScanPhy(settings);
-
-            switch (phy) {
-                case BluetoothDevice.PHY_LE_1M:
-                    return BluetoothDevice.PHY_LE_1M_MASK;
-                case BluetoothDevice.PHY_LE_CODED:
-                    return BluetoothDevice.PHY_LE_CODED_MASK;
-                case ScanSettings.PHY_LE_ALL_SUPPORTED:
-                    if (mAdapterService.isLeCodedPhySupported()) {
-                        return BluetoothDevice.PHY_LE_1M_MASK | BluetoothDevice.PHY_LE_CODED_MASK;
-                    } else {
-                        return BluetoothDevice.PHY_LE_1M_MASK;
-                    }
-                default:
-                    return BluetoothDevice.PHY_LE_1M_MASK;
+            if (usePhyCoded) {
+                phy |= BluetoothDevice.PHY_LE_CODED_MASK;
             }
+            return phy;
         }
 
         private int getOnFoundOnLostTimeoutMillis(ScanSettings settings, boolean onFound) {
