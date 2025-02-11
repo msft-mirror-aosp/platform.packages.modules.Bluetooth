@@ -34,7 +34,6 @@ import static org.mockito.Mockito.when;
 
 import android.accounts.Account;
 import android.accounts.AccountManager;
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothUuid;
@@ -104,8 +103,7 @@ public class PbapClientServiceTest {
     // Constant for testing ACL disconnection events with a bad transport
     public static final int TRANSPORT_UNKNOWN = -1;
 
-    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
-    private final BluetoothDevice mRemoteDevice = getTestDevice(mAdapter, 56);
+    private final BluetoothDevice mRemoteDevice = getTestDevice(56);
     private final Map<BluetoothDevice, PbapClientStateMachine> mMockDeviceMap =
             new HashMap<BluetoothDevice, PbapClientStateMachine>();
 
@@ -595,7 +593,7 @@ public class PbapClientServiceTest {
             testConnect_onOld_donAllowedAndUnconnectedDeviceWithTenConnected_connectNotCalled() {
         // Create 10 connected devices
         for (int i = 1; i <= 10; i++) {
-            BluetoothDevice remoteDevice = TestUtils.getTestDevice(mAdapter, i);
+            BluetoothDevice remoteDevice = getTestDevice(i);
             PbapClientStateMachineOld sm = mock(PbapClientStateMachineOld.class);
             mService.mPbapClientStateMachineOldMap.put(remoteDevice, sm);
         }
@@ -610,7 +608,7 @@ public class PbapClientServiceTest {
     public void testConnect_onAllowedAndUnconnectedDeviceWithTenConnected_connectNotCalled() {
         // Create 10 connected devices
         for (int i = 1; i <= 10; i++) {
-            BluetoothDevice remoteDevice = TestUtils.getTestDevice(mAdapter, i);
+            BluetoothDevice remoteDevice = getTestDevice(i);
             mMockDeviceMap.put(remoteDevice, mMockDeviceStateMachine);
         }
 

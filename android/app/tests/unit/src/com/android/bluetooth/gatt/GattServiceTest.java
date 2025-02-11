@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.gatt;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -26,6 +28,7 @@ import android.app.ActivityManager;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
+import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothStatusCodes;
 import android.bluetooth.IBluetoothGattCallback;
@@ -42,8 +45,8 @@ import android.provider.Settings;
 import android.test.mock.MockContentProvider;
 import android.test.mock.MockContentResolver;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestUtils;
@@ -94,9 +97,14 @@ public class GattServiceTest {
     private static final String REMOTE_DEVICE_ADDRESS = "00:00:00:00:00:00";
     private static final int TIMES_UP_AND_DOWN = 3;
 
-    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
+    private final BluetoothAdapter mAdapter =
+            InstrumentationRegistry.getInstrumentation()
+                    .getTargetContext()
+                    .getSystemService(BluetoothManager.class)
+                    .getAdapter();
     private final AttributionSource mAttributionSource = mAdapter.getAttributionSource();
-    private final Context mContext = InstrumentationRegistry.getTargetContext();
+    private final Context mContext =
+            InstrumentationRegistry.getInstrumentation().getTargetContext();
     private final CompanionDeviceManager mCompanionDeviceManager =
             mContext.getSystemService(CompanionDeviceManager.class);
 
@@ -399,7 +407,7 @@ public class GattServiceTest {
     public void getDevicesMatchingConnectionStates() {
         int[] states = new int[] {BluetoothProfile.STATE_CONNECTED};
 
-        BluetoothDevice testDevice = mAdapter.getRemoteDevice("00:01:02:03:04:05");
+        BluetoothDevice testDevice = getTestDevice(90);
         BluetoothDevice[] bluetoothDevices = new BluetoothDevice[] {testDevice};
         doReturn(bluetoothDevices).when(mAdapterService).getBondedDevices();
 

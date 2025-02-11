@@ -22,7 +22,6 @@ import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.*;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothSocket;
@@ -51,8 +50,7 @@ public class PbapStateMachineTest {
 
     private static final int TEST_NOTIFICATION_ID = 1000000;
 
-    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
-    private final BluetoothDevice mDevice = getTestDevice(mAdapter, 36);
+    private final BluetoothDevice mDevice = getTestDevice(36);
 
     private HandlerThread mHandlerThread;
     private PbapStateMachine mPbapStateMachine;

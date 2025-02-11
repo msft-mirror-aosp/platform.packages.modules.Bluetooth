@@ -16,9 +16,10 @@
 
 package com.android.bluetooth.hfp;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 
 import androidx.test.filters.SmallTest;
@@ -33,8 +34,7 @@ public class HeadsetStackEventTest {
 
     @Test
     public void getTypeString() {
-        BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
-        BluetoothDevice device = adapter.getRemoteDevice("00:01:02:03:04:05");
+        BluetoothDevice device = getTestDevice(78);
 
         HeadsetStackEvent event = new HeadsetStackEvent(HeadsetStackEvent.EVENT_TYPE_NONE, device);
         assertThat(event.getTypeString()).isEqualTo("EVENT_TYPE_NONE");

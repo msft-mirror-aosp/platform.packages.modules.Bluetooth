@@ -27,8 +27,8 @@ import static org.mockito.Mockito.verify;
 import android.content.Context;
 import android.hardware.devicestate.DeviceStateManager;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestLooper;
@@ -53,7 +53,7 @@ public class AdapterSuspendTest {
 
     @Before
     public void setUp() throws Exception {
-        Context context = InstrumentationRegistry.getTargetContext();
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         mTestLooper = new TestLooper();
         mDeviceStateManager = context.getSystemService(DeviceStateManager.class);
 

@@ -22,7 +22,6 @@ import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertThrows;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.content.Intent;
@@ -55,8 +54,7 @@ public class AvrcpBipClientTest {
     @Mock private AvrcpControllerService mService;
     @Mock private AvrcpCoverArtManager.Callback mCallback;
 
-    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
-    private final BluetoothDevice mDevice = getTestDevice(mAdapter, 68);
+    private final BluetoothDevice mDevice = getTestDevice(68);
 
     private AvrcpCoverArtManager mArtManager;
     private AvrcpBipClient mClient;

@@ -16,10 +16,11 @@
 
 package com.android.bluetooth.avrcpcontroller;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import android.annotation.SuppressLint;
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
@@ -41,22 +42,19 @@ import java.util.List;
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class BrowseNodeTest {
+    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+
     private static final int TEST_PLAYER_ID = 1;
     private static final String TEST_UUID = "1111";
     private static final String TEST_NAME = "item";
 
-    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+    private final BluetoothDevice mDevice = getTestDevice(4);
 
-    private final byte[] mTestAddress = new byte[] {01, 01, 01, 01, 01, 01};
-    private BluetoothAdapter mAdapter;
-    private BluetoothDevice mTestDevice = null;
     private BrowseTree mBrowseTree;
     private BrowseNode mRootNode;
 
     @Before
     public void setUp() {
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
-        mTestDevice = mAdapter.getRemoteDevice(mTestAddress);
         mBrowseTree = new BrowseTree(null);
         mRootNode = mBrowseTree.mRootNode;
     }
@@ -67,27 +65,27 @@ public class BrowseNodeTest {
                 mBrowseTree
                 .new BrowseNode(
                         new AvrcpPlayer.Builder()
-                                .setDevice(mTestDevice)
+                                .setDevice(mDevice)
                                 .setPlayerId(TEST_PLAYER_ID)
                                 .setSupportedFeature(AvrcpPlayer.FEATURE_BROWSING)
                                 .build());
 
         assertThat(browseNode.isPlayer()).isTrue();
         assertThat(browseNode.getBluetoothID()).isEqualTo(TEST_PLAYER_ID);
-        assertThat(browseNode.getDevice()).isEqualTo(mTestDevice);
+        assertThat(browseNode.getDevice()).isEqualTo(mDevice);
         assertThat(browseNode.isBrowsable()).isTrue();
     }
 
     @Test
     public void constructor_withBluetoothDevice_createsRandomUuid() {
-        BrowseNode browseNode1 = mBrowseTree.new BrowseNode(mTestDevice);
+        BrowseNode browseNode1 = mBrowseTree.new BrowseNode(mDevice);
 
         assertThat(browseNode1.getID()).isNotNull();
-        assertThat(browseNode1.getDevice()).isEqualTo(mTestDevice);
+        assertThat(browseNode1.getDevice()).isEqualTo(mDevice);
         assertThat(browseNode1.isPlayer()).isFalse();
         assertThat(browseNode1.isBrowsable()).isTrue();
 
-        BrowseNode browseNode2 = mBrowseTree.new BrowseNode(mTestDevice);
+        BrowseNode browseNode2 = mBrowseTree.new BrowseNode(mDevice);
         assertThat(browseNode1.getID()).isNotEqualTo(browseNode2.getID());
     }
 
@@ -174,7 +172,7 @@ public class BrowseNodeTest {
     @Test
     @EnableFlags(Flags.FLAG_UNCACHE_PLAYER_WHEN_BROWSED_PLAYER_CHANGES)
     public void setUncached_whenNodeHasChildrenNodes() {
-        BrowseNode deviceNode = mBrowseTree.new BrowseNode(mTestDevice);
+        BrowseNode deviceNode = mBrowseTree.new BrowseNode(mDevice);
         mRootNode.addChild(deviceNode);
         mRootNode.setCached(true);
 

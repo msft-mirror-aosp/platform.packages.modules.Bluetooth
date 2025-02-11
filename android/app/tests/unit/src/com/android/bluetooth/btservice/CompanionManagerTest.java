@@ -25,8 +25,8 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.HandlerThread;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.MediumTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestUtils;
@@ -59,7 +59,7 @@ public class CompanionManagerTest {
 
     @Before
     public void setUp() throws Exception {
-        mTargetContext = InstrumentationRegistry.getTargetContext();
+        mTargetContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
         // Prepare the TestUtils
         TestUtils.setAdapterService(mAdapterService);
         // Start handler thread for this test

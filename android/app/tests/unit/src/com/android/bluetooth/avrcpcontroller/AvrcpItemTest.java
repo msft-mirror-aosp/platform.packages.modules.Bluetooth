@@ -16,10 +16,11 @@
 
 package com.android.bluetooth.avrcpcontroller;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import android.annotation.SuppressLint;
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.net.Uri;
 import android.support.v4.media.MediaBrowserCompat.MediaItem;
@@ -28,8 +29,6 @@ import android.support.v4.media.MediaMetadataCompat;
 
 import androidx.test.runner.AndroidJUnit4;
 
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -37,7 +36,7 @@ import org.junit.runner.RunWith;
 @RunWith(AndroidJUnit4.class)
 public final class AvrcpItemTest {
 
-    private BluetoothDevice mDevice;
+    private final BluetoothDevice mDevice = getTestDevice(97);
     private static final String UUID = "AVRCP-ITEM-TEST-UUID";
 
     // Attribute ID Values from AVRCP Specification
@@ -49,16 +48,6 @@ public final class AvrcpItemTest {
     private static final int MEDIA_ATTRIBUTE_GENRE = 0x06;
     private static final int MEDIA_ATTRIBUTE_PLAYING_TIME = 0x07;
     private static final int MEDIA_ATTRIBUTE_COVER_ART_HANDLE = 0x08;
-
-    @Before
-    public void setUp() {
-        mDevice = BluetoothAdapter.getDefaultAdapter().getRemoteDevice("AA:BB:CC:DD:EE:FF");
-    }
-
-    @After
-    public void tearDown() {
-        mDevice = null;
-    }
 
     @Test
     public void buildAvrcpItem() {

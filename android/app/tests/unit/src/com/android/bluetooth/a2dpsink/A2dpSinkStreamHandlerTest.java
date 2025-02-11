@@ -30,8 +30,8 @@ import android.media.AudioManager;
 import android.os.HandlerThread;
 import android.os.Looper;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.MediumTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.rule.ServiceTestRule;
 import androidx.test.runner.AndroidJUnit4;
 
@@ -67,7 +67,8 @@ public class A2dpSinkStreamHandlerTest {
 
     private static final int DUCK_PERCENT = 75;
 
-    private final Context mTargetContext = InstrumentationRegistry.getTargetContext();
+    private final Context mTargetContext =
+            InstrumentationRegistry.getInstrumentation().getTargetContext();
 
     private HandlerThread mHandlerThread;
     private AvrcpControllerService mService;

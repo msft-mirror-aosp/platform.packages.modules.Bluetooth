@@ -21,12 +21,13 @@ import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.*;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothAudioConfig;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
@@ -66,9 +67,8 @@ public class A2dpSinkServiceTest {
     private static final int TEST_SAMPLE_RATE = 44;
     private static final int TEST_CHANNEL_COUNT = 1;
 
-    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
-    private final BluetoothDevice mDevice1 = mAdapter.getRemoteDevice("11:11:11:11:11:11");
-    private final BluetoothDevice mDevice2 = mAdapter.getRemoteDevice("22:22:22:22:22:22");
+    private final BluetoothDevice mDevice1 = getTestDevice(83);
+    private final BluetoothDevice mDevice2 = getTestDevice(82);
 
     private TestLooper mLooper;
     private A2dpSinkService mService;

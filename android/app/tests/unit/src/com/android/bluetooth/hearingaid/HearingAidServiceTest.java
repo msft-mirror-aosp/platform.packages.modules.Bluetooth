@@ -30,6 +30,8 @@ import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTING;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.any;
@@ -41,7 +43,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothHearingAid;
 import android.bluetooth.BluetoothProfile;
@@ -92,10 +93,9 @@ public class HearingAidServiceTest {
     @Mock private HearingAidNativeInterface mNativeInterface;
     @Mock private AudioManager mAudioManager;
 
-    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
-    private final BluetoothDevice mLeftDevice = TestUtils.getTestDevice(mAdapter, 43);
-    private final BluetoothDevice mRightDevice = TestUtils.getTestDevice(mAdapter, 23);
-    private final BluetoothDevice mSingleDevice = TestUtils.getTestDevice(mAdapter, 13);
+    private final BluetoothDevice mLeftDevice = getTestDevice(43);
+    private final BluetoothDevice mRightDevice = getTestDevice(23);
+    private final BluetoothDevice mSingleDevice = getTestDevice(13);
 
     private HearingAidService mService;
     private HearingAidService.BluetoothHearingAidBinder mBinder;

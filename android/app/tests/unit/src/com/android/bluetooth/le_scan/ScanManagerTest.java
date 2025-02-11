@@ -82,8 +82,8 @@ import android.test.mock.MockContentResolver;
 import android.util.Log;
 import android.util.SparseIntArray;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.TestLooper;
@@ -159,7 +159,8 @@ public class ScanManagerTest {
                     SCAN_MODE_LOW_LATENCY, SCAN_MODE_LOW_LATENCY,
                     SCAN_MODE_AMBIENT_DISCOVERY, SCAN_MODE_AMBIENT_DISCOVERY);
 
-    private final Context mTargetContext = InstrumentationRegistry.getTargetContext();
+    private final Context mTargetContext =
+            InstrumentationRegistry.getInstrumentation().getTargetContext();
 
     private AppScanStats mMockAppScanStats;
     private MockContentResolver mMockContentResolver;

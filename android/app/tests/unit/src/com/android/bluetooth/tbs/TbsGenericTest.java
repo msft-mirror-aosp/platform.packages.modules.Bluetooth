@@ -16,6 +16,8 @@ package com.android.bluetooth.tbs;
 
 import static androidx.test.platform.app.InstrumentationRegistry.getInstrumentation;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.AdditionalMatchers.*;
@@ -30,7 +32,6 @@ import android.os.RemoteException;
 import androidx.test.filters.MediumTest;
 import androidx.test.runner.AndroidJUnit4;
 
-import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.le_audio.LeAudioService;
 
 import org.junit.Before;
@@ -67,8 +68,7 @@ public class TbsGenericTest {
     @Captor private ArgumentCaptor<TbsGatt.Callback> mTbsGattCallback;
 
     private final Context mContext = getInstrumentation().getTargetContext();
-    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
-    private final BluetoothDevice mDevice = TestUtils.getTestDevice(mAdapter, 32);
+    private final BluetoothDevice mDevice = getTestDevice(32);
 
     private TbsGeneric mTbsGeneric;
 
