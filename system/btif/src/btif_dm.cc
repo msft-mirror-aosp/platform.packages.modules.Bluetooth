@@ -1517,14 +1517,6 @@ bool btif_is_interesting_le_service(const bluetooth::Uuid& uuid) {
          uuid == UUID_BASS || uuid == UUID_BATTERY || uuid == ANDROID_HEADTRACKER_SERVICE_UUID;
 }
 
-static bt_status_t btif_get_existing_uuids(RawAddress* bd_addr, Uuid* existing_uuids,
-                                           bt_property_type_t property_type = BT_PROPERTY_UUIDS) {
-  bt_property_t tmp_prop;
-  BTIF_STORAGE_FILL_PROPERTY(&tmp_prop, property_type, sizeof(*existing_uuids), existing_uuids);
-
-  return btif_storage_get_remote_device_property(bd_addr, &tmp_prop);
-}
-
 static bool btif_should_ignore_uuid(const Uuid& uuid) { return uuid.IsEmpty() || uuid.IsBase(); }
 
 static bool btif_is_gatt_service_discovery_post_pairing(const RawAddress bd_addr) {
@@ -1532,17 +1524,11 @@ static bool btif_is_gatt_service_discovery_post_pairing(const RawAddress bd_addr
          (pairing_cb.gatt_over_le == btif_dm_pairing_cb_t::ServiceDiscoveryState::SCHEDULED);
 }
 
-static void btif_merge_existing_uuids(RawAddress& addr, std::set<Uuid>* uuids,
-                                      bt_property_type_t property_type = BT_PROPERTY_UUIDS) {
-  Uuid existing_uuids[BT_MAX_NUM_UUIDS] = {};
-  bt_status_t lookup_result = btif_get_existing_uuids(&addr, existing_uuids, property_type);
+static void btif_merge_existing_uuids(const RawAddress& addr, std::set<Uuid>* uuids,
+                                      tBT_TRANSPORT transport = BT_TRANSPORT_BR_EDR) {
+  std::vector<Uuid> existing_uuids = btif_storage_get_services(addr, transport);
 
-  if (lookup_result == BT_STATUS_FAIL) {
-    return;
-  }
-
-  for (int i = 0; i < BT_MAX_NUM_UUIDS; i++) {
-    Uuid uuid = existing_uuids[i];
+  for (const auto& uuid : existing_uuids) {
     if (btif_should_ignore_uuid(uuid)) {
       continue;
     }
@@ -1622,10 +1608,10 @@ static void btif_on_service_discovery_results(RawAddress bd_addr,
 
       std::set<Uuid> le_uuids;
       if (results_for_bonding_device) {
-        btif_merge_existing_uuids(pairing_cb.static_bdaddr, &le_uuids, BT_PROPERTY_UUIDS_LE);
-        btif_merge_existing_uuids(pairing_cb.bd_addr, &le_uuids, BT_PROPERTY_UUIDS_LE);
+        btif_merge_existing_uuids(pairing_cb.static_bdaddr, &le_uuids, BT_TRANSPORT_LE);
+        btif_merge_existing_uuids(pairing_cb.bd_addr, &le_uuids, BT_TRANSPORT_LE);
       } else {
-        btif_merge_existing_uuids(bd_addr, &le_uuids, BT_PROPERTY_UUIDS_LE);
+        btif_merge_existing_uuids(bd_addr, &le_uuids, BT_TRANSPORT_LE);
       }
 
       for (auto& uuid : le_uuids) {
