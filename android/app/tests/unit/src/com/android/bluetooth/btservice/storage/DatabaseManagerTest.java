@@ -52,9 +52,7 @@ import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.flags.Flags;
 
-import org.hamcrest.CoreMatchers;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -92,6 +90,7 @@ public final class DatabaseManagerTest {
     private static final String TEST_BT_ADDR3 = "12:34:56:65:43:21";
     private static final String OTHER_BT_ADDR1 = "11:11:11:11:11:11";
     private static final String OTHER_BT_ADDR2 = "22:22:22:22:22:22";
+    private static final String TEST_STRING = "Test String";
     private static final String DB_NAME = "test_db";
     private static final int A2DP_SUPPORT_OP_CODEC_TEST = 0;
     private static final int A2DP_ENABLED_OP_CODEC_TEST = 1;
@@ -833,49 +832,13 @@ public final class DatabaseManagerTest {
 
     @Test
     public void testDatabaseMigration_101_102() throws IOException {
-        String testString = "TEST STRING";
-
         // Create a database with version 101
         SupportSQLiteDatabase db = testHelper.createDatabase(DB_NAME, 101);
         Cursor cursor = db.query("SELECT * FROM metadata");
 
-        // insert a device to the database
-        ContentValues device = new ContentValues();
-        device.put("address", TEST_BT_ADDR);
-        device.put("migrated", false);
-        device.put("a2dpSupportsOptionalCodecs", -1);
-        device.put("a2dpOptionalCodecsEnabled", -1);
-        device.put("a2dp_priority", -1);
-        device.put("a2dp_sink_priority", -1);
-        device.put("hfp_priority", -1);
-        device.put("hfp_client_priority", -1);
-        device.put("hid_host_priority", -1);
-        device.put("pan_priority", -1);
-        device.put("pbap_priority", -1);
-        device.put("pbap_client_priority", -1);
-        device.put("map_priority", -1);
-        device.put("sap_priority", -1);
-        device.put("hearing_aid_priority", -1);
-        device.put("map_client_priority", -1);
-        device.put("manufacturer_name", testString);
-        device.put("model_name", testString);
-        device.put("software_version", testString);
-        device.put("hardware_version", testString);
-        device.put("companion_app", testString);
-        device.put("main_icon", testString);
-        device.put("is_unthethered_headset", testString);
-        device.put("unthethered_left_icon", testString);
-        device.put("unthethered_right_icon", testString);
-        device.put("unthethered_case_icon", testString);
-        device.put("unthethered_left_battery", testString);
-        device.put("unthethered_right_battery", testString);
-        device.put("unthethered_case_battery", testString);
-        device.put("unthethered_left_charging", testString);
-        device.put("unthethered_right_charging", testString);
-        device.put("unthethered_case_charging", testString);
-        Assert.assertThat(
-                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
-                CoreMatchers.not(-1));
+        // Insert a device to the database
+        ContentValues device = contentValuesDevice_101();
+        assertThat(db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device)).isNotEqualTo(-1);
 
         // Check the metadata names on version 101
         assertHasColumn(cursor, "is_unthethered_headset", true);
@@ -939,70 +902,34 @@ public final class DatabaseManagerTest {
             assertColumnBlob(cursor, "untethered_case_charging");
 
             // Check whether metadata values are migrated to version 102 successfully
-            assertColumnBlobData(cursor, "manufacturer_name", testString.getBytes());
-            assertColumnBlobData(cursor, "model_name", testString.getBytes());
-            assertColumnBlobData(cursor, "software_version", testString.getBytes());
-            assertColumnBlobData(cursor, "hardware_version", testString.getBytes());
-            assertColumnBlobData(cursor, "companion_app", testString.getBytes());
-            assertColumnBlobData(cursor, "main_icon", testString.getBytes());
-            assertColumnBlobData(cursor, "is_untethered_headset", testString.getBytes());
-            assertColumnBlobData(cursor, "untethered_left_icon", testString.getBytes());
-            assertColumnBlobData(cursor, "untethered_right_icon", testString.getBytes());
-            assertColumnBlobData(cursor, "untethered_case_icon", testString.getBytes());
-            assertColumnBlobData(cursor, "untethered_left_battery", testString.getBytes());
-            assertColumnBlobData(cursor, "untethered_right_battery", testString.getBytes());
-            assertColumnBlobData(cursor, "untethered_case_battery", testString.getBytes());
-            assertColumnBlobData(cursor, "untethered_left_charging", testString.getBytes());
-            assertColumnBlobData(cursor, "untethered_right_charging", testString.getBytes());
-            assertColumnBlobData(cursor, "untethered_case_charging", testString.getBytes());
+            assertColumnBlobData(cursor, "manufacturer_name", TEST_STRING.getBytes());
+            assertColumnBlobData(cursor, "model_name", TEST_STRING.getBytes());
+            assertColumnBlobData(cursor, "software_version", TEST_STRING.getBytes());
+            assertColumnBlobData(cursor, "hardware_version", TEST_STRING.getBytes());
+            assertColumnBlobData(cursor, "companion_app", TEST_STRING.getBytes());
+            assertColumnBlobData(cursor, "main_icon", TEST_STRING.getBytes());
+            assertColumnBlobData(cursor, "is_untethered_headset", TEST_STRING.getBytes());
+            assertColumnBlobData(cursor, "untethered_left_icon", TEST_STRING.getBytes());
+            assertColumnBlobData(cursor, "untethered_right_icon", TEST_STRING.getBytes());
+            assertColumnBlobData(cursor, "untethered_case_icon", TEST_STRING.getBytes());
+            assertColumnBlobData(cursor, "untethered_left_battery", TEST_STRING.getBytes());
+            assertColumnBlobData(cursor, "untethered_right_battery", TEST_STRING.getBytes());
+            assertColumnBlobData(cursor, "untethered_case_battery", TEST_STRING.getBytes());
+            assertColumnBlobData(cursor, "untethered_left_charging", TEST_STRING.getBytes());
+            assertColumnBlobData(cursor, "untethered_right_charging", TEST_STRING.getBytes());
+            assertColumnBlobData(cursor, "untethered_case_charging", TEST_STRING.getBytes());
         }
     }
 
     @Test
     public void testDatabaseMigration_102_103() throws IOException {
-        String testString = "TEST STRING";
-
         // Create a database with version 102
         SupportSQLiteDatabase db = testHelper.createDatabase(DB_NAME, 102);
         Cursor cursor = db.query("SELECT * FROM metadata");
 
-        // insert a device to the database
-        ContentValues device = new ContentValues();
-        device.put("address", TEST_BT_ADDR);
-        device.put("migrated", false);
-        device.put("a2dpSupportsOptionalCodecs", -1);
-        device.put("a2dpOptionalCodecsEnabled", -1);
-        device.put("a2dp_priority", 1000);
-        device.put("a2dp_sink_priority", 1000);
-        device.put("hfp_priority", 1000);
-        device.put("hfp_client_priority", 1000);
-        device.put("hid_host_priority", 1000);
-        device.put("pan_priority", 1000);
-        device.put("pbap_priority", 1000);
-        device.put("pbap_client_priority", 1000);
-        device.put("map_priority", 1000);
-        device.put("sap_priority", 1000);
-        device.put("hearing_aid_priority", 1000);
-        device.put("map_client_priority", 1000);
-        device.put("manufacturer_name", testString);
-        device.put("model_name", testString);
-        device.put("software_version", testString);
-        device.put("hardware_version", testString);
-        device.put("companion_app", testString);
-        device.put("main_icon", testString);
-        device.put("is_untethered_headset", testString);
-        device.put("untethered_left_icon", testString);
-        device.put("untethered_right_icon", testString);
-        device.put("untethered_case_icon", testString);
-        device.put("untethered_left_battery", testString);
-        device.put("untethered_right_battery", testString);
-        device.put("untethered_case_battery", testString);
-        device.put("untethered_left_charging", testString);
-        device.put("untethered_right_charging", testString);
-        device.put("untethered_case_charging", testString);
-        Assert.assertThat(
-                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
-                CoreMatchers.not(-1));
+        // Insert a device to the database
+        ContentValues device = contentValuesDevice_102();
+        assertThat(db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device)).isNotEqualTo(-1);
 
         // Check the metadata names on version 102
         assertHasColumn(cursor, "a2dp_priority", true);
@@ -1086,69 +1013,33 @@ public final class DatabaseManagerTest {
             assertColumnBlob(cursor, "untethered_case_charging");
 
             // Check whether metadata values are migrated to version 103 successfully
-            assertColumnBlobData(cursor, "manufacturer_name", testString.getBytes());
-            assertColumnBlobData(cursor, "model_name", testString.getBytes());
-            assertColumnBlobData(cursor, "software_version", testString.getBytes());
-            assertColumnBlobData(cursor, "hardware_version", testString.getBytes());
-            assertColumnBlobData(cursor, "companion_app", testString.getBytes());
-            assertColumnBlobData(cursor, "main_icon", testString.getBytes());
-            assertColumnBlobData(cursor, "is_untethered_headset", testString.getBytes());
-            assertColumnBlobData(cursor, "untethered_left_icon", testString.getBytes());
-            assertColumnBlobData(cursor, "untethered_right_icon", testString.getBytes());
-            assertColumnBlobData(cursor, "untethered_case_icon", testString.getBytes());
-            assertColumnBlobData(cursor, "untethered_left_battery", testString.getBytes());
-            assertColumnBlobData(cursor, "untethered_right_battery", testString.getBytes());
-            assertColumnBlobData(cursor, "untethered_case_battery", testString.getBytes());
-            assertColumnBlobData(cursor, "untethered_left_charging", testString.getBytes());
-            assertColumnBlobData(cursor, "untethered_right_charging", testString.getBytes());
-            assertColumnBlobData(cursor, "untethered_case_charging", testString.getBytes());
+            assertColumnBlobData(cursor, "manufacturer_name", TEST_STRING.getBytes());
+            assertColumnBlobData(cursor, "model_name", TEST_STRING.getBytes());
+            assertColumnBlobData(cursor, "software_version", TEST_STRING.getBytes());
+            assertColumnBlobData(cursor, "hardware_version", TEST_STRING.getBytes());
+            assertColumnBlobData(cursor, "companion_app", TEST_STRING.getBytes());
+            assertColumnBlobData(cursor, "main_icon", TEST_STRING.getBytes());
+            assertColumnBlobData(cursor, "is_untethered_headset", TEST_STRING.getBytes());
+            assertColumnBlobData(cursor, "untethered_left_icon", TEST_STRING.getBytes());
+            assertColumnBlobData(cursor, "untethered_right_icon", TEST_STRING.getBytes());
+            assertColumnBlobData(cursor, "untethered_case_icon", TEST_STRING.getBytes());
+            assertColumnBlobData(cursor, "untethered_left_battery", TEST_STRING.getBytes());
+            assertColumnBlobData(cursor, "untethered_right_battery", TEST_STRING.getBytes());
+            assertColumnBlobData(cursor, "untethered_case_battery", TEST_STRING.getBytes());
+            assertColumnBlobData(cursor, "untethered_left_charging", TEST_STRING.getBytes());
+            assertColumnBlobData(cursor, "untethered_right_charging", TEST_STRING.getBytes());
+            assertColumnBlobData(cursor, "untethered_case_charging", TEST_STRING.getBytes());
         }
     }
 
     @Test
     public void testDatabaseMigration_103_104() throws IOException {
-        String testString = "TEST STRING";
-
         // Create a database with version 103
         SupportSQLiteDatabase db = testHelper.createDatabase(DB_NAME, 103);
 
-        // insert a device to the database
-        ContentValues device = new ContentValues();
-        device.put("address", TEST_BT_ADDR);
-        device.put("migrated", false);
-        device.put("a2dpSupportsOptionalCodecs", -1);
-        device.put("a2dpOptionalCodecsEnabled", -1);
-        device.put("a2dp_connection_policy", 100);
-        device.put("a2dp_sink_connection_policy", 100);
-        device.put("hfp_connection_policy", 100);
-        device.put("hfp_client_connection_policy", 100);
-        device.put("hid_host_connection_policy", 100);
-        device.put("pan_connection_policy", 100);
-        device.put("pbap_connection_policy", 100);
-        device.put("pbap_client_connection_policy", 100);
-        device.put("map_connection_policy", 100);
-        device.put("sap_connection_policy", 100);
-        device.put("hearing_aid_connection_policy", 100);
-        device.put("map_client_connection_policy", 100);
-        device.put("manufacturer_name", testString);
-        device.put("model_name", testString);
-        device.put("software_version", testString);
-        device.put("hardware_version", testString);
-        device.put("companion_app", testString);
-        device.put("main_icon", testString);
-        device.put("is_untethered_headset", testString);
-        device.put("untethered_left_icon", testString);
-        device.put("untethered_right_icon", testString);
-        device.put("untethered_case_icon", testString);
-        device.put("untethered_left_battery", testString);
-        device.put("untethered_right_battery", testString);
-        device.put("untethered_case_battery", testString);
-        device.put("untethered_left_charging", testString);
-        device.put("untethered_right_charging", testString);
-        device.put("untethered_case_charging", testString);
-        Assert.assertThat(
-                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
-                CoreMatchers.not(-1));
+        // Insert a device to the database
+        ContentValues device = contentValuesDevice_103();
+        assertThat(db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device)).isNotEqualTo(-1);
 
         // Migrate database from 103 to 104
         db.close();
@@ -1172,9 +1063,9 @@ public final class DatabaseManagerTest {
         // Create a database with version 104
         SupportSQLiteDatabase db = testHelper.createDatabase(DB_NAME, 104);
 
-        // insert a device to the database
-        ContentValues device = new ContentValues();
-        device.put("address", TEST_BT_ADDR);
+        // Insert a device to the database
+        ContentValues device = contentValuesDevice_104();
+        assertThat(db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device)).isNotEqualTo(-1);
 
         // Migrate database from 104 to 105
         db.close();
@@ -1193,7 +1084,7 @@ public final class DatabaseManagerTest {
 
         while (cursor.moveToNext()) {
             // Check the old column have the original value
-            assertColumnBlobData(cursor, "address", TEST_BT_ADDR.getBytes());
+            assertColumnStringData(cursor, "address", TEST_BT_ADDR);
 
             // Check the new columns were added with their default values
             assertColumnBlobData(cursor, "device_type", null);
@@ -1211,13 +1102,9 @@ public final class DatabaseManagerTest {
         // Create a database with version 105
         SupportSQLiteDatabase db = testHelper.createDatabase(DB_NAME, 105);
 
-        // insert a device to the database
-        ContentValues device = new ContentValues();
-        device.put("address", TEST_BT_ADDR);
-        device.put("migrated", false);
-        Assert.assertThat(
-                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
-                CoreMatchers.not(-1));
+        // Insert a device to the database
+        ContentValues device = contentValuesDevice_105();
+        assertThat(db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device)).isNotEqualTo(-1);
 
         // Migrate database from 105 to 106
         db.close();
@@ -1239,13 +1126,9 @@ public final class DatabaseManagerTest {
         // Create a database with version 106
         SupportSQLiteDatabase db = testHelper.createDatabase(DB_NAME, 106);
 
-        // insert a device to the database
-        ContentValues device = new ContentValues();
-        device.put("address", TEST_BT_ADDR);
-        device.put("migrated", false);
-        Assert.assertThat(
-                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
-                CoreMatchers.not(-1));
+        // Insert a device to the database
+        ContentValues device = contentValuesDevice_106();
+        assertThat(db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device)).isNotEqualTo(-1);
 
         // Migrate database from 106 to 107
         db.close();
@@ -1266,20 +1149,20 @@ public final class DatabaseManagerTest {
     public void testDatabaseMigration_107_108() throws IOException {
         // Create a database with version 107
         SupportSQLiteDatabase db = testHelper.createDatabase(DB_NAME, 107);
-        // insert a device to the database
-        ContentValues device = new ContentValues();
-        device.put("address", TEST_BT_ADDR);
-        device.put("migrated", false);
-        Assert.assertThat(
-                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
-                CoreMatchers.not(-1));
+
+        // Insert a device to the database
+        ContentValues device = contentValuesDevice_107();
+        assertThat(db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device)).isNotEqualTo(-1);
+
         // Migrate database from 107 to 108
         db.close();
         db =
                 testHelper.runMigrationsAndValidate(
                         DB_NAME, 108, true, MetadataDatabase.MIGRATION_107_108);
         Cursor cursor = db.query("SELECT * FROM metadata");
+
         assertHasColumn(cursor, "csip_set_coordinator_connection_policy", true);
+
         while (cursor.moveToNext()) {
             // Check the new columns was added with default value
             assertColumnIntData(cursor, "csip_set_coordinator_connection_policy", 100);
@@ -1290,20 +1173,20 @@ public final class DatabaseManagerTest {
     public void testDatabaseMigration_108_109() throws IOException {
         // Create a database with version 108
         SupportSQLiteDatabase db = testHelper.createDatabase(DB_NAME, 108);
-        // insert a device to the database
-        ContentValues device = new ContentValues();
-        device.put("address", TEST_BT_ADDR);
-        device.put("migrated", false);
-        Assert.assertThat(
-                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
-                CoreMatchers.not(-1));
+
+        // Insert a device to the database
+        ContentValues device = contentValuesDevice_108();
+        assertThat(db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device)).isNotEqualTo(-1);
+
         // Migrate database from 108 to 109
         db.close();
         db =
                 testHelper.runMigrationsAndValidate(
                         DB_NAME, 109, true, MetadataDatabase.MIGRATION_108_109);
         Cursor cursor = db.query("SELECT * FROM metadata");
+
         assertHasColumn(cursor, "le_call_control_connection_policy", true);
+
         while (cursor.moveToNext()) {
             // Check the new columns was added with default value
             assertColumnIntData(cursor, "le_call_control_connection_policy", 100);
@@ -1314,20 +1197,20 @@ public final class DatabaseManagerTest {
     public void testDatabaseMigration_109_110() throws IOException {
         // Create a database with version 109
         SupportSQLiteDatabase db = testHelper.createDatabase(DB_NAME, 109);
-        // insert a device to the database
-        ContentValues device = new ContentValues();
-        device.put("address", TEST_BT_ADDR);
-        device.put("migrated", false);
-        Assert.assertThat(
-                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
-                CoreMatchers.not(-1));
+
+        // Insert a device to the database
+        ContentValues device = contentValuesDevice_109();
+        assertThat(db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device)).isNotEqualTo(-1);
+
         // Migrate database from 109 to 110
         db.close();
         db =
                 testHelper.runMigrationsAndValidate(
                         DB_NAME, 110, true, MetadataDatabase.MIGRATION_109_110);
         Cursor cursor = db.query("SELECT * FROM metadata");
+
         assertHasColumn(cursor, "hap_client_connection_policy", true);
+
         while (cursor.moveToNext()) {
             // Check the new columns was added with default value
             assertColumnIntData(cursor, "hap_client_connection_policy", 100);
@@ -1335,23 +1218,47 @@ public final class DatabaseManagerTest {
     }
 
     @Test
+    public void testDatabaseMigration_110_111() throws IOException {
+        // Create a database with version 110
+        SupportSQLiteDatabase db = testHelper.createDatabase(DB_NAME, 110);
+
+        // Insert a device to the database
+        ContentValues device = contentValuesDevice_110();
+        assertThat(db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device)).isNotEqualTo(-1);
+
+        // Migrate database from 109 to 110
+        db.close();
+        db =
+                testHelper.runMigrationsAndValidate(
+                        DB_NAME, 111, true, MetadataDatabase.MIGRATION_110_111);
+        Cursor cursor = db.query("SELECT * FROM metadata");
+
+        assertHasColumn(cursor, "bass_client_connection_policy", true);
+
+        while (cursor.moveToNext()) {
+            // Check the new columns was added with default value
+            assertColumnIntData(cursor, "bass_client_connection_policy", 100);
+        }
+    }
+
+    @Test
     public void testDatabaseMigration_111_112() throws IOException {
         // Create a database with version 111
         SupportSQLiteDatabase db = testHelper.createDatabase(DB_NAME, 111);
-        // insert a device to the database
-        ContentValues device = new ContentValues();
-        device.put("address", TEST_BT_ADDR);
-        device.put("migrated", false);
-        Assert.assertThat(
-                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
-                CoreMatchers.not(-1));
+
+        // Insert a device to the database
+        ContentValues device = contentValuesDevice_111();
+        assertThat(db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device)).isNotEqualTo(-1);
+
         // Migrate database from 111 to 112
         db.close();
         db =
                 testHelper.runMigrationsAndValidate(
                         DB_NAME, 112, true, MetadataDatabase.MIGRATION_111_112);
         Cursor cursor = db.query("SELECT * FROM metadata");
+
         assertHasColumn(cursor, "battery_connection_policy", true);
+
         while (cursor.moveToNext()) {
             // Check the new columns was added with default value
             assertColumnIntData(cursor, "battery_connection_policy", 100);
@@ -1362,21 +1269,21 @@ public final class DatabaseManagerTest {
     public void testDatabaseMigration_112_113() throws IOException {
         // Create a database with version 112
         SupportSQLiteDatabase db = testHelper.createDatabase(DB_NAME, 112);
-        // insert a device to the database
-        ContentValues device = new ContentValues();
-        device.put("address", TEST_BT_ADDR);
-        device.put("migrated", false);
-        Assert.assertThat(
-                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
-                CoreMatchers.not(-1));
+
+        // Insert a device to the database
+        ContentValues device = contentValuesDevice_112();
+        assertThat(db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device)).isNotEqualTo(-1);
+
         // Migrate database from 112 to 113
         db.close();
         db =
                 testHelper.runMigrationsAndValidate(
                         DB_NAME, 113, true, MetadataDatabase.MIGRATION_112_113);
         Cursor cursor = db.query("SELECT * FROM metadata");
+
         assertHasColumn(cursor, "spatial_audio", true);
         assertHasColumn(cursor, "fastpair_customized", true);
+
         while (cursor.moveToNext()) {
             // Check the new columns was added with default value
             assertColumnBlobData(cursor, "spatial_audio", null);
@@ -1388,20 +1295,20 @@ public final class DatabaseManagerTest {
     public void testDatabaseMigration_113_114() throws IOException {
         // Create a database with version 113
         SupportSQLiteDatabase db = testHelper.createDatabase(DB_NAME, 113);
-        // insert a device to the database
-        ContentValues device = new ContentValues();
-        device.put("address", TEST_BT_ADDR);
-        device.put("migrated", false);
-        Assert.assertThat(
-                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
-                CoreMatchers.not(-1));
+
+        // Insert a device to the database
+        ContentValues device = contentValuesDevice_113();
+        assertThat(db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device)).isNotEqualTo(-1);
+
         // Migrate database from 113 to 114
         db.close();
         db =
                 testHelper.runMigrationsAndValidate(
                         DB_NAME, 114, true, MetadataDatabase.MIGRATION_113_114);
         Cursor cursor = db.query("SELECT * FROM metadata");
+
         assertHasColumn(cursor, "le_audio", true);
+
         while (cursor.moveToNext()) {
             // Check the new columns was added with default value
             assertColumnBlobData(cursor, "le_audio", null);
@@ -1412,13 +1319,10 @@ public final class DatabaseManagerTest {
     public void testDatabaseMigration_114_115() throws IOException {
         // Create a database with version 114
         SupportSQLiteDatabase db = testHelper.createDatabase(DB_NAME, 114);
-        // insert a device to the database
-        ContentValues device = new ContentValues();
-        device.put("address", TEST_BT_ADDR);
-        device.put("migrated", false);
-        Assert.assertThat(
-                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
-                CoreMatchers.not(-1));
+
+        // Insert a device to the database
+        ContentValues device = contentValuesDevice_114();
+        assertThat(db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device)).isNotEqualTo(-1);
 
         // Migrate database from 114 to 115
         db.close();
@@ -1430,11 +1334,12 @@ public final class DatabaseManagerTest {
         assertHasColumn(cursor, "call_establish_audio_policy", true);
         assertHasColumn(cursor, "connecting_time_audio_policy", true);
         assertHasColumn(cursor, "in_band_ringtone_audio_policy", true);
+
         while (cursor.moveToNext()) {
             // Check the new columns was added with default value
-            assertColumnBlobData(cursor, "call_establish_audio_policy", null);
-            assertColumnBlobData(cursor, "connecting_time_audio_policy", null);
-            assertColumnBlobData(cursor, "in_band_ringtone_audio_policy", null);
+            assertColumnIntData(cursor, "call_establish_audio_policy", 0);
+            assertColumnIntData(cursor, "connecting_time_audio_policy", 0);
+            assertColumnIntData(cursor, "in_band_ringtone_audio_policy", 0);
         }
     }
 
@@ -1442,13 +1347,10 @@ public final class DatabaseManagerTest {
     public void testDatabaseMigration_115_116() throws IOException {
         // Create a database with version 115
         SupportSQLiteDatabase db = testHelper.createDatabase(DB_NAME, 115);
-        // insert a device to the database
-        ContentValues device = new ContentValues();
-        device.put("address", TEST_BT_ADDR);
-        device.put("migrated", false);
-        Assert.assertThat(
-                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
-                CoreMatchers.not(-1));
+
+        // Insert a device to the database
+        ContentValues device = contentValuesDevice_115();
+        assertThat(db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device)).isNotEqualTo(-1);
 
         // Migrate database from 115 to 116
         db.close();
@@ -1456,8 +1358,10 @@ public final class DatabaseManagerTest {
                 testHelper.runMigrationsAndValidate(
                         DB_NAME, 116, true, MetadataDatabase.MIGRATION_115_116);
         Cursor cursor = db.query("SELECT * FROM metadata");
+
         assertHasColumn(cursor, "preferred_output_only_profile", true);
         assertHasColumn(cursor, "preferred_duplex_profile", true);
+
         while (cursor.moveToNext()) {
             // Check the new columns was added with default value
             assertColumnIntData(cursor, "preferred_output_only_profile", 0);
@@ -1469,21 +1373,21 @@ public final class DatabaseManagerTest {
     public void testDatabaseMigration_116_117() throws IOException {
         // Create a database with version 116
         SupportSQLiteDatabase db = testHelper.createDatabase(DB_NAME, 116);
-        // insert a device to the database
-        ContentValues device = new ContentValues();
-        device.put("address", TEST_BT_ADDR);
-        device.put("migrated", false);
-        Assert.assertThat(
-                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
-                CoreMatchers.not(-1));
+
+        // Insert a device to the database
+        ContentValues device = contentValuesDevice_116();
+        assertThat(db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device)).isNotEqualTo(-1);
+
         // Migrate database from 116 to 117
         db.close();
         db =
                 testHelper.runMigrationsAndValidate(
                         DB_NAME, 117, true, MetadataDatabase.MIGRATION_116_117);
         Cursor cursor = db.query("SELECT * FROM metadata");
+
         assertHasColumn(cursor, "gmcs_cccd", true);
         assertHasColumn(cursor, "gtbs_cccd", true);
+
         while (cursor.moveToNext()) {
             // Check the new columns was added with default value
             assertColumnBlobData(cursor, "gmcs_cccd", null);
@@ -1495,20 +1399,20 @@ public final class DatabaseManagerTest {
     public void testDatabaseMigration_117_118() throws IOException {
         // Create a database with version 117
         SupportSQLiteDatabase db = testHelper.createDatabase(DB_NAME, 117);
-        // insert a device to the database
-        ContentValues device = new ContentValues();
-        device.put("address", TEST_BT_ADDR);
-        device.put("migrated", false);
-        Assert.assertThat(
-                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
-                CoreMatchers.not(-1));
+
+        // Insert a device to the database
+        ContentValues device = contentValuesDevice_117();
+        assertThat(db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device)).isNotEqualTo(-1);
+
         // Migrate database from 117 to 118
         db.close();
         db =
                 testHelper.runMigrationsAndValidate(
                         DB_NAME, 118, true, MetadataDatabase.MIGRATION_117_118);
         Cursor cursor = db.query("SELECT * FROM metadata");
+
         assertHasColumn(cursor, "isActiveHfpDevice", true);
+
         while (cursor.moveToNext()) {
             // Check the new columns was added with default value
             assertColumnIntData(cursor, "isActiveHfpDevice", 0);
@@ -1519,13 +1423,10 @@ public final class DatabaseManagerTest {
     public void testDatabaseMigration_118_119() throws IOException {
         // Create a database with version 118
         SupportSQLiteDatabase db = testHelper.createDatabase(DB_NAME, 118);
-        // insert a device to the database
-        ContentValues device = new ContentValues();
-        device.put("address", TEST_BT_ADDR);
-        device.put("migrated", false);
-        Assert.assertThat(
-                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
-                CoreMatchers.not(-1));
+
+        // Insert a device to the database
+        ContentValues device = contentValuesDevice_118();
+        assertThat(db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device)).isNotEqualTo(-1);
 
         // Migrate database from 118 to 119
         db.close();
@@ -1533,7 +1434,9 @@ public final class DatabaseManagerTest {
                 testHelper.runMigrationsAndValidate(
                         DB_NAME, 119, true, MetadataDatabase.MIGRATION_118_119);
         Cursor cursor = db.query("SELECT * FROM metadata");
+
         assertHasColumn(cursor, "exclusive_manager", true);
+
         while (cursor.moveToNext()) {
             // Check the new column was added with default value
             assertColumnBlobData(cursor, "exclusive_manager", null);
@@ -1544,20 +1447,20 @@ public final class DatabaseManagerTest {
     public void testDatabaseMigration_119_120() throws IOException {
         // Create a database with version 119
         SupportSQLiteDatabase db = testHelper.createDatabase(DB_NAME, 119);
-        // insert a device to the database
-        ContentValues device = new ContentValues();
-        device.put("address", TEST_BT_ADDR);
-        device.put("migrated", false);
-        Assert.assertThat(
-                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
-                CoreMatchers.not(-1));
+
+        // Insert a device to the database
+        ContentValues device = contentValuesDevice_119();
+        assertThat(db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device)).isNotEqualTo(-1);
+
         // Migrate database from 119 to 120
         db.close();
         db =
                 testHelper.runMigrationsAndValidate(
                         DB_NAME, 120, true, MetadataDatabase.MIGRATION_119_120);
         Cursor cursor = db.query("SELECT * FROM metadata");
+
         assertHasColumn(cursor, "active_audio_device_policy", true);
+
         while (cursor.moveToNext()) {
             // Check the new columns was added with default value
             assertColumnIntData(cursor, "active_audio_device_policy", 0);
@@ -1568,50 +1471,238 @@ public final class DatabaseManagerTest {
     public void testDatabaseMigration_120_121() throws IOException {
         // Create a database with version 120
         SupportSQLiteDatabase db = testHelper.createDatabase(DB_NAME, 120);
-        // insert a device to the database
-        ContentValues device = new ContentValues();
-        device.put("address", TEST_BT_ADDR);
-        device.put("migrated", false);
-        Assert.assertThat(
-                db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device),
-                CoreMatchers.not(-1));
+
+        // Insert a device to the database
+        ContentValues device = contentValuesDevice_120();
+        assertThat(db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device)).isNotEqualTo(-1);
+
         // Migrate database from 120 to 121
         db.close();
         db =
                 testHelper.runMigrationsAndValidate(
                         DB_NAME, 121, true, MetadataDatabase.MIGRATION_120_121);
         Cursor cursor = db.query("SELECT * FROM metadata");
+
         assertHasColumn(cursor, "is_preferred_microphone_for_calls", true);
+
         while (cursor.moveToNext()) {
             // Check the new columns was added with default value
             assertColumnIntData(cursor, "is_preferred_microphone_for_calls", 1);
         }
     }
 
+    private ContentValues createContentValuesDeviceCommon() {
+        ContentValues device = new ContentValues();
+        device.put("address", TEST_BT_ADDR);
+        device.put("migrated", false);
+        device.put("a2dpSupportsOptionalCodecs", -1);
+        device.put("a2dpOptionalCodecsEnabled", -1);
+        device.put("manufacturer_name", TEST_STRING);
+        device.put("model_name", TEST_STRING);
+        device.put("software_version", TEST_STRING);
+        device.put("hardware_version", TEST_STRING);
+        device.put("companion_app", TEST_STRING);
+        device.put("main_icon", TEST_STRING);
+        return device;
+    }
+
+    private ContentValues createContentValuesDeviceStarting102() {
+        ContentValues device = createContentValuesDeviceCommon();
+        device.put("is_untethered_headset", TEST_STRING);
+        device.put("untethered_left_icon", TEST_STRING);
+        device.put("untethered_right_icon", TEST_STRING);
+        device.put("untethered_case_icon", TEST_STRING);
+        device.put("untethered_left_battery", TEST_STRING);
+        device.put("untethered_right_battery", TEST_STRING);
+        device.put("untethered_case_battery", TEST_STRING);
+        device.put("untethered_left_charging", TEST_STRING);
+        device.put("untethered_right_charging", TEST_STRING);
+        device.put("untethered_case_charging", TEST_STRING);
+        return device;
+    }
+
+    private ContentValues contentValuesDevice_101() {
+        ContentValues device = createContentValuesDeviceCommon();
+        // The following are available ONLY in 101
+        device.put("a2dp_priority", -1);
+        device.put("a2dp_sink_priority", -1);
+        device.put("hfp_priority", -1);
+        device.put("hfp_client_priority", -1);
+        device.put("hid_host_priority", -1);
+        device.put("pan_priority", -1);
+        device.put("pbap_priority", -1);
+        device.put("pbap_client_priority", -1);
+        device.put("map_priority", -1);
+        device.put("sap_priority", -1);
+        device.put("hearing_aid_priority", -1);
+        device.put("map_client_priority", -1);
+        device.put("is_unthethered_headset", TEST_STRING);
+        device.put("unthethered_left_icon", TEST_STRING);
+        device.put("unthethered_right_icon", TEST_STRING);
+        device.put("unthethered_case_icon", TEST_STRING);
+        device.put("unthethered_left_battery", TEST_STRING);
+        device.put("unthethered_right_battery", TEST_STRING);
+        device.put("unthethered_case_battery", TEST_STRING);
+        device.put("unthethered_left_charging", TEST_STRING);
+        device.put("unthethered_right_charging", TEST_STRING);
+        device.put("unthethered_case_charging", TEST_STRING);
+        return device;
+    }
+
+    private ContentValues contentValuesDevice_102() {
+        ContentValues device = createContentValuesDeviceStarting102();
+        // The following are available ONLY in 102
+        device.put("a2dp_priority", 1000);
+        device.put("a2dp_sink_priority", 1000);
+        device.put("hfp_priority", 1000);
+        device.put("hfp_client_priority", 1000);
+        device.put("hid_host_priority", 1000);
+        device.put("pan_priority", 1000);
+        device.put("pbap_priority", 1000);
+        device.put("pbap_client_priority", 1000);
+        device.put("map_priority", 1000);
+        device.put("sap_priority", 1000);
+        device.put("hearing_aid_priority", 1000);
+        device.put("map_client_priority", 1000);
+        return device;
+    }
+
+    private ContentValues contentValuesDevice_103() {
+        ContentValues device = createContentValuesDeviceStarting102();
+        device.put("a2dp_connection_policy", 100);
+        device.put("a2dp_sink_connection_policy", 100);
+        device.put("hfp_connection_policy", 100);
+        device.put("hfp_client_connection_policy", 100);
+        device.put("hid_host_connection_policy", 100);
+        device.put("pan_connection_policy", 100);
+        device.put("pbap_connection_policy", 100);
+        device.put("pbap_client_connection_policy", 100);
+        device.put("map_connection_policy", 100);
+        device.put("sap_connection_policy", 100);
+        device.put("hearing_aid_connection_policy", 100);
+        device.put("map_client_connection_policy", 100);
+        return device;
+    }
+
+    private ContentValues contentValuesDevice_104() {
+        ContentValues device = contentValuesDevice_103();
+        device.put("last_active_time", -1);
+        device.put("is_active_a2dp_device", 0);
+        return device;
+    }
+
+    private ContentValues contentValuesDevice_105() {
+        return contentValuesDevice_104();
+    }
+
+    private ContentValues contentValuesDevice_106() {
+        ContentValues device = contentValuesDevice_105();
+        device.put("le_audio_connection_policy", 100);
+        return device;
+    }
+
+    private ContentValues contentValuesDevice_107() {
+        ContentValues device = contentValuesDevice_106();
+        device.put("volume_control_connection_policy", 100);
+        return device;
+    }
+
+    private ContentValues contentValuesDevice_108() {
+        ContentValues device = contentValuesDevice_107();
+        device.put("csip_set_coordinator_connection_policy", 100);
+        return device;
+    }
+
+    private ContentValues contentValuesDevice_109() {
+        ContentValues device = contentValuesDevice_108();
+        device.put("le_call_control_connection_policy", 100);
+        return device;
+    }
+
+    private ContentValues contentValuesDevice_110() {
+        return contentValuesDevice_109();
+    }
+
+    private ContentValues contentValuesDevice_111() {
+        ContentValues device = contentValuesDevice_110();
+        device.put("bass_client_connection_policy", 100);
+        device.put("hap_client_connection_policy", 100);
+        return device;
+    }
+
+    private ContentValues contentValuesDevice_112() {
+        ContentValues device = contentValuesDevice_111();
+        device.put("battery_connection_policy", 100);
+        return device;
+    }
+
+    private ContentValues contentValuesDevice_113() {
+        return contentValuesDevice_112();
+    }
+
+    private ContentValues contentValuesDevice_114() {
+        return contentValuesDevice_113();
+    }
+
+    private ContentValues contentValuesDevice_115() {
+        return contentValuesDevice_114();
+    }
+
+    private ContentValues contentValuesDevice_116() {
+        ContentValues device = contentValuesDevice_115();
+        device.put("preferred_output_only_profile", 0);
+        device.put("preferred_duplex_profile", 0);
+        return device;
+    }
+
+    private ContentValues contentValuesDevice_117() {
+        return contentValuesDevice_116();
+    }
+
+    private ContentValues contentValuesDevice_118() {
+        ContentValues device = contentValuesDevice_117();
+        device.put("isActiveHfpDevice", 0);
+        return device;
+    }
+
+    private ContentValues contentValuesDevice_119() {
+        return contentValuesDevice_118();
+    }
+
+    private ContentValues contentValuesDevice_120() {
+        ContentValues device = contentValuesDevice_119();
+        device.put("active_audio_device_policy", 0);
+        return device;
+    }
+
     /** Helper function to check whether the database has the expected column */
     void assertHasColumn(Cursor cursor, String columnName, boolean hasColumn) {
         if (hasColumn) {
-            Assert.assertThat(cursor.getColumnIndex(columnName), CoreMatchers.not(-1));
+            assertThat(cursor.getColumnIndex(columnName)).isNotEqualTo(-1);
         } else {
-            Assert.assertThat(cursor.getColumnIndex(columnName), CoreMatchers.is(-1));
+            assertThat(cursor.getColumnIndex(columnName)).isEqualTo(-1);
         }
     }
 
     /** Helper function to check whether the database has the expected value */
     void assertColumnIntData(Cursor cursor, String columnName, int value) {
-        Assert.assertThat(cursor.getInt(cursor.getColumnIndex(columnName)), CoreMatchers.is(value));
+        assertThat(cursor.getInt(cursor.getColumnIndex(columnName))).isEqualTo(value);
     }
 
     /** Helper function to check whether the column data type is BLOB */
     void assertColumnBlob(Cursor cursor, String columnName) {
-        Assert.assertThat(
-                cursor.getType(cursor.getColumnIndex(columnName)),
-                CoreMatchers.is(Cursor.FIELD_TYPE_BLOB));
+        assertThat(cursor.getType(cursor.getColumnIndex(columnName)))
+                .isEqualTo(Cursor.FIELD_TYPE_BLOB);
     }
 
     /** Helper function to check the BLOB data in a column is expected */
     void assertColumnBlobData(Cursor cursor, String columnName, byte[] data) {
-        Assert.assertThat(cursor.getBlob(cursor.getColumnIndex(columnName)), CoreMatchers.is(data));
+        assertThat(cursor.getBlob(cursor.getColumnIndex(columnName))).isEqualTo(data);
+    }
+
+    /** Helper function to check whether the database has the expected value */
+    void assertColumnStringData(Cursor cursor, String columnName, String value) {
+        assertThat(cursor.getString(cursor.getColumnIndex(columnName))).isEqualTo(value);
     }
 
     void restartDatabaseManagerHelper() {
