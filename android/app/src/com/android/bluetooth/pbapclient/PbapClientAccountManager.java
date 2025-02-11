@@ -54,7 +54,7 @@ import java.util.Set;
  * stack startup to be available. This object also abstracts this issue away, handling the timing
  * and notifying clients when accounts are ready.
  *
- * <p>Once the account list has been intitialized, clients can begin making calls to add, remove and
+ * <p>Once the account list has been initialized, clients can begin making calls to add, remove and
  * list accounts.
  */
 class PbapClientAccountManager {
