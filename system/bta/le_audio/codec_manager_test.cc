@@ -217,6 +217,11 @@ static const types::LeAudioCodecId kLeAudioCodecIdLc3 = {
         .vendor_company_id = types::kLeAudioVendorCompanyIdUndefined,
         .vendor_codec_id = types::kLeAudioVendorCodecIdUndefined};
 
+static const types::LeAudioCodecId kLeAudioCodecIdVendor_C0DE = {
+        .coding_format = types::kLeAudioCodingFormatVendorSpecific,
+        .vendor_company_id = types::kLeAudioVendorCompanyIdGoogle,
+        .vendor_codec_id = 0xC0DE};
+
 static const types::CodecConfigSetting lc3_16_2 = {
         .id = kLeAudioCodecIdLc3,
         .params = types::LeAudioLtvMap({
@@ -258,6 +263,18 @@ static const types::CodecConfigSetting lc3_48_2 = {
                 LTV_ENTRY_AUDIO_CHANNEL_ALLOCATION(codec_spec_conf::kLeAudioLocationStereo),
                 LTV_ENTRY_OCTETS_PER_CODEC_FRAME(100),
         }),
+        .channel_count_per_iso_stream = 1,
+};
+
+static const types::CodecConfigSetting vendor_code_48_2 = {
+        .id = kLeAudioCodecIdVendor_C0DE,
+        .params = types::LeAudioLtvMap({
+                LTV_ENTRY_SAMPLING_FREQUENCY(codec_spec_conf::kLeAudioSamplingFreq48000Hz),
+                LTV_ENTRY_FRAME_DURATION(codec_spec_conf::kLeAudioCodecFrameDur10000us),
+                LTV_ENTRY_AUDIO_CHANNEL_ALLOCATION(codec_spec_conf::kLeAudioLocationStereo),
+                LTV_ENTRY_OCTETS_PER_CODEC_FRAME(100),
+        }),
+        .vendor_params = {03, 01, 02, 03},
         .channel_count_per_iso_stream = 1,
 };
 
@@ -348,6 +365,11 @@ public:
 
     // Allow for bidir SWB configurations
     osi_property_set_bool(kPropLeAudioBidirSwbSupported, true);
+
+    // Disable codec extensibility by default
+    osi_property_set_bool(kPropLeAudioCodecExtensibility, false);
+
+    com::android::bluetooth::flags::provider_->leaudio_mono_location_errata(false);
 
     CodecManagerTestBase::SetUp();
   }
@@ -1307,6 +1329,181 @@ TEST_F(CodecManagerTestHost, test_dont_call_hal_for_config) {
             // In this case the chosen configuration doesn't matter - select none
             return nullptr;
           });
+}
+
+TEST_F(CodecManagerTestAdsp, testStreamConfigurationVendor) {
+  com::android::bluetooth::flags::provider_->leaudio_mono_location_errata(true);
+  osi_property_set_bool(kPropLeAudioCodecExtensibility, true);
+
+  const std::vector<bluetooth::le_audio::btle_audio_codec_config_t> offloading_preference(0);
+  codec_manager->Start(offloading_preference);
+
+  // Current CIS configuration
+  std::vector<struct types::cis> cises{
+          // One earbud disconnected
+          {
+                  .id = 0x00,
+                  .type = types::CisType::CIS_TYPE_BIDIRECTIONAL,
+                  .conn_handle = 96,
+                  .addr = GetTestAddress(1),
+          },
+          // Second earbud connected
+          {
+                  .id = 0x00,
+                  .type = types::CisType::CIS_TYPE_BIDIRECTIONAL,
+                  .conn_handle = 97,
+                  .addr = GetTestAddress(1),
+          },
+  };
+
+  std::vector<uint8_t> metadata_vec;
+  AppendMetadataLtvEntryForStreamingContext(metadata_vec,
+                                            types::AudioContexts(types::LeAudioContextType::GAME));
+
+  stream_map_info stream_map_info_sink_left(cises[0].conn_handle,
+                                            codec_spec_conf::kLeAudioLocationFrontLeft, false);
+  stream_map_info_sink_left.codec_config = vendor_code_48_2;
+  stream_map_info_sink_left.target_latency = 0x03;
+  stream_map_info_sink_left.target_phy = PHY_LE_2M;
+  stream_map_info_sink_left.address = cises[1].addr;
+  stream_map_info_sink_left.address_type = BLE_ADDR_PUBLIC;
+  stream_map_info_sink_left.metadata.Parse(metadata_vec.data(), metadata_vec.size());
+
+  stream_map_info stream_map_info_sink_right(cises[1].conn_handle,
+                                             codec_spec_conf::kLeAudioLocationFrontRight, true);
+  stream_map_info_sink_right.codec_config = vendor_code_48_2;
+  stream_map_info_sink_right.target_latency = 0x03;
+  stream_map_info_sink_right.target_phy = PHY_LE_2M;
+  stream_map_info_sink_right.address = cises[1].addr;
+  stream_map_info_sink_right.address_type = BLE_ADDR_PUBLIC;
+  stream_map_info_sink_right.metadata.Parse(metadata_vec.data(), metadata_vec.size());
+
+  stream_map_info stream_map_info_source_right(cises[1].conn_handle,
+                                               codec_spec_conf::kLeAudioLocationFrontRight, true);
+  stream_map_info_source_right.codec_config = vendor_code_48_2;
+  stream_map_info_source_right.target_latency = 0x03;
+  stream_map_info_source_right.target_phy = PHY_LE_2M;
+  stream_map_info_source_right.address = cises[1].addr;
+  stream_map_info_source_right.address_type = BLE_ADDR_PUBLIC;
+  stream_map_info_source_right.metadata.Parse(metadata_vec.data(), metadata_vec.size());
+
+  // Stream parameters
+  types::BidirectionalPair<stream_parameters> stream_params{
+          .sink =
+                  {
+                          .audio_channel_allocation = codec_spec_conf::kLeAudioLocationFrontRight,
+                          .stream_config =
+                                  {
+                                          .stream_map = {stream_map_info_sink_right},
+                                          .bits_per_sample = 16,
+                                          .sampling_frequency_hz = 48000,
+                                          .frame_duration_us = 10000,
+                                          .octets_per_codec_frame = 100,
+                                          .codec_frames_blocks_per_sdu = 1,
+                                          .peer_delay_ms = 44,
+                                  },
+                          .num_of_channels = 2,
+                          .num_of_devices = 1,
+                  },
+          .source =
+                  {
+                          .audio_channel_allocation = codec_spec_conf::kLeAudioLocationFrontRight,
+                          .stream_config =
+                                  {
+                                          .stream_map = {stream_map_info_source_right},
+                                          .bits_per_sample = 16,
+                                          .sampling_frequency_hz = 48000,
+                                          .frame_duration_us = 10000,
+                                          .octets_per_codec_frame = 100,
+                                          .codec_frames_blocks_per_sdu = 1,
+                                          .peer_delay_ms = 44,
+                                  },
+                          .num_of_channels = 1,
+                          .num_of_devices = 1,
+                  },
+  };
+
+  ASSERT_TRUE(
+          codec_manager->UpdateCisConfiguration(cises, stream_params.sink, kLeAudioDirectionSink));
+  ASSERT_TRUE(codec_manager->UpdateCisConfiguration(cises, stream_params.source,
+                                                    kLeAudioDirectionSource));
+
+  // Verify the offloader config content
+  types::BidirectionalPair<std::optional<stream_config>> out_offload_configs;
+  codec_manager->UpdateActiveAudioConfig(
+          stream_params, [&out_offload_configs](const stream_config& config, uint8_t direction) {
+            out_offload_configs.get(direction) = config;
+          });
+
+  // Expect the same configuration for sink and source
+  ASSERT_TRUE(out_offload_configs.sink.has_value());
+  ASSERT_TRUE(out_offload_configs.source.has_value());
+  for (auto direction : {bluetooth::le_audio::types::kLeAudioDirectionSink,
+                         bluetooth::le_audio::types::kLeAudioDirectionSource}) {
+    uint32_t allocation = 0;
+    auto& config = out_offload_configs.get(direction).value();
+
+    ASSERT_EQ(2lu, config.stream_map.size());
+
+    for (const auto& info : config.stream_map) {
+      if (info.stream_handle == 96) {
+        ASSERT_EQ(codec_spec_conf::kLeAudioLocationFrontLeft, info.audio_channel_allocation);
+        // The disconnected should be inactive
+        ASSERT_FALSE(info.is_stream_active);
+
+      } else if (info.stream_handle == 97) {
+        ASSERT_EQ(codec_spec_conf::kLeAudioLocationFrontRight, info.audio_channel_allocation);
+        // The connected should be active
+        ASSERT_TRUE(info.is_stream_active);
+
+        ASSERT_EQ(vendor_code_48_2.id, info.codec_config.id);
+        ASSERT_EQ(vendor_code_48_2.params, info.codec_config.params);
+        ASSERT_EQ(vendor_code_48_2.vendor_params, info.codec_config.vendor_params);
+        ASSERT_EQ(0x03, info.target_latency);
+        ASSERT_EQ(PHY_LE_2M, info.target_phy);
+        ASSERT_EQ(cises[1].addr, info.address);
+        ASSERT_EQ(BLE_ADDR_PUBLIC, info.address_type);
+        ASSERT_EQ(stream_map_info_sink_right.metadata, info.metadata);
+
+      } else {
+        ASSERT_EQ(97, info.stream_handle);
+      }
+      allocation |= info.audio_channel_allocation;
+    }
+
+    ASSERT_EQ(16, config.bits_per_sample);
+    ASSERT_EQ(48000u, config.sampling_frequency_hz);
+    ASSERT_EQ(10000u, config.frame_duration_us);
+    ASSERT_EQ(100u, config.octets_per_codec_frame);
+    ASSERT_EQ(1, config.codec_frames_blocks_per_sdu);
+    ASSERT_EQ(44, config.peer_delay_ms);
+    ASSERT_EQ(codec_spec_conf::kLeAudioLocationStereo, allocation);
+  }
+
+  // Clear the CIS configuration map (no active CISes).
+  codec_manager->ClearCisConfiguration(kLeAudioDirectionSink);
+  codec_manager->ClearCisConfiguration(kLeAudioDirectionSource);
+  out_offload_configs.sink = std::nullopt;
+  out_offload_configs.source = std::nullopt;
+  codec_manager->UpdateActiveAudioConfig(
+          stream_params, [&out_offload_configs](const stream_config& config, uint8_t direction) {
+            out_offload_configs.get(direction) = config;
+          });
+
+  // Expect sink & source configurations with empty CIS channel allocation map.
+  ASSERT_TRUE(out_offload_configs.sink.has_value());
+  ASSERT_TRUE(out_offload_configs.source.has_value());
+  for (auto direction : {bluetooth::le_audio::types::kLeAudioDirectionSink,
+                         bluetooth::le_audio::types::kLeAudioDirectionSource}) {
+    auto& config = out_offload_configs.get(direction).value();
+    ASSERT_EQ(0lu, config.stream_map.size());
+    ASSERT_EQ(16, config.bits_per_sample);
+    ASSERT_EQ(48000u, config.sampling_frequency_hz);
+    ASSERT_EQ(10000u, config.frame_duration_us);
+    ASSERT_EQ(100u, config.octets_per_codec_frame);
+    ASSERT_EQ(1, config.codec_frames_blocks_per_sdu);
+    ASSERT_EQ(44, config.peer_delay_ms);
+  }
 }
 
 }  // namespace bluetooth::le_audio

@@ -27,7 +27,9 @@
 #include <unordered_map>
 #include <vector>
 
+#include "common/strings.h"
 #include "hal_version_manager.h"
+#include "le_audio_utils.h"
 
 namespace bluetooth {
 namespace audio {
@@ -40,6 +42,7 @@ using ::aidl::android::hardware::bluetooth::audio::ChannelMode;
 using ::aidl::android::hardware::bluetooth::audio::CodecType;
 using ::aidl::android::hardware::bluetooth::audio::Lc3Configuration;
 using ::aidl::android::hardware::bluetooth::audio::LeAudioCodecConfiguration;
+using ::aidl::android::hardware::bluetooth::audio::LeAudioConfiguration;
 using ::aidl::android::hardware::bluetooth::audio::PcmConfiguration;
 using ::bluetooth::audio::aidl::AudioConfiguration;
 using ::bluetooth::audio::aidl::BluetoothAudioCtrlAck;
@@ -698,22 +701,47 @@ bluetooth::audio::le_audio::OffloadCapabilities get_offload_capabilities() {
 
 AudioConfiguration stream_config_to_hal_audio_config(
         const ::bluetooth::le_audio::stream_config& offload_config) {
-  Lc3Configuration lc3_config{
-          .pcmBitDepth = static_cast<int8_t>(offload_config.bits_per_sample),
-          .samplingFrequencyHz = static_cast<int32_t>(offload_config.sampling_frequency_hz),
-          .frameDurationUs = static_cast<int32_t>(offload_config.frame_duration_us),
-          .octetsPerFrame = static_cast<int32_t>(offload_config.octets_per_codec_frame),
-          .blocksPerSdu = static_cast<int8_t>(offload_config.codec_frames_blocks_per_sdu),
-  };
   LeAudioConfiguration ucast_config = {
-          .peerDelayUs = static_cast<int32_t>(offload_config.peer_delay_ms * 1000),
-          .leAudioCodecConfig = LeAudioCodecConfiguration(lc3_config)};
+          .peerDelayUs = static_cast<int32_t>(offload_config.peer_delay_ms * 1000)};
 
-  for (auto& [handle, location, state] : offload_config.stream_map) {
+  if (offload_config.stream_map.size() == 0) {
+    log::error("Invalid stream map");
+    return AudioConfiguration(ucast_config);
+  }
+
+  // In the legacy configuration we use the first ASE configuration as the source of truth.
+  if (offload_config.stream_map.at(0).codec_config.id ==
+      ::bluetooth::le_audio::types::LeAudioCodecIdLc3) {
+    Lc3Configuration lc3_config{
+            .pcmBitDepth = static_cast<int8_t>(offload_config.bits_per_sample),
+            .samplingFrequencyHz = static_cast<int32_t>(offload_config.sampling_frequency_hz),
+            .frameDurationUs = static_cast<int32_t>(offload_config.frame_duration_us),
+            .octetsPerFrame = static_cast<int32_t>(offload_config.octets_per_codec_frame),
+            .blocksPerSdu = static_cast<int8_t>(offload_config.codec_frames_blocks_per_sdu),
+    };
+    ucast_config.leAudioCodecConfig = LeAudioCodecConfiguration(lc3_config);
+  }
+
+  for (auto& info : offload_config.stream_map) {
+    LeAudioConfiguration::StreamMap::BluetoothDeviceAddress aidl_device_address;
+    // The address should be set only if stream is active
+    if (info.is_stream_active) {
+      aidl_device_address.deviceAddress = info.address.ToArray();
+      aidl_device_address.deviceAddressType =
+              (info.address_type == BLE_ADDR_PUBLIC || info.address_type == BLE_ADDR_PUBLIC_ID)
+                      ? LeAudioConfiguration::StreamMap::BluetoothDeviceAddress::DeviceAddressType::
+                                BLE_ADDRESS_PUBLIC
+                      : LeAudioConfiguration::StreamMap::BluetoothDeviceAddress::DeviceAddressType::
+                                BLE_ADDRESS_RANDOM;
+    }
+
     ucast_config.streamMap.push_back({
-            .streamHandle = handle,
-            .audioChannelAllocation = static_cast<int32_t>(location),
-            .isStreamActive = state,
+            .streamHandle = info.stream_handle,
+            .audioChannelAllocation = static_cast<int32_t>(info.audio_channel_allocation),
+            .isStreamActive = info.is_stream_active,
+            .aseConfiguration = GetAidlLeAudioAseConfigurationFromStackFormat(
+                    info.codec_config, info.target_latency, info.target_phy, info.metadata),
+            .bluetoothDeviceAddress = aidl_device_address,
     });
   }
 
