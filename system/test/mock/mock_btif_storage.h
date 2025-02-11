@@ -483,6 +483,21 @@ struct btif_storage_set_remote_device_property {
 };
 extern struct btif_storage_set_remote_device_property btif_storage_set_remote_device_property;
 
+// Name: btif_storage_get_services
+// Params: const RawAddress& bd_addr, tBT_TRANSPORT transport
+// Return: std::vector<bluetooth::Uuid>
+struct btif_storage_get_services {
+  static std::vector<bluetooth::Uuid> return_value;
+  std::function<std::vector<bluetooth::Uuid>(const RawAddress& bd_addr, tBT_TRANSPORT transport)>
+          body{[](const RawAddress& /* bd_addr */, tBT_TRANSPORT /* transport */) {
+            return return_value;
+          }};
+  std::vector<bluetooth::Uuid> operator()(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
+    return body(bd_addr, transport);
+  }
+};
+extern struct btif_storage_get_services btif_storage_get_services;
+
 }  // namespace btif_storage
 }  // namespace mock
 }  // namespace test
