@@ -1215,7 +1215,7 @@ types::LeAudioConfigurationStrategy LeAudioDeviceGroup::GetGroupSinkStrategy() c
   /* Update the strategy if not set yet or was invalidated */
   if (!strategy_) {
     /* Choose the group configuration strategy based on PAC records */
-    strategy_ = [this]() {
+    auto strategy_selector = [&, this](uint8_t direction) {
       int expected_group_size = Size();
 
       /* Simple strategy picker */
@@ -1234,8 +1234,7 @@ types::LeAudioConfigurationStrategy LeAudioDeviceGroup::GetGroupSinkStrategy() c
       auto device = GetFirstDevice();
       /* Note: Currently, the audio channel counts LTV is only mandatory for
        * LC3. */
-      auto channel_count_bitmap =
-              device->GetSupportedAudioChannelCounts(types::kLeAudioDirectionSink);
+      auto channel_count_bitmap = device->GetSupportedAudioChannelCounts(direction);
       log::debug("Supported channel counts for group {} (device {}) is {}", group_id_,
                  device->address_, channel_count_bitmap);
       if (channel_count_bitmap == 1) {
@@ -1243,7 +1242,12 @@ types::LeAudioConfigurationStrategy LeAudioDeviceGroup::GetGroupSinkStrategy() c
       }
 
       return types::LeAudioConfigurationStrategy::STEREO_ONE_CIS_PER_DEVICE;
-    }();
+    };
+    strategy_ = strategy_selector(types::kLeAudioDirectionSink);
+    if (strategy_ == types::LeAudioConfigurationStrategy::RFU) {
+      log::warn("Unable to find the proper remote sink strategy. Trying source direction instead");
+      strategy_ = strategy_selector(types::kLeAudioDirectionSource);
+    }
 
     log::info("Group strategy set to: {}", [](types::LeAudioConfigurationStrategy strategy) {
       switch (strategy) {
