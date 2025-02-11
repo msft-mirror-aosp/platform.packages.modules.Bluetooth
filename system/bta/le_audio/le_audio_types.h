@@ -1248,12 +1248,13 @@ struct AseConfiguration {
   types::DataPathConfiguration data_path_configuration;
   CodecConfigSetting codec;
   QosConfigSetting qos;
+  types::LeAudioLtvMap metadata;
 
   bool operator!=(const AseConfiguration& other) { return !(*this == other); }
 
   bool operator==(const AseConfiguration& other) const {
     return (data_path_configuration == other.data_path_configuration) && (codec == other.codec) &&
-           (qos == other.qos);
+           (qos == other.qos) && (metadata == other.metadata);
   }
 };
 
