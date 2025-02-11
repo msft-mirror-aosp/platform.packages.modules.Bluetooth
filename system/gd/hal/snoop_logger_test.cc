@@ -1541,10 +1541,13 @@ TEST_F(SnoopLoggerModuleTest, recreate_log_directory_when_enabled_test) {
   ASSERT_TRUE(std::filesystem::exists(temp_log_btsnoop_file_));
   // btsnooz file should be removed as snoop_log_persists is false
   ASSERT_FALSE(std::filesystem::exists(temp_log_btsnooz_file_));
-  // remove after test
+  // remove temp_dir_path_ contents after test
   if (std::filesystem::exists(temp_dir_path_)) {
-    std::filesystem::remove_all(temp_dir_path_);
+    for (const auto& entry : std::filesystem::directory_iterator(temp_dir_path_)) {
+      std::filesystem::remove_all(entry.path());
+    }
   }
+  ASSERT_TRUE(std::filesystem::exists(temp_dir_path_));
 }
 
 TEST_F(SnoopLoggerModuleTest, recreate_log_directory_when_filtered_test) {
@@ -1583,10 +1586,13 @@ TEST_F(SnoopLoggerModuleTest, recreate_log_directory_when_filtered_test) {
   ASSERT_TRUE(std::filesystem::exists(temp_log_btsnoop_filtered_file_));
   // btsnooz file should be removed as snoop_log_persists is false
   ASSERT_FALSE(std::filesystem::exists(temp_log_btsnooz_filtered_file_));
-  // remove after test
+  // remove temp_dir_path_ contents after test
   if (std::filesystem::exists(temp_dir_path_)) {
-    std::filesystem::remove_all(temp_dir_path_);
+    for (const auto& entry : std::filesystem::directory_iterator(temp_dir_path_)) {
+      std::filesystem::remove_all(entry.path());
+    }
   }
+  ASSERT_TRUE(std::filesystem::exists(temp_dir_path_));
 }
 #endif  // __ANDROID__
 
