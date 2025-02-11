@@ -262,7 +262,14 @@ public:
     std::vector<RawAddress> devices = {device->address};
     device->DeregisterNotifications(gatt_if_);
 
-    RemovePendingVolumeControlOperations(devices, bluetooth::groups::kGroupUnknown);
+    if (com::android::bluetooth::flags::vcp_allow_set_same_volume_if_pending()) {
+      RemoveNotStartedPendingOperations(devices, bluetooth::groups::kGroupUnknown, {});
+    } else {
+      RemoveNotStartedPendingOperations(devices, bluetooth::groups::kGroupUnknown,
+                                        {kControlPointOpcodeVolumeDown, kControlPointOpcodeVolumeUp,
+                                         kControlPointOpcodeSetAbsoluteVolume});
+    }
+
     device->ResetHandles();
     BTA_GATTC_ServiceSearchRequest(device->connection_id, kVolumeControlUuid);
   }
@@ -956,13 +963,12 @@ public:
     return false;
   }
 
-  void RemovePendingVolumeControlOperations(const std::vector<RawAddress>& devices, int group_id) {
+  void RemoveNotStartedPendingOperations(const std::vector<RawAddress>& devices, int group_id,
+                                         std::vector<uint8_t> opcodes) {
     bluetooth::log::debug("");
     for (auto op = ongoing_operations_.begin(); op != ongoing_operations_.end();) {
-      // We only remove operations that don't affect the mute field.
-      if (op->IsStarted() || (op->opcode_ != kControlPointOpcodeSetAbsoluteVolume &&
-                              op->opcode_ != kControlPointOpcodeVolumeUp &&
-                              op->opcode_ != kControlPointOpcodeVolumeDown)) {
+      if (op->IsStarted() || (!opcodes.empty() && std::find(opcodes.begin(), opcodes.end(),
+                                                            op->opcode_) == opcodes.end())) {
         op++;
         continue;
       }
@@ -979,8 +985,8 @@ public:
         }
       }
       if (op->devices_.empty()) {
-        op = ongoing_operations_.erase(op);
         bluetooth::log::debug("Removing operation {}", op->operation_id_);
+        op = ongoing_operations_.erase(op);
       } else {
         op++;
       }
@@ -1088,6 +1094,7 @@ public:
                                 devices.end());
                   return devices.empty();
                 }) == ongoing_operations_.end()) {
+      bluetooth::log::debug("New operation id {} added", latest_operation_id_);
       ongoing_operations_.emplace_back(latest_operation_id_++, group_id, is_autonomous, opcode,
                                        arguments, devices);
     }
@@ -1181,7 +1188,10 @@ public:
         if (dev->IsReady() &&
             ((dev->volume != volume) || isPendingVolumeControlOperation(dev->address))) {
           std::vector<RawAddress> devices = {dev->address};
-          RemovePendingVolumeControlOperations(devices, bluetooth::groups::kGroupUnknown);
+          RemoveNotStartedPendingOperations(
+                  devices, bluetooth::groups::kGroupUnknown,
+                  {kControlPointOpcodeVolumeDown, kControlPointOpcodeVolumeUp,
+                   kControlPointOpcodeSetAbsoluteVolume});
           PrepareVolumeControlOperation(devices, bluetooth::groups::kGroupUnknown, false, opcode,
                                         arg);
         }
@@ -1230,7 +1240,9 @@ public:
         return;
       }
 
-      RemovePendingVolumeControlOperations(devices, group_id);
+      RemoveNotStartedPendingOperations(devices, group_id,
+                                        {kControlPointOpcodeVolumeDown, kControlPointOpcodeVolumeUp,
+                                         kControlPointOpcodeSetAbsoluteVolume});
       PrepareVolumeControlOperation(devices, group_id, false, opcode, arg);
     }
 
