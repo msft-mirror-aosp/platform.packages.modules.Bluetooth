@@ -162,6 +162,9 @@ protected:
   std::map<const ModuleFactory*, Module*> started_modules_;
   std::vector<const ModuleFactory*> start_order_;
   std::string last_instance_;
+
+private:
+  mutable std::mutex started_modules_guard_;
 };
 
 class TestModuleRegistry : public ModuleRegistry {
