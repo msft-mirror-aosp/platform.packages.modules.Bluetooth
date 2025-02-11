@@ -29,6 +29,7 @@
 #include "hci/le_periodic_sync_manager.h"
 #include "hci/le_scanning_interface.h"
 #include "hci/le_scanning_reassembler.h"
+#include "main/shim/entry.h"
 #include "module.h"
 #include "os/handler.h"
 #include "os/system_properties.h"
@@ -1677,12 +1678,11 @@ void LeScanningManager::ListDependencies(ModuleList* list) const {
   list->add<HciLayer>();
   list->add<Controller>();
   list->add<AclManager>();
-  list->add<storage::StorageModule>();
 }
 
 void LeScanningManager::Start() {
   pimpl_->start(GetHandler(), GetDependency<HciLayer>(), GetDependency<Controller>(),
-                GetDependency<AclManager>(), GetDependency<storage::StorageModule>());
+                GetDependency<AclManager>(), shim::GetStorage());
 }
 
 void LeScanningManager::Stop() {

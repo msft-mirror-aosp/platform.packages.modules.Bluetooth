@@ -25,6 +25,11 @@
 
 // The shim layer implementation on the Gd stack side.
 namespace bluetooth {
+
+namespace storage {
+class StorageModule;
+}
+
 namespace metrics {
 class CounterMetrics;
 }
@@ -62,6 +67,7 @@ public:
 
   virtual Acl* GetAcl() const;
   virtual metrics::CounterMetrics* GetCounterMetrics() const;
+  virtual storage::StorageModule* GetStorage() const;
 
   os::Handler* GetHandler();
 

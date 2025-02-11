@@ -307,6 +307,7 @@ cc_test {
         android: {
             srcs: [
                 ":BluetoothOsTestSources_android",
+                "hal/hci_hal_android_test.cc",
             ],
             static_libs: [
                 "android.hardware.bluetooth@1.0",
@@ -334,6 +335,7 @@ cc_test {
         ":BluetoothPacketTestSources",
         ":BluetoothStorageUnitTestSources",
         ":TestCommonMockFunctions",
+        ":TestMockMainShimEntry",
         ":TestMockStackMetrics",
         "module_unittest.cc",
     ],
@@ -423,6 +425,10 @@ cc_defaults {
     srcs: [
         ":BluetoothFuzzHelperSources",
         ":BluetoothHciFuzzHelperSources",
+        ":TestMockMainShimEntry",
+    ],
+    include_dirs: [
+        "packages/modules/Bluetooth/system",
     ],
     static_libs: [
         "bluetooth_flags_c_lib",
