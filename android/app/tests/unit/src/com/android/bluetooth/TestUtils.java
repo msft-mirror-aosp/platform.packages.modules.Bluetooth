@@ -45,16 +45,8 @@ import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
-import java.lang.reflect.Field;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
 /** A set of methods useful in Bluetooth instrumentation tests */
@@ -62,29 +54,6 @@ public class TestUtils {
     private static String sSystemScreenOffTimeout = "10000";
 
     private static final String TAG = "BluetoothTestUtils";
-
-    /**
-     * Utility method to replace obj.fieldName with newValue where obj is of type c
-     *
-     * @param c type of obj
-     * @param fieldName field name to be replaced
-     * @param obj instance of type c whose fieldName is to be replaced, null for static fields
-     * @param newValue object used to replace fieldName
-     * @return the old value of fieldName that got replaced, caller is responsible for restoring it
-     *     back to obj
-     * @throws NoSuchFieldException when fieldName is not found in type c
-     * @throws IllegalAccessException when fieldName cannot be accessed in type c
-     */
-    public static Object replaceField(
-            final Class c, final String fieldName, final Object obj, final Object newValue)
-            throws NoSuchFieldException, IllegalAccessException {
-        Field field = c.getDeclaredField(fieldName);
-        field.setAccessible(true);
-
-        Object oldValue = field.get(obj);
-        field.set(obj, newValue);
-        return oldValue;
-    }
 
     /**
      * Set the return value of {@link AdapterService#getAdapterService()} to a test specified value
@@ -163,38 +132,6 @@ public class TestUtils {
         }
     }
 
-    /**
-     * Wait and verify that an intent has been received.
-     *
-     * @param timeoutMs the time (in milliseconds) to wait for the intent
-     * @param queue the queue for the intent
-     * @return the received intent
-     */
-    public static Intent waitForIntent(int timeoutMs, BlockingQueue<Intent> queue) {
-        try {
-            Intent intent = queue.poll(timeoutMs, TimeUnit.MILLISECONDS);
-            assertThat(intent).isNotNull();
-            return intent;
-        } catch (InterruptedException e) {
-            assertWithMessage("Cannot obtain an Intent from the queue: " + e.toString()).fail();
-        }
-        return null;
-    }
-
-    /**
-     * Wait and verify that no intent has been received.
-     *
-     * @param timeoutMs the time (in milliseconds) to wait and verify no intent has been received
-     * @param queue the queue for the intent
-     */
-    public static void waitForNoIntent(int timeoutMs, BlockingQueue<Intent> queue) {
-        try {
-            Intent intent = queue.poll(timeoutMs, TimeUnit.MILLISECONDS);
-            assertThat(intent).isNull();
-        } catch (InterruptedException e) {
-            assertWithMessage("Cannot obtain an Intent from the queue: " + e.toString()).fail();
-        }
-    }
 
     /**
      * Wait for looper to finish its current task and all tasks schedule before this
@@ -284,7 +221,7 @@ public class TestUtils {
      * @param looper the looper used to run the action
      * @param action the action to run
      */
-    public static void runOnLooperSync(Looper looper, Runnable action) {
+    private static void runOnLooperSync(Looper looper, Runnable action) {
         if (Looper.myLooper() == looper) {
             // requested thread is the same as the current thread. call directly.
             action.run();
@@ -294,45 +231,6 @@ public class TestUtils {
             handler.post(sr);
             sr.waitForComplete();
         }
-    }
-
-    /**
-     * Read Bluetooth adapter configuration from the filesystem
-     *
-     * @return A {@link HashMap} of Bluetooth configs in the format: section -> key1 -> value1 ->
-     *     key2 -> value2 Assume no empty section name, no duplicate keys in the same section
-     */
-    public static Map<String, Map<String, String>> readAdapterConfig() {
-        Map<String, Map<String, String>> adapterConfig = new HashMap<>();
-        try (BufferedReader reader =
-                new BufferedReader(new FileReader("/data/misc/bluedroid/bt_config.conf"))) {
-            String section = "";
-            for (String line; (line = reader.readLine()) != null; ) {
-                line = line.trim();
-                if (line.isEmpty() || line.startsWith("#")) {
-                    continue;
-                }
-                if (line.startsWith("[")) {
-                    if (line.charAt(line.length() - 1) != ']') {
-                        Log.e(TAG, "readAdapterConfig: config line is not correct: " + line);
-                        return null;
-                    }
-                    section = line.substring(1, line.length() - 1);
-                    adapterConfig.put(section, new HashMap<>());
-                } else {
-                    String[] keyValue = line.split("=");
-                    adapterConfig
-                            .get(section)
-                            .put(
-                                    keyValue[0].trim(),
-                                    keyValue.length == 1 ? "" : keyValue[1].trim());
-                }
-            }
-        } catch (IOException e) {
-            Log.e(TAG, "readAdapterConfig: Exception while reading the config" + e);
-            return null;
-        }
-        return adapterConfig;
     }
 
     /**
