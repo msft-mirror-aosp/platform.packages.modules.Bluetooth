@@ -21,8 +21,9 @@ import static com.google.common.truth.Truth.assertWithMessage;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
-import android.bluetooth.BluetoothAdapter;
+import android.annotation.IntRange;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -137,15 +138,17 @@ public class TestUtils {
     /**
      * Create a test device.
      *
-     * @param bluetoothAdapter the Bluetooth adapter to use
      * @param id the test device ID. It must be an integer in the interval [0, 0xFF].
      * @return {@link BluetoothDevice} test device for the device ID
      */
-    public static BluetoothDevice getTestDevice(BluetoothAdapter bluetoothAdapter, int id) {
+    public static BluetoothDevice getTestDevice(@IntRange(from = 0x00, to = 0xFF) int id) {
         assertThat(id).isAtMost(0xFF);
-        assertThat(bluetoothAdapter).isNotNull();
         BluetoothDevice testDevice =
-                bluetoothAdapter.getRemoteDevice(String.format("00:01:02:03:04:%02X", id));
+                InstrumentationRegistry.getInstrumentation()
+                        .getTargetContext()
+                        .getSystemService(BluetoothManager.class)
+                        .getAdapter()
+                        .getRemoteDevice(String.format("00:01:02:03:04:%02X", id));
         assertThat(testDevice).isNotNull();
         return testDevice;
     }

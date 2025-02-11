@@ -15,37 +15,21 @@
  */
 package com.android.bluetooth.a2dpsink;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 
 import androidx.test.runner.AndroidJUnit4;
 
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
 @RunWith(AndroidJUnit4.class)
 public class StackEventTest {
-    private BluetoothAdapter mAdapter = null;
-    private BluetoothDevice mDevice = null;
-    private static final String TEST_ADDRESS = "11:11:11:11:11:11";
-
-    @Before
-    public void setUp() throws Exception {
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
-        assertThat(mAdapter).isNotNull();
-        mDevice = mAdapter.getRemoteDevice(TEST_ADDRESS);
-    }
-
-    @After
-    public void tearDown() throws Exception {
-        mAdapter = null;
-        mDevice = null;
-    }
+    private final BluetoothDevice mDevice = getTestDevice(21);
 
     @Test
     public void testCreateConnectionStateChangedDisconnectedEvent() {

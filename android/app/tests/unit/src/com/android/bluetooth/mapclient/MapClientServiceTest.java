@@ -19,6 +19,8 @@ import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
 import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
 import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.any;
@@ -32,6 +34,7 @@ import static org.mockito.Mockito.when;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothUuid;
 import android.bluetooth.SdpMasRecord;
@@ -39,6 +42,7 @@ import android.content.Context;
 import android.telephony.SubscriptionManager;
 
 import androidx.test.filters.MediumTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestLooper;
@@ -67,8 +71,12 @@ public class MapClientServiceTest {
     @Mock private DatabaseManager mDatabaseManager;
     @Mock private MnsService mMnsService;
 
-    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
-    private final BluetoothDevice mRemoteDevice = TestUtils.getTestDevice(mAdapter, 0);
+    private final BluetoothAdapter mAdapter =
+            InstrumentationRegistry.getInstrumentation()
+                    .getTargetContext()
+                    .getSystemService(BluetoothManager.class)
+                    .getAdapter();
+    private final BluetoothDevice mRemoteDevice = getTestDevice(0);
 
     private MapClientService mService;
     private TestLooper mTestLooper;
@@ -377,7 +385,7 @@ public class MapClientServiceTest {
     public void connectDevice_whenMaxDevicesAreConnected_isRejected() {
         List<BluetoothDevice> list = new ArrayList<>();
         for (int i = 0; i < MapClientService.MAXIMUM_CONNECTED_DEVICES; ++i) {
-            BluetoothDevice testDevice = TestUtils.getTestDevice(mAdapter, i);
+            BluetoothDevice testDevice = getTestDevice(i);
             assertThat(mService.getInstanceMap().get(testDevice)).isNull();
             assertThat(mService.connect(testDevice)).isTrue();
 
@@ -388,6 +396,6 @@ public class MapClientServiceTest {
         assertThat(mService.getInstanceMap().keySet()).containsExactlyElementsIn(list);
 
         // Try to connect one more device. Should fail.
-        assertThat(mService.connect(TestUtils.getTestDevice(mAdapter, 0xAF))).isFalse();
+        assertThat(mService.connect(getTestDevice(0xAF))).isFalse();
     }
 }

@@ -34,8 +34,8 @@ import android.bluetooth.le.ScanResult;
 import android.content.Context;
 import android.os.IBinder;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.btservice.AdapterService;
@@ -71,7 +71,7 @@ public class PeriodicScanManagerTest {
 
     @Before
     public void setUp() throws Exception {
-        mTargetContext = InstrumentationRegistry.getTargetContext();
+        mTargetContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
         PeriodicScanNativeInterface.setInstance(mPeriodicScanNativeInterface);
         mPeriodicScanManager = new PeriodicScanManager(mAdapterService);
 

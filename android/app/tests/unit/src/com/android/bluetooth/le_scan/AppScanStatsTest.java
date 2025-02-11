@@ -26,8 +26,8 @@ import android.content.Context;
 import android.os.BatteryStatsManager;
 import android.os.WorkSource;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.rule.ServiceTestRule;
 import androidx.test.runner.AndroidJUnit4;
 
@@ -64,7 +64,8 @@ public class AppScanStatsTest {
                 mAdapterService,
                 Context.BATTERY_STATS_SERVICE,
                 BatteryStatsManager.class,
-                InstrumentationRegistry.getTargetContext()
+                InstrumentationRegistry.getInstrumentation()
+                        .getTargetContext()
                         .getSystemService(BatteryStatsManager.class));
     }
 

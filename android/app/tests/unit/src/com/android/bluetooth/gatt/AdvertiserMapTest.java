@@ -30,8 +30,8 @@ import android.content.AttributionSource;
 import android.content.pm.PackageManager;
 import android.os.Binder;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestUtils;
@@ -58,7 +58,7 @@ public class AdvertiserMapTest {
     @Mock private PackageManager mMockPackageManager;
 
     private final AttributionSource mAttributionSource =
-            InstrumentationRegistry.getTargetContext().getAttributionSource();
+            InstrumentationRegistry.getInstrumentation().getTargetContext().getAttributionSource();
 
     @Before
     public void setUp() throws Exception {

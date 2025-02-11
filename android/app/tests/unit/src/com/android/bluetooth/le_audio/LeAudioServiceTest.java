@@ -30,6 +30,7 @@ import static android.bluetooth.IBluetoothLeAudio.LE_AUDIO_GROUP_ID_INVALID;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
 import static com.android.bluetooth.TestUtils.mockGetSystemService;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -49,7 +50,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.annotation.Nullable;
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothLeAudio;
 import android.bluetooth.BluetoothLeAudioCodecConfig;
@@ -57,7 +57,6 @@ import android.bluetooth.BluetoothLeAudioCodecStatus;
 import android.bluetooth.BluetoothLeAudioContentMetadata;
 import android.bluetooth.BluetoothLeBroadcastSettings;
 import android.bluetooth.BluetoothLeBroadcastSubgroupSettings;
-import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothUuid;
 import android.bluetooth.IBluetoothLeAudioCallback;
@@ -150,12 +149,10 @@ public class LeAudioServiceTest {
     private final HashSet<BluetoothDevice> mBondedDevices = new HashSet<>();
     private final Context mTargetContext =
             InstrumentationRegistry.getInstrumentation().getTargetContext();
-    private final BluetoothAdapter mAdapter =
-            mTargetContext.getSystemService(BluetoothManager.class).getAdapter();
-    private final BluetoothDevice mLeftDevice = TestUtils.getTestDevice(mAdapter, 0);
-    private final BluetoothDevice mRightDevice = TestUtils.getTestDevice(mAdapter, 1);
-    private final BluetoothDevice mSingleDevice = TestUtils.getTestDevice(mAdapter, 2);
-    private final BluetoothDevice mSingleDevice_2 = TestUtils.getTestDevice(mAdapter, 3);
+    private final BluetoothDevice mLeftDevice = getTestDevice(0);
+    private final BluetoothDevice mRightDevice = getTestDevice(1);
+    private final BluetoothDevice mSingleDevice = getTestDevice(2);
+    private final BluetoothDevice mSingleDevice_2 = getTestDevice(3);
 
     private LeAudioService mService;
     private int testGroupId = 1;
@@ -2348,7 +2345,7 @@ public class LeAudioServiceTest {
 
     @Test
     public void testHandleGroupIdleDuringCall() {
-        BluetoothDevice headsetDevice = TestUtils.getTestDevice(mAdapter, 5);
+        BluetoothDevice headsetDevice = getTestDevice(5);
         HeadsetService headsetService = Mockito.mock(HeadsetService.class);
         when(mServiceFactory.getHeadsetService()).thenReturn(headsetService);
 

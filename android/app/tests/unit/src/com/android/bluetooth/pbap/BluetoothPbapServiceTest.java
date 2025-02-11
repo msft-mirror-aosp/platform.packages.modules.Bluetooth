@@ -15,6 +15,8 @@
  */
 package com.android.bluetooth.pbap;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertThrows;
@@ -28,7 +30,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.app.NotificationManager;
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.content.Context;
@@ -38,8 +39,8 @@ import android.os.Message;
 import android.os.UserManager;
 import android.test.mock.MockContentResolver;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.MediumTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.BluetoothMethodProxy;
@@ -72,9 +73,9 @@ public class BluetoothPbapServiceTest {
     @Mock private NotificationManager mNotificationManager;
     @Spy private BluetoothMethodProxy mMethodProxy = BluetoothMethodProxy.getInstance();
 
-    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
-    private final BluetoothDevice mRemoteDevice = TestUtils.getTestDevice(mAdapter, 42);
-    private final Context mTargetContext = InstrumentationRegistry.getTargetContext();
+    private final BluetoothDevice mRemoteDevice = getTestDevice(42);
+    private final Context mTargetContext =
+            InstrumentationRegistry.getInstrumentation().getTargetContext();
     private final MockContentResolver mMockContentResolver =
             new MockContentResolver(mTargetContext);
 

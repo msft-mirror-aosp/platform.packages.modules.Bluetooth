@@ -42,7 +42,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import android.app.ActivityManager;
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothHidDevice;
 import android.bluetooth.BluetoothHidDeviceAppSdpSettings;
@@ -93,8 +92,7 @@ public class HidDeviceTest {
     private static final byte SAMPLE_REPORT_ERROR = 0x02;
     private static final byte SAMPLE_BUFFER_SIZE = 100;
 
-    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
-    private final BluetoothDevice mDevice = getTestDevice(mAdapter, 87);
+    private final BluetoothDevice mDevice = getTestDevice(87);
 
     private HidDeviceService mService;
     private InOrder mInOrder;

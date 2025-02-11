@@ -15,6 +15,8 @@
  */
 package com.android.bluetooth.pbapclient;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.any;
@@ -23,7 +25,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.app.BroadcastOptions;
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.content.Context;
@@ -50,36 +51,28 @@ import org.mockito.junit.MockitoRule;
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class PbapClientStateMachineOldTest {
-    private static final String TAG = "PbapClientStateMachineOldTest";
-
-    private PbapClientStateMachineOld mPbapClientStateMachine = null;
-
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
     @Mock private PbapClientService mMockPbapClientService;
     @Mock private UserManager mMockUserManager;
     @Mock private PbapClientConnectionHandler mMockHandler;
 
-    private BluetoothDevice mTestDevice;
-    private BluetoothAdapter mAdapter;
+    private static final String TAG = "PbapClientStateMachineOldTest";
+    private static final int DISCONNECT_TIMEOUT = 5000;
 
-    private ArgumentCaptor<Intent> mIntentArgument = ArgumentCaptor.forClass(Intent.class);
+    private final BluetoothDevice mDevice = getTestDevice(40);
+    private final ArgumentCaptor<Intent> mIntentArgument = ArgumentCaptor.forClass(Intent.class);
 
-    static final int DISCONNECT_TIMEOUT = 5000;
+    private PbapClientStateMachineOld mPbapClientStateMachine = null;
 
     @Before
     public void setUp() throws Exception {
-
-        // This line must be called to make sure relevant objects are initialized properly
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
-        // Get a device for testing
-        mTestDevice = mAdapter.getRemoteDevice("00:01:02:03:04:05");
         when(mMockPbapClientService.getSystemServiceName(UserManager.class))
                 .thenReturn(Context.USER_SERVICE);
         when(mMockPbapClientService.getSystemService(UserManager.class))
                 .thenReturn(mMockUserManager);
         mPbapClientStateMachine =
-                new PbapClientStateMachineOld(mMockPbapClientService, mTestDevice, mMockHandler);
+                new PbapClientStateMachineOld(mMockPbapClientService, mDevice, mMockHandler);
         mPbapClientStateMachine.start();
     }
 
@@ -111,7 +104,7 @@ public class PbapClientStateMachineOldTest {
         assertThat(mPbapClientStateMachine.getConnectionState())
                 .isEqualTo(BluetoothProfile.STATE_CONNECTING);
 
-        mPbapClientStateMachine.disconnect(mTestDevice);
+        mPbapClientStateMachine.disconnect(mDevice);
 
         TestUtils.waitForLooperToFinishScheduledTask(
                 mPbapClientStateMachine.getHandler().getLooper());

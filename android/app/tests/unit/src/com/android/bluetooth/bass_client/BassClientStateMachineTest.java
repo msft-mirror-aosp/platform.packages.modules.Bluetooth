@@ -24,6 +24,7 @@ import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasFlag;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
 import static com.android.bluetooth.bass_client.BassClientStateMachine.ADD_BCAST_SOURCE;
 import static com.android.bluetooth.bass_client.BassClientStateMachine.CANCEL_PENDING_SOURCE_OPERATION;
 import static com.android.bluetooth.bass_client.BassClientStateMachine.CONNECT;
@@ -97,8 +98,8 @@ import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.MediumTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.bluetooth.BluetoothMethodProxy;
 import com.android.bluetooth.TestUtils;
@@ -138,6 +139,11 @@ public class BassClientStateMachineTest {
 
     @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
+    @Mock private AdapterService mAdapterService;
+    @Mock private BassClientService mBassClientService;
+    @Mock private BluetoothMethodProxy mMethodProxy;
+    @Mock private MetricsLogger mMetricsLogger;
+
     private static final int CONNECTION_TIMEOUT_MS = 1_000;
     private static final int TIMEOUT_MS = 2_000;
     private static final int NO_TIMEOUT_MS = 0;
@@ -149,26 +155,20 @@ public class BassClientStateMachineTest {
     private static final String EMPTY_BLUETOOTH_DEVICE_ADDRESS = "00:00:00:00:00:00";
     private static final byte OPCODE_UPDATE_SOURCE = 0x03;
     private static final int UPDATE_SOURCE_FIXED_LENGTH = 6;
-    private Context mTargetContext;
-    private BluetoothAdapter mAdapter;
+
+    private final Context mTargetContext =
+            InstrumentationRegistry.getInstrumentation().getTargetContext();
+    private final BluetoothAdapter mAdapter =
+            mTargetContext.getSystemService(BluetoothManager.class).getAdapter();
+    private final BluetoothDevice mTestDevice = getTestDevice(0);
+    private final BluetoothDevice mSourceTestDevice = getTestDevice(1);
+
     private HandlerThread mHandlerThread;
     private StubBassClientStateMachine mBassClientStateMachine;
-    private BluetoothDevice mTestDevice;
-    private BluetoothDevice mSourceTestDevice;
     private BluetoothDevice mEmptyTestDevice;
-
-    @Mock private AdapterService mAdapterService;
-    @Mock private BassClientService mBassClientService;
-    @Mock private BluetoothMethodProxy mMethodProxy;
-    @Mock private MetricsLogger mMetricsLogger;
 
     @Before
     public void setUp() throws Exception {
-        mTargetContext = InstrumentationRegistry.getTargetContext();
-        BluetoothManager manager = mTargetContext.getSystemService(BluetoothManager.class);
-        assertThat(manager).isNotNull();
-        mAdapter = manager.getAdapter();
-
         mEmptyTestDevice = mAdapter.getRemoteDevice(EMPTY_BLUETOOTH_DEVICE_ADDRESS);
         assertThat(mEmptyTestDevice).isNotNull();
 
@@ -179,10 +179,6 @@ public class BassClientStateMachineTest {
                 .when(mMethodProxy)
                 .periodicAdvertisingManagerTransferSync(any(), any(), anyInt(), anyInt());
         MetricsLogger.setInstanceForTesting(mMetricsLogger);
-
-        // Get a device for testing
-        mTestDevice = TestUtils.getTestDevice(mAdapter, 0);
-        mSourceTestDevice = TestUtils.getTestDevice(mAdapter, 1);
 
         doReturn(mEmptyTestDevice)
                 .when(mAdapterService)
@@ -1586,8 +1582,7 @@ public class BassClientStateMachineTest {
         initToConnectingState();
 
         Message timeoutWithDifferentDevice =
-                mBassClientStateMachine.obtainMessage(
-                        CONNECT_TIMEOUT, mAdapter.getRemoteDevice("00:00:00:00:00:00"));
+                mBassClientStateMachine.obtainMessage(CONNECT_TIMEOUT, getTestDevice(230));
         mBassClientStateMachine.sendMessage(timeoutWithDifferentDevice);
         TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
         verify(mBassClientService, never()).sendBroadcast(any(Intent.class), anyString(), any());

@@ -28,8 +28,8 @@ import android.media.session.MediaSessionManager;
 import android.media.session.PlaybackState;
 import android.os.Looper;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.After;
@@ -83,7 +83,8 @@ public class MediaPlayerListTest {
         // controller and player below in the factory pattern will essentially replace each found
         // player with the *same* mock, giving us only one player in the end-- "testPlayer"
         mMediaSessionManager =
-                InstrumentationRegistry.getTargetContext()
+                InstrumentationRegistry.getInstrumentation()
+                        .getTargetContext()
                         .getSystemService(MediaSessionManager.class);
         PackageManager mockPackageManager = mock(PackageManager.class);
         when(mMockContext.getSystemService(Context.MEDIA_SESSION_SERVICE))
@@ -108,7 +109,9 @@ public class MediaPlayerListTest {
         // Be sure to do this setup last, after factor injections, or you risk leaking device state
         // into the tests
         mMediaPlayerList =
-                new MediaPlayerList(Looper.myLooper(), InstrumentationRegistry.getTargetContext());
+                new MediaPlayerList(
+                        Looper.myLooper(),
+                        InstrumentationRegistry.getInstrumentation().getTargetContext());
         mMediaPlayerList.init(mMediaUpdateCallback);
         mMediaPlayerList.setActivePlayer(mMediaPlayerList.addMediaPlayer(mMockController));
 
@@ -203,7 +206,7 @@ public class MediaPlayerListTest {
         // Create MediaSession with GLOBAL_PRIORITY flag.
         MediaSession session =
                 new MediaSession(
-                        InstrumentationRegistry.getTargetContext(),
+                        InstrumentationRegistry.getInstrumentation().getTargetContext(),
                         MediaPlayerListTest.class.getSimpleName());
         session.setFlags(
                 MediaSession.FLAG_EXCLUSIVE_GLOBAL_PRIORITY

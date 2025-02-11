@@ -16,31 +16,25 @@
 
 package com.android.bluetooth.bass_client;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothLeBroadcastMetadata;
 
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class PeriodicAdvertisementResultTest {
-    private static final String REMOTE_DEVICE_ADDRESS = "00:01:02:03:04:05";
     private static final String TEST_BROADCAST_NAME = "Test";
 
-    BluetoothDevice mDevice;
-
-    @Before
-    public void setUp() {
-        mDevice = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(REMOTE_DEVICE_ADDRESS);
-    }
+    private final BluetoothDevice mDevice = getTestDevice(80);
 
     @Test
     public void constructor() {

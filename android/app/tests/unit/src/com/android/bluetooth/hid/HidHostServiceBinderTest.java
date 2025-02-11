@@ -20,7 +20,6 @@ import static com.android.bluetooth.TestUtils.getTestDevice;
 
 import static org.mockito.Mockito.verify;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.platform.test.flag.junit.SetFlagsRule;
@@ -44,8 +43,7 @@ public class HidHostServiceBinderTest {
 
     @Mock private HidHostService mService;
 
-    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
-    private final BluetoothDevice mDevice = getTestDevice(mAdapter, 0);
+    private final BluetoothDevice mDevice = getTestDevice(50);
 
     private HidHostService.BluetoothHidHostBinder mBinder;
 

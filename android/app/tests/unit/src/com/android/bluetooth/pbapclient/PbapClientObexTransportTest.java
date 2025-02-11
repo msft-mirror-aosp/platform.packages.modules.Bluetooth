@@ -16,19 +16,18 @@
 
 package com.android.bluetooth.pbapclient;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 
 import androidx.test.runner.AndroidJUnit4;
-
-import com.android.bluetooth.TestUtils;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -48,7 +47,6 @@ import java.io.OutputStream;
 public class PbapClientObexTransportTest {
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
-    private BluetoothAdapter mAdapter;
     private BluetoothDevice mTestDevice;
 
     @Mock private PbapClientSocket mMockSocket;
@@ -57,8 +55,7 @@ public class PbapClientObexTransportTest {
 
     @Before
     public void setUp() throws IOException {
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
-        mTestDevice = TestUtils.getTestDevice(mAdapter, 1);
+        mTestDevice = getTestDevice(1);
 
         doReturn(mMockInputStream).when(mMockSocket).getInputStream();
         doReturn(mMockOutputStream).when(mMockSocket).getOutputStream();
