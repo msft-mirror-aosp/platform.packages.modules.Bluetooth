@@ -4860,6 +4860,11 @@ public class AdapterService extends Service {
         mAdapterStateMachine.sendMessage(AdapterState.USER_TURN_OFF);
     }
 
+    void disconnectAllAcls() {
+        Log.d(TAG, "disconnectAllAcls()");
+        mNativeInterface.disconnectAllAcls();
+    }
+
     public String getName() {
         return mAdapterProperties.getName();
     }
