@@ -23,6 +23,8 @@
 #include "os/metrics.h"
 #include "types/raw_address.h"
 
+using android::bluetooth::EventType;
+using android::bluetooth::State;
 using bluetooth::hci::Address;
 
 namespace bluetooth {
@@ -213,6 +215,36 @@ bool CountCounterMetrics(int32_t key, int64_t count) {
     return false;
   }
   return counter_metrics->Count(key, count);
+}
+
+void LogMetricHfpAgVersion(hci::Address address, uint16_t version) {
+  bluetooth::os::LogMetricBluetoothEvent(address, EventType::HFP_AG_VERSION,
+                                         bluetooth::metrics::MapHfpVersionToState(version));
+}
+
+void LogMetricHfpHfVersion(hci::Address address, uint16_t version) {
+  bluetooth::os::LogMetricBluetoothEvent(address, EventType::HFP_HF_VERSION,
+                                         bluetooth::metrics::MapHfpVersionToState(version));
+}
+
+void LogMetricHfpRfcommChannelFail(hci::Address address) {
+  bluetooth::os::LogMetricBluetoothEvent(address, EventType::HFP_SESSION,
+                                         State::HFP_RFCOMM_CHANNEL_FAIL);
+}
+
+void LogMetricHfpRfcommCollisionFail(hci::Address address) {
+  bluetooth::os::LogMetricBluetoothEvent(address, EventType::HFP_SESSION,
+                                         State::HFP_RFCOMM_COLLISION_FAIL);
+}
+
+void LogMetricHfpRfcommAgOpenFail(hci::Address address) {
+  bluetooth::os::LogMetricBluetoothEvent(address, EventType::HFP_SESSION,
+                                         State::HFP_RFCOMM_AG_OPEN_FAIL);
+}
+
+void LogMetricHfpSlcFail(hci::Address address) {
+  bluetooth::os::LogMetricBluetoothEvent(address, EventType::HFP_SESSION,
+                                         State::HFP_SLC_FAIL_CONNECTION);
 }
 
 }  // namespace shim

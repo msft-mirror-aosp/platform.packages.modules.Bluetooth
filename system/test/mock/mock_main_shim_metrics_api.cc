@@ -61,6 +61,12 @@ struct LogMetricLeConnectionLifecycle LogMetricLeConnectionLifecycle;
 struct LogMetricLeConnectionCompletion LogMetricLeConnectionCompletion;
 struct LogMetricRfcommConnectionAtClose LogMetricRfcommConnectionAtClose;
 struct LogMetricLeConnectionRejected LogMetricLeConnectionRejected;
+struct LogMetricHfpAgVersion LogMetricHfpAgVersion;
+struct LogMetricHfpHfVersion LogMetricHfpHfVersion;
+struct LogMetricHfpRfcommChannelFail LogMetricHfpRfcommChannelFail;
+struct LogMetricHfpRfcommCollisionFail LogMetricHfpRfcommCollisionFail;
+struct LogMetricHfpRfcommAgOpenFail LogMetricHfpRfcommAgOpenFail;
+struct LogMetricHfpSlcFail LogMetricHfpSlcFail;
 
 }  // namespace main_shim_metrics_api
 }  // namespace mock
@@ -233,6 +239,36 @@ void bluetooth::shim::LogMetricRfcommConnectionAtClose(
 void bluetooth::shim::LogMetricLeConnectionRejected(bluetooth::hci::Address address) {
   inc_func_call_count(__func__);
   test::mock::main_shim_metrics_api::LogMetricLeConnectionRejected(address);
+}
+
+void bluetooth::shim::LogMetricHfpAgVersion(bluetooth::hci::Address address, uint16_t version) {
+  inc_func_call_count(__func__);
+  test::mock::main_shim_metrics_api::LogMetricHfpAgVersion(address, version);
+}
+
+void bluetooth::shim::LogMetricHfpHfVersion(bluetooth::hci::Address address, uint16_t version) {
+  inc_func_call_count(__func__);
+  test::mock::main_shim_metrics_api::LogMetricHfpHfVersion(address, version);
+}
+
+void bluetooth::shim::LogMetricHfpRfcommChannelFail(bluetooth::hci::Address address) {
+  inc_func_call_count(__func__);
+  test::mock::main_shim_metrics_api::LogMetricHfpRfcommChannelFail(address);
+}
+
+void bluetooth::shim::LogMetricHfpRfcommCollisionFail(bluetooth::hci::Address address) {
+  inc_func_call_count(__func__);
+  test::mock::main_shim_metrics_api::LogMetricHfpRfcommCollisionFail(address);
+}
+
+void bluetooth::shim::LogMetricHfpRfcommAgOpenFail(bluetooth::hci::Address address) {
+  inc_func_call_count(__func__);
+  test::mock::main_shim_metrics_api::LogMetricHfpRfcommAgOpenFail(address);
+}
+
+void bluetooth::shim::LogMetricHfpSlcFail(bluetooth::hci::Address address) {
+  inc_func_call_count(__func__);
+  test::mock::main_shim_metrics_api::LogMetricHfpSlcFail(address);
 }
 
 // END mockcify generation
