@@ -130,7 +130,6 @@ cc_defaults {
         ":BluetoothHciSources",
         ":BluetoothLppOffloadSources",
         ":BluetoothMetricsSources",
-        ":BluetoothNeighborSources",
         ":BluetoothOsSources",
         ":BluetoothPacketSources",
         ":BluetoothStorageSources",

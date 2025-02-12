@@ -33,7 +33,6 @@ rust_defaults {
     rustlibs: [
         "libanyhow",
         "libbitflags",
-        "libbt_common",
         "libbytes",
         "libcxx",
         "liblog_rust",
@@ -56,6 +55,17 @@ rust_defaults {
                 "libstatslog_bt",
                 "libutils",
             ],
+            rustlibs: [
+                "libandroid_logger",
+            ],
+        },
+        host: {
+            rustlibs: [
+                "libenv_logger",
+            ],
+        },
+        darwin: {
+            enabled: false,
         },
     },
     apex_available: ["com.android.bt"],
