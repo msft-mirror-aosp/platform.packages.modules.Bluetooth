@@ -92,6 +92,7 @@ cc_test {
         "latest_android_hardware_audio_common_ndk_static",
         "latest_android_hardware_bluetooth_audio_ndk_static",
         "latest_android_media_audio_common_types_ndk_static",
+        "mts_defaults",
     ],
     include_dirs: [
         "packages/modules/Bluetooth/system",
@@ -278,6 +279,7 @@ cc_test {
         "latest_android_hardware_audio_common_ndk_static",
         "latest_android_hardware_bluetooth_audio_ndk_static",
         "latest_android_media_audio_common_types_ndk_static",
+        "mts_defaults",
     ],
     include_dirs: [
         "packages/modules/Bluetooth/system",
@@ -328,6 +330,7 @@ cc_test {
     host_supported: true,
     defaults: [
         "libbt_audio_hal_interface_test_defaults",
+        "mts_defaults",
     ],
     include_dirs: [
         "packages/modules/Bluetooth/system/audio_hal_interface",
@@ -365,6 +368,7 @@ cc_test {
     host_supported: true,
     defaults: [
         "libbt_audio_hal_interface_test_defaults",
+        "mts_defaults",
     ],
     include_dirs: [
         "packages/modules/Bluetooth/system/audio_hal_interface",
