@@ -16,13 +16,14 @@
 
 package com.android.bluetooth.pbapclient;
 
+import static java.util.Objects.requireNonNull;
+
 import android.accounts.Account;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothUuid;
 import android.bluetooth.SdpPseRecord;
 import android.content.ComponentName;
-import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.ParcelUuid;
@@ -42,7 +43,6 @@ import com.android.internal.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 /** Provides Bluetooth Phone Book Access Profile Client profile. */
@@ -65,11 +65,11 @@ public class PbapClientService extends ProfileService {
     private static PbapClientService sPbapClientService;
     private final PbapClientContactsStorage mPbapClientContactsStorage;
     private final PbapClientAccountManager mPbapClientAccountManager;
-    private int mSdpHandle = -1;
-    private DatabaseManager mDatabaseManager;
-    private Handler mHandler;
-
+    private final DatabaseManager mDatabaseManager;
     private final Map<BluetoothDevice, PbapClientStateMachine> mPbapClientStateMachineMap;
+    private final Handler mHandler;
+
+    private int mSdpHandle = -1;
 
     class PbapClientStateMachineCallback implements PbapClientStateMachine.Callback {
         private final BluetoothDevice mDevice;
@@ -107,33 +107,58 @@ public class PbapClientService extends ProfileService {
         }
     }
 
-    public PbapClientService(Context context) {
-        super(context);
+    public PbapClientService(AdapterService adapterService) {
+        super(requireNonNull(adapterService));
+        mDatabaseManager = requireNonNull(adapterService.getDatabase());
+        mHandler = new Handler(Looper.getMainLooper());
+
         if (Flags.pbapClientStorageRefactor()) {
-            mPbapClientContactsStorage = new PbapClientContactsStorage(context);
+            mPbapClientContactsStorage = new PbapClientContactsStorage(adapterService);
             mPbapClientAccountManager = null;
-            mPbapClientStateMachineMap =
-                    new ConcurrentHashMap<BluetoothDevice, PbapClientStateMachine>();
+            mPbapClientStateMachineMap = new ConcurrentHashMap<>();
+            mPbapClientContactsStorage.start();
         } else {
             mPbapClientAccountManager =
-                    new PbapClientAccountManager(context, new PbapClientAccountManagerCallback());
+                    new PbapClientAccountManager(
+                            adapterService, new PbapClientAccountManagerCallback());
             mPbapClientContactsStorage = null;
             mPbapClientStateMachineMap = null;
+            mPbapClientAccountManager.start();
         }
+
+        setComponentAvailable(AUTHENTICATOR_SERVICE, true);
+
+        registerSdpRecord();
+        setPbapClientService(this);
     }
 
     @VisibleForTesting
     PbapClientService(
-            Context context,
+            AdapterService adapterService,
             PbapClientContactsStorage storage,
             Map<BluetoothDevice, PbapClientStateMachine> deviceMap) {
-        super(context);
+        super(requireNonNull(adapterService));
+        mDatabaseManager = requireNonNull(adapterService.getDatabase());
+        mHandler = new Handler(Looper.getMainLooper());
+
         mPbapClientContactsStorage = storage;
         mPbapClientStateMachineMap = deviceMap;
 
         // For compatibility with tests while we phase the old state machine out
         mPbapClientAccountManager =
-                new PbapClientAccountManager(context, new PbapClientAccountManagerCallback());
+                new PbapClientAccountManager(
+                        adapterService, new PbapClientAccountManagerCallback());
+
+        setComponentAvailable(AUTHENTICATOR_SERVICE, true);
+
+        if (Flags.pbapClientStorageRefactor()) {
+            mPbapClientContactsStorage.start();
+        } else {
+            mPbapClientAccountManager.start();
+        }
+
+        registerSdpRecord();
+        setPbapClientService(this);
     }
 
     public static boolean isEnabled() {
@@ -146,38 +171,12 @@ public class PbapClientService extends ProfileService {
     }
 
     @Override
-    public void start() {
-        Log.v(TAG, "onStart");
-
-        mDatabaseManager =
-                Objects.requireNonNull(
-                        AdapterService.getAdapterService().getDatabase(),
-                        "DatabaseManager cannot be null when PbapClientService starts");
-
-        setComponentAvailable(AUTHENTICATOR_SERVICE, true);
-
-        mHandler = new Handler(Looper.getMainLooper());
-
-        if (Flags.pbapClientStorageRefactor()) {
-            mPbapClientContactsStorage.start();
-        } else {
-            mPbapClientAccountManager.start();
-        }
-
-        registerSdpRecord();
-        setPbapClientService(this);
-    }
-
-    @Override
     public void stop() {
         setPbapClientService(null);
         cleanUpSdpRecord();
 
         // Unregister SDP event handler and stop all queued messages.
-        if (mHandler != null) {
-            mHandler.removeCallbacksAndMessages(null);
-            mHandler = null;
-        }
+        mHandler.removeCallbacksAndMessages(null);
 
         if (Flags.pbapClientStorageRefactor()) {
             // Try to bring down all the connections gracefully
@@ -708,16 +707,25 @@ public class PbapClientService extends ProfileService {
     // *********************************************************************************************
 
     @VisibleForTesting
-    PbapClientService(Context context, PbapClientAccountManager accountManager) {
-        super(context);
+    PbapClientService(AdapterService adapterService, PbapClientAccountManager accountManager) {
+        super(requireNonNull(adapterService));
+        mDatabaseManager = requireNonNull(adapterService.getDatabase());
+        mHandler = new Handler(Looper.getMainLooper());
 
         if (Flags.pbapClientStorageRefactor()) {
-            Log.w(TAG, "This constructor should not be used in this configuration.");
+            throw new IllegalStateException("pbapClientStorageRefactor: Invalid constructor call");
         }
 
-        mPbapClientAccountManager = accountManager;
+        mPbapClientAccountManager = requireNonNull(accountManager);
         mPbapClientContactsStorage = null;
         mPbapClientStateMachineMap = null;
+
+        setComponentAvailable(AUTHENTICATOR_SERVICE, true);
+
+        mPbapClientAccountManager.start();
+
+        registerSdpRecord();
+        setPbapClientService(this);
     }
 
     void cleanupDevice(BluetoothDevice device) {
