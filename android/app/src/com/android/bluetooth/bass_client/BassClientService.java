@@ -3427,12 +3427,12 @@ public class BassClientService extends ProfileService {
                     validateParametersForSourceOperation(stateMachine, device, deviceSourceId);
             if (statusCode != BluetoothStatusCodes.SUCCESS) {
                 removeSinkMetadata(device);
-                mCallbacks.notifySourceRemoveFailed(device, sourceId, statusCode);
+                mCallbacks.notifySourceRemoveFailed(device, deviceSourceId, statusCode);
                 continue;
             }
 
             BluetoothLeBroadcastMetadata metaData =
-                    stateMachine.getCurrentBroadcastMetadata(sourceId);
+                    stateMachine.getCurrentBroadcastMetadata(deviceSourceId);
 
             /* Removes metadata for sink device if not paused */
             if (!mPausedBroadcastSinks.contains(device)) {
@@ -3447,12 +3447,12 @@ public class BassClientService extends ProfileService {
                 stopBigMonitoring(metaData.getBroadcastId(), true);
             }
 
-            if (stateMachine.isSyncedToTheSource(sourceId)) {
+            if (stateMachine.isSyncedToTheSource(deviceSourceId)) {
                 sEventLogger.logd(
                         TAG,
                         "Remove Broadcast Source(Force lost PA sync): "
                                 + ("device: " + device)
-                                + (", sourceId: " + sourceId)
+                                + (", sourceId: " + deviceSourceId)
                                 + (", broadcastId: "
                                         + ((metaData == null)
                                                 ? BassConstants.INVALID_BROADCAST_ID
@@ -3463,7 +3463,7 @@ public class BassClientService extends ProfileService {
                 log("Force source to lost PA sync");
                 Message message =
                         stateMachine.obtainMessage(BassClientStateMachine.UPDATE_BCAST_SOURCE);
-                message.arg1 = sourceId;
+                message.arg1 = deviceSourceId;
                 message.arg2 = BassConstants.PA_SYNC_DO_NOT_SYNC;
                 /* Pending remove set. Remove source once not synchronized to PA */
                 /* MetaData can be null if source is from remote's receive state */
@@ -3473,7 +3473,8 @@ public class BassClientService extends ProfileService {
             }
 
             sEventLogger.logd(
-                    TAG, "Remove Broadcast Source: device: " + device + ", sourceId: " + sourceId);
+                    TAG,
+                    "Remove Broadcast Source: device: " + device + ", sourceId: " + deviceSourceId);
 
             Message message =
                     stateMachine.obtainMessage(BassClientStateMachine.REMOVE_BCAST_SOURCE);
