@@ -2451,6 +2451,11 @@ public class BassClientService extends ProfileService {
                     int failsCounter = mSyncFailureCounter.getOrDefault(broadcastId, 0) + 1;
                     mSyncFailureCounter.put(broadcastId, failsCounter);
                 }
+
+                // It has to be cleared before calling addSelectSourceRequest to properly add it as
+                // it is a duplicate
+                clearAllDataForSyncHandle(BassConstants.PENDING_SYNC_HANDLE);
+
                 if (isSinkUnintentionalPauseType(broadcastId)) {
                     if (!mTimeoutHandler.isStarted(
                             broadcastId, MESSAGE_BROADCAST_MONITOR_TIMEOUT)) {
@@ -2468,7 +2473,7 @@ public class BassClientService extends ProfileService {
                         }
                     }
                 }
-                clearAllDataForSyncHandle(BassConstants.PENDING_SYNC_HANDLE);
+
                 handleSelectSourceRequest();
                 return;
             }
@@ -2940,28 +2945,35 @@ public class BassClientService extends ProfileService {
                         + broadcastId
                         + ", hasPriority: "
                         + hasPriority);
-        mTimeoutHandler.stop(broadcastId, MESSAGE_SYNC_LOST_TIMEOUT);
-        ScanResult scanRes = getCachedBroadcast(broadcastId);
-        if (scanRes != null) {
-            ScanRecord scanRecord = scanRes.getScanRecord();
-            if (scanRecord == null) {
-                log("addSelectSourceRequest: ScanRecord empty");
-                return;
-            }
 
-            synchronized (mSourceSyncRequestsQueue) {
-                if (!mSyncFailureCounter.containsKey(broadcastId)) {
-                    mSyncFailureCounter.put(broadcastId, 0);
-                }
-                mSourceSyncRequestsQueue.add(
-                        new SourceSyncRequest(
-                                scanRes, hasPriority, mSyncFailureCounter.get(broadcastId)));
-            }
-
-            handleSelectSourceRequest();
-        } else {
-            log("addSelectSourceRequest: ScanResult empty");
+        if (isAddedToSelectSourceRequest(broadcastId, hasPriority)) {
+            log("addSelectSourceRequest: Already added");
+            return;
         }
+
+        ScanResult scanRes = getCachedBroadcast(broadcastId);
+        if (scanRes == null) {
+            log("addSelectSourceRequest: ScanResult empty");
+            return;
+        }
+
+        ScanRecord scanRecord = scanRes.getScanRecord();
+        if (scanRecord == null) {
+            log("addSelectSourceRequest: ScanRecord empty");
+            return;
+        }
+
+        mTimeoutHandler.stop(broadcastId, MESSAGE_SYNC_LOST_TIMEOUT);
+        synchronized (mSourceSyncRequestsQueue) {
+            if (!mSyncFailureCounter.containsKey(broadcastId)) {
+                mSyncFailureCounter.put(broadcastId, 0);
+            }
+            mSourceSyncRequestsQueue.add(
+                    new SourceSyncRequest(
+                            scanRes, hasPriority, mSyncFailureCounter.get(broadcastId)));
+        }
+
+        handleSelectSourceRequest();
     }
 
     @SuppressLint("AndroidFrameworkRequiresPermission") // TODO: b/350563786 - Fix BASS annotation
