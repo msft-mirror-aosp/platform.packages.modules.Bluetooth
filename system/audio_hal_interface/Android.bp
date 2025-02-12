@@ -271,6 +271,7 @@ cc_defaults {
 // Bluetooth Audio client interface library unit tests
 cc_test {
     name: "bluetooth-test-audio-hal-aidl-leaudio-utils",
+    test_suites: ["general-tests"],
     host_supported: true,
     defaults: [
         "fluoride_defaults",
@@ -323,6 +324,7 @@ cc_test {
 // Bluetooth Audio client interface library unit tests
 cc_test {
     name: "bluetooth-test-audio-hal-le-audio-software",
+    test_suites: ["general-tests"],
     host_supported: true,
     defaults: [
         "libbt_audio_hal_interface_test_defaults",
@@ -359,6 +361,7 @@ cc_test {
 // HFP client interface library unit tests
 cc_test {
     name: "bluetooth-test-audio-hal-hfp-client-interface",
+    test_suites: ["general-tests"],
     host_supported: true,
     defaults: [
         "libbt_audio_hal_interface_test_defaults",
