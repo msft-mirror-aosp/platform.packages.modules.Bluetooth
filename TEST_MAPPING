@@ -18,9 +18,6 @@
     //  "name": "bluetooth-test-audio-hal-interface"
     //},
     {
-      "name": "net_test_audio_hearing_aid_hw"
-    },
-    {
       "name": "net_test_bluetooth"
     },
     {
@@ -253,9 +250,6 @@
     //  "name": "bluetooth-test-audio-hal-interface"
     //},
     {
-      "name": "net_test_audio_hearing_aid_hw"
-    },
-    {
       "name": "net_test_bluetooth"
     },
     {
@@ -483,9 +477,6 @@
     //{
     //  "name": "bluetooth-test-audio-hal-interface"
     //},
-    {
-      "name": "net_test_audio_hearing_aid_hw"
-    },
     {
       "name": "net_test_bluetooth"
     },
