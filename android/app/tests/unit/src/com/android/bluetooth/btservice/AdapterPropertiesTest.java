@@ -28,8 +28,8 @@ import android.bluetooth.BluetoothManager;
 import android.content.Context;
 import android.os.HandlerThread;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.MediumTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.Utils;
@@ -62,7 +62,7 @@ public class AdapterPropertiesTest {
 
     @Before
     public void setUp() throws Exception {
-        mTargetContext = InstrumentationRegistry.getTargetContext();
+        mTargetContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
 
         doReturn(mNativeInterface).when(mAdapterService).getNative();
         mHandlerThread = new HandlerThread("RemoteDevicesTestHandlerThread");
@@ -89,7 +89,10 @@ public class AdapterPropertiesTest {
 
         doReturn(mHandlerThread.getLooper()).when(mAdapterService).getMainLooper();
         when(mAdapterService.getResources())
-                .thenReturn(InstrumentationRegistry.getTargetContext().getResources());
+                .thenReturn(
+                        InstrumentationRegistry.getInstrumentation()
+                                .getTargetContext()
+                                .getResources());
 
         // Must be called to initialize services
         mAdapterProperties =

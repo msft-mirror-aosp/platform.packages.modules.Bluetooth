@@ -30,8 +30,8 @@ import android.os.IBinder;
 import android.platform.test.flag.junit.FlagsParameterization;
 import android.platform.test.flag.junit.SetFlagsRule;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.bluetooth.TestLooper;
 import com.android.bluetooth.btservice.AdapterService;
@@ -111,7 +111,9 @@ public class AdvertiseManagerTest {
                 maxExtAdvEvents,
                 0,
                 mCallback,
-                InstrumentationRegistry.getTargetContext().getAttributionSource());
+                InstrumentationRegistry.getInstrumentation()
+                        .getTargetContext()
+                        .getAttributionSource());
 
         mAdvertiserId = mAdvertiseManager.mTempRegistrationId;
     }

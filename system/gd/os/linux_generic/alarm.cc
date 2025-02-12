@@ -96,6 +96,11 @@ void Alarm::on_fire() {
   log::assert_that(bytes_read == static_cast<ssize_t>(sizeof(uint64_t)),
                    "assert failed: bytes_read == static_cast<ssize_t>(sizeof(uint64_t))");
   log::assert_that(times_invoked == 1u, "Invoked number of times:{} fd:{}", times_invoked, fd_);
+
+  if (task.is_null()) {
+    log::warn("task is null.");
+    return;
+  }
   std::move(task).Run();
 }
 

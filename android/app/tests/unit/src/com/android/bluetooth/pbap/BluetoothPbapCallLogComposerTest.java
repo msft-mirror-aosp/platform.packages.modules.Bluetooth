@@ -34,8 +34,8 @@ import android.net.Uri;
 import android.provider.CallLog;
 import android.provider.ContactsContract;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.BluetoothMethodProxy;
@@ -81,7 +81,9 @@ public class BluetoothPbapCallLogComposerTest {
         when(mMockCursor.getCount()).thenReturn(validRowCount);
         when(mMockCursor.moveToFirst()).thenReturn(true);
 
-        mComposer = new BluetoothPbapCallLogComposer(InstrumentationRegistry.getTargetContext());
+        mComposer =
+                new BluetoothPbapCallLogComposer(
+                        InstrumentationRegistry.getInstrumentation().getTargetContext());
     }
 
     @After

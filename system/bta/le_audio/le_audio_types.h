@@ -1248,12 +1248,13 @@ struct AseConfiguration {
   types::DataPathConfiguration data_path_configuration;
   CodecConfigSetting codec;
   QosConfigSetting qos;
+  types::LeAudioLtvMap metadata;
 
   bool operator!=(const AseConfiguration& other) { return !(*this == other); }
 
   bool operator==(const AseConfiguration& other) const {
     return (data_path_configuration == other.data_path_configuration) && (codec == other.codec) &&
-           (qos == other.qos);
+           (qos == other.qos) && (metadata == other.metadata);
   }
 };
 
@@ -1300,11 +1301,21 @@ struct stream_map_info {
   uint16_t stream_handle;
   uint32_t audio_channel_allocation;
   bool is_stream_active;
+
+  /* The non-legacy codec extensibility feature of a stream map allows us to update the stream
+   * parameters more granularly for each CIS handle
+   */
+  types::CodecConfigSetting codec_config;
+  uint8_t target_latency;
+  uint8_t target_phy;
+  types::LeAudioLtvMap metadata;
+  RawAddress address;
+  uint8_t address_type;
 };
 
 struct stream_config {
   std::vector<stream_map_info> stream_map;
-  /* For now we have always same frequency for all the channels */
+  /* For a legacy reason we have always same frequency for all the channels */
   uint8_t bits_per_sample;
   uint32_t sampling_frequency_hz;
   uint32_t frame_duration_us;

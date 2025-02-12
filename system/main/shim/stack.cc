@@ -68,6 +68,7 @@ namespace shim {
 struct Stack::impl {
   Acl* acl_ = nullptr;
   metrics::CounterMetrics* counter_metrics_ = nullptr;
+  storage::StorageModule* storage_ = nullptr;
 };
 
 Stack::Stack() { pimpl_ = std::make_shared<Stack::impl>(); }
@@ -78,74 +79,77 @@ Stack* Stack::GetInstance() {
 }
 
 void Stack::StartEverything() {
-  std::lock_guard<std::recursive_mutex> lock(mutex_);
-  log::assert_that(!is_running_, "Gd stack already running");
-  log::info("Starting Gd stack");
   ModuleList modules;
+  {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    log::assert_that(!is_running_, "Gd stack already running");
+    log::info("Starting Gd stack");
 
-  stack_thread_ = new os::Thread("gd_stack_thread", os::Thread::Priority::REAL_TIME);
-  stack_handler_ = new os::Handler(stack_thread_);
+    stack_thread_ = new os::Thread("gd_stack_thread", os::Thread::Priority::REAL_TIME);
+    stack_handler_ = new os::Handler(stack_thread_);
 
-  pimpl_->counter_metrics_ = new metrics::CounterMetrics(new Handler(stack_thread_));
+    pimpl_->counter_metrics_ = new metrics::CounterMetrics(new Handler(stack_thread_));
+    pimpl_->storage_ = new storage::StorageModule(new Handler(stack_thread_));
 
 #if TARGET_FLOSS
-  modules.add<sysprops::SyspropsModule>();
+    modules.add<sysprops::SyspropsModule>();
 #else
-  if (com::android::bluetooth::flags::socket_settings_api()) {  // Added with aosp/3286716
-    modules.add<lpp::LppOffloadManager>();
-  }
+    if (com::android::bluetooth::flags::socket_settings_api()) {  // Added with aosp/3286716
+      modules.add<lpp::LppOffloadManager>();
+    }
 #endif
-  modules.add<hal::HciHal>();
-  modules.add<hci::HciLayer>();
-  modules.add<storage::StorageModule>();
+    modules.add<hal::HciHal>();
+    modules.add<hci::HciLayer>();
 
-  modules.add<hci::Controller>();
-  modules.add<hci::acl_manager::AclScheduler>();
-  modules.add<hci::AclManager>();
-  modules.add<hci::RemoteNameRequestModule>();
-  modules.add<hci::LeAdvertisingManager>();
-  modules.add<hci::MsftExtensionManager>();
-  modules.add<hci::LeScanningManager>();
-  modules.add<hci::DistanceMeasurementManager>();
+    modules.add<hci::Controller>();
+    modules.add<hci::acl_manager::AclScheduler>();
+    modules.add<hci::AclManager>();
+    modules.add<hci::RemoteNameRequestModule>();
+    modules.add<hci::LeAdvertisingManager>();
+    modules.add<hci::MsftExtensionManager>();
+    modules.add<hci::LeScanningManager>();
+    modules.add<hci::DistanceMeasurementManager>();
 
-  management_thread_ = new Thread("management_thread", Thread::Priority::NORMAL);
-  management_handler_ = new Handler(management_thread_);
+    management_thread_ = new Thread("management_thread", Thread::Priority::NORMAL);
+    management_handler_ = new Handler(management_thread_);
 
-  WakelockManager::Get().Acquire();
+    WakelockManager::Get().Acquire();
+  }
 
   std::promise<void> promise;
   auto future = promise.get_future();
   management_handler_->Post(common::BindOnce(&Stack::handle_start_up, common::Unretained(this),
                                              &modules, std::move(promise)));
-
+  is_running_ = true;
   auto init_status = future.wait_for(
           std::chrono::milliseconds(get_gd_stack_timeout_ms(/* is_start = */ true)));
 
-  WakelockManager::Get().Release();
+  {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    WakelockManager::Get().Release();
 
-  log::info("init_status == {}", int(init_status));
+    log::info("init_status == {}", int(init_status));
 
-  log::assert_that(init_status == std::future_status::ready, "Can't start stack, last instance: {}",
-                   registry_.last_instance_);
+    log::assert_that(init_status == std::future_status::ready,
+                     "Can't start stack, last instance: {}", registry_.last_instance_);
 
-  log::info("Successfully toggled Gd stack");
+    log::info("Successfully toggled Gd stack");
 
-  is_running_ = true;
+    // Make sure the leaf modules are started
+    log::assert_that(GetInstance<hal::HciHal>() != nullptr,
+                     "assert failed: GetInstance<storage::StorageModule>() != nullptr");
+    if (IsStarted<hci::Controller>()) {
+      pimpl_->acl_ =
+              new Acl(stack_handler_, GetAclInterface(), GetController()->GetLeResolvingListSize());
+    } else {
+      log::error("Unable to create shim ACL layer as Controller has not started");
+    }
 
-  // Make sure the leaf modules are started
-  log::assert_that(GetInstance<storage::StorageModule>() != nullptr,
-                   "assert failed: GetInstance<storage::StorageModule>() != nullptr");
-  if (IsStarted<hci::Controller>()) {
-    pimpl_->acl_ =
-            new Acl(stack_handler_, GetAclInterface(), GetController()->GetLeResolvingListSize());
-  } else {
-    log::error("Unable to create shim ACL layer as Controller has not started");
+    bluetooth::shim::hci_on_reset_complete();
+    bluetooth::shim::init_advertising_manager();
+    bluetooth::shim::init_scanning_manager();
+    bluetooth::shim::init_distance_measurement_manager();
   }
-
-  bluetooth::shim::hci_on_reset_complete();
-  bluetooth::shim::init_advertising_manager();
-  bluetooth::shim::init_scanning_manager();
-  bluetooth::shim::init_distance_measurement_manager();
 }
 
 void Stack::Stop() {
@@ -213,6 +217,12 @@ metrics::CounterMetrics* Stack::GetCounterMetrics() const {
   return pimpl_->counter_metrics_;
 }
 
+storage::StorageModule* Stack::GetStorage() const {
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
+  log::assert_that(is_running_, "assert failed: is_running_");
+  return pimpl_->storage_;
+}
+
 os::Handler* Stack::GetHandler() {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
   log::assert_that(is_running_, "assert failed: is_running_");
@@ -238,12 +248,15 @@ void Stack::Dump(int fd, std::promise<void> promise) const {
 
 void Stack::handle_start_up(ModuleList* modules, std::promise<void> promise) {
   pimpl_->counter_metrics_->Start();
+  pimpl_->storage_->Start();
   registry_.Start(modules, stack_thread_);
   promise.set_value();
 }
 
 void Stack::handle_shut_down(std::promise<void> promise) {
   registry_.StopAll();
+  pimpl_->storage_->Stop();
+  pimpl_->counter_metrics_->Stop();
   promise.set_value();
 }
 

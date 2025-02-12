@@ -16,12 +16,14 @@
 
 package com.android.bluetooth.gatt;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothManager;
 import android.bluetooth.le.DistanceMeasurementMethod;
 import android.bluetooth.le.DistanceMeasurementParams;
 import android.bluetooth.le.IDistanceMeasurementCallback;
@@ -29,6 +31,7 @@ import android.content.AttributionSource;
 import android.os.ParcelUuid;
 
 import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.btservice.AdapterService;
@@ -54,7 +57,11 @@ public class DistanceMeasurementBinderTest {
     @Mock private AdapterService mAdapterService;
 
     private final AttributionSource mAttributionSource =
-            BluetoothAdapter.getDefaultAdapter().getAttributionSource();
+            InstrumentationRegistry.getInstrumentation()
+                    .getTargetContext()
+                    .getSystemService(BluetoothManager.class)
+                    .getAdapter()
+                    .getAttributionSource();
 
     private DistanceMeasurementBinder mBinder;
 
@@ -74,8 +81,7 @@ public class DistanceMeasurementBinderTest {
     @Test
     public void startDistanceMeasurement() {
         UUID uuid = UUID.randomUUID();
-        BluetoothDevice device =
-                BluetoothAdapter.getDefaultAdapter().getRemoteDevice("00:01:02:03:04:05");
+        BluetoothDevice device = getTestDevice(3);
         DistanceMeasurementParams params =
                 new DistanceMeasurementParams.Builder(device)
                         .setDurationSeconds(123)
@@ -90,8 +96,7 @@ public class DistanceMeasurementBinderTest {
     @Test
     public void stopDistanceMeasurement() {
         UUID uuid = UUID.randomUUID();
-        BluetoothDevice device =
-                BluetoothAdapter.getDefaultAdapter().getRemoteDevice("00:01:02:03:04:05");
+        BluetoothDevice device = getTestDevice(3);
         int method = DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_RSSI;
         mBinder.stopDistanceMeasurement(new ParcelUuid(uuid), device, method, mAttributionSource);
         verify(mDistanceMeasurementManager).stopDistanceMeasurement(uuid, device, method, false);

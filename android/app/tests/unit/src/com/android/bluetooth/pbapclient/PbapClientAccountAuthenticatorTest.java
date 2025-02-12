@@ -26,8 +26,8 @@ import android.accounts.AccountManager;
 import android.content.Context;
 import android.os.Bundle;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.Before;
@@ -48,7 +48,7 @@ public class PbapClientAccountAuthenticatorTest {
 
     @Before
     public void setUp() throws Exception {
-        mTargetContext = InstrumentationRegistry.getTargetContext();
+        mTargetContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
         mAuthenticator = new PbapClientAccountAuthenticator(mTargetContext);
     }
 

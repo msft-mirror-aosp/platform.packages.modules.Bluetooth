@@ -28,6 +28,7 @@ import static android.content.pm.PackageManager.FEATURE_WATCH;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
 import static com.android.bluetooth.hfpclient.HeadsetClientStateMachine.AT_OK;
 import static com.android.bluetooth.hfpclient.HeadsetClientStateMachine.ENTER_PRIVATE_MODE;
 import static com.android.bluetooth.hfpclient.HeadsetClientStateMachine.EXPLICIT_CALL_TRANSFER;
@@ -44,10 +45,8 @@ import android.bluetooth.BluetoothAssignedNumbers;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothHeadsetClient;
 import android.bluetooth.BluetoothHeadsetClientCall;
-import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothSinkAudioPolicy;
 import android.bluetooth.BluetoothStatusCodes;
-import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
@@ -59,13 +58,11 @@ import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.util.Pair;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.R;
 import com.android.bluetooth.TestLooper;
-import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.RemoteDevices;
 import com.android.bluetooth.flags.Flags;
@@ -91,10 +88,7 @@ import java.util.Set;
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class HeadsetClientStateMachineTest {
-    private final Context mTargetContext = InstrumentationRegistry.getTargetContext();
-    private final BluetoothAdapter mAdapter =
-            mTargetContext.getSystemService(BluetoothManager.class).getAdapter();
-    private final BluetoothDevice mTestDevice = TestUtils.getTestDevice(mAdapter, 42);
+    private final BluetoothDevice mTestDevice = getTestDevice(42);
 
     private TestHeadsetClientStateMachine mHeadsetClientStateMachine;
     private InOrder mInOrder;
@@ -269,8 +263,7 @@ public class HeadsetClientStateMachineTest {
         // False on incorrect BluetoothDevice
         assertThat(
                         mHeadsetClientStateMachine.processAndroidSlcCommand(
-                                "+ANDROID: (SINKAUDIOPOLICY)",
-                                mAdapter.getRemoteDevice("05:04:01:02:03:00")))
+                                "+ANDROID: (SINKAUDIOPOLICY)", getTestDevice(123)))
                 .isFalse();
     }
 

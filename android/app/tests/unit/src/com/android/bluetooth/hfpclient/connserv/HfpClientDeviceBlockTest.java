@@ -16,11 +16,12 @@
 
 package com.android.bluetooth.hfpclient;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.*;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.Context;
 import android.content.res.Resources;
@@ -44,11 +45,6 @@ import org.mockito.junit.MockitoRule;
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class HfpClientDeviceBlockTest {
-    private static final String TEST_DEVICE_ADDRESS = "00:11:22:33:44:55";
-    private static final String TEST_NUMBER = "000-111-2222";
-    private static final String KEY_SCO_STATE = "com.android.bluetooth.hfpclient.SCO_STATE";
-    private static final String TEST_PACKAGE = "test";
-
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
     @Mock private HeadsetClientService mHeadsetClientService;
@@ -58,12 +54,16 @@ public class HfpClientDeviceBlockTest {
     @Mock private Resources mResources;
     @Mock private TelecomManager mTelecomManager;
 
+    private static final String TEST_NUMBER = "000-111-2222";
+    private static final String KEY_SCO_STATE = "com.android.bluetooth.hfpclient.SCO_STATE";
+    private static final String TEST_PACKAGE = "test";
+
+    private final BluetoothDevice mDevice = getTestDevice(54);
+
     private HfpClientDeviceBlock mHfpClientDeviceBlock;
-    private BluetoothDevice mBluetoothDevice;
 
     @Before
     public void setUp() {
-
         // HfpClientConnectionService.createAccount is static and can't be mocked, so the
         // application context and resources must be mocked to avoid NPE when creating an
         // HfpClientDeviceBlock for testing.
@@ -79,9 +79,6 @@ public class HfpClientDeviceBlockTest {
         when(mConnServ.getSystemServiceName(TelecomManager.class))
                 .thenReturn(Context.TELECOM_SERVICE);
 
-        mBluetoothDevice =
-                BluetoothAdapter.getDefaultAdapter().getRemoteDevice(TEST_DEVICE_ADDRESS);
-
         when(mHeadsetClientService.isAvailable()).thenReturn(true);
         HeadsetClientService.setHeadsetClientService(mHeadsetClientService);
     }
@@ -90,7 +87,7 @@ public class HfpClientDeviceBlockTest {
     public void testCreateOutgoingConnection_scoStateIsSet() {
         setUpCall(
                 new HfpClientCall(
-                        mBluetoothDevice,
+                        mDevice,
                         /* id= */ 0,
                         HfpClientCall.CALL_STATE_ACTIVE,
                         TEST_NUMBER,
@@ -109,7 +106,7 @@ public class HfpClientDeviceBlockTest {
     public void testOnAudioStateChanged() {
         setUpCall(
                 new HfpClientCall(
-                        mBluetoothDevice,
+                        mDevice,
                         /* id= */ 0,
                         HfpClientCall.CALL_STATE_ACTIVE,
                         TEST_NUMBER,
@@ -135,7 +132,7 @@ public class HfpClientDeviceBlockTest {
     public void testHandleMultiPartyCall_scoStateIsSetOnConference() {
         HfpClientCall call =
                 new HfpClientCall(
-                        mBluetoothDevice,
+                        mDevice,
                         /* id= */ 0,
                         HfpClientCall.CALL_STATE_ACTIVE,
                         TEST_NUMBER,
@@ -158,14 +155,13 @@ public class HfpClientDeviceBlockTest {
     }
 
     private void setUpCall(HfpClientCall call) {
-        when(mMockServiceInterface.dial(mBluetoothDevice, TEST_NUMBER)).thenReturn(call);
+        when(mMockServiceInterface.dial(mDevice, TEST_NUMBER)).thenReturn(call);
     }
 
     private HfpClientConnection createOutgoingConnectionWithScoState(int scoState) {
-        when(mHeadsetClientService.getAudioState(mBluetoothDevice)).thenReturn(scoState);
+        when(mHeadsetClientService.getAudioState(mDevice)).thenReturn(scoState);
         doCallRealMethod().when(mConnServ).createAccount(any());
-        mHfpClientDeviceBlock =
-                new HfpClientDeviceBlock(mBluetoothDevice, mConnServ, mMockServiceInterface);
+        mHfpClientDeviceBlock = new HfpClientDeviceBlock(mDevice, mConnServ, mMockServiceInterface);
         return mHfpClientDeviceBlock.onCreateOutgoingConnection(
                 Uri.fromParts(PhoneAccount.SCHEME_TEL, TEST_NUMBER, /* fragment= */ null));
     }

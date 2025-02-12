@@ -17,6 +17,7 @@
 
 package com.android.bluetooth.tbs;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
@@ -34,7 +35,6 @@ import androidx.test.filters.MediumTest;
 import androidx.test.rule.ServiceTestRule;
 import androidx.test.runner.AndroidJUnit4;
 
-import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 
 import com.google.common.primitives.Bytes;
@@ -69,9 +69,8 @@ public class TbsGattTest {
     @Mock private TbsService mService;
     @Captor private ArgumentCaptor<BluetoothGattService> mGattServiceCaptor;
 
-    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
-    private final BluetoothDevice mFirstDevice = TestUtils.getTestDevice(mAdapter, 0);
-    private final BluetoothDevice mSecondDevice = TestUtils.getTestDevice(mAdapter, 1);
+    private final BluetoothDevice mFirstDevice = getTestDevice(0);
+    private final BluetoothDevice mSecondDevice = getTestDevice(1);
 
     private Integer mCurrentCcid;
     private String mCurrentUci;

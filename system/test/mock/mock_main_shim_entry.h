@@ -22,6 +22,7 @@
 #include "hci/hci_interface.h"
 #include "hci/le_advertising_manager_mock.h"
 #include "hci/le_scanning_manager_mock.h"
+#include "storage/storage_module.h"
 
 namespace bluetooth {
 namespace hci {
@@ -34,6 +35,7 @@ extern os::Handler* mock_gd_shim_handler_;
 extern MockLeAdvertisingManager* mock_le_advertising_manager_;
 extern MockLeScanningManager* mock_le_scanning_manager_;
 extern MockDistanceMeasurementManager* mock_distance_measurement_manager_;
+extern storage::StorageModule* mock_storage_;
 
 }  // namespace testing
 }  // namespace hci

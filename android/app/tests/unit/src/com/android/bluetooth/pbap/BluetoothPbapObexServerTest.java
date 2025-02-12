@@ -54,8 +54,8 @@ import static org.mockito.Mockito.when;
 import android.os.Handler;
 import android.os.UserManager;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.BluetoothMethodProxy;
@@ -114,7 +114,7 @@ public class BluetoothPbapObexServerTest {
         mServer =
                 new BluetoothPbapObexServer(
                         mMockHandler,
-                        InstrumentationRegistry.getTargetContext(),
+                        InstrumentationRegistry.getInstrumentation().getTargetContext(),
                         mMockStateMachine);
     }
 

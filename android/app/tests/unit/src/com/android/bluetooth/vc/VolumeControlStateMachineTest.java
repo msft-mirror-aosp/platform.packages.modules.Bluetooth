@@ -28,6 +28,7 @@ import static android.bluetooth.BluetoothVolumeControl.ACTION_CONNECTION_STATE_C
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
 import static com.android.bluetooth.vc.VolumeControlStateMachine.MESSAGE_CONNECT;
 import static com.android.bluetooth.vc.VolumeControlStateMachine.MESSAGE_CONNECT_TIMEOUT;
 import static com.android.bluetooth.vc.VolumeControlStateMachine.MESSAGE_DISCONNECT;
@@ -43,7 +44,6 @@ import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.Intent;
 
@@ -51,7 +51,6 @@ import androidx.test.filters.MediumTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestLooper;
-import com.android.bluetooth.TestUtils;
 
 import org.hamcrest.Matcher;
 import org.hamcrest.core.AllOf;
@@ -73,8 +72,7 @@ public class VolumeControlStateMachineTest {
     @Mock private VolumeControlService mService;
     @Mock private VolumeControlNativeInterface mNativeInterface;
 
-    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
-    private final BluetoothDevice mDevice = TestUtils.getTestDevice(mAdapter, 39);
+    private final BluetoothDevice mDevice = getTestDevice(39);
 
     private VolumeControlStateMachine mStateMachine;
     private InOrder mInOrder;

@@ -29,8 +29,8 @@ import android.content.pm.PackageManager;
 import android.telephony.SmsMessage;
 import android.telephony.TelephonyManager;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.map.BluetoothMapSmsPdu.SmsPdu;
@@ -69,7 +69,7 @@ public class BluetoothMapSmsPduTest {
     @Before
     public void setUp() throws Exception {
         PackageManager packageManager =
-                InstrumentationRegistry.getTargetContext().getPackageManager();
+                InstrumentationRegistry.getInstrumentation().getTargetContext().getPackageManager();
         assumeTrue(packageManager.hasSystemFeature(FEATURE_TELEPHONY_MESSAGING));
         when(mTargetContext.getSystemServiceName(TelephonyManager.class))
                 .thenReturn("TELEPHONY_SERVICE");

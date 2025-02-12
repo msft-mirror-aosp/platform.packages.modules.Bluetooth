@@ -441,7 +441,7 @@ class BluetoothOppNotification {
 
             Intent intent = new Intent(Constants.ACTION_LIST);
             intent.setClassName(mContext, BluetoothOppReceiver.class.getName());
-            intent.setDataAndNormalize(Uri.parse(BluetoothShare.CONTENT_URI + "/" + item.id));
+            intent.setData(Uri.parse(BluetoothShare.CONTENT_URI + "/" + item.id).normalizeScheme());
             b.setContentIntent(
                     PendingIntent.getBroadcast(mContext, 0, intent, PendingIntent.FLAG_IMMUTABLE));
             b.setGroup(NOTIFICATION_GROUP_KEY_PROGRESS);
@@ -656,7 +656,7 @@ class BluetoothOppNotification {
             String fileNameSafe = info.mFileName.replaceAll("\\s", "_");
             Intent baseIntent =
                     new Intent()
-                            .setDataAndNormalize(contentUri)
+                            .setData(contentUri.normalizeScheme())
                             .setClassName(mContext, BluetoothOppReceiver.class.getName());
             Notification.Action actionDecline =
                     new Notification.Action.Builder(
@@ -683,7 +683,7 @@ class BluetoothOppNotification {
 
             Intent in = new Intent(mContext, BluetoothOppIncomingFileConfirmActivity.class);
             in.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            in.setDataAndNormalize(contentUri);
+            in.setData(contentUri.normalizeScheme());
             PendingIntent pi =
                     PendingIntent.getActivity(mContext, 0, in, PendingIntent.FLAG_IMMUTABLE);
 

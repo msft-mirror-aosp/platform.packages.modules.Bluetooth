@@ -24,6 +24,8 @@ import static android.bluetooth.BluetoothAdapter.STATE_ON;
 import static android.bluetooth.BluetoothAdapter.STATE_TURNING_OFF;
 import static android.bluetooth.BluetoothAdapter.STATE_TURNING_ON;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
@@ -68,8 +70,8 @@ import android.test.mock.MockContentProvider;
 import android.test.mock.MockContentResolver;
 import android.util.Log;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.MediumTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.bluetooth.TestLooper;
 import com.android.bluetooth.TestUtils;
@@ -179,9 +181,8 @@ public class AdapterServiceTest {
     private int mForegroundUserId;
     private TestLooper mLooper;
 
-    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
-    private final BluetoothDevice mDevice = TestUtils.getTestDevice(mAdapter, 0);
-    private final BluetoothDevice mDeviceTwo = TestUtils.getTestDevice(mAdapter, 2);
+    private final BluetoothDevice mDevice = getTestDevice(0);
+    private final BluetoothDevice mDeviceTwo = getTestDevice(2);
 
     static void configureEnabledProfiles() {
         Log.e(TAG, "configureEnabledProfiles");
@@ -249,7 +250,7 @@ public class AdapterServiceTest {
         when(mMockPackageManager.getPermissionInfo(any(), anyInt()))
                 .thenReturn(new PermissionInfo());
 
-        Context targetContext = InstrumentationRegistry.getTargetContext();
+        Context targetContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
 
         mMockContentResolver = new MockContentResolver(targetContext);
         mMockContentResolver.addProvider(
@@ -1011,7 +1012,7 @@ public class AdapterServiceTest {
     @Test
     @EnableFlags(Flags.FLAG_IDENTITY_ADDRESS_NULL_IF_NOT_KNOWN)
     public void testIdentityAddressNullIfUnknown() {
-        BluetoothDevice device = TestUtils.getTestDevice(BluetoothAdapter.getDefaultAdapter(), 0);
+        BluetoothDevice device = getTestDevice(0);
 
         assertThat(mAdapterService.getByteIdentityAddress(device)).isNull();
         assertThat(mAdapterService.getIdentityAddress(device.getAddress())).isNull();

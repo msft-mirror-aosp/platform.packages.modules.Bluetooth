@@ -199,9 +199,8 @@ cc_library {
     min_sdk_version: "Tiramisu",
 }
 
-// Bluetooth APK
-android_app {
-    name: "Bluetooth",
+android_library {
+    name: "BluetoothLib",
     defaults: ["bluetooth_framework_errorprone_rules"],
 
     srcs: [
@@ -215,31 +214,25 @@ android_app {
     proto: {
         type: "lite",
     },
-    aaptflags: [
-        "--custom-package",
-        "com.android.bluetooth",
-    ],
-    certificate: ":com.android.bluetooth.certificate",
 
-    jarjar_rules: ":bluetooth-jarjar-rules",
-    privapp_allowlist: ":privapp_allowlist_com.android.bluetooth.xml",
-
-    jni_uses_platform_apis: true,
     libs: [
+        "PlatformProperties",
         "bluetooth_constants_java",
         "bluetooth_flags_java_lib",
         "error_prone_annotations",
         "framework-annotations-lib",
-        "framework-bluetooth-pre-jarjar",
+        "framework-bluetooth.impl",
         "framework-configinfrastructure.stubs.module_lib",
+        "framework-connectivity-t.stubs.module_lib",
         "framework-connectivity.stubs.module_lib",
         "framework-location.stubs.module_lib",
+        "framework-media.stubs.module_lib",
         "framework-mediaprovider.stubs.module_lib",
         "framework-statsd.stubs.module_lib",
         "framework-tethering.stubs.module_lib",
-
-        // Need to link the class at runtime
-        "framework-bluetooth.stubs.module_lib",
+        "framework-wifi.stubs.module_lib",
+        "modules-utils-build",
+        "modules-utils-expresslog",
     ],
     static_libs: [
         "BluetoothApiShims",
@@ -321,19 +314,81 @@ android_app {
             "WakelockTimeout",
         ],
         extra_check_modules: ["BluetoothLintChecker"],
-        baseline_filename: "lint-baseline.xml",
+        baseline_filename: "lib-lint-baseline.xml",
     },
 
-    optimize: {
-        enabled: true,
-        shrink: true,
-        optimize: false,
-        proguard_flags_files: ["proguard.flags"],
-    },
+    installable: false,
+    apex_available: ["com.android.bt"],
+    min_sdk_version: "Tiramisu",
+    sdk_version: "module_current",
+}
+
+// Bluetooth APK
+android_app {
+    name: "Bluetooth",
+    certificate: ":com.android.bluetooth.certificate",
+    static_libs: ["BluetoothLib"],
+
     apex_available: ["com.android.bt"],
     min_sdk_version: "Tiramisu",
     sdk_version: "module_current",
     updatable: true,
+    jarjar_rules: ":bluetooth-jarjar-rules",
+    privapp_allowlist: ":privapp_allowlist_com.android.bluetooth.xml",
+
+    jni_uses_platform_apis: true,
+    optimize: {
+        enabled: true,
+        shrink: true,
+        optimize: false,
+        ignore_warnings: false,
+        proguard_flags_files: ["proguard.flags"],
+    },
+
+    lint: {
+        error_checks: [
+            "Autofill",
+            "DefaultLocale",
+            "DuplicateDefinition",
+            // "ExportedContentProvider", // TODO: b/289445022 - enable this check
+            // "ExportedReceiver", // TODO: b/289445022 - enable this check
+            // "ExportedService", // TODO: b/289445022 - enable this check
+            "ExtraText",
+            "ExtraTranslation",
+            "GestureBackNavigation",
+            "GetterSetterNullability",
+            "GuardedLogInvocation",
+            "HandlerLeak",
+            "InflateParams",
+            // "InvalidPermission", // TODO: b/289445022 - enable this check
+            "LabelFor",
+            "MissingClass",
+            // "MissingVersion", // TODO: b/289445022 - enable this check
+            "MonochromeLauncherIcon",
+            "NewApi",
+            "ObsoleteSdkInt",
+            // "QueryAllPackagesPermission", // TODO: b/289445022 - enable this check
+            "Recycle",
+            "RtlHardcoded",
+            "RtlSymmetry",
+            "ScrollViewSize",
+            "SetTextI18n",
+            "SimpleDateFormat",
+            "StaticFieldLeak",
+            "StringFormatCount",
+            "StringFormatInvalid",
+            "TextFields",
+            "TypographyEllipsis",
+            "UseSparseArrays",
+            "UseValueOf",
+            "VectorPath",
+            "VisibleForTests",
+            "Wakelock",
+            "WakelockTimeout",
+        ],
+        extra_check_modules: ["BluetoothLintChecker"],
+        baseline_filename: "lint-baseline.xml",
+    },
 }
 
 java_library {

@@ -66,9 +66,7 @@ lpp::LppOffloadInterface* GetLppOffloadManager() {
   return Stack::GetInstance()->GetInstance<lpp::LppOffloadManager>();
 }
 
-storage::StorageModule* GetStorage() {
-  return Stack::GetInstance()->GetInstance<storage::StorageModule>();
-}
+storage::StorageModule* GetStorage() { return Stack::GetInstance()->GetStorage(); }
 
 hci::AclManager* GetAclManager() { return Stack::GetInstance()->GetInstance<hci::AclManager>(); }
 

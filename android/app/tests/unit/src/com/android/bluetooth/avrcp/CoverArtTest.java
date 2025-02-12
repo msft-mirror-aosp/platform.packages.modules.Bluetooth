@@ -22,7 +22,7 @@ import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 
-import androidx.test.InstrumentationRegistry;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestUtils;
@@ -58,7 +58,8 @@ public class CoverArtTest {
     @Before
     public void setUp() throws Exception {
         mTestResources =
-                TestUtils.getTestApplicationResources(InstrumentationRegistry.getTargetContext());
+                TestUtils.getTestApplicationResources(
+                        InstrumentationRegistry.getInstrumentation().getTargetContext());
 
         m200by200Image = loadImage(com.android.bluetooth.tests.R.raw.image_200_200);
         m200by200ImageBlue = loadImage(com.android.bluetooth.tests.R.raw.image_200_200_blue);

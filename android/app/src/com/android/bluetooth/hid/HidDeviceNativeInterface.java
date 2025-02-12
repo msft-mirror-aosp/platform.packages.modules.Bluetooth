@@ -15,64 +15,30 @@
  */
 
 /*
- * Defines the native inteface that is used by HID Device service to
+ * Defines the native interface that is used by HID Device service to
  * send or receive messages from the native stack. This file is registered
  * for the native methods in the corresponding JNI C++ file.
  */
 
 package com.android.bluetooth.hid;
 
-import android.bluetooth.BluetoothAdapter;
+import static java.util.Objects.requireNonNull;
+
 import android.bluetooth.BluetoothDevice;
 import android.util.Log;
 
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.flags.Flags;
-import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
-
-import java.util.Objects;
 
 /** HID Device Native Interface to/from JNI. */
 public class HidDeviceNativeInterface {
     private static final String TAG = "HidDeviceNativeInterface";
-    private BluetoothAdapter mAdapter;
-    private AdapterService mAdapterService;
+    private final AdapterService mAdapterService;
 
-    @GuardedBy("INSTANCE_LOCK")
-    private static HidDeviceNativeInterface sInstance;
-
-    private static final Object INSTANCE_LOCK = new Object();
-
-    @VisibleForTesting
-    private HidDeviceNativeInterface() {
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
-        if (mAdapter == null) {
-            Log.wtf(TAG, "No Bluetooth Adapter Available");
-        }
-        mAdapterService =
-                Objects.requireNonNull(
-                        AdapterService.getAdapterService(),
-                        "AdapterService cannot be null when HidDeviceNativeInterface init");
-    }
-
-    /** Get the singleton instance. */
-    public static HidDeviceNativeInterface getInstance() {
-        synchronized (INSTANCE_LOCK) {
-            if (sInstance == null) {
-                sInstance = new HidDeviceNativeInterface();
-            }
-            return sInstance;
-        }
-    }
-
-    /** Set singleton instance. */
-    @VisibleForTesting
-    public static void setInstance(HidDeviceNativeInterface instance) {
-        synchronized (INSTANCE_LOCK) {
-            sInstance = instance;
-        }
+    HidDeviceNativeInterface(AdapterService adapterService) {
+        mAdapterService = requireNonNull(adapterService);
     }
 
     /** Initializes the native interface. */

@@ -29,6 +29,7 @@
 #include "hal/snoop_logger_common.h"
 #include "hal/syscall_wrapper_impl.h"
 #include "os/fake_timer/fake_timerfd.h"
+#include "os/files.h"
 #include "os/parameter_provider.h"
 #include "os/system_properties.h"
 #include "os/utils.h"
@@ -383,7 +384,8 @@ TEST_F(SnoopLoggerModuleTest, delete_old_snooz_log_files) {
                                     SnoopLogger::kBtSnoopLogModeDisabled, false, false);
   test_registry->InjectTestModule(&SnoopLogger::Factory, snoop_logger);
 
-  std::filesystem::create_directories(temp_snooz_log_);
+  std::filesystem::create_directories(temp_snooz_log_.parent_path());
+  os::WriteToFile(temp_snooz_log_.string(), "");
 
   auto* handler = test_registry->GetTestModuleHandler(&SnoopLogger::Factory);
   ASSERT_TRUE(std::filesystem::exists(temp_snooz_log_));

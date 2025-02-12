@@ -42,10 +42,19 @@ public:
   virtual const std::list<Service>* GetServices(uint16_t conn_id) = 0;
   virtual const Characteristic* GetCharacteristic(uint16_t conn_id, uint16_t handle) = 0;
   virtual const Service* GetOwningService(uint16_t conn_id, uint16_t handle) = 0;
+  virtual void ReadCharacteristic(tCONN_ID conn_id, uint16_t handle, tGATT_AUTH_REQ auth_req,
+                                  GATT_READ_OP_CB callback, void* cb_data) = 0;
+  virtual void WriteCharValue(tCONN_ID conn_id, uint16_t handle, tGATT_WRITE_TYPE write_type,
+                              std::vector<uint8_t> value, tGATT_AUTH_REQ auth_req,
+                              GATT_WRITE_OP_CB callback, void* cb_data) = 0;
+  virtual void WriteCharDescr(tCONN_ID conn_id, uint16_t handle, std::vector<uint8_t> value,
+                              tGATT_AUTH_REQ auth_req, GATT_WRITE_OP_CB callback,
+                              void* cb_data) = 0;
   virtual tGATT_STATUS RegisterForNotifications(tGATT_IF client_if, const RawAddress& remote_bda,
                                                 uint16_t handle) = 0;
   virtual tGATT_STATUS DeregisterForNotifications(tGATT_IF client_if, const RawAddress& remote_bda,
                                                   uint16_t handle) = 0;
+  virtual void ConfigureMTU(tCONN_ID conn_id, uint16_t mtu) = 0;
   virtual ~BtaGattInterface() = default;
 };
 
@@ -71,10 +80,21 @@ public:
   MOCK_METHOD((std::list<Service>*), GetServices, (uint16_t conn_id));
   MOCK_METHOD((const Characteristic*), GetCharacteristic, (uint16_t conn_id, uint16_t handle));
   MOCK_METHOD((const Service*), GetOwningService, (uint16_t conn_id, uint16_t handle));
+  MOCK_METHOD((void), ReadCharacteristic,
+              (tCONN_ID conn_id, uint16_t handle, tGATT_AUTH_REQ auth_req, GATT_READ_OP_CB callback,
+               void* cb_data));
+  MOCK_METHOD((void), WriteCharValue,
+              (tCONN_ID conn_id, uint16_t handle, tGATT_WRITE_TYPE write_type,
+               std::vector<uint8_t> value, tGATT_AUTH_REQ auth_req, GATT_WRITE_OP_CB callback,
+               void* cb_data));
+  MOCK_METHOD((void), WriteCharDescr,
+              (tCONN_ID conn_id, uint16_t handle, std::vector<uint8_t> value,
+               tGATT_AUTH_REQ auth_req, GATT_WRITE_OP_CB callback, void* cb_data));
   MOCK_METHOD((tGATT_STATUS), RegisterForNotifications,
               (tGATT_IF client_if, const RawAddress& remote_bda, uint16_t handle));
   MOCK_METHOD((tGATT_STATUS), DeregisterForNotifications,
               (tGATT_IF client_if, const RawAddress& remote_bda, uint16_t handle));
+  MOCK_METHOD((void), ConfigureMTU, (tCONN_ID conn_id, uint16_t mtu));
 };
 
 /**
