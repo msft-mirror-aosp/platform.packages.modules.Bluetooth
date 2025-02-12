@@ -47,7 +47,9 @@ rust_library {
     vendor_available: true,
 }
 
-rust_test_host {
+rust_test {
     name: "libbluetooth_offload_hci_test",
+    host_supported: true,
+    test_suites: ["general-tests"],
     defaults: ["bluetooth_offload_hci_defaults"],
 }
