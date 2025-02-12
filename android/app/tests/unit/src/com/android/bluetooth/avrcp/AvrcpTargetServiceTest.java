@@ -168,7 +168,6 @@ public class AvrcpTargetServiceTest {
                         volumeManager,
                         mLooper.getLooper());
 
-        service.start();
         verify(mMockAudioManager)
                 .registerAudioDeviceCallback(mAudioDeviceCb.capture(), anyObject());
 
