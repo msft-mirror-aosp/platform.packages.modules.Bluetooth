@@ -235,6 +235,10 @@ public class DatabaseManager {
     boolean isValidMetaKey(int key) {
         if (key >= 0 && key <= BluetoothDevice.getMaxMetadataKey()) {
             return true;
+        } else if (key == Metadata.METADATA_BOND_LOST) {
+            /* TODO: b/395030709 Special case to handle METADATA_BOND_LOST
+             *  until its added to BluetoothDevice. */
+            return true;
         }
         Log.w(TAG, "Invalid metadata key " + key);
         return false;
