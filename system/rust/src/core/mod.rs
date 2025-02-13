@@ -10,10 +10,8 @@ use std::pin::Pin;
 
 use cxx::UniquePtr;
 
-use crate::{
-    gatt::ffi::{AttTransportImpl, GattCallbacksImpl},
-    RustModuleRunner,
-};
+use crate::gatt::ffi::{AttTransportImpl, GattCallbacksImpl};
+use crate::RustModuleRunner;
 
 use self::ffi::{future_ready, Future, GattServerCallbacks};
 

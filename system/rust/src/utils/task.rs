@@ -1,16 +1,12 @@
 //! This module provides utilities relating to async tasks, typically for usage
 //! only in test
 
-use std::{
-    future::{Future, IntoFuture},
-    time::Duration,
-};
+use std::future::{Future, IntoFuture};
+use std::time::Duration;
 
-use tokio::{
-    runtime::Builder,
-    select,
-    task::{spawn_local, LocalSet},
-};
+use tokio::runtime::Builder;
+use tokio::select;
+use tokio::task::{spawn_local, LocalSet};
 
 /// Run the supplied future on a single-threaded runtime
 pub fn block_on_locally<T>(f: impl Future<Output = T>) -> T {
