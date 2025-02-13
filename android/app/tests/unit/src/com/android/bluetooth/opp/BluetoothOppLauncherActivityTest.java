@@ -67,7 +67,7 @@ public class BluetoothOppLauncherActivityTest {
     Intent mIntent;
 
     BluetoothMethodProxy mMethodProxy;
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
 
     @Mock BluetoothOppManager mBluetoothOppManager;
 
