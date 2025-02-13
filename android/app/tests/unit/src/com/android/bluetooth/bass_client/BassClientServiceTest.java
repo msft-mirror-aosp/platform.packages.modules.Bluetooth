@@ -6975,6 +6975,129 @@ public class BassClientServiceTest {
         checkResumeSynchronizationByHost();
     }
 
+    @Test
+    @EnableFlags({
+        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
+        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
+    })
+    public void removeSource_duringSuspend() {
+        prepareSynchronizedPair();
+
+        // Suspend receivers, HOST_INTENTIONAL
+        mBassClientService.suspendReceiversSourceSynchronization(TEST_BROADCAST_ID);
+
+        // Remove source, HOST_INTENTIONAL
+        mBassClientService.removeSource(mCurrentDevice, TEST_SOURCE_ID);
+        checkNoSinkPause();
+        verifyRemoveMessageAndInjectSourceRemoval();
+
+        checkNoResumeSynchronizationByHost();
+    }
+
+    @Test
+    @EnableFlags({
+        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
+        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
+    })
+    public void stopReceivers_duringSuspend() {
+        prepareSynchronizedPair();
+
+        // Suspend receivers, HOST_INTENTIONAL
+        mBassClientService.suspendReceiversSourceSynchronization(TEST_BROADCAST_ID);
+
+        // Remove source, HOST_INTENTIONAL
+        mBassClientService.stopReceiversSourceSynchronization(TEST_BROADCAST_ID);
+        checkNoSinkPause();
+        verifyRemoveMessageAndInjectSourceRemoval();
+
+        checkNoResumeSynchronizationByHost();
+    }
+
+    @Test
+    @EnableFlags({
+        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
+        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
+    })
+    public void multipleSinkMetadata_clearWhenSourceAddFailed() throws RemoteException {
+        prepareConnectedDeviceGroup();
+        startSearchingForSources();
+        onScanResult(mSourceDevice, TEST_BROADCAST_ID);
+        onSyncEstablished(mSourceDevice, TEST_SYNC_HANDLE);
+        BluetoothLeBroadcastMetadata meta = createBroadcastMetadata(TEST_BROADCAST_ID);
+        verifyAddSourceForGroup(meta);
+        prepareRemoteSourceState(meta, false, false);
+        mBassClientService.stopSearchingForSources();
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            clearInvocations(sm);
+        }
+
+        // Cache and resume ended with source add failed, should remove metadata
+        mBassClientService.cacheSuspendingSources(TEST_BROADCAST_ID);
+        mBassClientService.resumeReceiversSourceSynchronization();
+        onSyncEstablishedFailed(mSourceDevice, TEST_SYNC_HANDLE);
+        TestUtils.waitForLooperToFinishScheduledTask(mBassClientService.getCallbacks().getLooper());
+        verify(mCallback).onSourceLost(eq(TEST_BROADCAST_ID));
+        verify(mCallback)
+                .onSourceAddFailed(
+                        eq(mCurrentDevice),
+                        eq(meta),
+                        eq(BluetoothStatusCodes.ERROR_LOCAL_NOT_ENOUGH_RESOURCES));
+        verify(mCallback)
+                .onSourceAddFailed(
+                        eq(mCurrentDevice1),
+                        eq(meta),
+                        eq(BluetoothStatusCodes.ERROR_LOCAL_NOT_ENOUGH_RESOURCES));
+
+        startSearchingForSources();
+        onScanResult(mSourceDevice, TEST_BROADCAST_ID);
+        onSyncEstablished(mSourceDevice, TEST_SYNC_HANDLE);
+
+        // Cache and resume should not resume at all
+        mBassClientService.cacheSuspendingSources(TEST_BROADCAST_ID);
+        mBassClientService.resumeReceiversSourceSynchronization();
+        assertThat(mStateMachines.size()).isEqualTo(2);
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            verify(sm, never()).sendMessage(any());
+        }
+    }
+
+    @Test
+    @EnableFlags({
+        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
+        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
+    })
+    public void multipleSinkMetadata_clearWhenSwitch() {
+        prepareConnectedDeviceGroup();
+        startSearchingForSources();
+        onScanResult(mSourceDevice, TEST_BROADCAST_ID);
+        onSyncEstablished(mSourceDevice, TEST_SYNC_HANDLE);
+        BluetoothLeBroadcastMetadata meta = createBroadcastMetadata(TEST_BROADCAST_ID);
+        verifyAddSourceForGroup(meta);
+        prepareRemoteSourceState(meta, false, false);
+
+        // Add another new broadcast source should remove old metadata during switch
+        onScanResult(mSourceDevice2, TEST_BROADCAST_ID + 1);
+        onSyncEstablished(mSourceDevice2, TEST_SYNC_HANDLE + 1);
+        BluetoothLeBroadcastMetadata newMeta = createBroadcastMetadata(TEST_BROADCAST_ID + 1);
+        mBassClientService.addSource(mCurrentDevice, newMeta, true);
+        verifyAllGroupMembersGettingUpdateOrAddSource(newMeta);
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            clearInvocations(sm);
+        }
+        prepareRemoteSourceState(newMeta, false, false);
+
+        // Cache and resume should resume only new broadcast
+        mBassClientService.cacheSuspendingSources(TEST_BROADCAST_ID + 1);
+        mBassClientService.resumeReceiversSourceSynchronization();
+        // Verify that only one message per sink was sent
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+            verify(sm).sendMessage(messageCaptor.capture());
+        }
+        // And this message is to resume broadcast
+        verifyAllGroupMembersGettingUpdateOrAddSource(newMeta);
+    }
+
     private void verifyConnectionStateIntent(BluetoothDevice device, int newState, int prevState) {
         verifyIntentSent(
                 hasAction(BluetoothLeBroadcastAssistant.ACTION_CONNECTION_STATE_CHANGED),
