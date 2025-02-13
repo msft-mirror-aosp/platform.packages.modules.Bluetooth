@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.telephony;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.doReturn;
@@ -44,8 +46,6 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -59,7 +59,7 @@ public class CallInfoTest {
     private static final String TEST_ACCOUNT_ADDRESS = "https://foo.com/";
     private static final int TEST_ACCOUNT_INDEX = 0;
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     private TelecomManager mMockTelecomManager;
 

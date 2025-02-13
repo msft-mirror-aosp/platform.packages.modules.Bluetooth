@@ -16,6 +16,7 @@
 
 package com.android.bluetooth.opp;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.opp.BluetoothOppObexSession.MSG_SESSION_COMPLETE;
 import static com.android.bluetooth.opp.BluetoothOppObexSession.MSG_SHARE_INTERRUPTED;
 
@@ -48,8 +49,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -59,7 +58,7 @@ import java.util.concurrent.TimeUnit;
 
 @RunWith(AndroidJUnit4.class)
 public class BluetoothOppObexClientSessionTest {
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock BluetoothMethodProxy mMethodProxy;
 

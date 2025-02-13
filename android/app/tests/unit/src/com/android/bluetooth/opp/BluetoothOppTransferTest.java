@@ -15,6 +15,7 @@
  */
 package com.android.bluetooth.opp;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 import static com.android.bluetooth.opp.BluetoothOppTransfer.TRANSPORT_CONNECTED;
 import static com.android.bluetooth.opp.BluetoothOppTransfer.TRANSPORT_ERROR;
@@ -59,15 +60,13 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.util.Objects;
 
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class BluetoothOppTransferTest {
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
     @Rule public final SetFlagsRule mSetFlagRule = new SetFlagsRule();
 
     @Mock BluetoothOppObexSession mSession;
