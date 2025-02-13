@@ -58,6 +58,11 @@ rust_defaults {
             rustlibs: [
                 "libandroid_logger",
             ],
+            test_config_template: ":BluetoothRustTestConfigTemplate",
+            test_suites: [
+                "general-tests",
+                "mts-bt",
+            ],
         },
         host: {
             rustlibs: [
@@ -68,7 +73,19 @@ rust_defaults {
             enabled: false,
         },
     },
-    apex_available: ["com.android.bt"],
+    compile_multilib: "both",
+    multilib: {
+        lib32: {
+            suffix: "32",
+        },
+        lib64: {
+            suffix: "64",
+        },
+    },
+    apex_available: [
+        "//apex_available:platform",
+        "com.android.bt",
+    ],
 }
 
 rust_ffi_static {
@@ -92,7 +109,6 @@ rust_ffi_static {
 rust_test {
     name: "libbluetooth_core_rs_test",
     host_supported: true,
-    test_suites: ["general-tests"],
     defaults: ["libbluetooth_core_rs_defaults"],
     rustlibs: [
         "libbluetooth_aconfig_flags_rust",
