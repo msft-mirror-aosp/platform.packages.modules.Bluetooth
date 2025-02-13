@@ -2886,6 +2886,7 @@ public class LeAudioService extends ProfileService {
     }
 
     private void handleGroupTransitToActive(int groupId) {
+        int currentlyActiveGroupId = getActiveGroupId();
         mGroupReadLock.lock();
         try {
             LeAudioGroupDescriptor descriptor = getGroupDescriptor(groupId);
@@ -2911,6 +2912,9 @@ public class LeAudioService extends ProfileService {
                                 notifyGroupStatusChanged(
                                         groupId, LeAudioStackEvent.GROUP_STATUS_ACTIVE));
                 updateInbandRingtoneForTheGroup(groupId);
+                if (currentlyActiveGroupId != LE_AUDIO_GROUP_ID_INVALID) {
+                    updateInbandRingtoneForTheGroup(currentlyActiveGroupId);
+                }
             }
         } finally {
             mGroupReadLock.unlock();
@@ -3138,6 +3142,12 @@ public class LeAudioService extends ProfileService {
             return;
         }
 
+        TbsService tbsService = getTbsService();
+        if (tbsService == null) {
+            Log.w(TAG, "updateInbandRingtoneForTheGroup, tbsService not available");
+            return;
+        }
+
         mGroupReadLock.lock();
         try {
             LeAudioGroupDescriptor groupDescriptor = getGroupDescriptor(groupId);
@@ -3146,69 +3156,67 @@ public class LeAudioService extends ProfileService {
                 return;
             }
 
-            boolean ringtoneContextAvailable;
+            boolean ringtoneContextAvailable = false;
             if (groupDescriptor.mAvailableContexts != null) {
                 ringtoneContextAvailable = ((groupDescriptor.mAvailableContexts &
                                             BluetoothLeAudio.CONTEXT_TYPE_RINGTONE) != 0);
-            } else {
-                ringtoneContextAvailable = false;
             }
 
-            Log.d(
-                    TAG,
-                    "groupId active state: "
-                            + groupDescriptor.mActiveState
-                            + " ringtone supported: "
-                            + ringtoneContextAvailable);
-
-            /* Enable ringtone for active Unciast group or in broadcast handover mode */
-            boolean isRingtoneEnabled =
-                    ((groupDescriptor.isActive()
-                                    || isPrimaryGroup(groupId)
-                                    || isBroadcastReadyToBeReActivated())
-                            && ringtoneContextAvailable);
-
-            Log.d(
-                    TAG,
-                    "updateInbandRingtoneForTheGroup old: "
-                            + groupDescriptor.mInbandRingtoneEnabled
-                            + " new: "
-                            + isRingtoneEnabled);
-
-            /* If at least one device from the group removes the Ringtone from available
-             * context types, the inband ringtone will be removed
+            /* Enables in-band ringtone only for the currently active device or
+             * primary device in broadcast scenarios.
+             * Devices are notified of its state over GTBS.
+             * When enabled, remote devices will not generate an internal ringtone upon
+             * receiving a GTBS incoming call notification. Instead, they will wait for a
+             * Unicast stream containing the in-band ringtone.
+             *
+             * Note: In-band ringtone is disabled if any device in the group removes "Ringtone"
+             *  from its available context types.
+             *
+             * Note: Sort out need of isBroadcastReadyToBeReActivated() check in b/395823561
              */
-            groupDescriptor.mInbandRingtoneEnabled = isRingtoneEnabled;
-            TbsService tbsService = getTbsService();
-            if (tbsService == null) {
-                Log.w(TAG, "updateInbandRingtoneForTheGroup, tbsService not available");
-                return;
-            }
+            boolean isRingtoneEnabled =
+                    ringtoneContextAvailable
+                            && (groupDescriptor.isActive()
+                                    || isPrimaryGroup(groupId)
+                                    || isBroadcastReadyToBeReActivated());
 
+            Log.i(
+                    TAG,
+                    "updateInbandRingtoneForTheGroup groupId: "
+                            + (groupId + ", active state: " + groupDescriptor.mActiveState)
+                            + (", ringtone supported: " + ringtoneContextAvailable)
+                            + (", is primary group: " + isPrimaryGroup(groupId))
+                            + (", isBroadcastReadyToBeReActivated: "
+                                    + isBroadcastReadyToBeReActivated())
+                            + (", state change: "
+                                    + groupDescriptor.mInbandRingtoneEnabled
+                                    + " -> "
+                                    + isRingtoneEnabled));
+
+            groupDescriptor.mInbandRingtoneEnabled = isRingtoneEnabled;
             for (Map.Entry<BluetoothDevice, LeAudioDeviceDescriptor> entry :
                     mDeviceDescriptors.entrySet()) {
                 if (entry.getValue().mGroupId == groupId) {
                     BluetoothDevice device = entry.getKey();
                     LeAudioDeviceDescriptor deviceDescriptor = entry.getValue();
-                    Log.i(
-                            TAG,
-                            "updateInbandRingtoneForTheGroup, setting inband ringtone to: "
-                                    + groupDescriptor.mInbandRingtoneEnabled
-                                    + " for "
-                                    + device
-                                    + " "
-                                    + deviceDescriptor.mDevInbandRingtoneEnabled);
                     if (Objects.equals(
                             groupDescriptor.mInbandRingtoneEnabled,
                             deviceDescriptor.mDevInbandRingtoneEnabled)) {
                         Log.d(
                                 TAG,
-                                "Device "
+                                "updateInbandRingtoneForTheGroup, "
                                         + device
-                                        + " has already set inband ringtone to "
+                                        + " has already set inband ringtone to: "
                                         + groupDescriptor.mInbandRingtoneEnabled);
                         continue;
                     }
+
+                    Log.i(
+                            TAG,
+                            "updateInbandRingtoneForTheGroup, setting group inband ringtone to: "
+                                    + groupDescriptor.mInbandRingtoneEnabled
+                                    + " to "
+                                    + device);
 
                     deviceDescriptor.mDevInbandRingtoneEnabled =
                             groupDescriptor.mInbandRingtoneEnabled;

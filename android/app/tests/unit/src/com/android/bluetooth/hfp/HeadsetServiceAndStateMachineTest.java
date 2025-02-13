@@ -181,7 +181,6 @@ public class HeadsetServiceAndStateMachineTest {
 
         mHeadsetService =
                 new HeadsetService(mAdapterService, mNativeInterface, mTestLooper.getLooper());
-        mHeadsetService.start();
         mHeadsetService.setAvailable(true);
 
         verify(mObjectsFactory).makeSystemInterface(mHeadsetService);

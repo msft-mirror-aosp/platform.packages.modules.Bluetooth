@@ -175,7 +175,6 @@ public class HeadsetServiceTest {
         doReturn(mSystemInterface).when(mObjectsFactory).makeSystemInterface(any());
         HeadsetNativeInterface.setInstance(mNativeInterface);
         mHeadsetService = new HeadsetService(mAdapterService, mNativeInterface);
-        mHeadsetService.start();
         mHeadsetService.setAvailable(true);
         verify(mObjectsFactory).makeSystemInterface(mHeadsetService);
         mHeadsetService.setForceScoAudio(true);
