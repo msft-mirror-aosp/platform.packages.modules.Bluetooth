@@ -916,7 +916,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
     @RequiresBluetoothScanPermission
     @RequiresPermission(allOf = {BLUETOOTH_SCAN, BLUETOOTH_PRIVILEGED})
     public boolean isSearchInProgress() {
-        log("stopSearchingForSources:");
+        log("isSearchInProgress:");
         final IBluetoothLeBroadcastAssistant service = getService();
         final boolean defaultValue = false;
         if (service == null) {

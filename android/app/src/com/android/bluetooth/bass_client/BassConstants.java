@@ -37,6 +37,7 @@ public class BassConstants {
             ParcelUuid.fromString("00001856-0000-1000-8000-00805F9B34FB");
 
     public static final int INVALID_SYNC_HANDLE = -1;
+    public static final int PENDING_SYNC_HANDLE = -2;
     public static final int INVALID_ADV_SID = -1;
     public static final int INVALID_ADV_ADDRESS_TYPE = -1;
     public static final int INVALID_ADV_INTERVAL = -1;

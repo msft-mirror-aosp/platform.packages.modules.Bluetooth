@@ -18,12 +18,18 @@ package com.android.bluetooth.bass_client;
 
 import static com.android.bluetooth.flags.Flags.leaudioBassScanWithInternalScanController;
 
+import android.bluetooth.BluetoothUtils;
+import android.bluetooth.BluetoothUtils.TypeValueEntry;
 import android.bluetooth.le.ScanFilter;
+import android.bluetooth.le.ScanRecord;
+import android.bluetooth.le.ScanResult;
 import android.os.ParcelUuid;
 import android.util.Log;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 /** Bass Utility functions */
 class BassUtils {
@@ -50,6 +56,88 @@ class BassUtils {
         broadcastId |= (0x0000FF00 & (broadcastIdBytes[1] << 8));
         broadcastId |= (0x000000FF & broadcastIdBytes[0]);
         return broadcastId;
+    }
+
+    static Integer getBroadcastId(ScanResult scanResult) {
+        if (scanResult == null) {
+            Log.e(TAG, "Null scan result");
+            return BassConstants.INVALID_BROADCAST_ID;
+        }
+
+        return getBroadcastId(scanResult.getScanRecord());
+    }
+
+    static Integer getBroadcastId(ScanRecord scanRecord) {
+        if (scanRecord == null) {
+            Log.e(TAG, "Null scan record");
+            return BassConstants.INVALID_BROADCAST_ID;
+        }
+
+        Map<ParcelUuid, byte[]> listOfUuids = scanRecord.getServiceData();
+        if (listOfUuids == null) {
+            Log.e(TAG, "Null service data");
+            return BassConstants.INVALID_BROADCAST_ID;
+        }
+
+        if (listOfUuids.containsKey(BassConstants.BAAS_UUID)) {
+            byte[] bId = listOfUuids.get(BassConstants.BAAS_UUID);
+            return BassUtils.parseBroadcastId(bId);
+        } else {
+            Log.e(TAG, "No broadcast Id in service data");
+        }
+
+        return BassConstants.INVALID_BROADCAST_ID;
+    }
+
+    static PublicBroadcastData getPublicBroadcastData(ScanRecord scanRecord) {
+        if (scanRecord == null) {
+            Log.e(TAG, "Null scan record");
+            return null;
+        }
+
+        Map<ParcelUuid, byte[]> listOfUuids = scanRecord.getServiceData();
+        if (listOfUuids == null) {
+            Log.e(TAG, "Null service data");
+            return null;
+        }
+
+        if (listOfUuids.containsKey(BassConstants.PUBLIC_BROADCAST_UUID)) {
+            byte[] pbAnnouncement = listOfUuids.get(BassConstants.PUBLIC_BROADCAST_UUID);
+            return PublicBroadcastData.parsePublicBroadcastData(pbAnnouncement);
+        } else {
+            log("No public broadcast data in service data");
+        }
+
+        return null;
+    }
+
+    static String getBroadcastName(ScanRecord scanRecord) {
+        if (scanRecord == null) {
+            Log.e(TAG, "Null scan record");
+            return null;
+        }
+        byte[] rawBytes = scanRecord.getBytes();
+        List<TypeValueEntry> entries = BluetoothUtils.parseLengthTypeValueBytes(rawBytes);
+        if (rawBytes.length > 0 && rawBytes[0] > 0 && entries.isEmpty()) {
+            Log.e(TAG, "Invalid LTV entries in Scan record");
+            return null;
+        }
+
+        String broadcastName = null;
+        for (TypeValueEntry entry : entries) {
+            // Only use the first value of each type
+            if (broadcastName == null && entry.getType() == BassConstants.BCAST_NAME_AD_TYPE) {
+                byte[] bytes = entry.getValue();
+                int len = bytes.length;
+                if (len < BassConstants.BCAST_NAME_LEN_MIN
+                        || len > BassConstants.BCAST_NAME_LEN_MAX) {
+                    Log.e(TAG, "Invalid broadcast name length in Scan record" + len);
+                    return null;
+                }
+                broadcastName = new String(bytes, StandardCharsets.UTF_8);
+            }
+        }
+        return broadcastName;
     }
 
     static void log(String msg) {
