@@ -15,7 +15,7 @@
  */
 
 /*
- * Defines the native inteface that is used by state machine/service to either or receive messages
+ * Defines the native interface that is used by state machine/service to either or receive messages
  * from the native stack. This file is registered for the native methods in corresponding CPP file.
  */
 package com.android.bluetooth.hfpclient;
