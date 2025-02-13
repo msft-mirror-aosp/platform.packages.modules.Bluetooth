@@ -16,6 +16,7 @@
 
 package com.android.bluetooth.mapclient;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -58,8 +59,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -86,7 +85,7 @@ public class MapClientContentTest {
 
     private MapClientContent mMapClientContent;
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private Context mMockContext;
     @Mock private MapClientContent.Callbacks mCallbacks;

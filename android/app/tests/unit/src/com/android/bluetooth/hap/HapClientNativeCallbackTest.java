@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.hap;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+
 import static org.mockito.Mockito.verify;
 
 import android.bluetooth.BluetoothHapPresetInfo;
@@ -31,11 +33,9 @@ import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 public class HapClientNativeCallbackTest {
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
     @Rule public Expect expect = Expect.create();
 
     @Mock private AdapterService mAdapterService;

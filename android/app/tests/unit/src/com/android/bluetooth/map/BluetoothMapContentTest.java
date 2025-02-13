@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.map;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertThrows;
@@ -59,8 +61,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Spy;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.io.ByteArrayInputStream;
 import java.io.FileDescriptor;
@@ -113,7 +113,7 @@ public class BluetoothMapContentTest {
     private static final String TEST_RECEPTION_STATUS = "complete";
     private static final String TEST_EMAIL = "test@google.com";
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private BluetoothMapAccountItem mAccountItem;
     @Mock private BluetoothMapMasInstance mMasInstance;

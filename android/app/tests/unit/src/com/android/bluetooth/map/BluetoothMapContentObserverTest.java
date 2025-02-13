@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.map;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertThrows;
@@ -62,8 +64,6 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.Spy;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.text.SimpleDateFormat;
 import java.time.Instant;
@@ -121,7 +121,7 @@ public class BluetoothMapContentObserverTest {
     static final int TEST_PRIORITY = 1;
     static final int TEST_LAST_ONLINE = 1;
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
     @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     @Mock private BluetoothMnsObexClient mClient;
