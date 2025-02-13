@@ -22,7 +22,6 @@
 
 class RawAddress;
 
-const btrc_interface_t* btif_rc_get_interface(void);
 const btrc_ctrl_interface_t* btif_rc_ctrl_get_interface(void);
 
 void btif_rc_handler(tBTA_AV_EVT event, tBTA_AV* p_data);
