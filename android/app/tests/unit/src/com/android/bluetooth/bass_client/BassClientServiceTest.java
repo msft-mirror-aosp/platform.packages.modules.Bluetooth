@@ -3583,9 +3583,9 @@ public class BassClientServiceTest {
         generateScanResult(scanResult7);
 
         // Increase priority of last 3 of them
-        mBassClientService.addSelectSourceRequest(broadcastId5, true);
-        mBassClientService.addSelectSourceRequest(broadcastId6, true);
-        mBassClientService.addSelectSourceRequest(broadcastId7, true);
+        mBassClientService.addSelectSourceRequest(broadcastId5, /* hasPriority= */ true);
+        mBassClientService.addSelectSourceRequest(broadcastId6, /* hasPriority= */ true);
+        mBassClientService.addSelectSourceRequest(broadcastId7, /* hasPriority= */ true);
 
         ArgumentCaptor<ScanResult> resultCaptor = ArgumentCaptor.forClass(ScanResult.class);
         mInOrderMethodProxy
