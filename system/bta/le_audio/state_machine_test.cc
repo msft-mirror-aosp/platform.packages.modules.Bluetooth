@@ -5192,6 +5192,40 @@ TEST_F(StateMachineTestAdsp, testConfigureDataPathForAdsp) {
   // Prepare fake connected device group
   auto* group = PrepareSingleTestDeviceGroup(leaudio_group_id, context_type);
 
+  EXPECT_CALL(mock_callbacks_,
+              OnUpdatedCisConfiguration(group->group_id_,
+                                        bluetooth::le_audio::types::kLeAudioDirectionSink))
+          .WillOnce([group](int group_id, uint8_t direction) {
+            ASSERT_EQ(group_id, group->group_id_);
+
+            auto const& params = group->stream_conf.stream_params.get(direction);
+            ASSERT_NE(params.audio_channel_allocation, 0u);
+            ASSERT_NE(params.num_of_channels, 0u);
+            ASSERT_NE(params.num_of_devices, 0);
+
+            auto stream_config = params.stream_config;
+            ASSERT_NE(stream_config.bits_per_sample, 0u);
+            ASSERT_NE(stream_config.sampling_frequency_hz, 0u);
+            ASSERT_NE(stream_config.frame_duration_us, 0u);
+            ASSERT_NE(stream_config.octets_per_codec_frame, 0u);
+            ASSERT_NE(stream_config.codec_frames_blocks_per_sdu, 0u);
+            ASSERT_NE(stream_config.peer_delay_ms, 0u);
+            ASSERT_NE(stream_config.stream_map.size(), 0lu);
+
+            for (auto const& info : stream_config.stream_map) {
+              ASSERT_TRUE(info.is_stream_active);
+              ASSERT_EQ(codec_specific::kLc3CodingFormat, info.codec_config.id.coding_format);
+              ASSERT_EQ(0lu, info.codec_config.id.vendor_company_id);
+              ASSERT_EQ(0lu, info.codec_config.id.vendor_codec_id);
+              ASSERT_NE(info.address, RawAddress::kEmpty);
+              ASSERT_NE(info.stream_handle, 0);
+              ASSERT_NE(info.codec_config.params.Size(), 0lu);
+              ASSERT_NE(info.target_latency, 0);
+              ASSERT_NE(info.target_phy, 0);
+              ASSERT_NE(info.metadata.Size(), 0lu);
+            }
+          });
+
   /* Since we prepared device with Ringtone context in mind, only one ASE
    * should have been configured.
    */
@@ -5228,7 +5262,18 @@ TEST_F(StateMachineTestAdsp, testStreamConfigurationAdspDownMix) {
           .WillOnce([group](int group_id, uint8_t direction) {
             ASSERT_EQ(group_id, group->group_id_);
 
-            auto stream_config = group->stream_conf.stream_params.get(direction).stream_config;
+            auto const& params = group->stream_conf.stream_params.get(direction);
+            ASSERT_NE(params.audio_channel_allocation, 0u);
+            ASSERT_NE(params.num_of_channels, 0u);
+            ASSERT_NE(params.num_of_devices, 0);
+
+            auto stream_config = params.stream_config;
+            ASSERT_NE(stream_config.bits_per_sample, 0u);
+            ASSERT_NE(stream_config.sampling_frequency_hz, 0u);
+            ASSERT_NE(stream_config.frame_duration_us, 0u);
+            ASSERT_NE(stream_config.octets_per_codec_frame, 0u);
+            ASSERT_NE(stream_config.codec_frames_blocks_per_sdu, 0u);
+            ASSERT_NE(stream_config.peer_delay_ms, 0u);
             ASSERT_NE(stream_config.stream_map.size(), 0lu);
 
             for (auto const& info : stream_config.stream_map) {
@@ -5250,7 +5295,18 @@ TEST_F(StateMachineTestAdsp, testStreamConfigurationAdspDownMix) {
           .WillOnce([group](int group_id, uint8_t direction) {
             ASSERT_EQ(group_id, group->group_id_);
 
-            auto stream_config = group->stream_conf.stream_params.get(direction).stream_config;
+            auto const& params = group->stream_conf.stream_params.get(direction);
+            ASSERT_NE(params.audio_channel_allocation, 0u);
+            ASSERT_NE(params.num_of_channels, 0u);
+            ASSERT_NE(params.num_of_devices, 0);
+
+            auto stream_config = params.stream_config;
+            ASSERT_NE(stream_config.bits_per_sample, 0u);
+            ASSERT_NE(stream_config.sampling_frequency_hz, 0u);
+            ASSERT_NE(stream_config.frame_duration_us, 0u);
+            ASSERT_NE(stream_config.octets_per_codec_frame, 0u);
+            ASSERT_NE(stream_config.codec_frames_blocks_per_sdu, 0u);
+            ASSERT_NE(stream_config.peer_delay_ms, 0u);
             ASSERT_NE(stream_config.stream_map.size(), 0lu);
 
             for (auto const& info : stream_config.stream_map) {
