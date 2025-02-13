@@ -2418,116 +2418,15 @@ public class BassClientService extends ProfileService {
                             + timeout
                             + ", status: "
                             + status);
-            final int ERROR_CODE_SUCCESS = 0x00;
+
             if (broadcastId == BassConstants.INVALID_BROADCAST_ID) {
                 Log.w(TAG, "onSyncEstablished unexpected call, no pending synchronization");
-            } else if (status == ERROR_CODE_SUCCESS) {
-                synchronized (mSourceSyncRequestsQueue) {
-                    // updates syncHandle, advSid
-                    // set other fields as invalid or null
-                    updatePeriodicAdvertisementResultMap(
-                            device,
-                            BassConstants.INVALID_ADV_ADDRESS_TYPE,
-                            syncHandle,
-                            advertisingSid,
-                            BassConstants.INVALID_ADV_INTERVAL,
-                            BassConstants.INVALID_BROADCAST_ID,
-                            null,
-                            null);
-                    addActiveSyncedSource(syncHandle);
+                handleSelectSourceRequest();
+                return;
+            }
 
-                    if (!leaudioBroadcastResyncHelper()) {
-                        synchronized (mSearchScanCallbackLock) {
-                            // when searching is stopped then start timer to stop active syncs
-                            if (!isSearchInProgress()) {
-                                mHandler.removeMessages(MESSAGE_SYNC_TIMEOUT);
-                                log("Started MESSAGE_SYNC_TIMEOUT");
-                                mHandler.sendEmptyMessageDelayed(
-                                        MESSAGE_SYNC_TIMEOUT, sSyncActiveTimeout.toMillis());
-                            }
-                        }
-                    } else {
-                        mTimeoutHandler.stop(broadcastId, MESSAGE_BROADCAST_MONITOR_TIMEOUT);
-                    }
-
-                    // update valid sync handle in mPeriodicAdvCallbacksMap
-                    if (mPeriodicAdvCallbacksMap.containsKey(BassConstants.PENDING_SYNC_HANDLE)) {
-                        PeriodicAdvertisingCallback paCb =
-                                mPeriodicAdvCallbacksMap.get(BassConstants.PENDING_SYNC_HANDLE);
-                        mPeriodicAdvCallbacksMap.put(syncHandle, paCb);
-                        mPeriodicAdvCallbacksMap.remove(BassConstants.PENDING_SYNC_HANDLE);
-                    }
-
-                    mBisDiscoveryCounterMap.put(syncHandle, MAX_BIS_DISCOVERY_TRIES_NUM);
-                }
-
-                synchronized (mSinksWaitingForPast) {
-                    Iterator<Map.Entry<BluetoothDevice, Pair<Integer, Integer>>> iterator =
-                            mSinksWaitingForPast.entrySet().iterator();
-                    while (iterator.hasNext()) {
-                        Map.Entry<BluetoothDevice, Pair<Integer, Integer>> entry = iterator.next();
-                        BluetoothDevice sinkDevice = entry.getKey();
-                        int broadcastIdForPast = entry.getValue().first;
-                        if (broadcastId == broadcastIdForPast) {
-                            int sourceId = entry.getValue().second;
-                            synchronized (mStateMachines) {
-                                BassClientStateMachine sm = getOrCreateStateMachine(sinkDevice);
-                                Message message =
-                                        sm.obtainMessage(
-                                                BassClientStateMachine.INITIATE_PA_SYNC_TRANSFER);
-                                message.arg1 = syncHandle;
-                                message.arg2 = sourceId;
-                                sm.sendMessage(message);
-                            }
-                            synchronized (mPendingSourcesToAdd) {
-                                Iterator<AddSourceData> addIterator =
-                                        mPendingSourcesToAdd.iterator();
-                                while (addIterator.hasNext()) {
-                                    AddSourceData pendingSourcesToAdd = addIterator.next();
-                                    if (pendingSourcesToAdd.mSourceMetadata.getBroadcastId()
-                                                    == broadcastId
-                                            && pendingSourcesToAdd.mSink.equals(sinkDevice)) {
-                                        addIterator.remove();
-                                    }
-                                }
-                            }
-                            iterator.remove();
-                        }
-                    }
-                }
-
-                synchronized (mPendingSourcesToAdd) {
-                    List<AddSourceData> pendingSourcesToAdd = new ArrayList<>();
-                    Iterator<AddSourceData> iterator = mPendingSourcesToAdd.iterator();
-                    while (iterator.hasNext()) {
-                        AddSourceData pendingSourceToAdd = iterator.next();
-                        if (pendingSourceToAdd.mSourceMetadata.getBroadcastId() == broadcastId) {
-                            boolean addSource = true;
-                            if (pendingSourceToAdd.mIsGroupOp && !pendingSourcesToAdd.isEmpty()) {
-                                List<BluetoothDevice> deviceGroup =
-                                        getTargetDeviceList(pendingSourceToAdd.mSink, true);
-                                for (AddSourceData addSourceData : pendingSourcesToAdd) {
-                                    if (addSourceData.mIsGroupOp
-                                            && deviceGroup.contains(addSourceData.mSink)) {
-                                        addSource = false;
-                                    }
-                                }
-                            }
-                            if (addSource) {
-                                pendingSourcesToAdd.add(pendingSourceToAdd);
-                            }
-                            iterator.remove();
-                        }
-                    }
-                    for (AddSourceData addSourceData : pendingSourcesToAdd) {
-                        addSource(
-                                addSourceData.mSink,
-                                addSourceData.mSourceMetadata,
-                                addSourceData.mIsGroupOp);
-                    }
-                }
-            } else {
-                // remove failed sync handle
+            final int ERROR_CODE_SUCCESS = 0x00;
+            if (status != ERROR_CODE_SUCCESS) {
                 log("onSyncEstablished failed for broadcast id: " + broadcastId);
                 boolean notifiedOfLost = false;
                 synchronized (mPendingSourcesToAdd) {
@@ -2569,6 +2468,110 @@ public class BassClientService extends ProfileService {
                     }
                 }
                 clearAllDataForSyncHandle(BassConstants.PENDING_SYNC_HANDLE);
+                handleSelectSourceRequest();
+                return;
+            }
+
+            synchronized (mSourceSyncRequestsQueue) {
+                // updates syncHandle, advSid
+                // set other fields as invalid or null
+                updatePeriodicAdvertisementResultMap(
+                        device,
+                        BassConstants.INVALID_ADV_ADDRESS_TYPE,
+                        syncHandle,
+                        advertisingSid,
+                        BassConstants.INVALID_ADV_INTERVAL,
+                        BassConstants.INVALID_BROADCAST_ID,
+                        null,
+                        null);
+                addActiveSyncedSource(syncHandle);
+
+                if (!leaudioBroadcastResyncHelper()) {
+                    synchronized (mSearchScanCallbackLock) {
+                        // when searching is stopped then start timer to stop active syncs
+                        if (!isSearchInProgress()) {
+                            mHandler.removeMessages(MESSAGE_SYNC_TIMEOUT);
+                            log("Started MESSAGE_SYNC_TIMEOUT");
+                            mHandler.sendEmptyMessageDelayed(
+                                    MESSAGE_SYNC_TIMEOUT, sSyncActiveTimeout.toMillis());
+                        }
+                    }
+                } else {
+                    mTimeoutHandler.stop(broadcastId, MESSAGE_BROADCAST_MONITOR_TIMEOUT);
+                }
+
+                // update valid sync handle in mPeriodicAdvCallbacksMap
+                if (mPeriodicAdvCallbacksMap.containsKey(BassConstants.PENDING_SYNC_HANDLE)) {
+                    PeriodicAdvertisingCallback paCb =
+                            mPeriodicAdvCallbacksMap.get(BassConstants.PENDING_SYNC_HANDLE);
+                    mPeriodicAdvCallbacksMap.put(syncHandle, paCb);
+                    mPeriodicAdvCallbacksMap.remove(BassConstants.PENDING_SYNC_HANDLE);
+                }
+
+                mBisDiscoveryCounterMap.put(syncHandle, MAX_BIS_DISCOVERY_TRIES_NUM);
+            }
+            synchronized (mSinksWaitingForPast) {
+                Iterator<Map.Entry<BluetoothDevice, Pair<Integer, Integer>>> iterator =
+                        mSinksWaitingForPast.entrySet().iterator();
+                while (iterator.hasNext()) {
+                    Map.Entry<BluetoothDevice, Pair<Integer, Integer>> entry = iterator.next();
+                    BluetoothDevice sinkDevice = entry.getKey();
+                    int broadcastIdForPast = entry.getValue().first;
+                    if (broadcastId == broadcastIdForPast) {
+                        int sourceId = entry.getValue().second;
+                        synchronized (mStateMachines) {
+                            BassClientStateMachine sm = getOrCreateStateMachine(sinkDevice);
+                            Message message =
+                                    sm.obtainMessage(
+                                            BassClientStateMachine.INITIATE_PA_SYNC_TRANSFER);
+                            message.arg1 = syncHandle;
+                            message.arg2 = sourceId;
+                            sm.sendMessage(message);
+                        }
+                        synchronized (mPendingSourcesToAdd) {
+                            Iterator<AddSourceData> addIterator = mPendingSourcesToAdd.iterator();
+                            while (addIterator.hasNext()) {
+                                AddSourceData pendingSourcesToAdd = addIterator.next();
+                                if (pendingSourcesToAdd.mSourceMetadata.getBroadcastId()
+                                                == broadcastId
+                                        && pendingSourcesToAdd.mSink.equals(sinkDevice)) {
+                                    addIterator.remove();
+                                }
+                            }
+                        }
+                        iterator.remove();
+                    }
+                }
+            }
+            synchronized (mPendingSourcesToAdd) {
+                List<AddSourceData> pendingSourcesToAdd = new ArrayList<>();
+                Iterator<AddSourceData> iterator = mPendingSourcesToAdd.iterator();
+                while (iterator.hasNext()) {
+                    AddSourceData pendingSourceToAdd = iterator.next();
+                    if (pendingSourceToAdd.mSourceMetadata.getBroadcastId() == broadcastId) {
+                        boolean addSource = true;
+                        if (pendingSourceToAdd.mIsGroupOp && !pendingSourcesToAdd.isEmpty()) {
+                            List<BluetoothDevice> deviceGroup =
+                                    getTargetDeviceList(pendingSourceToAdd.mSink, true);
+                            for (AddSourceData addSourceData : pendingSourcesToAdd) {
+                                if (addSourceData.mIsGroupOp
+                                        && deviceGroup.contains(addSourceData.mSink)) {
+                                    addSource = false;
+                                }
+                            }
+                        }
+                        if (addSource) {
+                            pendingSourcesToAdd.add(pendingSourceToAdd);
+                        }
+                        iterator.remove();
+                    }
+                }
+                for (AddSourceData addSourceData : pendingSourcesToAdd) {
+                    addSource(
+                            addSourceData.mSink,
+                            addSourceData.mSourceMetadata,
+                            addSourceData.mIsGroupOp);
+                }
             }
             handleSelectSourceRequest();
         }
@@ -3257,25 +3260,23 @@ public class BassClientService extends ProfileService {
 
     private void checkIfBroadcastIsSuspendedBySourceRemovalAndClearData(
             BluetoothDevice device, BassClientStateMachine stateMachine) {
-        int broadcastIdToRemove = BassConstants.INVALID_BROADCAST_ID;
-        if (mPausedBroadcastSinks.contains(device)) {
-            Map<Integer, BluetoothLeBroadcastMetadata> entry = mBroadcastMetadataMap.get(device);
-            if (entry != null) {
-                if (entry.keySet().size() >= stateMachine.getMaximumSourceCapacity()) {
-                    for (Integer broadcastId : entry.keySet()) {
-                        // Found broadcastId which is paused by host but not synced
-                        if (!getAllSources(device).stream()
-                                        .anyMatch(rs -> (rs.getBroadcastId() == broadcastId))
-                                && isHostPauseType(broadcastId)) {
-                            broadcastIdToRemove = broadcastId;
-                            break;
-                        }
-                    }
+        if (!mPausedBroadcastSinks.contains(device)) {
+            return;
+        }
+        Map<Integer, BluetoothLeBroadcastMetadata> entry = mBroadcastMetadataMap.get(device);
+        if (entry == null) {
+            return;
+        }
+        if (entry.keySet().size() >= stateMachine.getMaximumSourceCapacity()) {
+            for (Integer broadcastId : entry.keySet()) {
+                // Found broadcastId which is paused by host but not synced
+                if (!getAllSources(device).stream()
+                                .anyMatch(rs -> (rs.getBroadcastId() == broadcastId))
+                        && isHostPauseType(broadcastId)) {
+                    stopBigMonitoring(broadcastId, false);
+                    removeSinkMetadata(device, broadcastId);
+                    return;
                 }
-            }
-            if (broadcastIdToRemove != BassConstants.INVALID_BROADCAST_ID) {
-                stopBigMonitoring(broadcastIdToRemove, false);
-                removeSinkMetadata(device, broadcastIdToRemove);
             }
         }
     }
