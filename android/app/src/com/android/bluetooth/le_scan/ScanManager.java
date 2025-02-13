@@ -1098,9 +1098,13 @@ public class ScanManager {
                             mLastConfiguredScanSettingCoded != Integer.MIN_VALUE);
             int scanPhyMask = getScanPhyMask(client1m != null, clientCoded != null);
 
+            // Only update scan parameters if at least one of the following is true:
+            // 1. The 1M PHY mode has changed and is a valid value
+            // 2. The coded PHY mode has changed and is a valid value
+            // 3. The PHYs to scan on have changed and the new setting is valid (not 0)
             if (shouldUpdateScan(newScanSetting1m, mLastConfiguredScanSetting1m)
                     || shouldUpdateScan(newScanSettingCoded, mLastConfiguredScanSettingCoded)
-                    || curPhyMask != scanPhyMask) {
+                    || (scanPhyMask != 0 && curPhyMask != scanPhyMask)) {
                 int scanWindow1m = getScanWindow(client1m);
                 int scanInterval1m = getScanInterval(client1m);
                 int scanWindowCoded = getScanWindow(clientCoded);

@@ -2025,6 +2025,9 @@ public class ScanManagerTest {
         sendMessageWaitForProcessed(createStartStopScanMessage(false, clientCoded));
 
         verify(mScanNativeInterface, atLeastOnce()).gattClientScan(false);
+        verify(mScanNativeInterface, never())
+                .gattSetScanParameters(
+                        anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), eq(0));
     }
 
     @Test
