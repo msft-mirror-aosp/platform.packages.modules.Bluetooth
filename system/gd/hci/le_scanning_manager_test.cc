@@ -383,9 +383,6 @@ TEST_F(LeScanningManagerTest, legacy_adv_scan_ind_report_with_scan_response) {
 
   // The 'connectable' bit should NOT be set.
   uint16_t extended_event_type = kLegacy | kScannable | kScanResponse;
-  if (!com::android::bluetooth::flags::fix_nonconnectable_scannable_advertisement()) {
-    extended_event_type |= kConnectable;
-  }
   EXPECT_CALL(mock_callbacks_, OnScanResult(extended_event_type, _, _, _, _, _, _, _, _, _));
 
   test_hci_layer_->IncomingLeMetaEvent(LeAdvertisingReportBuilder::Create({scan_response}));
