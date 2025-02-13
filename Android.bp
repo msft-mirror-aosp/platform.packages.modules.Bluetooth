@@ -32,9 +32,16 @@ license {
 }
 
 filegroup {
-    name: "BluetoothTestConfigTemplate",
+    name: "BluetoothGTestConfigTemplate",
     srcs: [
-        "AndroidTestTemplate.xml",
+        "BluetoothGTestTemplate.xml",
+    ],
+}
+
+filegroup {
+    name: "BluetoothRustTestConfigTemplate",
+    srcs: [
+        "BluetoothRustTestTemplate.xml",
     ],
 }
 

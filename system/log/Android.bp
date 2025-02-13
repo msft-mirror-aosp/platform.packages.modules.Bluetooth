@@ -34,6 +34,7 @@ cc_library {
 cc_test {
     name: "libbluetooth_log_test",
     test_suites: ["general-tests"],
+    defaults: ["mts_defaults"],
     host_supported: true,
     srcs: [
         "src/truncating_buffer_test.cc",
