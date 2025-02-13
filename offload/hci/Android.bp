@@ -50,6 +50,23 @@ rust_library {
 rust_test {
     name: "libbluetooth_offload_hci_test",
     host_supported: true,
-    test_suites: ["general-tests"],
+    target: {
+        android: {
+            test_config_template: ":BluetoothRustTestConfigTemplate",
+            test_suites: [
+                "general-tests",
+                "mts-bt",
+            ],
+        },
+    },
+    compile_multilib: "both",
+    multilib: {
+        lib32: {
+            suffix: "32",
+        },
+        lib64: {
+            suffix: "64",
+        },
+    },
     defaults: ["bluetooth_offload_hci_defaults"],
 }
