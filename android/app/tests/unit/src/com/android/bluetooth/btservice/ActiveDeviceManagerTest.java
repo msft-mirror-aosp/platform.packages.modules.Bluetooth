@@ -16,6 +16,7 @@
 
 package com.android.bluetooth.btservice;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -71,8 +72,6 @@ import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.Spy;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -103,7 +102,7 @@ public class ActiveDeviceManagerTest {
     private TestLooper mTestLooper;
     @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private AdapterService mAdapterService;
     @Mock private ServiceFactory mServiceFactory;

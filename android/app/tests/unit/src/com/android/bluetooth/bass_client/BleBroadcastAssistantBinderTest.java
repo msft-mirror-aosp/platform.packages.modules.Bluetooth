@@ -18,6 +18,7 @@ package com.android.bluetooth.bass_client;
 
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -43,8 +44,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.util.Collections;
 import java.util.List;
@@ -52,7 +51,7 @@ import java.util.List;
 @RunWith(JUnit4.class)
 public class BleBroadcastAssistantBinderTest {
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     private final BluetoothAdapter mAdapter =
             InstrumentationRegistry.getInstrumentation()

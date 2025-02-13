@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.gatt;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.anyInt;
@@ -43,8 +45,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 /** Test cases for {@link AdvertiserMap}. */
 @SmallTest
@@ -52,7 +52,7 @@ import org.mockito.junit.MockitoRule;
 public class AdvertiserMapTest {
     private static final String APP_NAME = "com.android.what.a.name";
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private AdapterService mAdapterService;
     @Mock private PackageManager mMockPackageManager;

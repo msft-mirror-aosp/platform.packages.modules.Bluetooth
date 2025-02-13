@@ -16,6 +16,7 @@
 
 package com.android.bluetooth.a2dpsink;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 
 import static org.mockito.Mockito.verify;
@@ -29,11 +30,9 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 public class A2dpSinkServiceBinderTest {
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private A2dpSinkService mService;
     private A2dpSinkService.A2dpSinkServiceBinder mBinder;

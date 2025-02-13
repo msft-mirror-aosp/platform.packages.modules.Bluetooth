@@ -24,6 +24,7 @@ import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTING;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -70,8 +71,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.hamcrest.MockitoHamcrest;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import platform.test.runner.parameterized.ParameterizedAndroidJunit4;
 import platform.test.runner.parameterized.Parameters;
@@ -89,7 +88,7 @@ public class A2dpServiceTest {
     private final BluetoothDevice mDevice = getTestDevice(5);
 
     @Rule public final SetFlagsRule mSetFlagsRule;
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private A2dpNativeInterface mMockNativeInterface;
     @Mock private ActiveDeviceManager mActiveDeviceManager;
