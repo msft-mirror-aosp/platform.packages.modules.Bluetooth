@@ -40,8 +40,11 @@ cc_test {
         "src/truncating_buffer_test.cc",
         "src/vlog_test.cc",
     ],
+    static_libs: [
+        "libbluetooth_log",
+    ],
     shared_libs: [
         "libbase",
-        "libbluetooth_log",
+        "liblog",
     ],
 }

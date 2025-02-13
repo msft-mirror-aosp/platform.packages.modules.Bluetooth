@@ -118,10 +118,9 @@
     {
       "name": "libbluetooth_core_rs_test"
     },
-    // Broken
-    //{
-    //  "name": "libbluetooth_log_test"
-    //},
+    {
+      "name": "libbluetooth_log_test"
+    },
     {
       "name": "libbluetooth_offload_hci_test"
     },
@@ -355,10 +354,9 @@
     {
       "name": "libbluetooth_core_rs_test"
     },
-    // Broken
-    //{
-    //  "name": "libbluetooth_log_test"
-    //},
+    {
+      "name": "libbluetooth_log_test"
+    },
     {
       "name": "libbluetooth_offload_hci_test"
     },
