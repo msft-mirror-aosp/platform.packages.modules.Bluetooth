@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 The Android Open Source Project
+ * Copyright 2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,22 +32,22 @@ import java.io.IOException;
 public class FileSystemWriteTest {
     @Test
     public void testBluetoothDirWrite() throws IOException {
-            File file = new File("/data/misc/bluetooth/test.file");
+        File file = new File("/data/misc/bluetooth/test.file");
         assertThat(file.createNewFile()).isTrue();
-            file.delete();
+        file.delete();
     }
 
     @Test
     public void testBluedroidDirWrite() throws IOException {
-            File file = new File("/data/misc/bluedroid/test.file");
+        File file = new File("/data/misc/bluedroid/test.file");
         assertThat(file.createNewFile()).isTrue();
-            file.delete();
+        file.delete();
     }
 
     @Test
     public void testBluetoothLogsDirWrite() throws IOException {
-            File file = new File("/data/misc/bluetooth/logs/test.file");
+        File file = new File("/data/misc/bluetooth/logs/test.file");
         assertThat(file.createNewFile()).isTrue();
-            file.delete();
+        file.delete();
     }
 }

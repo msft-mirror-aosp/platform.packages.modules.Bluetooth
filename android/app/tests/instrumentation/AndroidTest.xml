@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Copyright 2017 The Android Open Source Project
+<!-- Copyright 2025 The Android Open Source Project
 
      Licensed under the Apache License, Version 2.0 (the "License");
      you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@
     <option name="test-suite-tag" value="apct-instrumentation" />
     <target_preparer class="com.android.tradefed.targetprep.suite.SuiteApkInstaller">
         <option name="cleanup-apks" value="true" />
-        <option name="test-file-name" value="GoogleBluetoothInstrumentationTests.apk" />
+        <option name="test-file-name" value="BluetoothInstrumentationTests.apk" />
     </target_preparer>
     <target_preparer class="com.android.tradefed.targetprep.RootTargetPreparer">
         <option name="force-root" value="true" />
@@ -30,6 +30,10 @@
         <option name="run-command" value="settings put global ble_scan_always_enabled 0" />
         <option name="run-command" value="cmd bluetooth_manager disable" />
         <option name="run-command" value="cmd bluetooth_manager wait-for-state:STATE_OFF" />
+        <option name="run-command" value="settings put global satellite_mode_radios bluetooth" />
+        <option name="run-command" value="settings put global satellite_mode_enabled 1" />
+        <option name="teardown-command" value="settings delete global satellite_mode_radios" />
+        <option name="teardown-command" value="settings put global satellite_mode_enabled 0" />
         <option name="teardown-command" value="cmd bluetooth_manager enable" />
         <option name="teardown-command" value="cmd bluetooth_manager wait-for-state:STATE_ON" />
         <option name="teardown-command" value="settings put global ble_scan_always_enabled 1" />
@@ -37,20 +41,20 @@
     <target_preparer class="com.android.tradefed.targetprep.FolderSaver">
         <option name="device-path" value="/data/vendor/ssrdump" />
     </target_preparer>
-    <option name="test-tag" value="GoogleBluetoothInstrumentationTests" />
+    <option name="test-tag" value="BluetoothInstrumentationTests" />
     <test class="com.android.tradefed.testtype.AndroidJUnitTest" >
         <option name="package" value="com.android.bluetooth.tests" />
         <!-- include and exclude filters go into /data/local/tmp/ajur/ by default
              However it's prohibited for access by system uid packages.
              So instead we use the app cache folder for filter -->
-        <option name="test-filter-dir" value="/data/data/com.google.android.bluetooth/cache" />
+        <option name="test-filter-dir" value="/data/data/com.android.bluetooth/cache" />
         <option name="hidden-api-checks" value="false"/>
     </test>
 
-    <!-- Only run if the Google Bluetooth Mainline module is installed. -->
+    <!-- Only run if the Bluetooth Mainline module is installed. -->
     <object type="module_controller"
             class="com.android.tradefed.testtype.suite.module.MainlineTestModuleController">
         <option name="enable" value="true" />
-        <option name="mainline-module-package-name" value="com.google.android.bt" />
+        <option name="mainline-module-package-name" value="com.android.bt" />
     </object>
 </configuration>
