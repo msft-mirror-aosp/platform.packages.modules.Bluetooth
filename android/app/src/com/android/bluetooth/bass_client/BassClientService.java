@@ -1302,6 +1302,11 @@ public class BassClientService extends ProfileService {
         }
     }
 
+    private void localNotifySourceAddFailed(
+            BluetoothDevice sink, BluetoothLeBroadcastMetadata source) {
+        removeSinkMetadata(sink, source.getBroadcastId());
+    }
+
     private void setSourceGroupManaged(BluetoothDevice sink, int sourceId, boolean isGroupOp) {
         log("setSourceGroupManaged device: " + sink);
         if (isGroupOp) {
@@ -3230,6 +3235,8 @@ public class BassClientService extends ProfileService {
                     BluetoothLeBroadcastMetadata metaData =
                             stateMachine.getCurrentBroadcastMetadata(sourceIdToRemove);
                     if (metaData != null) {
+                        removeSinkMetadata(device, metaData.getBroadcastId());
+
                         // Add host intentional pause if previous broadcast is different than
                         // current
                         if (sourceMetadata.getBroadcastId() != metaData.getBroadcastId()) {
@@ -3350,9 +3357,6 @@ public class BassClientService extends ProfileService {
             return;
         }
 
-        /* Update metadata for sink device */
-        storeSinkMetadata(sink, updatedMetadata.getBroadcastId(), updatedMetadata);
-
         byte[] code = updatedMetadata.getBroadcastCode();
         for (Map.Entry<BluetoothDevice, Integer> deviceSourceIdPair : devices.entrySet()) {
             BluetoothDevice device = deviceSourceIdPair.getKey();
@@ -3376,6 +3380,9 @@ public class BassClientService extends ProfileService {
                         device, sourceId, BluetoothStatusCodes.ERROR_ALREADY_IN_TARGET_STATE);
                 continue;
             }
+
+            /* Update metadata for sink device */
+            storeSinkMetadata(device, updatedMetadata.getBroadcastId(), updatedMetadata);
 
             sEventLogger.logd(
                     TAG,
@@ -3409,7 +3416,10 @@ public class BassClientService extends ProfileService {
     }
 
     /**
-     * Removes the Broadcast Source from a Broadcast Sink
+     * A public method for removing a Broadcast Source from a Broadcast Sink. It also supports group
+     * removal if addSource was previously used with a group. Designed for external use, this method
+     * always removes sources along with their cached values, even if they were suspended, as this
+     * is intended by the user.
      *
      * @param sink representing the Broadcast Sink from which a Broadcast Source should be removed
      * @param sourceId source ID as delivered in onSourceAdded
@@ -3420,8 +3430,10 @@ public class BassClientService extends ProfileService {
         Map<BluetoothDevice, Integer> devices = getGroupManagedDeviceSources(sink, sourceId).second;
         for (Map.Entry<BluetoothDevice, Integer> deviceSourceIdPair : devices.entrySet()) {
             BluetoothDevice device = deviceSourceIdPair.getKey();
-
             Integer deviceSourceId = deviceSourceIdPair.getValue();
+
+            mPausedBroadcastSinks.remove(device);
+
             BassClientStateMachine stateMachine = getOrCreateStateMachine(device);
             int statusCode =
                     validateParametersForSourceOperation(stateMachine, device, deviceSourceId);
@@ -3433,63 +3445,87 @@ public class BassClientService extends ProfileService {
 
             BluetoothLeBroadcastMetadata metaData =
                     stateMachine.getCurrentBroadcastMetadata(deviceSourceId);
-
-            /* Removes metadata for sink device if not paused */
-            if (!mPausedBroadcastSinks.contains(device)) {
-                if (metaData != null) {
-                    removeSinkMetadata(device, metaData.getBroadcastId());
-                } else {
-                    removeSinkMetadata(device);
-                }
-            }
-
             if (metaData != null) {
-                stopBigMonitoring(metaData.getBroadcastId(), true);
+                removeSinkMetadata(device, metaData.getBroadcastId());
+            } else {
+                removeSinkMetadata(device);
             }
 
-            if (stateMachine.isSyncedToTheSource(deviceSourceId)) {
-                sEventLogger.logd(
-                        TAG,
-                        "Remove Broadcast Source(Force lost PA sync): "
-                                + ("device: " + device)
-                                + (", sourceId: " + deviceSourceId)
-                                + (", broadcastId: "
-                                        + ((metaData == null)
-                                                ? BassConstants.INVALID_BROADCAST_ID
-                                                : metaData.getBroadcastId()))
-                                + (", broadcastName: "
-                                        + ((metaData == null) ? "" : metaData.getBroadcastName())));
+            removeSourceInternal(device, deviceSourceId, stateMachine, metaData);
+        }
+    }
 
-                log("Force source to lost PA sync");
-                Message message =
-                        stateMachine.obtainMessage(BassClientStateMachine.UPDATE_BCAST_SOURCE);
-                message.arg1 = deviceSourceId;
-                message.arg2 = BassConstants.PA_SYNC_DO_NOT_SYNC;
-                /* Pending remove set. Remove source once not synchronized to PA */
-                /* MetaData can be null if source is from remote's receive state */
-                message.obj = metaData;
-                stateMachine.sendMessage(message);
-                continue;
-            }
+    /**
+     * Removes the Broadcast Source from a single Broadcast Sink
+     *
+     * @param sink representing the Broadcast Sink from which a Broadcast Source should be removed
+     * @param sourceId source ID as delivered in onSourceAdded
+     */
+    private void removeSourceInternal(BluetoothDevice sink, int sourceId) {
+        log("removeSourceInternal prepare: device: " + sink + ", sourceId: " + sourceId);
 
+        BassClientStateMachine stateMachine = getOrCreateStateMachine(sink);
+        int statusCode = validateParametersForSourceOperation(stateMachine, sink, sourceId);
+        if (statusCode != BluetoothStatusCodes.SUCCESS) {
+            mCallbacks.notifySourceRemoveFailed(sink, sourceId, statusCode);
+            return;
+        }
+        BluetoothLeBroadcastMetadata metaData = stateMachine.getCurrentBroadcastMetadata(sourceId);
+        removeSourceInternal(sink, sourceId, stateMachine, metaData);
+    }
+
+    /**
+     * Removes the Broadcast Source from a single Broadcast Sink
+     *
+     * @param sink representing the Broadcast Sink from which a Broadcast Source should be removed
+     * @param sourceId source ID as delivered in onSourceAdded
+     * @param stateMachine stateMachine for this sink
+     * @param metaData current broadcast metadata for this sink
+     */
+    private void removeSourceInternal(
+            BluetoothDevice sink,
+            int sourceId,
+            BassClientStateMachine stateMachine,
+            BluetoothLeBroadcastMetadata metaData) {
+        log("removeSourceInternal: device: " + sink + ", sourceId: " + sourceId);
+        if (metaData != null) {
+            stopBigMonitoring(metaData.getBroadcastId(), true);
+        }
+
+        if (stateMachine.isSyncedToTheSource(sourceId)) {
             sEventLogger.logd(
                     TAG,
-                    "Remove Broadcast Source: device: " + device + ", sourceId: " + deviceSourceId);
+                    "Remove Broadcast Source(Force lost PA sync): "
+                            + ("device: " + sink)
+                            + (", sourceId: " + sourceId)
+                            + (", broadcastId: "
+                                    + ((metaData == null)
+                                            ? BassConstants.INVALID_BROADCAST_ID
+                                            : metaData.getBroadcastId()))
+                            + (", broadcastName: "
+                                    + ((metaData == null) ? "" : metaData.getBroadcastName())));
+
+            log("Force source to lost PA sync");
+            Message message =
+                    stateMachine.obtainMessage(BassClientStateMachine.UPDATE_BCAST_SOURCE);
+            message.arg1 = sourceId;
+            message.arg2 = BassConstants.PA_SYNC_DO_NOT_SYNC;
+            /* Pending remove set. Remove source once not synchronized to PA */
+            /* MetaData can be null if source is from remote's receive state */
+            message.obj = metaData;
+            stateMachine.sendMessage(message);
+        } else {
+            sEventLogger.logd(
+                    TAG, "Remove Broadcast Source: device: " + sink + ", sourceId: " + sourceId);
 
             Message message =
                     stateMachine.obtainMessage(BassClientStateMachine.REMOVE_BCAST_SOURCE);
-            message.arg1 = deviceSourceId;
+            message.arg1 = sourceId;
             stateMachine.sendMessage(message);
         }
 
-        for (Map.Entry<BluetoothDevice, Integer> deviceSourceIdPair : devices.entrySet()) {
-            BluetoothDevice device = deviceSourceIdPair.getKey();
-            Integer deviceSourceId = deviceSourceIdPair.getValue();
-            enqueueSourceGroupOp(
-                    device,
-                    BassClientStateMachine.REMOVE_BCAST_SOURCE,
-                    Integer.valueOf(deviceSourceId));
-        }
+        enqueueSourceGroupOp(
+                sink, BassClientStateMachine.REMOVE_BCAST_SOURCE, Integer.valueOf(sourceId));
     }
 
     /**
@@ -3630,10 +3666,6 @@ public class BassClientService extends ProfileService {
                 getReceiveStateDevicePairs(broadcastId);
 
         for (Pair<BluetoothLeBroadcastReceiveState, BluetoothDevice> pair : sourcesToRemove) {
-            if (leaudioBroadcastResyncHelper()) {
-                mPausedBroadcastSinks.remove(pair.second);
-                stopBigMonitoring(pair.first.getBroadcastId(), true);
-            }
             removeSource(pair.second, pair.first.getSourceId());
         }
 
@@ -3647,7 +3679,7 @@ public class BassClientService extends ProfileService {
         log("stopSourceReceivers broadcastId: " + broadcastId + ", store: " + store);
 
         Map<BluetoothDevice, Integer> sourcesToRemove = new HashMap<>();
-
+        HashSet<Integer> broadcastIdsToStopMonitoring = new HashSet<>();
         for (BluetoothDevice device : getConnectedDevices()) {
             if (!leaudioBroadcastResyncHelper()) {
                 if (mPausedBroadcastSinks.contains(device)) {
@@ -3681,13 +3713,13 @@ public class BassClientService extends ProfileService {
                         continue;
                     }
 
+                    broadcastIdsToStopMonitoring.add(receiveState.getBroadcastId());
+
                     if (!mPausedBroadcastSinks.contains(device)
                             || isSinkUnintentionalPauseType(receiveState.getBroadcastId())) {
                         // Remove device if not paused yet
                         sourcesToRemove.put(device, receiveState.getSourceId());
                     }
-
-                    stopBigMonitoring(receiveState.getBroadcastId(), true);
 
                     if (store) {
                         sEventLogger.logd(TAG, "Add broadcast sink to paused cache: " + device);
@@ -3699,10 +3731,12 @@ public class BassClientService extends ProfileService {
             }
         }
 
-        logPausedBroadcastsAndSinks();
+        for (int broadcastIdToStopMonitoring : broadcastIdsToStopMonitoring) {
+            stopBigMonitoring(broadcastIdToStopMonitoring, true);
+        }
 
         for (Map.Entry<BluetoothDevice, Integer> entry : sourcesToRemove.entrySet()) {
-            removeSource(entry.getKey(), entry.getValue());
+            removeSourceInternal(entry.getKey(), entry.getValue());
         }
 
         if (leaudioBroadcastResyncHelper()) {
@@ -4628,6 +4662,7 @@ public class BassClientService extends ProfileService {
         void notifySourceAddFailed(
                 BluetoothDevice sink, BluetoothLeBroadcastMetadata source, int reason) {
             sService.checkAndResetGroupAllowedContextMask();
+            sService.localNotifySourceAddFailed(sink, source);
 
             sEventLogger.loge(
                     TAG,
