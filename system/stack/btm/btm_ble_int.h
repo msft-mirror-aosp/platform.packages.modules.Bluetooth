@@ -32,7 +32,8 @@
 #include "types/ble_address_with_type.h"
 #include "types/raw_address.h"
 
-void btm_send_hci_set_scan_params(uint8_t scan_type, uint16_t scan_int, uint16_t scan_win,
+void btm_send_hci_set_scan_params(uint8_t scan_type, uint16_t scan_int_1m, uint16_t scan_win_1m,
+                                  uint16_t scan_int_coded, uint16_t scan_win_coded,
                                   uint8_t scan_phy, tBLE_ADDR_TYPE addr_type_own,
                                   uint8_t scan_filter_policy);
 

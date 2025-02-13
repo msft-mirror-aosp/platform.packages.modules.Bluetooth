@@ -35,7 +35,7 @@ import android.os.Bundle;
 import android.test.mock.MockContentProvider;
 import android.test.mock.MockContentResolver;
 
-import androidx.test.InstrumentationRegistry;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestUtils;
@@ -88,7 +88,7 @@ public class MetadataTest {
     @Before
     public void setUp() throws Exception {
 
-        mTargetContext = InstrumentationRegistry.getTargetContext();
+        mTargetContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
         mTestResources = TestUtils.getTestApplicationResources(mTargetContext);
 
         mTestBitmap = loadImage(com.android.bluetooth.tests.R.raw.image_200_200);

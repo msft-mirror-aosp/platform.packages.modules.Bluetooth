@@ -1596,10 +1596,13 @@ impl BluetoothGatt {
             (enabled_scanner_id, enabled_scan_param)
         {
             self.gatt.lock().unwrap().scanner.set_scan_parameters(
-                scanner_id,
                 scan_type,
+                scanner_id,
                 scan_interval,
                 scan_window,
+                0,
+                0,
+                0,
                 1,
             );
         } else {

@@ -422,6 +422,19 @@ public class BluetoothInCallService extends InCallService {
                     && conferenceCall.getState() == Call.STATE_ACTIVE) {
                 Log.i(TAG, "BT - hanging up conference call");
                 call = conferenceCall;
+            } else if (Flags.nonConferenceCallHangup()
+                    && !mCallInfo.isNullCall(conferenceCall)
+                    && conferenceCall.getState() == Call.STATE_HOLDING) {
+                Log.i(TAG, "BT - hanging up active call other than conference call");
+                /* Find active call other than conference */
+                for (BluetoothCall btCall : mCallInfo.getBluetoothCalls()) {
+                    if (!btCall.isConference()
+                            && btCall.getState() == Call.STATE_ACTIVE
+                            && btCall.getParentId() == null) {
+                        call = btCall;
+                        break;
+                    }
+                }
             }
             if (call.getState() == Call.STATE_RINGING) {
                 call.reject(false, "");

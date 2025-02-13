@@ -16,9 +16,10 @@
 
 package com.android.bluetooth.hfpclient;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static org.mockito.Mockito.verify;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 
@@ -36,34 +37,31 @@ import org.mockito.junit.MockitoRule;
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class HeadsetClientServiceBinderTest {
-    private static final String REMOTE_DEVICE_ADDRESS = "00:00:00:00:00:00";
-
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
     @Mock private HeadsetClientService mService;
 
-    BluetoothDevice mRemoteDevice;
+    private final BluetoothDevice mDevice = getTestDevice(54);
 
     HeadsetClientService.BluetoothHeadsetClientBinder mBinder;
 
     @Before
     public void setUp() throws Exception {
-        mRemoteDevice = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(REMOTE_DEVICE_ADDRESS);
         mBinder = new HeadsetClientService.BluetoothHeadsetClientBinder(mService);
     }
 
     @Test
     public void connect_callsServiceMethod() {
-        mBinder.connect(mRemoteDevice, null);
+        mBinder.connect(mDevice, null);
 
-        verify(mService).connect(mRemoteDevice);
+        verify(mService).connect(mDevice);
     }
 
     @Test
     public void disconnect_callsServiceMethod() {
-        mBinder.disconnect(mRemoteDevice, null);
+        mBinder.disconnect(mDevice, null);
 
-        verify(mService).disconnect(mRemoteDevice);
+        verify(mService).disconnect(mDevice);
     }
 
     @Test
@@ -83,148 +81,148 @@ public class HeadsetClientServiceBinderTest {
 
     @Test
     public void getConnectionState_callsServiceMethod() {
-        mBinder.getConnectionState(mRemoteDevice, null);
+        mBinder.getConnectionState(mDevice, null);
 
-        verify(mService).getConnectionState(mRemoteDevice);
+        verify(mService).getConnectionState(mDevice);
     }
 
     @Test
     public void setConnectionPolicy_callsServiceMethod() {
         int connectionPolicy = BluetoothProfile.CONNECTION_POLICY_ALLOWED;
-        mBinder.setConnectionPolicy(mRemoteDevice, connectionPolicy, null);
+        mBinder.setConnectionPolicy(mDevice, connectionPolicy, null);
 
-        verify(mService).setConnectionPolicy(mRemoteDevice, connectionPolicy);
+        verify(mService).setConnectionPolicy(mDevice, connectionPolicy);
     }
 
     @Test
     public void getConnectionPolicy_callsServiceMethod() {
-        mBinder.getConnectionPolicy(mRemoteDevice, null);
+        mBinder.getConnectionPolicy(mDevice, null);
 
-        verify(mService).getConnectionPolicy(mRemoteDevice);
+        verify(mService).getConnectionPolicy(mDevice);
     }
 
     @Test
     public void startVoiceRecognition_callsServiceMethod() {
-        mBinder.startVoiceRecognition(mRemoteDevice, null);
+        mBinder.startVoiceRecognition(mDevice, null);
 
-        verify(mService).startVoiceRecognition(mRemoteDevice);
+        verify(mService).startVoiceRecognition(mDevice);
     }
 
     @Test
     public void stopVoiceRecognition_callsServiceMethod() {
-        mBinder.stopVoiceRecognition(mRemoteDevice, null);
+        mBinder.stopVoiceRecognition(mDevice, null);
 
-        verify(mService).stopVoiceRecognition(mRemoteDevice);
+        verify(mService).stopVoiceRecognition(mDevice);
     }
 
     @Test
     public void getAudioState_callsServiceMethod() {
-        mBinder.getAudioState(mRemoteDevice, null);
+        mBinder.getAudioState(mDevice, null);
 
-        verify(mService).getAudioState(mRemoteDevice);
+        verify(mService).getAudioState(mDevice);
     }
 
     @Test
     public void setAudioRouteAllowed_callsServiceMethod() {
         boolean allowed = true;
-        mBinder.setAudioRouteAllowed(mRemoteDevice, allowed, null);
+        mBinder.setAudioRouteAllowed(mDevice, allowed, null);
 
-        verify(mService).setAudioRouteAllowed(mRemoteDevice, allowed);
+        verify(mService).setAudioRouteAllowed(mDevice, allowed);
     }
 
     @Test
     public void getAudioRouteAllowed_callsServiceMethod() {
-        mBinder.getAudioRouteAllowed(mRemoteDevice, null);
+        mBinder.getAudioRouteAllowed(mDevice, null);
 
-        verify(mService).getAudioRouteAllowed(mRemoteDevice);
+        verify(mService).getAudioRouteAllowed(mDevice);
     }
 
     @Test
     public void connectAudio_callsServiceMethod() {
-        mBinder.connectAudio(mRemoteDevice, null);
+        mBinder.connectAudio(mDevice, null);
 
-        verify(mService).connectAudio(mRemoteDevice);
+        verify(mService).connectAudio(mDevice);
     }
 
     @Test
     public void disconnectAudio_callsServiceMethod() {
-        mBinder.disconnectAudio(mRemoteDevice, null);
+        mBinder.disconnectAudio(mDevice, null);
 
-        verify(mService).disconnectAudio(mRemoteDevice);
+        verify(mService).disconnectAudio(mDevice);
     }
 
     @Test
     public void acceptCall_callsServiceMethod() {
         int flag = 2;
-        mBinder.acceptCall(mRemoteDevice, flag, null);
+        mBinder.acceptCall(mDevice, flag, null);
 
-        verify(mService).acceptCall(mRemoteDevice, flag);
+        verify(mService).acceptCall(mDevice, flag);
     }
 
     @Test
     public void rejectCall_callsServiceMethod() {
-        mBinder.rejectCall(mRemoteDevice, null);
+        mBinder.rejectCall(mDevice, null);
 
-        verify(mService).rejectCall(mRemoteDevice);
+        verify(mService).rejectCall(mDevice);
     }
 
     @Test
     public void holdCall_callsServiceMethod() {
-        mBinder.holdCall(mRemoteDevice, null);
+        mBinder.holdCall(mDevice, null);
 
-        verify(mService).holdCall(mRemoteDevice);
+        verify(mService).holdCall(mDevice);
     }
 
     @Test
     public void terminateCall_callsServiceMethod() {
-        mBinder.terminateCall(mRemoteDevice, null, null);
+        mBinder.terminateCall(mDevice, null, null);
 
-        verify(mService).terminateCall(mRemoteDevice, null);
+        verify(mService).terminateCall(mDevice, null);
     }
 
     @Test
     public void explicitCallTransfer_callsServiceMethod() {
-        mBinder.explicitCallTransfer(mRemoteDevice, null);
+        mBinder.explicitCallTransfer(mDevice, null);
 
-        verify(mService).explicitCallTransfer(mRemoteDevice);
+        verify(mService).explicitCallTransfer(mDevice);
     }
 
     @Test
     public void enterPrivateMode_callsServiceMethod() {
         int index = 1;
-        mBinder.enterPrivateMode(mRemoteDevice, index, null);
+        mBinder.enterPrivateMode(mDevice, index, null);
 
-        verify(mService).enterPrivateMode(mRemoteDevice, index);
+        verify(mService).enterPrivateMode(mDevice, index);
     }
 
     @Test
     public void dial_callsServiceMethod() {
         String number = "12532523";
-        mBinder.dial(mRemoteDevice, number, null);
+        mBinder.dial(mDevice, number, null);
 
-        verify(mService).dial(mRemoteDevice, number);
+        verify(mService).dial(mDevice, number);
     }
 
     @Test
     public void sendDTMF_callsServiceMethod() {
         byte code = 21;
-        mBinder.sendDTMF(mRemoteDevice, code, null);
+        mBinder.sendDTMF(mDevice, code, null);
 
-        verify(mService).sendDTMF(mRemoteDevice, code);
+        verify(mService).sendDTMF(mDevice, code);
     }
 
     @Test
     public void getLastVoiceTagNumber_callsServiceMethod() {
-        mBinder.getLastVoiceTagNumber(mRemoteDevice, null);
+        mBinder.getLastVoiceTagNumber(mDevice, null);
 
-        verify(mService).getLastVoiceTagNumber(mRemoteDevice);
+        verify(mService).getLastVoiceTagNumber(mDevice);
     }
 
     @Test
     public void getCurrentAgEvents_callsServiceMethod() {
-        mBinder.getCurrentAgEvents(mRemoteDevice, null);
+        mBinder.getCurrentAgEvents(mDevice, null);
 
-        verify(mService).getCurrentAgEvents(mRemoteDevice);
+        verify(mService).getCurrentAgEvents(mDevice);
     }
 
     @Test
@@ -232,16 +230,16 @@ public class HeadsetClientServiceBinderTest {
         int vendorId = 5;
         String cmd = "test_command";
 
-        mBinder.sendVendorAtCommand(mRemoteDevice, vendorId, cmd, null);
+        mBinder.sendVendorAtCommand(mDevice, vendorId, cmd, null);
 
-        verify(mService).sendVendorAtCommand(mRemoteDevice, vendorId, cmd);
+        verify(mService).sendVendorAtCommand(mDevice, vendorId, cmd);
     }
 
     @Test
     public void getCurrentAgFeatures_callsServiceMethod() {
-        mBinder.getCurrentAgFeatures(mRemoteDevice, null);
+        mBinder.getCurrentAgFeatures(mDevice, null);
 
-        verify(mService).getCurrentAgFeaturesBundle(mRemoteDevice);
+        verify(mService).getCurrentAgFeaturesBundle(mDevice);
     }
 
     @Test

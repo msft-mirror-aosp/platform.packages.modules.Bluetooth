@@ -151,7 +151,7 @@ public class BluetoothOppReceiver extends BroadcastReceiver {
             } else {
                 Intent in = new Intent(context, BluetoothOppTransferActivity.class);
                 in.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-                in.setDataAndNormalize(uri);
+                in.setData(uri.normalizeScheme());
                 context.startActivity(in);
             }
 

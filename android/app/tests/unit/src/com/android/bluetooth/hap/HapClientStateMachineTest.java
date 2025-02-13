@@ -28,6 +28,7 @@ import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTING;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
 import static com.android.bluetooth.hap.HapClientStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED;
 import static com.android.bluetooth.hap.HapClientStateMachine.CONNECT_TIMEOUT;
 import static com.android.bluetooth.hap.HapClientStateMachine.MESSAGE_CONNECT;
@@ -43,7 +44,6 @@ import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.Intent;
 
@@ -72,8 +72,7 @@ public class HapClientStateMachineTest {
     @Mock private HapClientService mService;
     @Mock private HapClientNativeInterface mNativeInterface;
 
-    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
-    private final BluetoothDevice mDevice = mAdapter.getRemoteDevice("00:01:02:03:04:05");
+    private final BluetoothDevice mDevice = getTestDevice(23);
 
     private HapClientStateMachine mStateMachine;
     private InOrder mInOrder;

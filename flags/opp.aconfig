@@ -30,3 +30,14 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "opp_remove_empty_group_notification"
+    namespace: "bluetooth"
+    description: "Fix that group summary notification doesn't go away when all children are gone."
+    bug: "395546332"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+

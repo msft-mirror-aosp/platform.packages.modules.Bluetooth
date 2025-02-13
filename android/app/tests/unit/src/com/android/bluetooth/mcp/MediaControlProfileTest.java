@@ -16,13 +16,12 @@
 
 package com.android.bluetooth.mcp;
 
-import static androidx.test.platform.app.InstrumentationRegistry.getInstrumentation;
+import static com.android.bluetooth.TestUtils.getTestDevice;
 
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.*;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothUuid;
 import android.content.pm.ApplicationInfo;
@@ -59,7 +58,6 @@ import java.util.UUID;
 public class MediaControlProfileTest {
     private final String mFlagDexmarker = System.getProperty("dexmaker.share_classloader", "false");
 
-    private BluetoothAdapter mAdapter;
     private MediaControlProfile mMediaControlProfile;
 
     private String packageName = "TestPackage";
@@ -93,7 +91,6 @@ public class MediaControlProfileTest {
         MediaControlProfile.ListCallback listCallback;
 
         TestUtils.setAdapterService(mAdapterService);
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
 
         mMockMediaData.metadata = mMockMetadata;
 
@@ -509,7 +506,7 @@ public class MediaControlProfileTest {
                 .getServiceUuid();
 
         // BluetoothDevice class is not mockable
-        BluetoothDevice bluetoothDevice = TestUtils.getTestDevice(mAdapter, 0);
+        BluetoothDevice bluetoothDevice = getTestDevice(0);
         mMediaControlProfile.setNotificationSubscription(ccid1, bluetoothDevice, charUuid1, true);
         assertThat(mMediaControlProfile.getNotificationSubscriptions(ccid1, bluetoothDevice))
                 .isNotNull();

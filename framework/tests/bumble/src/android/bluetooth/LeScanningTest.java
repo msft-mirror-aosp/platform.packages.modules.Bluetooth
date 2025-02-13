@@ -39,10 +39,14 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.ParcelUuid;
+import android.platform.test.annotations.RequiresFlagsEnabled;
+import android.platform.test.flag.junit.CheckFlagsRule;
+import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.util.Log;
 
 import androidx.test.core.app.ApplicationProvider;
 
+import com.android.bluetooth.flags.Flags;
 import com.android.compatibility.common.util.AdoptShellPermissionsRule;
 
 import com.google.protobuf.ByteString;
@@ -58,6 +62,7 @@ import pandora.HostProto;
 import pandora.HostProto.AdvertiseRequest;
 import pandora.HostProto.AdvertiseResponse;
 import pandora.HostProto.OwnAddressType;
+import pandora.HostProto.PrimaryPhy;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -77,12 +82,15 @@ public class LeScanningTest {
     private static final String TEST_UUID_SUFFIX = "-0000-1000-8000-00805f9b34fb";
 
     @Rule(order = 0)
-    public final AdoptShellPermissionsRule mPermissionRule = new AdoptShellPermissionsRule();
+    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
 
     @Rule(order = 1)
-    public final PandoraDevice mBumble = new PandoraDevice();
+    public final AdoptShellPermissionsRule mPermissionRule = new AdoptShellPermissionsRule();
 
     @Rule(order = 2)
+    public final PandoraDevice mBumble = new PandoraDevice();
+
+    @Rule(order = 3)
     public final EnableBluetoothRule mEnableBluetoothRule = new EnableBluetoothRule(false, true);
 
     private final Context mContext =
@@ -394,8 +402,42 @@ public class LeScanningTest {
         assertThat(results).isNull();
     }
 
+    // PHY_LE_1M: 1, PHY_LE_CODED: 3, PHY_LE_ALL_SUPPORTED: 255
+    @Test
+    @VirtualOnly
+    @RequiresFlagsEnabled(Flags.FLAG_PHY_TO_NATIVE)
+    public void startBleScan_codedPhy(@TestParameter({"1", "3", "255"}) int phy) {
+        advertiseWithBumbleWithServiceDataAndPhy(true);
+
+        ScanFilter scanFilter =
+                new ScanFilter.Builder()
+                        .setServiceData(ParcelUuid.fromString(TEST_UUID_STRING), TEST_SERVICE_DATA)
+                        .build();
+
+        List<ScanResult> results =
+                startScanning(
+                        scanFilter,
+                        ScanSettings.CALLBACK_TYPE_ALL_MATCHES,
+                        /* isLegacy= */ false,
+                        phy);
+
+        if (phy == BluetoothDevice.PHY_LE_1M) {
+            assertThat(results).isNull();
+            return;
+        }
+
+        assertThat(results).isNotNull();
+        assertThat(results.get(0).getScanRecord().getServiceUuids().get(0))
+                .isEqualTo(ParcelUuid.fromString(TEST_UUID_STRING));
+    }
+
     private List<ScanResult> startScanning(
             ScanFilter scanFilter, int callbackType, boolean isLegacy) {
+        return startScanning(scanFilter, callbackType, isLegacy, BluetoothDevice.PHY_LE_1M);
+    }
+
+    private List<ScanResult> startScanning(
+            ScanFilter scanFilter, int callbackType, boolean isLegacy, int phy) {
         CompletableFuture<List<ScanResult>> future = new CompletableFuture<>();
         List<ScanResult> scanResults = new ArrayList<>();
 
@@ -404,6 +446,7 @@ public class LeScanningTest {
                         .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
                         .setCallbackType(callbackType)
                         .setLegacy(isLegacy)
+                        .setPhy(phy)
                         .build();
 
         ScanCallback scanCallback =
@@ -447,8 +490,14 @@ public class LeScanningTest {
     }
 
     private void advertiseWithBumbleWithServiceData() {
+        advertiseWithBumbleWithServiceDataAndPhy(false);
+    }
+
+    private void advertiseWithBumbleWithServiceDataAndPhy(boolean useCoded) {
         AdvertiseRequest.Builder requestBuilder =
-                AdvertiseRequest.newBuilder().setOwnAddressType(OwnAddressType.PUBLIC);
+                AdvertiseRequest.newBuilder()
+                        .setOwnAddressType(OwnAddressType.PUBLIC)
+                        .setPrimaryPhy(useCoded ? PrimaryPhy.PRIMARY_CODED : PrimaryPhy.PRIMARY_1M);
 
         HostProto.DataTypes.Builder dataTypeBuilder = HostProto.DataTypes.newBuilder();
         dataTypeBuilder.addCompleteServiceClassUuids128(TEST_UUID_STRING);

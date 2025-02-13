@@ -33,6 +33,7 @@ import static org.mockito.Mockito.verify;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothManager;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.Intent;
@@ -280,7 +281,11 @@ public class BluetoothOppUtilityTest {
 
     @Test
     public void fillRecord_filledAllProperties() {
-        BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+        BluetoothAdapter adapter =
+                InstrumentationRegistry.getInstrumentation()
+                        .getTargetContext()
+                        .getSystemService(BluetoothManager.class)
+                        .getAdapter();
         int idValue = 1234;
         int directionValue = BluetoothShare.DIRECTION_OUTBOUND;
         long totalBytesValue = 10;

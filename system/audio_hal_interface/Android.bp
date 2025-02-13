@@ -92,6 +92,7 @@ cc_test {
         "latest_android_hardware_audio_common_ndk_static",
         "latest_android_hardware_bluetooth_audio_ndk_static",
         "latest_android_media_audio_common_types_ndk_static",
+        "mts_defaults",
     ],
     include_dirs: [
         "packages/modules/Bluetooth/system",
@@ -271,12 +272,14 @@ cc_defaults {
 // Bluetooth Audio client interface library unit tests
 cc_test {
     name: "bluetooth-test-audio-hal-aidl-leaudio-utils",
+    test_suites: ["general-tests"],
     host_supported: true,
     defaults: [
         "fluoride_defaults",
         "latest_android_hardware_audio_common_ndk_static",
         "latest_android_hardware_bluetooth_audio_ndk_static",
         "latest_android_media_audio_common_types_ndk_static",
+        "mts_defaults",
     ],
     include_dirs: [
         "packages/modules/Bluetooth/system",
@@ -323,9 +326,11 @@ cc_test {
 // Bluetooth Audio client interface library unit tests
 cc_test {
     name: "bluetooth-test-audio-hal-le-audio-software",
+    test_suites: ["general-tests"],
     host_supported: true,
     defaults: [
         "libbt_audio_hal_interface_test_defaults",
+        "mts_defaults",
     ],
     include_dirs: [
         "packages/modules/Bluetooth/system/audio_hal_interface",
@@ -359,9 +364,11 @@ cc_test {
 // HFP client interface library unit tests
 cc_test {
     name: "bluetooth-test-audio-hal-hfp-client-interface",
+    test_suites: ["general-tests"],
     host_supported: true,
     defaults: [
         "libbt_audio_hal_interface_test_defaults",
+        "mts_defaults",
     ],
     include_dirs: [
         "packages/modules/Bluetooth/system/audio_hal_interface",

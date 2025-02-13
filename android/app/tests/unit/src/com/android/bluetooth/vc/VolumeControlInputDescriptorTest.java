@@ -15,6 +15,8 @@
  */
 package com.android.bluetooth.vc;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.*;
@@ -23,14 +25,11 @@ import android.bluetooth.AudioInputControl.AudioInputStatus;
 import android.bluetooth.AudioInputControl.AudioInputType;
 import android.bluetooth.AudioInputControl.GainMode;
 import android.bluetooth.AudioInputControl.Mute;
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
-
-import com.android.bluetooth.TestUtils;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -54,8 +53,7 @@ public class VolumeControlInputDescriptorTest {
     private static final int INVALID_ID = NUMBER_OF_INPUT;
     private static final int INVALID_ID2 = -1;
 
-    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
-    private final BluetoothDevice mDevice = TestUtils.getTestDevice(mAdapter, 0x42);
+    private final BluetoothDevice mDevice = getTestDevice(0x42);
 
     private VolumeControlInputDescriptor mDescriptor;
 

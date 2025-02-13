@@ -16,16 +16,16 @@
 
 package com.android.bluetooth.avrcpcontroller;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.when;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.net.Uri;
 import android.support.v4.media.session.PlaybackStateCompat;
 
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mock;
@@ -33,31 +33,23 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
 public class AvrcpPlayerTest {
-    private static final int TEST_PLAYER_ID = 1;
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
+    @Mock private PlayerApplicationSettings mPlayerApplicationSettings;
+
     private static final String TEST_NAME = "test_name";
+    private static final int TEST_PLAYER_ID = 1;
     private static final int TEST_FEATURE = AvrcpPlayer.FEATURE_PLAY;
     private static final int TEST_PLAY_STATUS = PlaybackStateCompat.STATE_STOPPED;
     private static final int TEST_PLAY_TIME = 1;
 
     private final AvrcpItem mAvrcpItem = new AvrcpItem.Builder().build();
-    private final byte[] mTestAddress = new byte[] {01, 01, 01, 01, 01, 01};
-    private BluetoothAdapter mAdapter;
-    private BluetoothDevice mTestDevice = null;
-
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
-
-    @Mock private PlayerApplicationSettings mPlayerApplicationSettings;
-
-    @Before
-    public void setUp() {
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
-        mTestDevice = mAdapter.getRemoteDevice(mTestAddress);
-    }
+    private final BluetoothDevice mDevice = getTestDevice(45);
 
     @Test
     public void buildAvrcpPlayer() {
         AvrcpPlayer.Builder builder = new AvrcpPlayer.Builder();
-        builder.setDevice(mTestDevice);
+        builder.setDevice(mDevice);
         builder.setPlayerId(TEST_PLAYER_ID);
         builder.setName(TEST_NAME);
         builder.setSupportedFeature(TEST_FEATURE);
@@ -66,7 +58,7 @@ public class AvrcpPlayerTest {
 
         AvrcpPlayer avrcpPlayer = builder.build();
 
-        assertThat(avrcpPlayer.getDevice()).isEqualTo(mTestDevice);
+        assertThat(avrcpPlayer.getDevice()).isEqualTo(mDevice);
         assertThat(avrcpPlayer.getId()).isEqualTo(TEST_PLAYER_ID);
         assertThat(avrcpPlayer.getName()).isEqualTo(TEST_NAME);
         assertThat(avrcpPlayer.supportsFeature(TEST_FEATURE)).isTrue();

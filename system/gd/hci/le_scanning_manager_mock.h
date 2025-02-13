@@ -53,7 +53,8 @@ public:
   MOCK_METHOD(void, RegisterScanner, (const Uuid));
   MOCK_METHOD(void, Unregister, (ScannerId));
   MOCK_METHOD(void, Scan, (bool));
-  MOCK_METHOD(void, SetScanParameters, (ScannerId, LeScanType, uint16_t, uint16_t, uint8_t));
+  MOCK_METHOD(void, SetScanParameters,
+              (LeScanType, ScannerId, uint16_t, uint16_t, ScannerId, uint16_t, uint16_t, uint8_t));
   MOCK_METHOD(void, ScanFilterEnable, (bool));
   MOCK_METHOD(void, ScanFilterParameterSetup, (ApcfAction, uint8_t, AdvertisingFilterParameter));
   MOCK_METHOD(void, ScanFilterAdd, (uint8_t, std::vector<AdvertisingPacketContentFilterCommand>));

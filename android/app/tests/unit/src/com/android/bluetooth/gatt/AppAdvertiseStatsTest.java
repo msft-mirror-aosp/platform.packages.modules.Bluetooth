@@ -30,8 +30,8 @@ import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.util.Log;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.BluetoothStatsLog;
@@ -70,7 +70,7 @@ public class AppAdvertiseStatsTest {
     @Captor ArgumentCaptor<Long> mAdvDurationCaptor;
 
     private final AttributionSource mAttributionSource =
-            InstrumentationRegistry.getTargetContext().getAttributionSource();
+            InstrumentationRegistry.getInstrumentation().getTargetContext().getAttributionSource();
 
     @Before
     public void setUp() throws Exception {

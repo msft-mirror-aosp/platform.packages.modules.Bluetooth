@@ -535,7 +535,7 @@ public class RemoteDevices {
                     }
                 }
 
-                return result.toArray(new ParcelUuid[combinedUuidsLength]);
+                return result.toArray(new ParcelUuid[result.size()]);
             }
         }
 

@@ -29,6 +29,7 @@
 #include "hal/snoop_logger_common.h"
 #include "hal/syscall_wrapper_impl.h"
 #include "os/fake_timer/fake_timerfd.h"
+#include "os/files.h"
 #include "os/parameter_provider.h"
 #include "os/system_properties.h"
 #include "os/utils.h"
@@ -383,7 +384,8 @@ TEST_F(SnoopLoggerModuleTest, delete_old_snooz_log_files) {
                                     SnoopLogger::kBtSnoopLogModeDisabled, false, false);
   test_registry->InjectTestModule(&SnoopLogger::Factory, snoop_logger);
 
-  std::filesystem::create_directories(temp_snooz_log_);
+  std::filesystem::create_directories(temp_snooz_log_.parent_path());
+  os::WriteToFile(temp_snooz_log_.string(), "");
 
   auto* handler = test_registry->GetTestModuleHandler(&SnoopLogger::Factory);
   ASSERT_TRUE(std::filesystem::exists(temp_snooz_log_));
@@ -1541,10 +1543,13 @@ TEST_F(SnoopLoggerModuleTest, recreate_log_directory_when_enabled_test) {
   ASSERT_TRUE(std::filesystem::exists(temp_log_btsnoop_file_));
   // btsnooz file should be removed as snoop_log_persists is false
   ASSERT_FALSE(std::filesystem::exists(temp_log_btsnooz_file_));
-  // remove after test
+  // remove temp_dir_path_ contents after test
   if (std::filesystem::exists(temp_dir_path_)) {
-    std::filesystem::remove_all(temp_dir_path_);
+    for (const auto& entry : std::filesystem::directory_iterator(temp_dir_path_)) {
+      std::filesystem::remove_all(entry.path());
+    }
   }
+  ASSERT_TRUE(std::filesystem::exists(temp_dir_path_));
 }
 
 TEST_F(SnoopLoggerModuleTest, recreate_log_directory_when_filtered_test) {
@@ -1583,10 +1588,13 @@ TEST_F(SnoopLoggerModuleTest, recreate_log_directory_when_filtered_test) {
   ASSERT_TRUE(std::filesystem::exists(temp_log_btsnoop_filtered_file_));
   // btsnooz file should be removed as snoop_log_persists is false
   ASSERT_FALSE(std::filesystem::exists(temp_log_btsnooz_filtered_file_));
-  // remove after test
+  // remove temp_dir_path_ contents after test
   if (std::filesystem::exists(temp_dir_path_)) {
-    std::filesystem::remove_all(temp_dir_path_);
+    for (const auto& entry : std::filesystem::directory_iterator(temp_dir_path_)) {
+      std::filesystem::remove_all(entry.path());
+    }
   }
+  ASSERT_TRUE(std::filesystem::exists(temp_dir_path_));
 }
 #endif  // __ANDROID__
 

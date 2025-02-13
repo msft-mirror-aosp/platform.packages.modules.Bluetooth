@@ -66,9 +66,9 @@ class AdvertiseBinder(
             mContext.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null)
         }
 
-        getManager(source)?.let {
-            it.doOnAdvertiseThread {
-                it.startAdvertisingSet(
+        getManager(source)?.let { manager ->
+            manager.doOnAdvertiseThread {
+                manager.startAdvertisingSet(
                     parameters,
                     advertiseData,
                     scanResponse,
@@ -85,12 +85,16 @@ class AdvertiseBinder(
     }
 
     override fun stopAdvertisingSet(callback: IAdvertisingSetCallback, source: AttributionSource) {
-        getManager(source)?.let { it.doOnAdvertiseThread { it.stopAdvertisingSet(callback) } }
+        getManager(source)?.let { manager ->
+            manager.doOnAdvertiseThread { manager.stopAdvertisingSet(callback) }
+        }
     }
 
     override fun getOwnAddress(advertiserId: Int, source: AttributionSource) {
         mContext.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null)
-        getManager(source)?.let { it.doOnAdvertiseThread { it.getOwnAddress(advertiserId) } }
+        getManager(source)?.let { manager ->
+            manager.doOnAdvertiseThread { manager.getOwnAddress(advertiserId) }
+        }
     }
 
     override fun enableAdvertisingSet(
@@ -100,9 +104,9 @@ class AdvertiseBinder(
         maxExtAdvEvents: Int,
         source: AttributionSource,
     ) {
-        getManager(source)?.let {
-            it.doOnAdvertiseThread {
-                it.enableAdvertisingSet(advertiserId, enable, duration, maxExtAdvEvents)
+        getManager(source)?.let { manager ->
+            manager.doOnAdvertiseThread {
+                manager.enableAdvertisingSet(advertiserId, enable, duration, maxExtAdvEvents)
             }
         }
     }
@@ -112,8 +116,8 @@ class AdvertiseBinder(
         data: AdvertiseData?,
         source: AttributionSource,
     ) {
-        getManager(source)?.let {
-            it.doOnAdvertiseThread { it.setAdvertisingData(advertiserId, data) }
+        getManager(source)?.let { manager ->
+            manager.doOnAdvertiseThread { manager.setAdvertisingData(advertiserId, data) }
         }
     }
 
@@ -122,8 +126,8 @@ class AdvertiseBinder(
         data: AdvertiseData?,
         source: AttributionSource,
     ) {
-        getManager(source)?.let {
-            it.doOnAdvertiseThread { it.setScanResponseData(advertiserId, data) }
+        getManager(source)?.let { manager ->
+            manager.doOnAdvertiseThread { manager.setScanResponseData(advertiserId, data) }
         }
     }
 
@@ -138,8 +142,10 @@ class AdvertiseBinder(
         ) {
             mContext.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null)
         }
-        getManager(source)?.let {
-            it.doOnAdvertiseThread { it.setAdvertisingParameters(advertiserId, parameters) }
+        getManager(source)?.let { manager ->
+            manager.doOnAdvertiseThread {
+                manager.setAdvertisingParameters(advertiserId, parameters)
+            }
         }
     }
 
@@ -148,8 +154,10 @@ class AdvertiseBinder(
         parameters: PeriodicAdvertisingParameters?,
         source: AttributionSource,
     ) {
-        getManager(source)?.let {
-            it.doOnAdvertiseThread { it.setPeriodicAdvertisingParameters(advertiserId, parameters) }
+        getManager(source)?.let { manager ->
+            manager.doOnAdvertiseThread {
+                manager.setPeriodicAdvertisingParameters(advertiserId, parameters)
+            }
         }
     }
 
@@ -158,8 +166,8 @@ class AdvertiseBinder(
         data: AdvertiseData?,
         source: AttributionSource,
     ) {
-        getManager(source)?.let {
-            it.doOnAdvertiseThread { it.setPeriodicAdvertisingData(advertiserId, data) }
+        getManager(source)?.let { manager ->
+            manager.doOnAdvertiseThread { manager.setPeriodicAdvertisingData(advertiserId, data) }
         }
     }
 
@@ -168,8 +176,10 @@ class AdvertiseBinder(
         enable: Boolean,
         source: AttributionSource,
     ) {
-        getManager(source)?.let {
-            it.doOnAdvertiseThread { it.setPeriodicAdvertisingEnable(advertiserId, enable) }
+        getManager(source)?.let { manager ->
+            manager.doOnAdvertiseThread {
+                manager.setPeriodicAdvertisingEnable(advertiserId, enable)
+            }
         }
     }
 }

@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.le_scan;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -31,6 +33,7 @@ import static org.mockito.Mockito.verify;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.le.IPeriodicAdvertisingCallback;
 import android.bluetooth.le.IScannerCallback;
@@ -45,8 +48,8 @@ import android.os.RemoteException;
 import android.os.WorkSource;
 import android.platform.test.flag.junit.SetFlagsRule;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.bluetooth.TestLooper;
 import com.android.bluetooth.TestUtils;
@@ -92,10 +95,15 @@ public class ScanControllerTest {
     @Mock private ScanObjectsFactory mScanObjectsFactory;
     @Mock private GattNativeInterface mNativeInterface;
 
-    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
-    private final BluetoothDevice mDevice = mAdapter.getRemoteDevice("00:01:02:03:04:05");
+    private final BluetoothAdapter mAdapter =
+            InstrumentationRegistry.getInstrumentation()
+                    .getTargetContext()
+                    .getSystemService(BluetoothManager.class)
+                    .getAdapter();
+    private final BluetoothDevice mDevice = getTestDevice(89);
     private final AttributionSource mAttributionSource = mAdapter.getAttributionSource();
-    private final Context mContext = InstrumentationRegistry.getTargetContext();
+    private final Context mContext =
+            InstrumentationRegistry.getInstrumentation().getTargetContext();
 
     private ScanController mScanController;
     private CompanionManager mBtCompanionManager;

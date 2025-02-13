@@ -45,6 +45,7 @@ os::Handler* mock_gd_shim_handler_{nullptr};
 MockLeAdvertisingManager* mock_le_advertising_manager_{nullptr};
 MockLeScanningManager* mock_le_scanning_manager_{nullptr};
 MockDistanceMeasurementManager* mock_distance_measurement_manager_{nullptr};
+storage::StorageModule* mock_storage_{nullptr};
 
 }  // namespace testing
 }  // namespace hci
@@ -67,7 +68,7 @@ hci::DistanceMeasurementManager* GetDistanceMeasurementManager() {
 }
 os::Handler* GetGdShimHandler() { return hci::testing::mock_gd_shim_handler_; }
 hal::SnoopLogger* GetSnoopLogger() { return nullptr; }
-storage::StorageModule* GetStorage() { return nullptr; }
+storage::StorageModule* GetStorage() { return hci::testing::mock_storage_; }
 metrics::CounterMetrics* GetCounterMetrics() { return nullptr; }
 hci::MsftExtensionManager* GetMsftExtensionManager() { return nullptr; }
 hci::RemoteNameRequestModule* GetRemoteNameRequest() { return nullptr; }

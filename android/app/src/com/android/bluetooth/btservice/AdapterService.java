@@ -1080,24 +1080,23 @@ public class AdapterService extends Service {
     }
 
     private void startGattProfileService() {
-        Log.d(TAG, "startGattProfileService() called");
+        Log.i(TAG, "startGattProfileService() called");
         mGattService = new GattService(this);
 
         mStartedProfiles.put(BluetoothProfile.GATT, mGattService);
         addProfile(mGattService);
-        mGattService.start();
         mGattService.setAvailable(true);
         onProfileServiceStateChanged(mGattService, BluetoothAdapter.STATE_ON);
     }
 
     private void startScanController() {
-        Log.d(TAG, "startScanController() called");
+        Log.i(TAG, "startScanController() called");
         mScanController = new ScanController(this);
         mNativeInterface.enable();
     }
 
     private void stopGattProfileService() {
-        Log.d(TAG, "stopGattProfileService() called");
+        Log.i(TAG, "stopGattProfileService() called");
         setScanMode(SCAN_MODE_NONE, "stopGattProfileService");
 
         if (mRunningProfiles.size() == 0) {
@@ -1118,7 +1117,7 @@ public class AdapterService extends Service {
     }
 
     private void stopScanController() {
-        Log.d(TAG, "stopScanController() called");
+        Log.i(TAG, "stopScanController() called");
         setScanMode(SCAN_MODE_NONE, "stopScanController");
 
         if (mScanController == null) {
@@ -1571,7 +1570,6 @@ public class AdapterService extends Service {
             ProfileService profileService = PROFILE_CONSTRUCTORS.get(profileId).apply(this);
             mStartedProfiles.put(profileId, profileService);
             addProfile(profileService);
-            profileService.start();
             profileService.setAvailable(true);
             // With `Flags.scanManagerRefactor()` GattService initialization is pushed back to
             // `ON` state instead of `BLE_ON`. Here we ensure mGattService is set prior
@@ -2454,6 +2452,14 @@ public class AdapterService extends Service {
                     || !Utils.checkConnectPermissionForDataDelivery(
                             service, source, "AdapterService setName")) {
                 return false;
+            }
+
+            if (Flags.emptyNamesAreInvalid()) {
+                requireNonNull(name);
+                name = name.trim();
+                if (name.isEmpty()) {
+                    throw new IllegalArgumentException("Empty names are not valid");
+                }
             }
 
             Log.d(TAG, "AdapterServiceBinder.setName(" + name + ")");
@@ -6787,6 +6793,13 @@ public class AdapterService extends Service {
         for (ProfileService profile : mRegisteredProfiles) {
             profile.dump(sb);
         }
+        if (Flags.scanManagerRefactor()) {
+            ScanController scanController = mScanController;
+            if (scanController != null) {
+                scanController.dumpRegisterId(sb);
+                scanController.dump(sb);
+            }
+        }
         mSilenceDeviceManager.dump(fd, writer, args);
         mDatabaseManager.dump(writer);
 
@@ -6825,6 +6838,12 @@ public class AdapterService extends Service {
         MetricsLogger.dumpProto(metricsBuilder);
         for (ProfileService profile : mRegisteredProfiles) {
             profile.dumpProto(metricsBuilder);
+        }
+        if (Flags.scanManagerRefactor()) {
+            ScanController scanController = mScanController;
+            if (scanController != null) {
+                scanController.dumpProto(metricsBuilder);
+            }
         }
         byte[] metricsBytes = Base64.encode(metricsBuilder.build().toByteArray(), Base64.DEFAULT);
         Log.d(TAG, "dumpMetrics: combined metrics size is " + metricsBytes.length);

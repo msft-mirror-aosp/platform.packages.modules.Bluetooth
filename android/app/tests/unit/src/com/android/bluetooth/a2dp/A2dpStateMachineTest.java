@@ -26,6 +26,7 @@ import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
 import static com.android.bluetooth.a2dp.A2dpStateMachine.MESSAGE_CONNECT;
 import static com.android.bluetooth.a2dp.A2dpStateMachine.MESSAGE_DISCONNECT;
 import static com.android.bluetooth.a2dp.A2dpStateMachine.MESSAGE_STACK_EVENT;
@@ -41,7 +42,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import android.bluetooth.BluetoothA2dp;
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothCodecConfig;
 import android.bluetooth.BluetoothCodecStatus;
 import android.bluetooth.BluetoothDevice;
@@ -54,7 +54,6 @@ import androidx.test.filters.MediumTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestLooper;
-import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.flags.Flags;
 
 import org.hamcrest.Matcher;
@@ -81,8 +80,7 @@ public class A2dpStateMachineTest {
     @Mock private A2dpService mService;
     @Mock private A2dpNativeInterface mNativeInterface;
 
-    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
-    private final BluetoothDevice mDevice = TestUtils.getTestDevice(mAdapter, 39);
+    private final BluetoothDevice mDevice = getTestDevice(39);
     private final BluetoothCodecConfig mCodecConfigSbc =
             new BluetoothCodecConfig.Builder()
                     .setCodecType(BluetoothCodecConfig.SOURCE_CODEC_TYPE_SBC)

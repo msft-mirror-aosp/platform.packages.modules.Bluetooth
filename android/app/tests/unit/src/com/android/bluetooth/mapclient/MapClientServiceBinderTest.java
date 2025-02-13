@@ -15,9 +15,10 @@
  */
 package com.android.bluetooth.mapclient;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static org.mockito.Mockito.verify;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.net.Uri;
@@ -36,34 +37,31 @@ import org.mockito.junit.MockitoRule;
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class MapClientServiceBinderTest {
-    private static final String REMOTE_DEVICE_ADDRESS = "00:00:00:00:00:00";
-
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
     @Mock private MapClientService mService;
 
-    BluetoothDevice mRemoteDevice;
+    private final BluetoothDevice mDevice = getTestDevice(65);
 
     MapClientService.Binder mBinder;
 
     @Before
-    public void setUp() throws Exception {
-        mRemoteDevice = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(REMOTE_DEVICE_ADDRESS);
+    public void setUp() {
         mBinder = new MapClientService.Binder(mService);
     }
 
     @Test
     public void connect_callsServiceMethod() {
-        mBinder.connect(mRemoteDevice, null);
+        mBinder.connect(mDevice, null);
 
-        verify(mService).connect(mRemoteDevice);
+        verify(mService).connect(mDevice);
     }
 
     @Test
     public void disconnect_callsServiceMethod() {
-        mBinder.disconnect(mRemoteDevice, null);
+        mBinder.disconnect(mDevice, null);
 
-        verify(mService).disconnect(mRemoteDevice);
+        verify(mService).disconnect(mDevice);
     }
 
     @Test
@@ -83,33 +81,33 @@ public class MapClientServiceBinderTest {
 
     @Test
     public void getConnectionState_callsServiceMethod() {
-        mBinder.getConnectionState(mRemoteDevice, null);
+        mBinder.getConnectionState(mDevice, null);
 
-        verify(mService).getConnectionState(mRemoteDevice);
+        verify(mService).getConnectionState(mDevice);
     }
 
     @Test
     public void setConnectionPolicy_callsServiceMethod() {
         int connectionPolicy = BluetoothProfile.CONNECTION_POLICY_ALLOWED;
-        mBinder.setConnectionPolicy(mRemoteDevice, connectionPolicy, null);
+        mBinder.setConnectionPolicy(mDevice, connectionPolicy, null);
 
-        verify(mService).setConnectionPolicy(mRemoteDevice, connectionPolicy);
+        verify(mService).setConnectionPolicy(mDevice, connectionPolicy);
     }
 
     @Test
     public void getConnectionPolicy_callsServiceMethod() {
-        mBinder.getConnectionPolicy(mRemoteDevice, null);
+        mBinder.getConnectionPolicy(mDevice, null);
 
-        verify(mService).getConnectionPolicy(mRemoteDevice);
+        verify(mService).getConnectionPolicy(mDevice);
     }
 
     @Test
     public void sendMessage_callsServiceMethod() {
         Uri[] contacts = new Uri[] {};
         String message = "test_message";
-        mBinder.sendMessage(mRemoteDevice, contacts, message, null, null, null);
+        mBinder.sendMessage(mDevice, contacts, message, null, null, null);
 
-        verify(mService).sendMessage(mRemoteDevice, contacts, message, null, null);
+        verify(mService).sendMessage(mDevice, contacts, message, null, null);
     }
 
     @Test

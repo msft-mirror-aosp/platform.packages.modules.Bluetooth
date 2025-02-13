@@ -81,7 +81,13 @@ public class ScanNativeInterface {
     private native void gattClientScanNative(boolean start);
 
     private native void gattSetScanParametersNative(
-            int clientIf, int scanInterval, int scanWindow, int scanPhy);
+            int clientIf1m,
+            int scanInterval1m,
+            int scanWindow1m,
+            int clientIfCoded,
+            int scanIntervalCoded,
+            int scanWindowCoded,
+            int scanPhy);
 
     /************************** Filter related native methods ********************************/
     private native void gattClientScanFilterAddNative(
@@ -146,8 +152,22 @@ public class ScanNativeInterface {
     }
 
     /** Configure BLE scan parameters */
-    public void gattSetScanParameters(int clientIf, int scanInterval, int scanWindow, int scanPhy) {
-        gattSetScanParametersNative(clientIf, scanInterval, scanWindow, scanPhy);
+    public void gattSetScanParameters(
+            int clientIf1m,
+            int scanInterval1m,
+            int scanWindow1m,
+            int clientIfCoded,
+            int scanIntervalCoded,
+            int scanWindowCoded,
+            int scanPhy) {
+        gattSetScanParametersNative(
+                clientIf1m,
+                scanInterval1m,
+                scanWindow1m,
+                clientIfCoded,
+                scanIntervalCoded,
+                scanWindowCoded,
+                scanPhy);
     }
 
     /** Add BLE scan filter */
