@@ -171,8 +171,8 @@ public class VolumeControlService extends ProfileService {
     }
 
     @Override
-    public void stop() {
-        Log.d(TAG, "stop()");
+    public void cleanup() {
+        Log.i(TAG, "Cleanup VolumeControl Service");
 
         // Mark service as stopped
         setVolumeControlService(null);

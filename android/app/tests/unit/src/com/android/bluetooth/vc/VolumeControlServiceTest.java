@@ -180,7 +180,7 @@ public class VolumeControlServiceTest {
     @After
     public void tearDown() {
         assertThat(mLooper.nextMessage()).isNull();
-        mService.stop();
+        mService.cleanup();
         mLooper.dispatchAll();
         assertThat(VolumeControlService.getVolumeControlService()).isNull();
     }
