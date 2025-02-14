@@ -19,6 +19,7 @@ import static android.Manifest.permission.BLUETOOTH_CONNECT;
 
 import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
+import static com.android.bluetooth.TestUtils.mockGetSystemService;
 import static com.android.bluetooth.Utils.getBytesFromAddress;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -113,12 +114,8 @@ public class AvrcpControllerStateMachineTest {
         doReturn(mMockResources).when(mAvrcpControllerService).getResources();
         doReturn(mBrowseTree).when(mAvrcpControllerService).getBrowseTree();
 
-        doReturn(mAudioManager)
-                .when(mAvrcpControllerService)
-                .getSystemService(Context.AUDIO_SERVICE);
-        doReturn(Context.AUDIO_SERVICE)
-                .when(mAvrcpControllerService)
-                .getSystemServiceName(AudioManager.class);
+        mockGetSystemService(
+                mAvrcpControllerService, Context.AUDIO_SERVICE, AudioManager.class, mAudioManager);
         doReturn(mCoverArtManager).when(mAvrcpControllerService).getCoverArtManager();
         if (Looper.myLooper() == null) {
             Looper.prepare();

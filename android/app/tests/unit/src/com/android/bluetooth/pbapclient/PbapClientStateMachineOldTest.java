@@ -17,13 +17,13 @@ package com.android.bluetooth.pbapclient;
 
 import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
+import static com.android.bluetooth.TestUtils.mockGetSystemService;
 
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import android.app.BroadcastOptions;
 import android.bluetooth.BluetoothDevice;
@@ -53,7 +53,6 @@ public class PbapClientStateMachineOldTest {
     @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private PbapClientService mMockPbapClientService;
-    @Mock private UserManager mMockUserManager;
     @Mock private PbapClientConnectionHandler mMockHandler;
 
     private static final String TAG = "PbapClientStateMachineOldTest";
@@ -66,10 +65,8 @@ public class PbapClientStateMachineOldTest {
 
     @Before
     public void setUp() throws Exception {
-        when(mMockPbapClientService.getSystemServiceName(UserManager.class))
-                .thenReturn(Context.USER_SERVICE);
-        when(mMockPbapClientService.getSystemService(UserManager.class))
-                .thenReturn(mMockUserManager);
+        mockGetSystemService(mMockPbapClientService, Context.USER_SERVICE, UserManager.class);
+
         mPbapClientStateMachine =
                 new PbapClientStateMachineOld(mMockPbapClientService, mDevice, mMockHandler);
         mPbapClientStateMachine.start();

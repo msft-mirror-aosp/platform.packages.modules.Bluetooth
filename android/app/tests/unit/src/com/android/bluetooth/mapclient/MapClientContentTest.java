@@ -18,6 +18,7 @@ package com.android.bluetooth.mapclient;
 
 import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
+import static com.android.bluetooth.TestUtils.mockGetSystemService;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -111,10 +112,11 @@ public class MapClientContentTest {
         mMockContentResolver.addProvider("mms-sms", mMockThreadContentProvider);
 
         when(mMockContext.getContentResolver()).thenReturn(mMockContentResolver);
-        when(mMockContext.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE))
-                .thenReturn(mMockSubscriptionManager);
-        when(mMockContext.getSystemServiceName(SubscriptionManager.class))
-                .thenReturn(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
+        mockGetSystemService(
+                mMockContext,
+                Context.TELEPHONY_SUBSCRIPTION_SERVICE,
+                SubscriptionManager.class,
+                mMockSubscriptionManager);
 
         when(mMockSubscriptionManager.getActiveSubscriptionInfoList())
                 .thenReturn(Arrays.asList(mMockSubscription));

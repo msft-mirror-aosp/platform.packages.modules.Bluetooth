@@ -18,6 +18,7 @@ package com.android.bluetooth.btservice;
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 
 import static com.android.bluetooth.TestUtils.MockitoRule;
+import static com.android.bluetooth.TestUtils.mockGetSystemService;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -67,10 +68,13 @@ public class BondStateMachineTest {
     private static final int BOND_BONDING = BluetoothDevice.BOND_BONDING;
     private static final int BOND_BONDED = BluetoothDevice.BOND_BONDED;
 
-    private BluetoothManager mBluetoothManager;
+    private final Context mTargetContext =
+            InstrumentationRegistry.getInstrumentation().getTargetContext();
+    private final BluetoothManager mBluetoothManager =
+            mTargetContext.getSystemService(BluetoothManager.class);
+
     private AdapterProperties mAdapterProperties;
     private BluetoothDevice mDevice;
-    private Context mTargetContext;
     private RemoteDevices mRemoteDevices;
     private BondStateMachine mBondStateMachine;
     private HandlerThread mHandlerThread;
@@ -84,17 +88,16 @@ public class BondStateMachineTest {
 
     @Before
     public void setUp() throws Exception {
-        mTargetContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
         TestUtils.setAdapterService(mAdapterService);
         doReturn(mNativeInterface).when(mAdapterService).getNative();
         mHandlerThread = new HandlerThread("BondStateMachineTestHandlerThread");
         mHandlerThread.start();
 
-        mBluetoothManager = mTargetContext.getSystemService(BluetoothManager.class);
-        when(mAdapterService.getSystemService(Context.BLUETOOTH_SERVICE))
-                .thenReturn(mBluetoothManager);
-        when(mAdapterService.getSystemServiceName(BluetoothManager.class))
-                .thenReturn(Context.BLUETOOTH_SERVICE);
+        mockGetSystemService(
+                mAdapterService,
+                Context.BLUETOOTH_SERVICE,
+                BluetoothManager.class,
+                mBluetoothManager);
 
         mRemoteDevices = new RemoteDevices(mAdapterService, mHandlerThread.getLooper());
         mRemoteDevices.reset();

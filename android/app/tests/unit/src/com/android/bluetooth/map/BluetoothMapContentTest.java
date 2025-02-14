@@ -17,6 +17,7 @@
 package com.android.bluetooth.map;
 
 import static com.android.bluetooth.TestUtils.MockitoRule;
+import static com.android.bluetooth.TestUtils.mockGetSystemService;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -377,9 +378,8 @@ public class BluetoothMapContentTest {
 
     @Test
     public void setFilterInfo() {
-        when(mContext.getSystemService(Context.TELEPHONY_SERVICE)).thenReturn(mTelephonyManager);
-        when(mContext.getSystemServiceName(TelephonyManager.class))
-                .thenReturn(Context.TELEPHONY_SERVICE);
+        mockGetSystemService(
+                mContext, Context.TELEPHONY_SERVICE, TelephonyManager.class, mTelephonyManager);
         when(mTelephonyManager.getPhoneType()).thenReturn(TelephonyManager.PHONE_TYPE_GSM);
 
         mContent.setFilterInfo(mInfo);

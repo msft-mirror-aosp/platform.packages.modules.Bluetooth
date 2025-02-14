@@ -19,8 +19,8 @@ import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import android.annotation.IntRange;
 import android.bluetooth.BluetoothDevice;
@@ -96,8 +96,8 @@ public class TestUtils {
     /** Helper function to mock getSystemService calls */
     public static <T> void mockGetSystemService(
             Context ctx, String serviceName, Class<T> serviceClass, T mockService) {
-        when(ctx.getSystemService(eq(serviceName))).thenReturn(mockService);
-        when(ctx.getSystemServiceName(eq(serviceClass))).thenReturn(serviceName);
+        doReturn(mockService).when(ctx).getSystemService(eq(serviceName));
+        doReturn(serviceName).when(ctx).getSystemServiceName(eq(serviceClass));
     }
 
     /** Helper function to mock getSystemService calls */
