@@ -273,12 +273,10 @@ public class LeAudioServiceTest {
             return;
         }
 
-
         mBondedDevices.clear();
-        mService.stop();
+        mService.cleanup();
         assertThat(LeAudioService.getLeAudioService()).isNull();
     }
-
 
     /** Test getting LeAudio Service: getLeAudioService() */
     @Test
@@ -311,10 +309,9 @@ public class LeAudioServiceTest {
     public void testStopLeAudioService() {
         // Prepare: connect
         connectDevice(mLeftDevice);
-        mService.stop();
+        mService.cleanup();
     }
 
-    /** Test get/set priority for BluetoothDevice */
     @Test
     public void testGetSetPriority() {
         when(mDatabaseManager.getProfileConnectionPolicy(mLeftDevice, BluetoothProfile.LE_AUDIO))
