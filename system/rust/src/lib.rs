@@ -15,11 +15,14 @@
 //! The core event loop for Rust modules. Here Rust modules are started in
 //! dependency order.
 
-use gatt::{channel::AttTransport, GattCallbacks};
+use gatt::channel::AttTransport;
+use gatt::GattCallbacks;
 use log::{info, warn};
 use tokio::task::LocalSet;
 
-use std::{rc::Rc, sync::Mutex, thread::JoinHandle};
+use std::rc::Rc;
+use std::sync::Mutex;
+use std::thread::JoinHandle;
 use tokio::runtime::Builder;
 
 use tokio::sync::mpsc;
