@@ -109,7 +109,7 @@ public class BluetoothPbapServiceTest {
     public void tearDown() throws Exception {
         mTestLooper.stopAutoDispatchAndIgnoreExceptions();
         BluetoothMethodProxy.setInstanceForTesting(null);
-        mService.stop();
+        mService.cleanup();
         assertThat(BluetoothPbapService.getBluetoothPbapService()).isNull();
     }
 
