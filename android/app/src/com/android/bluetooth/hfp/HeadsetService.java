@@ -237,8 +237,9 @@ public class HeadsetService extends ProfileService {
     }
 
     @Override
-    public void stop() {
-        Log.i(TAG, "stop()");
+    public void cleanup() {
+        Log.i(TAG, "Cleanup Headset Service");
+
         // Step 7: Tear down broadcast receivers
         unregisterReceiver(mHeadsetReceiver);
 
@@ -303,11 +304,6 @@ public class HeadsetService extends ProfileService {
 
         // Step 1: Clear
         setComponentAvailable(HFP_AG_IN_CALL_SERVICE, false);
-    }
-
-    @Override
-    public void cleanup() {
-        Log.i(TAG, "cleanup");
     }
 
     /**

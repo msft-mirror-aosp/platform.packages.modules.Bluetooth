@@ -199,7 +199,7 @@ public class HeadsetServiceAndStateMachineTest {
     public void tearDown() {
         SystemProperties.mProperties = null;
         mTestLooper.dispatchAll();
-        mHeadsetService.stop();
+        mHeadsetService.cleanup();
         mHeadsetService = HeadsetService.getHeadsetService();
         assertThat(mHeadsetService).isNull();
         // Clear classes that is spied on and has static life time
