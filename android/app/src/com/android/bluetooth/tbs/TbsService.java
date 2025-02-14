@@ -72,10 +72,11 @@ public class TbsService extends ProfileService {
     }
 
     @Override
-    public void stop() {
-        Log.d(TAG, "stop()");
+    public void cleanup() {
+        Log.i(TAG, "Cleanup Tbs Service");
+
         if (sTbsService == null) {
-            Log.w(TAG, "stop() called before start()");
+            Log.w(TAG, "cleanup() called before initialization");
             return;
         }
 
@@ -83,11 +84,7 @@ public class TbsService extends ProfileService {
         setTbsService(null);
 
         mTbsGeneric.cleanup();
-    }
 
-    @Override
-    public void cleanup() {
-        Log.d(TAG, "cleanup()");
         mDeviceAuthorizations.clear();
     }
 
