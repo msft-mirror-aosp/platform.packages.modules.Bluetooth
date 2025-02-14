@@ -88,7 +88,6 @@ public class PanServiceTest {
 
     @After
     public void tearDown() {
-        mService.stop();
         mService.cleanup();
         assertThat(PanService.getPanService()).isNull();
     }
@@ -163,8 +162,8 @@ public class PanServiceTest {
     }
 
     @Test
-    public void onConnectStateChanged_doesNotCrashAfterStop() {
-        mService.stop();
+    public void onConnectStateChanged_doesNotCrashAfterCleanup() {
+        mService.cleanup();
         mService.onConnectStateChanged(REMOTE_DEVICE_ADDRESS_AS_ARRAY, 1, 2, 3, 4);
     }
 
