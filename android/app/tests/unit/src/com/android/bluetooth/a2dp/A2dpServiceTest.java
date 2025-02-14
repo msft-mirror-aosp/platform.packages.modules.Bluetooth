@@ -158,7 +158,7 @@ public class A2dpServiceTest {
     @After
     public void tearDown() {
         assertThat(mLooper.dispatchAll()).isEqualTo(0);
-        mA2dpService.stop();
+        mA2dpService.cleanup();
     }
 
     @SafeVarargs
@@ -188,7 +188,7 @@ public class A2dpServiceTest {
         assertThat(mA2dpService.setActiveDevice(mDevice)).isTrue();
         verify(mMockNativeInterface).setActiveDevice(mDevice);
 
-        mA2dpService.stop();
+        mA2dpService.cleanup();
         dispatchAtLeastOneMessage();
 
         if (Flags.a2dpBroadcastConnectionStateWhenTurnedOff()) {
