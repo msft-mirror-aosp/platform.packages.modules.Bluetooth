@@ -165,7 +165,7 @@ public class GattServiceTest {
 
     @After
     public void tearDown() throws Exception {
-        mService.stop();
+        mService.cleanup();
         AdvertiseManagerNativeInterface.setInstance(null);
 
         GattObjectsFactory.setInstanceForTesting(null);
@@ -175,7 +175,7 @@ public class GattServiceTest {
     @Test
     public void testServiceUpAndDown() throws Exception {
         for (int i = 0; i < TIMES_UP_AND_DOWN; i++) {
-            mService.stop();
+            mService.cleanup();
             mService = new GattService(mAdapterService);
         }
     }
