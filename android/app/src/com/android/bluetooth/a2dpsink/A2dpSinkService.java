@@ -98,7 +98,9 @@ public class A2dpSinkService extends ProfileService {
     }
 
     @Override
-    public void stop() {
+    public void cleanup() {
+        Log.i(TAG, "Cleanup A2DP Sink Service");
+
         setA2dpSinkService(null);
         mNativeInterface.cleanup();
         synchronized (mDeviceStateMap) {
