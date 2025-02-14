@@ -18,6 +18,7 @@ package com.android.bluetooth.btservice;
 
 import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
+import static com.android.bluetooth.TestUtils.mockGetSystemService;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -123,9 +124,8 @@ public class ActiveDeviceManagerTest {
 
         mDatabaseManager = new TestDatabaseManager(mAdapterService);
 
-        when(mAdapterService.getSystemService(Context.AUDIO_SERVICE)).thenReturn(mAudioManager);
-        when(mAdapterService.getSystemServiceName(AudioManager.class))
-                .thenReturn(Context.AUDIO_SERVICE);
+        mockGetSystemService(
+                mAdapterService, Context.AUDIO_SERVICE, AudioManager.class, mAudioManager);
         when(mAdapterService.getDatabase()).thenReturn(mDatabaseManager);
         when(mServiceFactory.getA2dpService()).thenReturn(mA2dpService);
         when(mServiceFactory.getHeadsetService()).thenReturn(mHeadsetService);
