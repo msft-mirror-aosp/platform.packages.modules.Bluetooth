@@ -6040,9 +6040,6 @@ public class AdapterService extends Service {
     }
 
     void logUserBondResponse(BluetoothDevice device, boolean accepted, AttributionSource source) {
-        if (accepted) {
-            return;
-        }
         final long token = Binder.clearCallingIdentity();
         try {
             MetricsLogger.getInstance()
@@ -6050,7 +6047,11 @@ public class AdapterService extends Service {
                             device,
                             BluetoothStatsLog
                                     .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__USER_CONF_REQUEST,
-                            BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__STATE__FAIL,
+                            accepted
+                                    ? BluetoothStatsLog
+                                            .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__STATE__SUCCESS
+                                    : BluetoothStatsLog
+                                            .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__STATE__FAIL,
                             source.getUid());
         } finally {
             Binder.restoreCallingIdentity(token);
