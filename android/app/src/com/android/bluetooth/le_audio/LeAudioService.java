@@ -648,10 +648,11 @@ public class LeAudioService extends ProfileService {
             };
 
     @Override
-    public void stop() {
-        Log.i(TAG, "stop()");
+    public void cleanup() {
+        Log.i(TAG, "Cleanup LeAudio Service");
+
         if (sLeAudioService == null) {
-            Log.w(TAG, "stop() called before start()");
+            Log.w(TAG, "cleanup() called before initialization");
             return;
         }
 
@@ -771,11 +772,6 @@ public class LeAudioService extends ProfileService {
         mVolumeControlService = null;
         mCsipSetCoordinatorService = null;
         mBassClientService = null;
-    }
-
-    @Override
-    public void cleanup() {
-        Log.i(TAG, "cleanup()");
     }
 
     public static synchronized LeAudioService getLeAudioService() {
