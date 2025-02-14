@@ -328,7 +328,7 @@ public class BassClientServiceTest {
         android.util.Log.e("WILLIAM", "tearDown");
         mBassClientService.unregisterCallback(mCallback);
 
-        mBassClientService.stop();
+        mBassClientService.cleanup();
         assertThat(BassClientService.getBassClientService()).isNull();
         mStateMachines.clear();
         BassObjectsFactory.setInstanceForTesting(null);
@@ -346,7 +346,7 @@ public class BassClientServiceTest {
     /** Test if getProfileConnectionPolicy works after the service is stopped. */
     @Test
     public void testGetPolicyAfterStopped() {
-        mBassClientService.stop();
+        mBassClientService.cleanup();
         when(mDatabaseManager.getProfileConnectionPolicy(
                         mCurrentDevice, BluetoothProfile.LE_AUDIO_BROADCAST_ASSISTANT))
                 .thenReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
@@ -608,7 +608,7 @@ public class BassClientServiceTest {
                 .isEqualTo(TEST_BROADCAST_ID);
 
         // Stop
-        mBassClientService.stop();
+        mBassClientService.cleanup();
         if (Flags.leaudioBassScanWithInternalScanController()) {
             verify(mScanController).stopScanInternal(anyInt());
         } else {
@@ -674,7 +674,6 @@ public class BassClientServiceTest {
         onSyncEstablished(mSourceDevice, TEST_SYNC_HANDLE);
 
         // Stop
-        mBassClientService.stop();
         mBassClientService.cleanup();
 
         // Start again
