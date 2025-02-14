@@ -179,7 +179,7 @@ public class HapClientServiceTest {
             mService.mCallbacks.unregister(mFrameworkCallback);
         }
 
-        mService.stop();
+        mService.cleanup();
         assertThat(HapClientService.getHapClientService()).isNull();
     }
 
