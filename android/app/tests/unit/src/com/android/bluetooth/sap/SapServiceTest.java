@@ -68,7 +68,7 @@ public class SapServiceTest {
 
     @After
     public void tearDown() {
-        mService.stop();
+        mService.cleanup();
         assertThat(SapService.getSapService()).isNull();
     }
 
