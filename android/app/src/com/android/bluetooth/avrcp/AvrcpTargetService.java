@@ -256,11 +256,11 @@ public class AvrcpTargetService extends ProfileService {
     }
 
     @Override
-    public void stop() {
-        Log.i(TAG, "Stopping the AVRCP Target Service");
+    public void cleanup() {
+        Log.i(TAG, "Cleanup AVRCP Target Service");
 
         if (sInstance == null) {
-            Log.w(TAG, "stop() called before start()");
+            Log.w(TAG, "cleanup() called before initialization");
             return;
         }
 

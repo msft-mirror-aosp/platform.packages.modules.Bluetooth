@@ -164,7 +164,6 @@ public class AvrcpTargetServiceTest {
         verify(mMockAudioManager)
                 .registerAudioDeviceCallback(mAudioDeviceCb.capture(), anyObject());
 
-        service.stop();
         service.cleanup();
         assertThat(mAudioDeviceCb.getValue()).isNotNull();
         verify(mMockAudioManager).unregisterAudioDeviceCallback(mAudioDeviceCb.getValue());
