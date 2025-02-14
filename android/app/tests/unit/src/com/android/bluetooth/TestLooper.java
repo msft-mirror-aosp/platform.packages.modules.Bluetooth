@@ -27,6 +27,8 @@ import android.util.Log;
 
 import com.android.modules.utils.HandlerExecutor;
 
+import com.google.common.util.concurrent.Uninterruptibles;
+
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -298,11 +300,7 @@ public class TestLooper {
             if (mAutoDispatchThread.isAlive()) {
                 mAutoDispatchThread.interrupt();
             }
-            try {
-                mAutoDispatchThread.join();
-            } catch (InterruptedException e) {
-                // Catch exception from join.
-            }
+            Uninterruptibles.joinUninterruptibly(mAutoDispatchThread);
 
             RuntimeException e = mAutoDispatchThread.getException();
             mAutoDispatchThread = null;
