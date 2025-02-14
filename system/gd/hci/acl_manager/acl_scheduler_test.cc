@@ -291,9 +291,7 @@ TEST_F(AclSchedulerTest, DoNothingWhileIncomingConnectionsExist) {
   EXPECT_THAT(future, IsSet());
 }
 
-TEST_F_WITH_FLAGS(AclSchedulerTest, IncomingConnectionPendingWithOutgoingRemoteNameRequest,
-                  REQUIRES_FLAGS_ENABLED(
-                          ACONFIG_FLAG(TEST_BT, progress_acl_scheduler_upon_incoming_connection))) {
+TEST_F(AclSchedulerTest, IncomingConnectionPendingWithOutgoingRemoteNameRequest) {
   auto promise = std::promise<void>{};
   auto future = promise.get_future();
 
@@ -308,9 +306,7 @@ TEST_F_WITH_FLAGS(AclSchedulerTest, IncomingConnectionPendingWithOutgoingRemoteN
   EXPECT_THAT(future, IsSet());
 }
 
-TEST_F_WITH_FLAGS(AclSchedulerTest, ConnectionToSameDeviceIncomingConnectionPending,
-                  REQUIRES_FLAGS_ENABLED(
-                          ACONFIG_FLAG(TEST_BT, progress_acl_scheduler_upon_incoming_connection))) {
+TEST_F(AclSchedulerTest, ConnectionToSameDeviceIncomingConnectionPending) {
   auto promise = std::promise<void>{};
   auto future = promise.get_future();
 
