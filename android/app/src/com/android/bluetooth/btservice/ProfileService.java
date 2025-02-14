@@ -61,8 +61,13 @@ public abstract class ProfileService extends ContextWrapper {
      */
     protected abstract IProfileServiceBinder initBinder();
 
+    // TODO(b/396508789): This is temporarily being unmarked as `abstract`. The purpose is to merge
+    // `stop()` functionality into `cleanup()` and remove `stop()` usage everywhere. This is
+    // intended to simplify the code base as did the merging of `start()` logic into the respective
+    // constructors. Therefore, we need a default empty `stop()` implementation as the individual
+    // subclasses `stop()` is removed from each RoleProfile. Finally, this `stop()` will be removed.
     /** Stop service */
-    public abstract void stop();
+    public void stop() {}
 
     /** Called when this object is completely discarded */
     public void cleanup() {}
