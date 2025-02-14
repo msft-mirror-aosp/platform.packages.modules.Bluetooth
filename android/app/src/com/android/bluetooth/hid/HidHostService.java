@@ -149,13 +149,9 @@ public class HidHostService extends ProfileService {
     }
 
     @Override
-    public void stop() {
-        Log.d(TAG, "Stop");
-    }
-
-    @Override
     public void cleanup() {
-        Log.d(TAG, "Cleanup");
+        Log.i(TAG, "Cleanup HidHost Service");
+
         mNativeInterface.cleanup();
 
         if (mInputDevices != null) {
