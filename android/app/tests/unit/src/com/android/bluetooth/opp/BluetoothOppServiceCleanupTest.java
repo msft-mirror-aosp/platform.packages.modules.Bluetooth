@@ -46,10 +46,10 @@ public class BluetoothOppServiceCleanupTest {
 
     @Test
     @UiThreadTest
-    public void testStopAndCleanup() throws Exception {
+    public void testCleanup() throws Exception {
         AdapterService adapterService = new AdapterService(mTargetContext);
 
-        // Don't need to disable again since it will be handled in OppService.stop
+        // Don't need to disable again since it will be handled in OppService.cleanup
         enableBtOppProvider();
 
         // Add thousands of placeholder rows
@@ -63,8 +63,7 @@ public class BluetoothOppServiceCleanupTest {
             service = new BluetoothOppService(adapterService);
             service.setAvailable(true);
 
-            // Call stop while UpdateThread is running.
-            service.stop();
+            // Call cleanup while UpdateThread is running.
             service.cleanup();
         } finally {
             if (service != null) {

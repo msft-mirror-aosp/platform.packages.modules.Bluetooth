@@ -112,7 +112,7 @@ public class BluetoothOppServiceTest {
 
         BluetoothMethodProxy.setInstanceForTesting(null);
         if (mIsBluetoothOppServiceStarted) {
-            service.stop();
+            service.cleanup();
         }
     }
 

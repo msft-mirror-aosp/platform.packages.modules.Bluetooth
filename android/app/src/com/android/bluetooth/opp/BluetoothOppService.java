@@ -269,9 +269,11 @@ public class BluetoothOppService extends ProfileService implements IObexConnecti
     }
 
     @Override
-    public void stop() {
+    public void cleanup() {
+        Log.i(TAG, "Cleanup BluetoothOpp Service");
+
         if (sBluetoothOppService == null) {
-            Log.w(TAG, "stop() called before start()");
+            Log.w(TAG, "cleanup() called before initialization");
             ContentProfileErrorReportUtils.report(
                     BluetoothProfile.OPP,
                     BluetoothProtoEnums.BLUETOOTH_OPP_SERVICE,
@@ -287,6 +289,10 @@ public class BluetoothOppService extends ProfileService implements IObexConnecti
         setComponentAvailable(TRANSFER_HISTORY_ACTIVITY, false);
         setComponentAvailable(OPP_RECEIVER, false);
         setComponentAvailable(OPP_HANDOFF_RECEIVER, false);
+
+        mBatches.clear();
+        mShares.clear();
+        mHandler.removeCallbacksAndMessages(null);
     }
 
     private void startListener() {
@@ -533,15 +539,6 @@ public class BluetoothOppService extends ProfileService implements IObexConnecti
                         0x0102,
                         SUPPORTED_OPP_FORMAT);
         Log.d(TAG, "mOppSdpHandle :" + mOppSdpHandle);
-    }
-
-    @Override
-    public void cleanup() {
-        Log.v(TAG, "onDestroy");
-
-        mBatches.clear();
-        mShares.clear();
-        mHandler.removeCallbacksAndMessages(null);
     }
 
     private void unregisterReceivers() {
