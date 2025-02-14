@@ -15,7 +15,7 @@
  */
 
 /*
- * Defines the native inteface that is used by state machine/service to
+ * Defines the native interface that is used by state machine/service to
  * send or receive messages from the native stack. This file is registered
  * for the native methods in the corresponding JNI C++ file.
  */
@@ -34,7 +34,6 @@ import com.android.bluetooth.flags.Flags;
 import com.android.internal.annotations.VisibleForTesting;
 
 import java.lang.annotation.Native;
-
 import java.util.Arrays;
 import java.util.List;
 

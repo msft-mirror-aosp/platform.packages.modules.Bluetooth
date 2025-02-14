@@ -24,7 +24,6 @@ import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 
 import org.junit.After;
@@ -45,17 +44,15 @@ public class HfpNativeInterfaceTest {
     private NativeInterface mNativeInterface;
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         when(mService.isAvailable()).thenReturn(true);
         HeadsetClientService.setHeadsetClientService(mService);
-        TestUtils.setAdapterService(mAdapterService);
-        mNativeInterface = NativeInterface.getInstance();
+        mNativeInterface = new NativeInterface(mAdapterService);
     }
 
     @After
-    public void tearDown() throws Exception {
+    public void tearDown() {
         HeadsetClientService.setHeadsetClientService(null);
-        TestUtils.clearAdapterService(mAdapterService);
     }
 
     @Test
