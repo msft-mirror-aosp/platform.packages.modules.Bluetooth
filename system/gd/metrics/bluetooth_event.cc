@@ -31,53 +31,59 @@ using android::bluetooth::State;
 using hci::ErrorCode;
 
 State MapErrorCodeToState(ErrorCode reason) {
-  // TODO - map the error codes to the state enum variants.
   switch (reason) {
     case ErrorCode::SUCCESS:
       return State::SUCCESS;
-    // Timeout related errors
-    case ErrorCode::PAGE_TIMEOUT:
-      return State::PAGE_TIMEOUT;
-    case ErrorCode::CONNECTION_TIMEOUT:
-      return State::CONNECTION_TIMEOUT;
-    case ErrorCode::CONNECTION_ACCEPT_TIMEOUT:
-      return State::CONNECTION_ACCEPT_TIMEOUT;
-    case ErrorCode::TRANSACTION_RESPONSE_TIMEOUT:
-      return State::TRANSACTION_RESPONSE_TIMEOUT;
-    case ErrorCode::AUTHENTICATION_FAILURE:
-      return State::AUTH_FAILURE;
-    case ErrorCode::REMOTE_USER_TERMINATED_CONNECTION:
-    case ErrorCode::REMOTE_DEVICE_TERMINATED_CONNECTION_LOW_RESOURCES:
-    case ErrorCode::REMOTE_DEVICE_TERMINATED_CONNECTION_POWER_OFF:
-      return State::REMOTE_USER_TERMINATED_CONNECTION;
-    case ErrorCode::CONNECTION_ALREADY_EXISTS:
-      return State::ALREADY_CONNECTED;
-    case ErrorCode::REPEATED_ATTEMPTS:
-      return State::REPEATED_ATTEMPTS;
-    case ErrorCode::PIN_OR_KEY_MISSING:
-      return State::KEY_MISSING;
-    case ErrorCode::PAIRING_NOT_ALLOWED:
-      return State::PAIRING_NOT_ALLOWED;
-    case ErrorCode::CONNECTION_REJECTED_LIMITED_RESOURCES:
-      return State::RESOURCES_EXCEEDED;
+    case ErrorCode::UNKNOWN_HCI_COMMAND:
+      return State::UNKNOWN_HCI_COMMAND;
+    case ErrorCode::UNKNOWN_CONNECTION:
+      return State::NO_CONNECTION;
     case ErrorCode::HARDWARE_FAILURE:
       return State::HARDWARE_FAILURE;
+    case ErrorCode::PAGE_TIMEOUT:
+      return State::PAGE_TIMEOUT;
+    case ErrorCode::AUTHENTICATION_FAILURE:
+      return State::AUTH_FAILURE;
+    case ErrorCode::PIN_OR_KEY_MISSING:
+      return State::KEY_MISSING;
     case ErrorCode::MEMORY_CAPACITY_EXCEEDED:
       return State::MEMORY_CAPACITY_EXCEEDED;
+    case ErrorCode::CONNECTION_TIMEOUT:
+      return State::CONNECTION_TIMEOUT;
     case ErrorCode::CONNECTION_LIMIT_EXCEEDED:
       return State::CONNECTION_LIMIT_EXCEEDED;
     case ErrorCode::SYNCHRONOUS_CONNECTION_LIMIT_EXCEEDED:
       return State::SYNCHRONOUS_CONNECTION_LIMIT_EXCEEDED;
+    case ErrorCode::CONNECTION_ALREADY_EXISTS:
+      return State::ALREADY_CONNECTED;
+    case ErrorCode::COMMAND_DISALLOWED:
+      return State::COMMAND_DISALLOWED;
+    case ErrorCode::CONNECTION_REJECTED_LIMITED_RESOURCES:
+      return State::RESOURCES_EXCEEDED;
     case ErrorCode::CONNECTION_REJECTED_SECURITY_REASONS:
       return State::CONNECTION_REJECTED_SECURITY_REASONS;
     case ErrorCode::CONNECTION_REJECTED_UNACCEPTABLE_BD_ADDR:
       return State::CONNECTION_REJECTED_UNACCEPTABLE_BD_ADDR;
+    case ErrorCode::CONNECTION_ACCEPT_TIMEOUT:
+      return State::CONNECTION_ACCEPT_TIMEOUT;
     case ErrorCode::UNSUPPORTED_FEATURE_OR_PARAMETER_VALUE:
       return State::UNSUPPORTED_FEATURE_OR_PARAMETER_VALUE;
     case ErrorCode::INVALID_HCI_COMMAND_PARAMETERS:
       return State::INVALID_HCI_COMMAND_PARAMETERS;
+    case ErrorCode::REMOTE_USER_TERMINATED_CONNECTION:
+      return State::REMOTE_USER_TERMINATED_CONNECTION;
+    case ErrorCode::REMOTE_DEVICE_TERMINATED_CONNECTION_LOW_RESOURCES:
+      return State::REMOTE_DEVICE_TERMINATED_CONNECTION_LOW_RESOURCES;
+    case ErrorCode::REMOTE_DEVICE_TERMINATED_CONNECTION_POWER_OFF:
+      return State::REMOTE_DEVICE_TERMINATED_CONNECTION_POWER_OFF;
     case ErrorCode::CONNECTION_TERMINATED_BY_LOCAL_HOST:
       return State::CONNECTION_TERMINATED_BY_LOCAL_HOST;
+    case ErrorCode::REPEATED_ATTEMPTS:
+      return State::REPEATED_ATTEMPTS;
+    case ErrorCode::PAIRING_NOT_ALLOWED:
+      return State::PAIRING_NOT_ALLOWED;
+    case ErrorCode::UNKNOWN_LMP_PDU:
+      return State::UNKNOWN_LMP_PDU;
     case ErrorCode::UNSUPPORTED_REMOTE_OR_LMP_FEATURE:
       return State::UNSUPPORTED_REMOTE_OR_LMP_FEATURE;
     case ErrorCode::SCO_OFFSET_REJECTED:
@@ -94,6 +100,8 @@ State MapErrorCodeToState(ErrorCode reason) {
       return State::UNSUPPORTED_LMP_OR_LL_PARAMETER;
     case ErrorCode::ROLE_CHANGE_NOT_ALLOWED:
       return State::ROLE_CHANGE_NOT_ALLOWED;
+    case ErrorCode::TRANSACTION_RESPONSE_TIMEOUT:
+      return State::TRANSACTION_RESPONSE_TIMEOUT;
     case ErrorCode::LINK_LAYER_COLLISION:
       return State::LINK_LAYER_COLLISION;
     case ErrorCode::LMP_PDU_NOT_ALLOWED:
