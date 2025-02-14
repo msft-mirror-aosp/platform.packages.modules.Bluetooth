@@ -135,7 +135,7 @@ public class CsipSetCoordinatorServiceTest {
 
     @After
     public void tearDown() throws Exception {
-        mService.stop();
+        mService.cleanup();
         assertThat(CsipSetCoordinatorService.getCsipSetCoordinatorService()).isNull();
     }
 
