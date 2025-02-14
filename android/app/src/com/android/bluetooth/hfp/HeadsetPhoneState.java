@@ -16,8 +16,11 @@
 
 package com.android.bluetooth.hfp;
 
+import static java.util.Objects.requireNonNull;
+
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothDevice;
+import android.content.Context;
 import android.os.Handler;
 import android.telephony.PhoneStateListener;
 import android.telephony.ServiceState;
@@ -32,7 +35,6 @@ import com.android.internal.annotations.VisibleForTesting;
 
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Objects;
 import java.util.concurrent.Executor;
 
 /**
@@ -73,26 +75,23 @@ public class HeadsetPhoneState {
     private final Object mPhoneStateListenerLock = new Object();
 
     HeadsetPhoneState(HeadsetService headsetService) {
-        synchronized (mPhoneStateListenerLock) {
-            Objects.requireNonNull(headsetService, "headsetService is null");
-            mHeadsetService = headsetService;
-            mTelephonyManager = mHeadsetService.getSystemService(TelephonyManager.class);
-            Objects.requireNonNull(mTelephonyManager, "TELEPHONY_SERVICE is null");
-            // Register for SubscriptionInfo list changes which is guaranteed to invoke
-            // onSubscriptionInfoChanged and which in turns calls loadInBackground.
-            mSubscriptionManager = SubscriptionManager.from(mHeadsetService);
-            Objects.requireNonNull(mSubscriptionManager, "TELEPHONY_SUBSCRIPTION_SERVICE is null");
-            // Initialize subscription on the handler thread
-            mHandler = new Handler(headsetService.getStateMachinesThreadLooper());
-            mOnSubscriptionsChangedListener = new HeadsetPhoneStateOnSubscriptionChangedListener();
-            mSubscriptionManager.addOnSubscriptionsChangedListener(
-                    command -> mHandler.post(command), mOnSubscriptionsChangedListener);
-            mSignalStrengthUpdateRequest =
-                    new SignalStrengthUpdateRequest.Builder()
-                            .setSignalThresholdInfos(Collections.EMPTY_LIST)
-                            .setSystemThresholdReportingRequestedWhileIdle(true)
-                            .build();
-        }
+        mHeadsetService = requireNonNull(headsetService);
+        Context ctx = headsetService;
+        mTelephonyManager = requireNonNull(ctx.getSystemService(TelephonyManager.class));
+        // Register for SubscriptionInfo list changes which is guaranteed to invoke
+        // onSubscriptionInfoChanged and which in turns calls loadInBackground.
+        mSubscriptionManager = requireNonNull(ctx.getSystemService(SubscriptionManager.class));
+
+        // Initialize subscription on the handler thread
+        mHandler = new Handler(headsetService.getStateMachinesThreadLooper());
+        mOnSubscriptionsChangedListener = new HeadsetPhoneStateOnSubscriptionChangedListener();
+        mSubscriptionManager.addOnSubscriptionsChangedListener(
+                command -> mHandler.post(command), mOnSubscriptionsChangedListener);
+        mSignalStrengthUpdateRequest =
+                new SignalStrengthUpdateRequest.Builder()
+                        .setSignalThresholdInfos(Collections.EMPTY_LIST)
+                        .setSystemThresholdReportingRequestedWhileIdle(true)
+                        .build();
     }
 
     /** Cleanup this instance. Instance can no longer be used after calling this method. */

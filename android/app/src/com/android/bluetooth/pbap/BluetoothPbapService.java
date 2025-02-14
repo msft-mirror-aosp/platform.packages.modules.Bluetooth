@@ -308,8 +308,7 @@ public class BluetoothPbapService extends ProfileService implements IObexConnect
                 if (sm == null) {
                     return;
                 }
-                Message msg = sm.obtainMessage(PbapStateMachine.AUTH_KEY_INPUT, sessionKey);
-                sm.sendMessage(msg);
+                sm.sendMessage(sm.obtainMessage(PbapStateMachine.AUTH_KEY_INPUT, sessionKey));
             }
         } else if (AUTH_CANCELLED_ACTION.equals(action)) {
             BluetoothDevice device = intent.getParcelableExtra(EXTRA_DEVICE);

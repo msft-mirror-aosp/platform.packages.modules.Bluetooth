@@ -218,7 +218,7 @@ class HeadsetStateMachine extends StateMachine {
         }
 
         // Create phonebook helper
-        mPhonebook = new AtPhonebook(mHeadsetService, mNativeInterface);
+        mPhonebook = new AtPhonebook(mAdapterService, mNativeInterface);
         // Initialize state machine
         addState(mDisconnected);
         addState(mConnecting);

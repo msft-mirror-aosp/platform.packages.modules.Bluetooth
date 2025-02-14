@@ -614,7 +614,7 @@ public class BluetoothOppService extends ProfileService implements IObexConnecti
 
     /* suppose we auto accept an incoming OPUSH connection */
     private void createServerSession(ObexTransport transport) {
-        mServerSession = new BluetoothOppObexServerSession(this, transport, this);
+        mServerSession = new BluetoothOppObexServerSession(mAdapterService, transport, this);
         mServerSession.preStart();
         Log.d(
                 TAG,
@@ -909,7 +909,7 @@ public class BluetoothOppService extends ProfileService implements IObexConnecti
                 }
             }
             if (mBatches.size() == 0) {
-                BluetoothOppBatch newBatch = new BluetoothOppBatch(this, info);
+                BluetoothOppBatch newBatch = new BluetoothOppBatch(mAdapterService, info);
                 newBatch.mId = mBatchId;
                 mBatchId++;
                 mBatches.add(newBatch);

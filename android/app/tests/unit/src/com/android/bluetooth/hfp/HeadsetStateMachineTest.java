@@ -33,6 +33,7 @@ import android.bluetooth.BluetoothStatusCodes;
 import android.content.ContentResolver;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.res.Resources;
 import android.database.Cursor;
 import android.media.AudioManager;
 import android.net.Uri;
@@ -107,6 +108,7 @@ public class HeadsetStateMachineTest {
     @Mock private DatabaseManager mDatabaseManager;
     @Mock private HeadsetService mHeadsetService;
     @Mock private HeadsetSystemInterface mSystemInterface;
+    @Mock Resources mResources;
     @Mock private AudioManager mAudioManager;
     @Mock private HeadsetPhoneState mPhoneState;
     @Mock private Intent mIntent;
@@ -121,31 +123,25 @@ public class HeadsetStateMachineTest {
         // Stub system interface
         doReturn(mPhoneState).when(mSystemInterface).getHeadsetPhoneState();
         doReturn(mAudioManager).when(mSystemInterface).getAudioManager();
-        // Get a database
-        doReturn(mDatabaseManager).when(mAdapterService).getDatabase();
         doReturn(true).when(mDatabaseManager).setAudioPolicyMetadata(anyObject(), anyObject());
-        // Get an active device manager
-        doReturn(mActiveDeviceManager).when(mAdapterService).getActiveDeviceManager();
-        // Get a silence device manager
-        doReturn(mSilenceDeviceManager).when(mAdapterService).getSilenceDeviceManager();
-        doReturn(mRemoteDevices).when(mAdapterService).getRemoteDevices();
         doReturn(true).when(mNativeInterface).connectHfp(mDevice);
         doReturn(true).when(mNativeInterface).disconnectHfp(mDevice);
         doReturn(true).when(mNativeInterface).connectAudio(mDevice);
         doReturn(true).when(mNativeInterface).disconnectAudio(mDevice);
+        doReturn(mDatabaseManager).when(mAdapterService).getDatabase();
+        doReturn(mActiveDeviceManager).when(mAdapterService).getActiveDeviceManager();
+        doReturn(mSilenceDeviceManager).when(mAdapterService).getSilenceDeviceManager();
+        doReturn(mRemoteDevices).when(mAdapterService).getRemoteDevices();
         // Stub headset service
         mMockContentResolver = new MockContentResolver();
-        when(mHeadsetService.getContentResolver()).thenReturn(mMockContentResolver);
+        doReturn(mMockContentResolver).when(mAdapterService).getContentResolver();
         doReturn(BluetoothDevice.BOND_BONDED)
                 .when(mAdapterService)
                 .getBondState(any(BluetoothDevice.class));
         when(mHeadsetService.bindService(any(Intent.class), any(ServiceConnection.class), anyInt()))
                 .thenReturn(true);
-        when(mHeadsetService.getResources())
-                .thenReturn(
-                        InstrumentationRegistry.getInstrumentation()
-                                .getTargetContext()
-                                .getResources());
+        doReturn(mResources).when(mAdapterService).getResources();
+        doReturn("").when(mResources).getString(anyInt());
         when(mHeadsetService.getPackageManager())
                 .thenReturn(
                         InstrumentationRegistry.getInstrumentation()
