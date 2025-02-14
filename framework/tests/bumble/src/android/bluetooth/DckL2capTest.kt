@@ -19,9 +19,11 @@ package android.bluetooth
 import android.Manifest
 import android.bluetooth.test_utils.EnableBluetoothRule
 import android.content.Context
+import android.platform.test.annotations.RequiresFlagsEnabled
 import android.util.Log
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.platform.app.InstrumentationRegistry
+import com.android.bluetooth.flags.Flags
 import com.android.compatibility.common.util.AdoptShellPermissionsRule
 import com.google.common.truth.Truth.assertThat
 import com.google.protobuf.Any
@@ -79,6 +81,7 @@ public class DckL2capTest() : Closeable {
     private var connectionHandle = BluetoothDevice.ERROR
     private lateinit var advertiseContext: GrpcContext.CancellableContext
     private lateinit var connectionResponse: WaitConnectionResponse
+    private lateinit var host: Host
 
     // Gives shell permissions during the test.
     @Rule(order = 0)
@@ -106,6 +109,9 @@ public class DckL2capTest() : Closeable {
 
     @Before
     fun setUp() {
+
+        host = Host(context)
+
         mBumble
             .dckBlocking()
             .withDeadline(Deadline.after(GRPC_TIMEOUT.inWholeMilliseconds, TimeUnit.MILLISECONDS))
@@ -152,6 +158,8 @@ public class DckL2capTest() : Closeable {
             val waitFlow = flow { emit(waitConnection(dckSpsm, remoteDevice)) }
             val connectJob =
                 scope.launch {
+                    //give some time for Bumble to host the socket server
+                    Thread.sleep(200)
                     bluetoothSocket.connect()
                     Log.d(TAG, "testSend: Bluetooth socket connected")
                 }
@@ -271,6 +279,65 @@ public class DckL2capTest() : Closeable {
         Log.d(TAG, "testReadReturnOnRemoteSocketDisconnect: done")
     }
 
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_SOCKET_SETTINGS_API)
+    fun testSendOverEncryptedOnlySocket() {
+        Log.d(TAG, "testSendOverEncryptedOnlySocket")
+        val remoteDevice =
+            bluetoothAdapter.getRemoteLeDevice(
+                Utils.BUMBLE_RANDOM_ADDRESS,
+                BluetoothDevice.ADDRESS_TYPE_RANDOM,
+            )
+
+        host.createBondAndVerify(remoteDevice)
+
+        Log.d(TAG, "testSendOverEncryptedOnlySocket: Connect L2CAP")
+        val bluetoothSocket =
+            createClientSocketUsingSocketSettings(dckSpsm, remoteDevice, true, false)
+        runBlocking {
+            val waitFlow = flow { emit(waitConnection(dckSpsm, remoteDevice)) }
+            val connectJob =
+                scope.launch {
+                    //give some time for Bumble to host the socket server
+                    Thread.sleep(200)
+                    bluetoothSocket.connect()
+                    Log.d(TAG, "testSendOverEncryptedOnlySocket: Bluetooth socket connected")
+                }
+            connectionResponse = waitFlow.first()
+            // Wait for the connection to complete
+            connectJob.join()
+        }
+        assertThat(connectionResponse).isNotNull()
+        assertThat(connectionResponse.hasChannel()).isTrue()
+
+        val channel = connectionResponse.channel
+        val sampleData = "cafe-baguette".toByteArray()
+
+        val receiveObserver = StreamObserverSpliterator<ReceiveResponse>()
+        mBumble
+            .l2cap()
+            .receive(ReceiveRequest.newBuilder().setChannel(channel).build(), receiveObserver)
+
+        Log.d(TAG, "testSendOverEncryptedOnlySocket: Send data from Android to Bumble")
+        val outputStream = bluetoothSocket.outputStream
+        outputStream.write(sampleData)
+        outputStream.flush()
+
+        Log.d(TAG, "testSendOverEncryptedOnlySocket: waitReceive data on Bumble")
+        val receiveData = receiveObserver.iterator().next()
+        assertThat(receiveData.data.toByteArray()).isEqualTo(sampleData)
+
+        bluetoothSocket.close()
+        Log.d(TAG, "testSendOverEncryptedOnlySocket: waitDisconnection")
+        val waitDisconnectionRequest =
+            WaitDisconnectionRequest.newBuilder().setChannel(channel).build()
+        val disconnectionResponse =
+            mBumble.l2capBlocking().waitDisconnection(waitDisconnectionRequest)
+        assertThat(disconnectionResponse.hasSuccess()).isTrue()
+        host.removeBondAndVerify(remoteDevice)
+        Log.d(TAG, "testSendOverEncryptedOnlySocket: done")
+    }
+
     private fun createAndConnectL2capChannelWithBumble(psm: Int): ConnectResponse {
         Log.d(TAG, "createAndConnectL2capChannelWithBumble")
         val remoteDevice =
@@ -340,6 +407,45 @@ public class DckL2capTest() : Closeable {
                 .build()
         Log.i(TAG, "Sending request to Bumble to create server and wait for connection")
         return mBumble.l2capBlocking().waitConnection(waitConnectionRequest)
+    }
+
+    private fun createListeningChannelUsingSocketSettings(
+        isEncrypted: Boolean = false,
+        isAuthenticated: Boolean = false,
+    ): BluetoothServerSocket {
+        var socket: BluetoothServerSocket
+
+        socket =
+            bluetoothAdapter.listenUsingSocketSettings(
+                BluetoothSocketSettings.Builder()
+                    .setSocketType(BluetoothSocket.TYPE_L2CAP_LE)
+                    .setEncryptionRequired(isEncrypted)
+                    .setAuthenticationRequired(isAuthenticated)
+                    .build()
+            )
+
+        return socket
+    }
+
+    private fun createClientSocketUsingSocketSettings(
+        psm: Int,
+        remoteDevice: BluetoothDevice,
+        isEncrypted: Boolean = false,
+        isAuthenticated: Boolean = false,
+    ): BluetoothSocket {
+        var socket: BluetoothSocket
+
+        socket =
+            remoteDevice.createUsingSocketSettings(
+                BluetoothSocketSettings.Builder()
+                    .setSocketType(BluetoothSocket.TYPE_L2CAP_LE)
+                    .setEncryptionRequired(isEncrypted)
+                    .setAuthenticationRequired(isAuthenticated)
+                    .setL2capPsm(psm)
+                    .build()
+            )
+
+        return socket
     }
 
     private fun createSocket(
