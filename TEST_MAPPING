@@ -78,10 +78,9 @@
     {
       "name": "bluetooth-test-audio-hal-a2dp-provider-info"
     },
-    // Broken
-    //{
-    //  "name": "bluetooth-test-audio-hal-aidl-leaudio-utils"
-    //},
+    {
+      "name": "bluetooth-test-audio-hal-aidl-leaudio-utils"
+    },
     {
       "name": "bluetooth-test-audio-hal-hfp-client-interface"
     },
@@ -314,10 +313,9 @@
     {
       "name": "bluetooth-test-audio-hal-a2dp-provider-info"
     },
-    // Broken
-    //{
-    //  "name": "bluetooth-test-audio-hal-aidl-leaudio-utils"
-    //},
+    {
+      "name": "bluetooth-test-audio-hal-aidl-leaudio-utils"
+    },
     {
       "name": "bluetooth-test-audio-hal-hfp-client-interface"
     },
