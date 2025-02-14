@@ -676,17 +676,15 @@ public class SapService extends ProfileService implements AdapterService.Bluetoo
     }
 
     @Override
-    public void stop() {
-        Log.v(TAG, "stop()");
+    public void cleanup() {
+        Log.i(TAG, "Cleanup Sap Service");
+
         setSapService(null);
         unregisterReceiver(mSapReceiver);
         mAdapterService.unregisterBluetoothStateCallback(this);
         setState(BluetoothSap.STATE_DISCONNECTED, BluetoothSap.RESULT_CANCELED);
         sendShutdownMessage();
-    }
 
-    @Override
-    public void cleanup() {
         setState(BluetoothSap.STATE_DISCONNECTED, BluetoothSap.RESULT_CANCELED);
         closeService();
         if (mSessionStatusHandler != null) {
