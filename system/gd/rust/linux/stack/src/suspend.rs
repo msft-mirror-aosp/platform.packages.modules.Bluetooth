@@ -99,6 +99,14 @@ fn notify_suspend_state(hci_index: u16, suspended: bool) {
     }
 }
 
+pub enum SuspendActions {
+    CallbackRegistered(u32),
+    CallbackDisconnected(u32),
+    SuspendReady(i32),
+    ResumeReady(i32),
+    AudioReconnectOnResumeComplete,
+}
+
 #[derive(Debug, FromPrimitive, ToPrimitive)]
 #[repr(u32)]
 pub enum SuspendType {
@@ -159,7 +167,9 @@ impl Suspend {
             gatt,
             media,
             tx: tx.clone(),
-            callbacks: Callbacks::new(tx.clone(), Message::SuspendCallbackDisconnected),
+            callbacks: Callbacks::new(tx.clone(), |id| {
+                Message::SuspendActions(SuspendActions::CallbackDisconnected(id))
+            }),
             audio_reconnect_list: Vec::new(),
             audio_reconnect_joinhandle: None,
             suspend_timeout_joinhandle: None,
@@ -167,18 +177,38 @@ impl Suspend {
         }
     }
 
-    pub(crate) fn callback_registered(&mut self, id: u32) {
+    pub(crate) fn handle_action(&mut self, action: SuspendActions) {
+        match action {
+            SuspendActions::CallbackRegistered(id) => {
+                self.callback_registered(id);
+            }
+            SuspendActions::CallbackDisconnected(id) => {
+                self.remove_callback(id);
+            }
+            SuspendActions::SuspendReady(suspend_id) => {
+                self.suspend_ready(suspend_id);
+            }
+            SuspendActions::ResumeReady(suspend_id) => {
+                self.resume_ready(suspend_id);
+            }
+            SuspendActions::AudioReconnectOnResumeComplete => {
+                self.audio_reconnect_complete();
+            }
+        }
+    }
+
+    fn callback_registered(&mut self, id: u32) {
         match self.callbacks.get_by_id_mut(id) {
             Some(callback) => callback.on_callback_registered(id),
             None => warn!("Suspend callback {} does not exist", id),
         }
     }
 
-    pub(crate) fn remove_callback(&mut self, id: u32) -> bool {
+    fn remove_callback(&mut self, id: u32) -> bool {
         self.callbacks.remove_callback(id)
     }
 
-    pub(crate) fn suspend_ready(&mut self, suspend_id: i32) {
+    fn suspend_ready(&mut self, suspend_id: i32) {
         let hci_index = self.bt.lock().unwrap().get_hci_index();
         notify_suspend_state(hci_index, true);
         self.callbacks.for_all_callbacks(|callback| {
@@ -186,7 +216,7 @@ impl Suspend {
         });
     }
 
-    pub(crate) fn resume_ready(&mut self, suspend_id: i32) {
+    fn resume_ready(&mut self, suspend_id: i32) {
         self.callbacks.for_all_callbacks(|callback| {
             callback.on_resumed(suspend_id);
         });
@@ -194,12 +224,12 @@ impl Suspend {
 
     /// On resume, we attempt to reconnect to any audio devices connected during suspend.
     /// This marks this attempt as completed and we should clear the pending reconnects here.
-    pub(crate) fn audio_reconnect_complete(&mut self) {
+    fn audio_reconnect_complete(&mut self) {
         self.audio_reconnect_list.clear();
         self.audio_reconnect_joinhandle = None;
     }
 
-    pub(crate) fn get_connected_audio_devices(&self) -> Vec<BluetoothDevice> {
+    fn get_connected_audio_devices(&self) -> Vec<BluetoothDevice> {
         let bonded_connected = self.bt.lock().unwrap().get_bonded_and_connected_devices();
         self.media.lock().unwrap().filter_to_connected_audio_devices_from(&bonded_connected)
     }
@@ -211,7 +241,8 @@ impl ISuspend for Suspend {
 
         let tx = self.tx.clone();
         tokio::spawn(async move {
-            let _result = tx.send(Message::SuspendCallbackRegistered(id)).await;
+            let _result =
+                tx.send(Message::SuspendActions(SuspendActions::CallbackRegistered(id))).await;
         });
 
         true
@@ -273,9 +304,8 @@ impl ISuspend for Suspend {
             log::error!("Suspend did not complete in 2 seconds, continuing anyway.");
             suspend_state.lock().unwrap().le_rand_expected = false;
             suspend_state.lock().unwrap().suspend_expected = false;
-            tokio::spawn(async move {
-                let _result = tx.send(Message::SuspendReady(suspend_id)).await;
-            });
+            let _result =
+                tx.send(Message::SuspendActions(SuspendActions::SuspendReady(suspend_id))).await;
         }));
 
         // Call LE Rand at the end of suspend. The callback of LE Rand will reset the
@@ -343,8 +373,10 @@ impl ISuspend for Suspend {
                 }
 
                 // Mark that we're done.
-                let _unused: Option<()> =
-                    txl.send(Message::AudioReconnectOnResumeComplete).await.ok();
+                let _unused: Option<()> = txl
+                    .send(Message::SuspendActions(SuspendActions::AudioReconnectOnResumeComplete))
+                    .await
+                    .ok();
             }));
         }
 
@@ -364,9 +396,8 @@ impl ISuspend for Suspend {
 
             suspend_state.lock().unwrap().le_rand_expected = false;
             suspend_state.lock().unwrap().resume_expected = false;
-            tokio::spawn(async move {
-                let _result = tx.send(Message::ResumeReady(suspend_id)).await;
-            });
+            let _result =
+                tx.send(Message::SuspendActions(SuspendActions::ResumeReady(suspend_id))).await;
         }));
 
         // Call LE Rand at the end of resume. The callback of LE Rand will reset the
@@ -408,7 +439,9 @@ impl BtifBluetoothCallbacks for Suspend {
                 // TODO(b/286268874) Reset suspend state after the delay. Prevent
                 // resume until the suspend ready signal is sent.
                 suspend_state.lock().unwrap().suspend_expected = false;
-                let _result = tx.send(Message::SuspendReady(suspend_id)).await;
+                let _result = tx
+                    .send(Message::SuspendActions(SuspendActions::SuspendReady(suspend_id)))
+                    .await;
             });
         }
 
@@ -417,7 +450,8 @@ impl BtifBluetoothCallbacks for Suspend {
             self.suspend_state.lock().unwrap().resume_expected = false;
             let tx = self.tx.clone();
             tokio::spawn(async move {
-                let _result = tx.send(Message::ResumeReady(suspend_id)).await;
+                let _result =
+                    tx.send(Message::SuspendActions(SuspendActions::ResumeReady(suspend_id))).await;
             });
         }
     }
