@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity(tableName = "metadata")
+
 public class Metadata {
     @PrimaryKey @NonNull private String address;
 
@@ -72,17 +73,6 @@ public class Metadata {
 
     /** This is used to indicate whether device's microphone prefer to use during calls */
     public boolean is_preferred_microphone_for_calls;
-
-    /**
-     * This is used to indicate whether device's bond is lost.
-     *
-     * <p>If the value is 1, it indicates ACTION_KEY_MISSING. If the value is 0, it indicates
-     * ACTION_ENCRYPTION_CHANGE. `35` is chosen as the next available key in BluetoothDevice as 34
-     * is last used and is allocated to `METADATA_HEAD_UNIT_SOFTWARE_VERSION`.
-     *
-     * <p>TODO: b/395030709 - Remove the literal 35 and add metadata to BluetoothDevice in 25Q4.
-     */
-    public static final int METADATA_BOND_LOST = 35;
 
     Metadata(String address) {
         this(address, false, false);
@@ -352,9 +342,6 @@ public class Metadata {
             case BluetoothDevice.METADATA_EXCLUSIVE_MANAGER:
                 publicMetadata.exclusive_manager = value;
                 break;
-            case METADATA_BOND_LOST:
-                publicMetadata.is_bond_lost = value;
-                break;
         }
     }
 
@@ -450,9 +437,6 @@ public class Metadata {
                 break;
             case BluetoothDevice.METADATA_EXCLUSIVE_MANAGER:
                 value = publicMetadata.exclusive_manager;
-                break;
-            case METADATA_BOND_LOST:
-                value = publicMetadata.is_bond_lost;
                 break;
         }
         return value;
