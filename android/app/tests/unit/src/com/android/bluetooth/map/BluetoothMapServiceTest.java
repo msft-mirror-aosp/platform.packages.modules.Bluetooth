@@ -73,7 +73,7 @@ public class BluetoothMapServiceTest {
 
     @After
     public void tearDown() {
-        mService.stop();
+        mService.cleanup();
         assertThat(BluetoothMapService.getBluetoothMapService()).isNull();
     }
 
