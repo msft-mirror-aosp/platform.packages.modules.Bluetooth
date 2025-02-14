@@ -1,8 +1,9 @@
 use crate::btif::{BluetoothInterface, RawAddress, ToggleableProfile};
 use crate::topstack::get_dispatchers;
 
+use std::fmt::{Debug, Formatter, Result};
 use std::sync::{Arc, Mutex};
-use topshim_macros::{cb_variant, profile_enabled_or, profile_enabled_or_default};
+use topshim_macros::{cb_variant, log_args, profile_enabled_or, profile_enabled_or_default};
 
 use log::warn;
 
@@ -494,6 +495,12 @@ pub struct LeAudioClientCallbacksDispatcher {
     pub dispatch: Box<dyn Fn(LeAudioClientCallbacks) + Send>,
 }
 
+impl Debug for LeAudioClientCallbacksDispatcher {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(f, "LeAudioClientCallbacksDispatcher {{}}")
+    }
+}
+
 type LeAudioClientCb = Arc<Mutex<LeAudioClientCallbacksDispatcher>>;
 
 cb_variant!(LeAudioClientCb,
@@ -584,6 +591,7 @@ impl ToggleableProfile for LeAudioClient {
 }
 
 impl LeAudioClient {
+    #[log_args]
     pub fn new(intf: &BluetoothInterface) -> LeAudioClient {
         // SAFETY: `intf.as_raw_ptr()` is a valid pointer to a `BluetoothInterface`
         let lea_client_if: cxx::UniquePtr<ffi::LeAudioClientIntf> =
@@ -592,11 +600,13 @@ impl LeAudioClient {
         LeAudioClient { internal: lea_client_if, is_init: false, is_enabled: false }
     }
 
+    #[log_args]
     pub fn is_initialized(&self) -> bool {
         self.is_init
     }
 
     // `internal.init` is invoked during `ToggleableProfile::enable`
+    #[log_args]
     pub fn initialize(&mut self, callbacks: LeAudioClientCallbacksDispatcher) -> bool {
         if self.is_init {
             warn!("LeAudioClient has already been initialized");
@@ -613,46 +623,55 @@ impl LeAudioClient {
         true
     }
 
+    #[log_args]
     #[profile_enabled_or]
     pub fn connect(&mut self, addr: RawAddress) {
         self.internal.pin_mut().connect(addr);
     }
 
+    #[log_args]
     #[profile_enabled_or]
     pub fn disconnect(&mut self, addr: RawAddress) {
         self.internal.pin_mut().disconnect(addr);
     }
 
+    #[log_args]
     #[profile_enabled_or]
     pub fn set_enable_state(&mut self, addr: RawAddress, enabled: bool) {
         self.internal.pin_mut().set_enable_state(addr, enabled);
     }
 
+    #[log_args]
     #[profile_enabled_or]
     pub fn cleanup(&mut self) {
         self.internal.pin_mut().cleanup();
     }
 
+    #[log_args]
     #[profile_enabled_or]
     pub fn remove_device(&mut self, addr: RawAddress) {
         self.internal.pin_mut().remove_device(addr);
     }
 
+    #[log_args]
     #[profile_enabled_or]
     pub fn group_add_node(&mut self, group_id: i32, addr: RawAddress) {
         self.internal.pin_mut().group_add_node(group_id, addr);
     }
 
+    #[log_args]
     #[profile_enabled_or]
     pub fn group_remove_node(&mut self, group_id: i32, addr: RawAddress) {
         self.internal.pin_mut().group_remove_node(group_id, addr);
     }
 
+    #[log_args]
     #[profile_enabled_or]
     pub fn group_set_active(&mut self, group_id: i32) {
         self.internal.pin_mut().group_set_active(group_id);
     }
 
+    #[log_args]
     #[profile_enabled_or]
     pub fn set_codec_config_preference(
         &mut self,
@@ -667,16 +686,19 @@ impl LeAudioClient {
         );
     }
 
+    #[log_args]
     #[profile_enabled_or]
     pub fn set_ccid_information(&mut self, ccid: i32, context_type: i32) {
         self.internal.pin_mut().set_ccid_information(ccid, context_type);
     }
 
+    #[log_args]
     #[profile_enabled_or]
     pub fn set_in_call(&mut self, in_call: bool) {
         self.internal.pin_mut().set_in_call(in_call);
     }
 
+    #[log_args]
     #[profile_enabled_or]
     pub fn send_audio_profile_preferences(
         &mut self,
@@ -691,56 +713,67 @@ impl LeAudioClient {
         );
     }
 
+    #[log_args]
     #[profile_enabled_or]
     pub fn set_unicast_monitor_mode(&mut self, direction: BtLeAudioDirection, enable: bool) {
         self.internal.pin_mut().set_unicast_monitor_mode(direction, enable);
     }
 
+    #[log_args]
     #[profile_enabled_or(false)]
     pub fn host_start_audio_request(&mut self) -> bool {
         self.internal.pin_mut().host_start_audio_request()
     }
 
+    #[log_args]
     #[profile_enabled_or]
     pub fn host_stop_audio_request(&mut self) {
         self.internal.pin_mut().host_stop_audio_request();
     }
 
+    #[log_args]
     #[profile_enabled_or(false)]
     pub fn peer_start_audio_request(&mut self) -> bool {
         self.internal.pin_mut().peer_start_audio_request()
     }
 
+    #[log_args]
     #[profile_enabled_or]
     pub fn peer_stop_audio_request(&mut self) {
         self.internal.pin_mut().peer_stop_audio_request();
     }
 
+    #[log_args]
     #[profile_enabled_or_default]
     pub fn get_host_pcm_config(&mut self) -> BtLePcmConfig {
         self.internal.pin_mut().get_host_pcm_config()
     }
 
+    #[log_args]
     #[profile_enabled_or_default]
     pub fn get_peer_pcm_config(&mut self) -> BtLePcmConfig {
         self.internal.pin_mut().get_peer_pcm_config()
     }
 
+    #[log_args]
     #[profile_enabled_or(BtLeStreamStartedStatus::Idle)]
     pub fn get_host_stream_started(&mut self) -> BtLeStreamStartedStatus {
         self.internal.pin_mut().get_host_stream_started()
     }
 
+    #[log_args]
     #[profile_enabled_or(BtLeStreamStartedStatus::Idle)]
     pub fn get_peer_stream_started(&mut self) -> BtLeStreamStartedStatus {
         self.internal.pin_mut().get_peer_stream_started()
     }
 
+    #[log_args]
     #[profile_enabled_or]
     pub fn source_metadata_changed(&mut self, metadata: Vec<SourceMetadata>) {
         self.internal.pin_mut().source_metadata_changed(metadata);
     }
 
+    #[log_args]
     #[profile_enabled_or]
     pub fn sink_metadata_changed(&mut self, metadata: Vec<SinkMetadata>) {
         self.internal.pin_mut().sink_metadata_changed(metadata);
