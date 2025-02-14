@@ -4,6 +4,7 @@ import static android.Manifest.permission.BLUETOOTH_CONNECT;
 
 import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
+import static com.android.bluetooth.TestUtils.mockGetSystemService;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -74,10 +75,11 @@ public class RemoteDevicesTest {
                 InstrumentationRegistry.getInstrumentation()
                         .acquireLooperManager(mHandlerThread.getLooper());
 
-        when(mAdapterService.getSystemService(Context.BLUETOOTH_SERVICE))
-                .thenReturn(mBluetoothManager);
-        when(mAdapterService.getSystemServiceName(BluetoothManager.class))
-                .thenReturn(Context.BLUETOOTH_SERVICE);
+        mockGetSystemService(
+                mAdapterService,
+                Context.BLUETOOTH_SERVICE,
+                BluetoothManager.class,
+                mBluetoothManager);
 
         mRemoteDevices = new RemoteDevices(mAdapterService, mHandlerThread.getLooper());
         verify(mAdapterService).getSystemService(Context.BLUETOOTH_SERVICE);
