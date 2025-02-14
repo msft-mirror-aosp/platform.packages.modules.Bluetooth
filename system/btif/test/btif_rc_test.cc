@@ -413,7 +413,6 @@ TEST_F(BtifTrackChangeCBTest, handle_get_metadata_attr_response) {
   btif_rc_cb.rc_multi_cb[0].rc_cover_art_psm = 0;
   btif_rc_cb.rc_multi_cb[0].rc_state = BTRC_CONNECTION_STATE_CONNECTED;
   btif_rc_cb.rc_multi_cb[0].rc_addr = kDeviceAddress;
-  btif_rc_cb.rc_multi_cb[0].rc_pending_play = 0;
   btif_rc_cb.rc_multi_cb[0].rc_volume = 0;
   btif_rc_cb.rc_multi_cb[0].rc_vol_label = 0;
   btif_rc_cb.rc_multi_cb[0].rc_supported_event_list = nullptr;

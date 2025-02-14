@@ -207,7 +207,6 @@ typedef struct {
   uint16_t rc_cover_art_psm;  // AVRCP-BIP psm
   btrc_connection_state_t rc_state;
   RawAddress rc_addr;
-  uint16_t rc_pending_play;
   btif_rc_cmd_ctxt_t rc_pdu_info[MAX_CMD_QUEUE_LEN];
   btif_rc_reg_notifications_t rc_notif[MAX_RC_NOTIFICATIONS];
   unsigned int rc_volume;
@@ -236,8 +235,6 @@ typedef struct {
 typedef struct {
   uint8_t handle;
 } btif_rc_handle_t;
-
-static void sleep_ms(uint64_t timeout_ms);
 
 /* Response status code - Unknown Error - this is changed to "reserved" */
 #define BTIF_STS_GEN_ERROR 0x06
@@ -404,7 +401,6 @@ static void initialize_device(btif_rc_device_cb_t* p_dev) {
   p_dev->rc_cover_art_psm = 0;
   p_dev->rc_state = BTRC_CONNECTION_STATE_DISCONNECTED;
   p_dev->rc_addr = RawAddress::kEmpty;
-  p_dev->rc_pending_play = false;
   for (int i = 0; i < MAX_CMD_QUEUE_LEN; ++i) {
     p_dev->rc_pdu_info[i].ctype = 0;
     p_dev->rc_pdu_info[i].label = 0;
@@ -791,58 +787,6 @@ static void handle_rc_disconnect(tBTA_AV_RC_CLOSE* p_rc_close) {
 }
 
 /***************************************************************************
- *  Function       handle_rc_passthrough_cmd
- *
- *  - Argument:    tBTA_AV_RC rc_id   remote control command ID
- *                 tBTA_AV_STATE key_state status of key press
- *
- *  - Description: Remote control command handler
- *
- ***************************************************************************/
-static void handle_rc_passthrough_cmd(tBTA_AV_REMOTE_CMD* p_remote_cmd) {
-  if (p_remote_cmd == NULL) {
-    log::error("No remote command!");
-    return;
-  }
-
-  btif_rc_device_cb_t* p_dev = btif_rc_get_device_by_handle(p_remote_cmd->rc_handle);
-  if (p_dev == NULL) {
-    log::error("Got passthrough command from invalid rc handle");
-    return;
-  }
-
-  log::verbose("p_remote_cmd->rc_id: {}", p_remote_cmd->rc_id);
-
-  /* If AVRC is open and peer sends PLAY but there is no AVDT, then we queue-up
-   * this PLAY */
-  if ((p_remote_cmd->rc_id == AVRC_ID_PLAY) && (!btif_av_is_connected(A2dpType::kSink))) {
-    if (p_remote_cmd->key_state == AVRC_STATE_PRESS) {
-      log::warn("AVDT not open, queuing the PLAY command");
-      p_dev->rc_pending_play = true;
-    }
-    return;
-  }
-
-  /* If we previously queued a play and we get a PAUSE, clear it. */
-  if ((p_remote_cmd->rc_id == AVRC_ID_PAUSE) && (p_dev->rc_pending_play)) {
-    log::warn("Clear the pending PLAY on PAUSE received");
-    p_dev->rc_pending_play = false;
-    return;
-  }
-
-  if ((p_remote_cmd->rc_id == AVRC_ID_STOP) && (!btif_av_stream_started_ready(A2dpType::kSink))) {
-    log::warn("Stream suspended, ignore STOP cmd");
-    return;
-  }
-
-  int pressed = (p_remote_cmd->key_state == AVRC_STATE_PRESS) ? 1 : 0;
-
-  /* pass all commands up */
-  log::verbose("rc_features: {}, cmd->rc_id: {}, pressed: {}", p_dev->rc_features,
-               p_remote_cmd->rc_id, pressed);
-}
-
-/***************************************************************************
  *  Function       handle_rc_passthrough_rsp
  *
  *  - Argument:    tBTA_AV_REMOTE_RSP passthrough command response
@@ -1068,55 +1012,6 @@ uint8_t btif_rc_get_connected_peer_handle(const RawAddress& peer_addr) {
     return BTRC_HANDLE_NONE;
   }
   return p_dev->rc_handle;
-}
-
-/***************************************************************************
- **
- ** Function       btif_rc_check_handle_pending_play
- **
- ** Description    Clears the queued PLAY command. if |bSendToApp| is true,
- **                forwards to app
- **
- ***************************************************************************/
-
-/* clear the queued PLAY command. if |bSendToApp| is true, forward to app */
-void btif_rc_check_handle_pending_play(const RawAddress& peer_addr, bool bSendToApp) {
-  btif_rc_device_cb_t* p_dev = NULL;
-  p_dev = btif_rc_get_device_by_bda(peer_addr);
-
-  if (p_dev == NULL) {
-    log::error("p_dev NULL");
-    return;
-  }
-
-  log::verbose("bSendToApp: {}", bSendToApp);
-  if (p_dev->rc_pending_play) {
-    if (bSendToApp) {
-      tBTA_AV_REMOTE_CMD remote_cmd;
-      log::verbose("Sending queued PLAYED event to app");
-
-      memset(&remote_cmd, 0, sizeof(tBTA_AV_REMOTE_CMD));
-      remote_cmd.rc_handle = p_dev->rc_handle;
-      remote_cmd.rc_id = AVRC_ID_PLAY;
-      remote_cmd.hdr.ctype = AVRC_CMD_CTRL;
-      remote_cmd.hdr.opcode = AVRC_OP_PASS_THRU;
-
-      /* delay sending to app, else there is a timing issue in the framework,
-       ** which causes the audio to be on th device's speaker. Delay between
-       ** OPEN & RC_PLAYs
-       */
-      sleep_ms(200);
-      /* send to app - both PRESSED & RELEASED */
-      remote_cmd.key_state = AVRC_STATE_PRESS;
-      handle_rc_passthrough_cmd(&remote_cmd);
-
-      sleep_ms(100);
-
-      remote_cmd.key_state = AVRC_STATE_RELEASE;
-      handle_rc_passthrough_cmd(&remote_cmd);
-    }
-    p_dev->rc_pending_play = false;
-  }
 }
 
 /* Generic reject response */
@@ -3872,22 +3767,6 @@ static void btif_rc_transaction_timer_timeout(void* data) {
 
   btif_transfer_context(btif_rc_transaction_timeout_handler, 0, (char*)p_data,
                         sizeof(rc_transaction_context_t), NULL);
-}
-
-/*******************************************************************************
- *      Function       sleep_ms
- *
- *      Description    Sleep the calling thread unconditionally for
- *                     |timeout_ms| milliseconds.
- *
- *      Returns        void
- ******************************************************************************/
-static void sleep_ms(uint64_t timeout_ms) {
-  struct timespec delay;
-  delay.tv_sec = timeout_ms / 1000;
-  delay.tv_nsec = 1000 * 1000 * (timeout_ms % 1000);
-
-  OSI_NO_INTR(nanosleep(&delay, &delay));
 }
 
 /*******************************************************************************
