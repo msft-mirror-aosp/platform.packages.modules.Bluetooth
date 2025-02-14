@@ -181,7 +181,7 @@ public class HeadsetServiceTest {
 
     @After
     public void tearDown() throws Exception {
-        mHeadsetService.stop();
+        mHeadsetService.cleanup();
         HeadsetNativeInterface.setInstance(null);
         mHeadsetService = HeadsetService.getHeadsetService();
         assertThat(mHeadsetService).isNull();
