@@ -144,10 +144,12 @@ public class HeadsetClientService extends ProfileService {
     }
 
     @Override
-    public void stop() {
+    public void cleanup() {
+        Log.i(TAG, "Cleanup Headset Client Service");
+
         synchronized (HeadsetClientService.class) {
             if (sHeadsetClientService == null) {
-                Log.w(TAG, "stop() called without start()");
+                Log.w(TAG, "cleanup() called before initialization");
                 return;
             }
 
