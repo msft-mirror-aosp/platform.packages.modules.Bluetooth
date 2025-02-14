@@ -20,8 +20,8 @@ import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static android.Manifest.permission.BLUETOOTH_SCAN;
 import static android.Manifest.permission.UPDATE_DEVICE_STATS;
 
-import static com.android.bluetooth.flags.Flags.leaudioBassScanWithInternalScanController;
 import static com.android.bluetooth.Utils.checkCallerTargetSdk;
+import static com.android.bluetooth.flags.Flags.leaudioBassScanWithInternalScanController;
 
 import static java.util.Objects.requireNonNull;
 
@@ -402,7 +402,9 @@ public class ScanController {
                         + ", originalAddress="
                         + originalAddress);
 
-        String identityAddress = mAdapterService.getIdentityAddress(address);
+        // Retain the original behavior of returning bluetoothAddress when identityAddress is null
+        String identityAddress = Utils.getBrEdrAddress(address, mAdapterService);
+
         if (!address.equals(identityAddress)) {
             Log.v(
                     TAG,
