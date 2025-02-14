@@ -627,6 +627,9 @@ impl IBluetoothCallback for IBluetoothCallbackDBus {
     #[dbus_method("OnDeviceCleared", DBusLog::Disable)]
     fn on_device_cleared(&mut self, remote_device: BluetoothDevice) {}
 
+    #[dbus_method("OnDeviceKeyMissing", DBusLog::Disable)]
+    fn on_device_key_missing(&mut self, remote_device: BluetoothDevice) {}
+
     #[dbus_method("OnDiscoveringChanged", DBusLog::Disable)]
     fn on_discovering_changed(&mut self, discovering: bool) {}
 

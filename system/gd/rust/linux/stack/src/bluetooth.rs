@@ -536,6 +536,9 @@ pub trait IBluetoothCallback: RPCProxy {
     /// When a device is cleared from discovered devices cache.
     fn on_device_cleared(&mut self, remote_device: BluetoothDevice);
 
+    /// When a device is missing keys.
+    fn on_device_key_missing(&mut self, remote_device: BluetoothDevice);
+
     /// When the discovery state is changed.
     fn on_discovering_changed(&mut self, discovering: bool);
 
@@ -1545,6 +1548,9 @@ pub(crate) trait BtifBluetoothCallbacks {
 
     #[btif_callback(ThreadEvent)]
     fn thread_event(&mut self, event: BtThreadEvent) {}
+
+    #[btif_callback(KeyMissing)]
+    fn key_missing(&mut self, addr: RawAddress) {}
 }
 
 #[btif_callbacks_dispatcher(dispatch_hid_host_callbacks, HHCallbacks)]
@@ -2142,6 +2148,14 @@ impl BtifBluetoothCallbacks for Bluetooth {
                 *self.sig_notifier.thread_attached.lock().unwrap() = false;
                 self.sig_notifier.thread_notify.notify_all();
             }
+        }
+    }
+
+    fn key_missing(&mut self, addr: RawAddress) {
+        if let Some(d) = self.remote_devices.get(&addr) {
+            self.callbacks.for_all_callbacks(|callback| {
+                callback.on_device_key_missing(d.info.clone());
+            });
         }
     }
 }
