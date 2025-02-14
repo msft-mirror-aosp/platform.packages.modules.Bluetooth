@@ -108,7 +108,7 @@ public class AvrcpControllerServiceTest {
 
     @After
     public void tearDown() throws Exception {
-        mService.stop();
+        mService.cleanup();
         A2dpSinkService.setA2dpSinkService(null);
         mService = AvrcpControllerService.getAvrcpControllerService();
         assertThat(mService).isNull();
