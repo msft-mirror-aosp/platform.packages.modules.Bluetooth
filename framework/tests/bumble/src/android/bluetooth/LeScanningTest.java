@@ -406,8 +406,9 @@ public class LeScanningTest {
     @Test
     @VirtualOnly
     @RequiresFlagsEnabled(Flags.FLAG_PHY_TO_NATIVE)
-    public void startBleScan_codedPhy(@TestParameter({"1", "3", "255"}) int phy) {
-        advertiseWithBumbleWithServiceDataAndPhy(true);
+    public void startBleScan_codedPhy(
+            @TestParameter({"1", "3", "255"}) int phy, @TestParameter boolean advertiseCoded) {
+        advertiseWithBumbleWithServiceDataAndPhy(advertiseCoded);
 
         ScanFilter scanFilter =
                 new ScanFilter.Builder()
@@ -421,7 +422,12 @@ public class LeScanningTest {
                         /* isLegacy= */ false,
                         phy);
 
-        if (phy == BluetoothDevice.PHY_LE_1M) {
+        if (advertiseCoded && phy == BluetoothDevice.PHY_LE_1M) {
+            assertThat(results).isNull();
+            return;
+        }
+
+        if (!advertiseCoded && phy == BluetoothDevice.PHY_LE_CODED) {
             assertThat(results).isNull();
             return;
         }
