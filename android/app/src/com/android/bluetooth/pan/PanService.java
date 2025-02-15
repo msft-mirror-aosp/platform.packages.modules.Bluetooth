@@ -169,15 +169,13 @@ public class PanService extends ProfileService {
     }
 
     @Override
-    public void stop() {
+    public void cleanup() {
+        Log.i(TAG, "Cleanup Pan Service");
+
         mTetheringManager.unregisterTetheringEventCallback(mTetheringCallback);
         mNativeInterface.cleanup();
         mHandler.removeCallbacksAndMessages(null);
-    }
 
-    @Override
-    public void cleanup() {
-        // TODO(b/72948646): this should be moved to stop()
         setPanService(null);
 
         int[] desiredStates = {
