@@ -125,3 +125,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "vup_for_pending_connection"
+    namespace: "bluetooth"
+    description: "Generate HID VUP for pending connections as well"
+    bug: "396747085"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
