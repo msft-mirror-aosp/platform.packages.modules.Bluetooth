@@ -68,8 +68,8 @@ tBTM_SEC_DEV_REC* btm_find_dev(const RawAddress& /* bd_addr */) { return nullptr
 namespace bluetooth {
 namespace shim {
 
-bool ACL_AcceptLeConnectionFrom(const tBLE_BD_ADDR& address, bool is_direct) {
-  return localAcceptlistMock->AcceptlistAdd(address.bda, is_direct);
+void ACL_AcceptLeConnectionFrom(const tBLE_BD_ADDR& address, bool is_direct) {
+  localAcceptlistMock->AcceptlistAdd(address.bda, is_direct);
 }
 void ACL_IgnoreLeConnectionFrom(const tBLE_BD_ADDR& address) {
   return localAcceptlistMock->AcceptlistRemove(address.bda);
