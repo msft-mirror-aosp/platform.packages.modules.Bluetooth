@@ -331,8 +331,7 @@ impl Stack {
                 }
 
                 Message::Base(b) => {
-                    dispatch_base_callbacks(bluetooth.lock().unwrap().as_mut(), b.clone());
-                    dispatch_base_callbacks(suspend.lock().unwrap().as_mut(), b);
+                    dispatch_base_callbacks(bluetooth.lock().unwrap().as_mut(), b);
                 }
 
                 // When pairing is busy for any reason, the bond cannot be created.
