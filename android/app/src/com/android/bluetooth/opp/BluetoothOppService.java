@@ -224,17 +224,7 @@ public class BluetoothOppService extends ProfileService implements IObexConnecti
         filter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
         registerReceiver(mBluetoothReceiver, filter);
 
-        BluetoothOppPreference preference = BluetoothOppPreference.getInstance(this);
-        if (preference != null) {
-            preference.dump();
-        } else {
-            Log.w(TAG, "BluetoothOppPreference.getInstance returned null.");
-            ContentProfileErrorReportUtils.report(
-                    BluetoothProfile.OPP,
-                    BluetoothProtoEnums.BLUETOOTH_OPP_SERVICE,
-                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
-                    0);
-        }
+        BluetoothOppPreference.getInstance(this).dump();
 
         setComponentAvailable(OPP_PROVIDER, true);
         setComponentAvailable(INCOMING_FILE_CONFIRM_ACTIVITY, true);
