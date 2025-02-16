@@ -31,8 +31,8 @@ import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.BluetoothMethodProxy;
@@ -74,7 +74,7 @@ public class BluetoothPbapSimVcardManagerTest {
     @Before
     public void setUp() {
         BluetoothMethodProxy.setInstanceForTesting(mPbapMethodProxy);
-        mContext = InstrumentationRegistry.getTargetContext();
+        mContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
         mManager = new BluetoothPbapSimVcardManager(mContext);
     }
 

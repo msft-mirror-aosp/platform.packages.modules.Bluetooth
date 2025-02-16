@@ -254,7 +254,7 @@ public class Constants {
         if (BluetoothShare.isStatusCompleted(status)) {
             Intent intent = new Intent(BluetoothShare.TRANSFER_COMPLETED_ACTION);
             intent.setClassName(context, BluetoothOppReceiver.class.getName());
-            intent.setDataAndNormalize(contentUri);
+            intent.setData(contentUri.normalizeScheme());
             context.sendBroadcast(intent);
         }
     }

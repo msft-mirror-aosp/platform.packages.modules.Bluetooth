@@ -426,7 +426,7 @@ bool LeAudioDevice::ConfigureAses(const types::AudioSetConfiguration* audio_set_
       ase->qos_config.retrans_nb = ase_cfg.qos.retransmission_number;
       ase->qos_config.max_transport_latency = ase_cfg.qos.max_transport_latency;
 
-      SetMetadataToAse(ase, metadata_context_types, ccid_lists);
+      SetMetadataToAse(ase, ase_cfg.metadata, metadata_context_types, ccid_lists);
     }
 
     log::debug(
@@ -1111,15 +1111,18 @@ void LeAudioDevice::SetAvailableContexts(BidirectionalPair<AudioContexts> contex
 }
 
 void LeAudioDevice::SetMetadataToAse(struct types::ase* ase,
+                                     const types::LeAudioLtvMap& base_metadata,
                                      const AudioContexts& metadata_context_types,
                                      const std::vector<uint8_t>& ccid_lists) {
   /* Filter multidirectional audio context for each ase direction */
   auto directional_audio_context = metadata_context_types & GetAvailableContexts(ase->direction);
+  /* Tha base metadata will be extended (or partially overridden if any key already exist) */
+  ase->metadata = base_metadata;
   if (directional_audio_context.any()) {
-    ase->metadata = GetMetadata(directional_audio_context, ccid_lists);
+    ase->metadata.Append(GetMetadata(directional_audio_context, ccid_lists));
   } else {
-    ase->metadata =
-            GetMetadata(AudioContexts(LeAudioContextType::UNSPECIFIED), std::vector<uint8_t>());
+    ase->metadata.Append(
+            GetMetadata(AudioContexts(LeAudioContextType::UNSPECIFIED), std::vector<uint8_t>()));
   }
 }
 
@@ -1144,8 +1147,8 @@ bool LeAudioDevice::ActivateConfiguredAses(
               conn_id_, ase.id, ase.cis_id, ase.cis_conn_hdl);
       ase.active = true;
       ret = true;
-      /* update metadata */
-      SetMetadataToAse(&ase, metadata_context_types.get(ase.direction),
+      /* update the already set metadata */
+      SetMetadataToAse(&ase, ase.metadata, metadata_context_types.get(ase.direction),
                        ccid_lists.get(ase.direction));
     }
   }

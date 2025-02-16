@@ -204,6 +204,8 @@ tGATT_STATUS GATTS_AddService(tGATT_IF gatt_if, btgatt_db_element_t* service, in
     s_hdl = gatt_cb.hdl_cfg.gtbs_start_hdl;
   } else if (svc_uuid == Uuid::From16Bit(UUID_SERVCLASS_TMAS_SERVER)) {
     s_hdl = gatt_cb.hdl_cfg.tmas_start_hdl;
+  } else if (svc_uuid == Uuid::From16Bit(UUID_SERVCLASS_GMAS_SERVER)) {
+    s_hdl = gatt_cb.hdl_cfg.gmas_start_hdl;
   } else {
     if (!gatt_cb.hdl_list_info->empty()) {
       s_hdl = gatt_cb.hdl_list_info->front().asgn_range.e_handle + 1;

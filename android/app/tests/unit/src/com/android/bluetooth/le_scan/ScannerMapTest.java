@@ -28,8 +28,8 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Binder;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.BluetoothMethodProxy;
@@ -64,7 +64,7 @@ public class ScannerMapTest {
     @Mock private ScanController mMockScanController;
     @Mock private IScannerCallback mMockScannerCallback;
     private final AttributionSource mAttributionSource =
-            InstrumentationRegistry.getTargetContext().getAttributionSource();
+            InstrumentationRegistry.getInstrumentation().getTargetContext().getAttributionSource();
 
     @Spy private BluetoothMethodProxy mMapMethodProxy = BluetoothMethodProxy.getInstance();
 
@@ -90,7 +90,7 @@ public class ScannerMapTest {
         info.callingPackage = APP_NAME;
         info.intent =
                 PendingIntent.getBroadcast(
-                        InstrumentationRegistry.getTargetContext(),
+                        InstrumentationRegistry.getInstrumentation().getTargetContext(),
                         0,
                         new Intent(),
                         PendingIntent.FLAG_IMMUTABLE);

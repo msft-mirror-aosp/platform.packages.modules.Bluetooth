@@ -16,17 +16,16 @@
 
 package com.android.bluetooth.pbapclient;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.verify;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 
 import androidx.test.runner.AndroidJUnit4;
-
-import com.android.bluetooth.TestUtils;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -47,7 +46,6 @@ public class PbapClientSocketTest {
     private static final int TEST_L2CAP_PSM = 4098;
     private static final int TEST_RFCOMM_CHANNEL_ID = 3;
 
-    private BluetoothAdapter mAdapter = null;
     private BluetoothDevice mTestDevice;
 
     // This class is used to wrap the otherwise unmockable/untestable BluetoothSocket class. As such
@@ -58,8 +56,7 @@ public class PbapClientSocketTest {
 
     @Before
     public void setUp() throws IOException {
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
-        mTestDevice = TestUtils.getTestDevice(mAdapter, 1);
+        mTestDevice = getTestDevice(1);
 
         PbapClientSocket.inject(mInjectedInput, mInjectedOutput);
     }

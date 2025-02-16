@@ -34,9 +34,12 @@
 #include "hci/controller_mock.h"
 #include "hci/hci_layer.h"
 #include "hci/hci_layer_fake.h"
+#include "main/shim/entry.h"
 #include "os/fake_timer/fake_timerfd.h"
 #include "os/thread.h"
 #include "packet/raw_builder.h"
+#include "storage/storage_module.h"
+#include "test/mock/mock_main_shim_entry.h"
 
 using bluetooth::common::BidiQueue;
 using bluetooth::common::BidiQueueEnd;
@@ -114,6 +117,8 @@ protected:
     fake_registry_.InjectTestModule(&Controller::Factory, test_controller_);
     client_handler_ = fake_registry_.GetTestModuleHandler(&HciLayer::Factory);
     ASSERT_NE(client_handler_, nullptr);
+    bluetooth::hci::testing::mock_storage_ = new storage::StorageModule(new os::Handler(&thread_));
+    bluetooth::hci::testing::mock_storage_->Start();
     fake_registry_.Start<AclManager>(&thread_);
     acl_manager_ =
             static_cast<AclManager*>(fake_registry_.GetModuleUnderTest(&AclManager::Factory));
@@ -151,6 +156,8 @@ protected:
     // Invalid mutex exception is raised if the connections
     // are cleared after the AclConnectionInterface is deleted
     // through fake_registry_.
+    delete bluetooth::hci::testing::mock_storage_;
+    bluetooth::hci::testing::mock_storage_ = nullptr;
     connections_.clear();
     le_connections_.clear();
     fake_registry_.SynchronizeModuleHandler(&AclManager::Factory, std::chrono::milliseconds(20));
@@ -1137,6 +1144,8 @@ protected:
     fake_registry_.InjectTestModule(&Controller::Factory, test_controller_);
     client_handler_ = fake_registry_.GetTestModuleHandler(&HciLayer::Factory);
     ASSERT_NE(client_handler_, nullptr);
+    bluetooth::hci::testing::mock_storage_ = new storage::StorageModule(new os::Handler(&thread_));
+    bluetooth::hci::testing::mock_storage_->Start();
     fake_registry_.Start<AclManager>(&thread_);
     acl_manager_ =
             static_cast<AclManager*>(fake_registry_.GetModuleUnderTest(&AclManager::Factory));

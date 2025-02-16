@@ -15,9 +15,10 @@
  */
 package com.android.bluetooth.btservice;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 
 import androidx.test.filters.MediumTest;
@@ -27,7 +28,6 @@ import com.android.bluetooth.BluetoothMetricsProto.BluetoothLog;
 import com.android.bluetooth.BluetoothMetricsProto.BluetoothRemoteDeviceInformation;
 import com.android.bluetooth.BluetoothMetricsProto.ProfileConnectionStats;
 import com.android.bluetooth.BluetoothMetricsProto.ProfileId;
-import com.android.bluetooth.TestUtils;
 
 import com.google.common.hash.BloomFilter;
 import com.google.common.hash.Funnels;
@@ -250,8 +250,7 @@ public class MetricsLoggerTest {
 
     @Test
     public void testOuiFromBluetoothDevice() {
-        BluetoothDevice bluetoothDevice =
-                TestUtils.getTestDevice(BluetoothAdapter.getDefaultAdapter(), 0);
+        BluetoothDevice bluetoothDevice = getTestDevice(0);
 
         byte[] remoteDeviceInformationBytes =
                 mTestableMetricsLogger.getRemoteDeviceInfoProto(bluetoothDevice);

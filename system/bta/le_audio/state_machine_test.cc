@@ -5225,11 +5225,47 @@ TEST_F(StateMachineTestAdsp, testStreamConfigurationAdspDownMix) {
   EXPECT_CALL(mock_callbacks_,
               OnUpdatedCisConfiguration(group->group_id_,
                                         bluetooth::le_audio::types::kLeAudioDirectionSink))
-          .Times(1);
+          .WillOnce([group](int group_id, uint8_t direction) {
+            ASSERT_EQ(group_id, group->group_id_);
+
+            auto stream_config = group->stream_conf.stream_params.get(direction).stream_config;
+            ASSERT_NE(stream_config.stream_map.size(), 0lu);
+
+            for (auto const& info : stream_config.stream_map) {
+              ASSERT_TRUE(info.is_stream_active);
+              ASSERT_EQ(codec_specific::kLc3CodingFormat, info.codec_config.id.coding_format);
+              ASSERT_EQ(0lu, info.codec_config.id.vendor_company_id);
+              ASSERT_EQ(0lu, info.codec_config.id.vendor_codec_id);
+              ASSERT_NE(info.address, RawAddress::kEmpty);
+              ASSERT_NE(info.stream_handle, 0);
+              ASSERT_NE(info.codec_config.params.Size(), 0lu);
+              ASSERT_NE(info.target_latency, 0);
+              ASSERT_NE(info.target_phy, 0);
+              ASSERT_NE(info.metadata.Size(), 0lu);
+            }
+          });
   EXPECT_CALL(mock_callbacks_,
               OnUpdatedCisConfiguration(group->group_id_,
                                         bluetooth::le_audio::types::kLeAudioDirectionSource))
-          .Times(1);
+          .WillOnce([group](int group_id, uint8_t direction) {
+            ASSERT_EQ(group_id, group->group_id_);
+
+            auto stream_config = group->stream_conf.stream_params.get(direction).stream_config;
+            ASSERT_NE(stream_config.stream_map.size(), 0lu);
+
+            for (auto const& info : stream_config.stream_map) {
+              ASSERT_TRUE(info.is_stream_active);
+              ASSERT_EQ(codec_specific::kLc3CodingFormat, info.codec_config.id.coding_format);
+              ASSERT_EQ(0lu, info.codec_config.id.vendor_company_id);
+              ASSERT_EQ(0lu, info.codec_config.id.vendor_codec_id);
+              ASSERT_NE(info.address, RawAddress::kEmpty);
+              ASSERT_NE(info.stream_handle, 0);
+              ASSERT_NE(info.codec_config.params.Size(), 0lu);
+              ASSERT_NE(info.target_latency, 0);
+              ASSERT_NE(info.target_phy, 0);
+              ASSERT_NE(info.metadata.Size(), 0lu);
+            }
+          });
 
   /* Can be called for every context when fetching the configuration
    */
@@ -7321,6 +7357,73 @@ TEST_F(StateMachineTest, StartStreamAfterConfigureToQoS) {
                                                 .source = types::AudioContexts(context_type)});
 
   testing::Mock::VerifyAndClearExpectations(&mock_callbacks_);
+}
+
+TEST_F(StateMachineTest, StartStreamAfterConfigureToQoS_UnknownMetatadaDuringConfiguration) {
+  const auto context_type = kContextTypeMedia;
+  const auto leaudio_group_id = 6;
+  const auto num_devices = 2;
+
+  ContentControlIdKeeper::GetInstance()->SetCcid(media_context, media_ccid);
+
+  // Prepare multiple fake connected devices in a group
+  auto* group = PrepareSingleTestDeviceGroup(leaudio_group_id, context_type, num_devices);
+  ASSERT_EQ(group->Size(), num_devices);
+
+  PrepareConfigureCodecHandler(group, 0, true);
+  PrepareConfigureQosHandler(group);
+  PrepareEnableHandler(group);
+  PrepareDisableHandler(group);
+  PrepareReleaseHandler(group);
+
+  InjectInitialIdleNotification(group);
+
+  auto* leAudioDevice = group->GetFirstDevice();
+  auto expected_devices_written = 0;
+  while (leAudioDevice) {
+    /* Three Writes:
+     * 1. Codec configure
+     * 2: Codec QoS
+     * 3: Enabling
+     */
+    EXPECT_CALL(gatt_queue,
+                WriteCharacteristic(leAudioDevice->conn_id_, leAudioDevice->ctp_hdls_.val_hdl, _,
+                                    GATT_WRITE_NO_RSP, _, _))
+            .Times(3);
+    expected_devices_written++;
+    leAudioDevice = group->GetNextDevice(leAudioDevice);
+  }
+  ASSERT_EQ(expected_devices_written, num_devices);
+
+  // Validate GroupStreamStatus
+  EXPECT_CALL(mock_callbacks_,
+              StatusReportCb(leaudio_group_id,
+                             bluetooth::le_audio::GroupStreamStatus::CONFIGURED_BY_USER));
+
+  // Start the configuration and stream Media context but with unknown metadata.
+  LeAudioGroupStateMachine::Get()->ConfigureStream(
+          group, context_type, {.sink = types::AudioContexts(), .source = types::AudioContexts()},
+          {.sink = {}, .source = {}}, true);
+
+  testing::Mock::VerifyAndClearExpectations(&mock_callbacks_);
+  ASSERT_EQ(1, get_func_call_count("alarm_cancel"));
+
+  // Validate GroupStreamStatus
+  EXPECT_CALL(mock_callbacks_,
+              StatusReportCb(leaudio_group_id, bluetooth::le_audio::GroupStreamStatus::STREAMING));
+
+  // Start the configuration with updated metadata.
+  types::AudioContexts metadata = types::AudioContexts(context_type);
+
+  LeAudioGroupStateMachine::Get()->StartStream(group, context_type,
+                                               {.sink = metadata, .source = metadata});
+
+  testing::Mock::VerifyAndClearExpectations(&mock_callbacks_);
+
+  // Verify that metadata were stored in the group object.
+  auto group_metadata = group->GetMetadataContexts();
+  ASSERT_EQ(group_metadata.sink, metadata);
+  ASSERT_EQ(group_metadata.source, metadata);
 }
 
 TEST_F(StateMachineTest, StartStreamAfterConfigureToQoS_ConfigurationCaching) {
@@ -9481,6 +9584,69 @@ TEST_F(StateMachineTest, testAutonomousReleaseFromEnablingState) {
   earbudRightAse = earbudRight->GetFirstActiveAseByDirection(types::kLeAudioDirectionSink);
   ASSERT_FALSE(earbudRightAse == nullptr);
   ASSERT_TRUE(earbudRightAse->state == types::AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING);
+}
+
+TEST_F(StateMachineTest, testDoNotCodecConfigureDeviceWithoutContextsAvailable) {
+  const auto context_type = kContextTypeMedia;
+  const auto audio_contexts = types::AudioContexts(context_type);
+  const auto group_id = 4;
+  const auto num_devices = 2;
+
+  ContentControlIdKeeper::GetInstance()->SetCcid(media_context, media_ccid);
+
+  /**
+   * Scenario:
+   * 1. Have a set of 2 devices, including one that is not available for stream
+   *    (available contexts are 0).
+   * 2. Start streaming.
+   * 3. Verify only one device (available for stream) is active.
+   * 4. Verify the group is streaming.
+   */
+
+  // Prepare multiple fake connected devices in a group
+  auto* group = PrepareSingleTestDeviceGroup(group_id, context_type, num_devices);
+  ASSERT_EQ(group->Size(), num_devices);
+
+  auto* earbudLeft = group->GetFirstDevice();
+  EXPECT_CALL(gatt_queue, WriteCharacteristic(earbudLeft->conn_id_, earbudLeft->ctp_hdls_.val_hdl,
+                                              _, GATT_WRITE_NO_RSP, _, _))
+          .Times(0);
+
+  auto* earbudRight = group->GetNextDevice(earbudLeft);
+  EXPECT_CALL(gatt_queue, WriteCharacteristic(earbudRight->conn_id_, earbudRight->ctp_hdls_.val_hdl,
+                                              _, GATT_WRITE_NO_RSP, _, _))
+          .Times(AtLeast(3));
+
+  log::debug("[TESTING] Inject initial ASE state notification");
+  InjectInitialConfiguredNotification(group);
+
+  log::debug("[TESTING] right earbud indicates there are available context");
+  DeviceContextsUpdate(earbudRight, types::kLeAudioDirectionSink, audio_contexts, audio_contexts);
+
+  log::debug("[TESTING] left earbud indicates there are no available context at the time");
+  DeviceContextsUpdate(earbudLeft, types::kLeAudioDirectionSink, types::AudioContexts(),
+                       audio_contexts);
+
+  PrepareConfigureCodecHandler(group, 0, true);
+  PrepareConfigureQosHandler(group);
+  PrepareEnableHandler(group, 0, /* inject_enabling */ true, /* inject_streaming */ true);
+  PrepareDisableHandler(group);
+  PrepareReleaseHandler(group);
+
+  log::debug("[TESTING] StartStream action initiated by upper layer");
+  ASSERT_TRUE(LeAudioGroupStateMachine::Get()->StartStream(
+          group, context_type,
+          {.sink = types::AudioContexts(context_type),
+           .source = types::AudioContexts(context_type)}));
+
+  // make sure the ASEs is in correct state, required in this scenario
+  auto* earbudLeftAse = earbudLeft->GetFirstActiveAseByDirection(types::kLeAudioDirectionSink);
+  ASSERT_TRUE(earbudLeftAse == nullptr);
+  auto* earbudRightAse = earbudRight->GetFirstActiveAseByDirection(types::kLeAudioDirectionSink);
+  ASSERT_FALSE(earbudRightAse == nullptr);
+
+  // check if group is streaming
+  ASSERT_EQ(group->GetState(), types::AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING);
 }
 
 }  // namespace internal

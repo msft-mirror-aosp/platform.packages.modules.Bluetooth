@@ -92,6 +92,8 @@ import java.util.Set;
  * <p>8) If there is already an active device, however, if active device change notified with a null
  * device, the corresponding profile is marked as having no active device.
  *
+ * <p>TODO: Remove with com.android.bluetooth.flags.adm_remove_handling_wired
+ *
  * <p>9) If a wired audio device is connected, the audio output is switched by the Audio Framework
  * itself to that device. We detect this here, and the active device for each profile
  * (A2DP/HFP/HearingAid/LE audio) is set to null to reflect the output device state change. However,
@@ -856,22 +858,26 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
         @Override
         public void onAudioDevicesAdded(AudioDeviceInfo[] addedDevices) {
             Log.d(TAG, "onAudioDevicesAdded");
-            if (!Arrays.stream(addedDevices)
-                    .anyMatch(AudioManagerAudioDeviceCallback::isWiredAudioHeadset)) {
-                return;
+            if (!Flags.admRemoveHandlingWired()) {
+                if (!Arrays.stream(addedDevices)
+                        .anyMatch(AudioManagerAudioDeviceCallback::isWiredAudioHeadset)) {
+                    return;
+                }
+                wiredAudioDeviceConnected();
             }
-            wiredAudioDeviceConnected();
         }
 
         @Override
         public void onAudioDevicesRemoved(AudioDeviceInfo[] removedDevices) {
             Log.d(TAG, "onAudioDevicesRemoved");
-            if (!Arrays.stream(removedDevices)
-                    .anyMatch(AudioManagerAudioDeviceCallback::isWiredAudioHeadset)) {
-                return;
-            }
-            synchronized (mLock) {
-                setFallbackDeviceActiveLocked(null);
+            if (!Flags.admRemoveHandlingWired()) {
+                if (!Arrays.stream(removedDevices)
+                        .anyMatch(AudioManagerAudioDeviceCallback::isWiredAudioHeadset)) {
+                    return;
+                }
+                synchronized (mLock) {
+                    setFallbackDeviceActiveLocked(null);
+                }
             }
         }
     }

@@ -20,13 +20,14 @@ import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTING;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothAudioConfig;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
@@ -53,8 +54,7 @@ public class A2dpSinkStateMachineTest {
     @Mock private A2dpSinkService mService;
     @Mock private A2dpSinkNativeInterface mNativeInterface;
 
-    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
-    private final BluetoothDevice mDevice = mAdapter.getRemoteDevice("11:11:11:11:11:11");
+    private final BluetoothDevice mDevice = getTestDevice(11);
 
     private A2dpSinkStateMachine mStateMachine;
     private TestLooper mLooper;

@@ -21,6 +21,7 @@ import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
 import static com.android.bluetooth.bas.BatteryStateMachine.MESSAGE_CONNECT;
 import static com.android.bluetooth.bas.BatteryStateMachine.MESSAGE_CONNECTION_STATE_CHANGED;
 import static com.android.bluetooth.bas.BatteryStateMachine.MESSAGE_DISCONNECT;
@@ -34,14 +35,12 @@ import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.os.Looper;
 
 import androidx.test.filters.SmallTest;
 
 import com.android.bluetooth.TestLooper;
-import com.android.bluetooth.TestUtils;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -59,8 +58,7 @@ public class BatteryStateMachineTest {
 
     @Mock private BatteryService mBatteryService;
 
-    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
-    private final BluetoothDevice mDevice = TestUtils.getTestDevice(mAdapter, 93);
+    private final BluetoothDevice mDevice = getTestDevice(93);
 
     private TestLooper mLooper;
     private FakeBatteryStateMachine mBatteryStateMachine;

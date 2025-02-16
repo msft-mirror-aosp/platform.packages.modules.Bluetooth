@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.pbapclient;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.any;
@@ -24,15 +26,12 @@ import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.content.AttributionSource;
 
 import androidx.test.filters.MediumTest;
 import androidx.test.runner.AndroidJUnit4;
-
-import com.android.bluetooth.TestUtils;
 
 import org.junit.After;
 import org.junit.Before;
@@ -58,7 +57,7 @@ public class PbapClientBinderTest {
 
     @Before
     public void setUp() throws Exception {
-        mTestDevice = TestUtils.getTestDevice(BluetoothAdapter.getDefaultAdapter(), 1);
+        mTestDevice = getTestDevice(1);
         mAttributionSource = new AttributionSource.Builder(1).build();
         mPbapClientBinder = new PbapClientBinder(mMockService);
     }

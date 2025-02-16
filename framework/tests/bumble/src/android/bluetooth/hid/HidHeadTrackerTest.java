@@ -344,7 +344,10 @@ public class HidHeadTrackerTest {
 
         assertThat(mBumbleDevice.connect()).isEqualTo(BluetoothStatusCodes.SUCCESS);
         verifyConnectionState(mBumbleDevice, equalTo(TRANSPORT_LE), equalTo(STATE_CONNECTING));
-        verifyIntentReceived(
+        // HOGP CONNECTING and ACL CONNECTED has race connection when hogp_reconnection flag enabled
+        // hence unordered here
+        verifyIntentReceivedUnorderedAtLeast(
+                1,
                 hasAction(BluetoothDevice.ACTION_ACL_CONNECTED),
                 hasExtra(BluetoothDevice.EXTRA_TRANSPORT, BluetoothDevice.TRANSPORT_LE),
                 hasExtra(BluetoothDevice.EXTRA_DEVICE, mBumbleDevice));
@@ -542,6 +545,12 @@ public class HidHeadTrackerTest {
     @SafeVarargs
     private void verifyIntentReceived(Matcher<Intent>... matchers) {
         mInOrder.verify(mReceiver, timeout(BOND_INTENT_TIMEOUT.toMillis()))
+                .onReceive(any(Context.class), MockitoHamcrest.argThat(AllOf.allOf(matchers)));
+    }
+
+    @SafeVarargs
+    private void verifyIntentReceivedUnorderedAtLeast(int atLeast, Matcher<Intent>... matchers) {
+        verify(mReceiver, timeout(INTENT_TIMEOUT.toMillis()).atLeast(atLeast))
                 .onReceive(any(Context.class), MockitoHamcrest.argThat(AllOf.allOf(matchers)));
     }
 

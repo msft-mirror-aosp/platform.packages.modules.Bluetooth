@@ -16,9 +16,10 @@
 
 package com.android.bluetooth.avrcpcontroller;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.Context;
 import android.content.res.Resources;
@@ -26,7 +27,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 
-import androidx.test.InstrumentationRegistry;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestUtils;
@@ -43,8 +44,8 @@ import java.io.InputStream;
 public final class AvrcpCoverArtStorageTest {
     private Context mTargetContext;
     private Resources mTestResources;
-    private BluetoothDevice mDevice1;
-    private BluetoothDevice mDevice2;
+    private final BluetoothDevice mDevice1 = getTestDevice(56);
+    private final BluetoothDevice mDevice2 = getTestDevice(57);
     private Bitmap mImage1;
     private Bitmap mImage2;
     private final String mHandle1 = "1";
@@ -53,10 +54,8 @@ public final class AvrcpCoverArtStorageTest {
 
     @Before
     public void setUp() {
-        mTargetContext = InstrumentationRegistry.getTargetContext();
+        mTargetContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
         mTestResources = TestUtils.getTestApplicationResources(mTargetContext);
-        mDevice1 = BluetoothAdapter.getDefaultAdapter().getRemoteDevice("AA:BB:CC:DD:EE:FF");
-        mDevice2 = BluetoothAdapter.getDefaultAdapter().getRemoteDevice("BB:CC:DD:EE:FF:AA");
         InputStream is =
                 mTestResources.openRawResource(com.android.bluetooth.tests.R.raw.image_200_200);
         mImage1 = BitmapFactory.decodeStream(is);
@@ -76,8 +75,6 @@ public final class AvrcpCoverArtStorageTest {
         }
         mImage1 = null;
         mImage2 = null;
-        mDevice1 = null;
-        mDevice2 = null;
         mTestResources = null;
         mTargetContext = null;
     }

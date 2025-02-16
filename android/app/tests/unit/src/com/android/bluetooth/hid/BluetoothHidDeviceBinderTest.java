@@ -16,13 +16,13 @@
 
 package com.android.bluetooth.hid;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
 
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothHidDeviceAppQosSettings;
 import android.bluetooth.BluetoothHidDeviceAppSdpSettings;
@@ -38,22 +38,19 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
 public class BluetoothHidDeviceBinderTest {
-
-    private static final String TEST_DEVICE_ADDRESS = "00:00:00:00:00:00";
-
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
     @Mock private HidDeviceService mService;
-    private AttributionSource mAttributionSource;
-    private BluetoothDevice mTestDevice;
+
+    private final AttributionSource mAttributionSource = new AttributionSource.Builder(1).build();
+    private final BluetoothDevice mDevice = getTestDevice(29);
+
     private HidDeviceService.BluetoothHidDeviceBinder mBinder;
 
     @Before
     public void setUp() throws Exception {
         when(mService.isAvailable()).thenReturn(true);
         mBinder = new HidDeviceService.BluetoothHidDeviceBinder(mService);
-        mAttributionSource = new AttributionSource.Builder(1).build();
-        mTestDevice = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(TEST_DEVICE_ADDRESS);
     }
 
     @Test
@@ -109,8 +106,8 @@ public class BluetoothHidDeviceBinderTest {
     public void sendReport() {
         int id = 100;
         byte[] data = new byte[] {0x00, 0x01};
-        mBinder.sendReport(mTestDevice, id, data, mAttributionSource);
-        verify(mService).sendReport(mTestDevice, id, data);
+        mBinder.sendReport(mDevice, id, data, mAttributionSource);
+        verify(mService).sendReport(mDevice, id, data);
     }
 
     @Test
@@ -118,46 +115,46 @@ public class BluetoothHidDeviceBinderTest {
         byte type = 0;
         byte id = 100;
         byte[] data = new byte[] {0x00, 0x01};
-        mBinder.replyReport(mTestDevice, type, id, data, mAttributionSource);
-        verify(mService).replyReport(mTestDevice, type, id, data);
+        mBinder.replyReport(mDevice, type, id, data, mAttributionSource);
+        verify(mService).replyReport(mDevice, type, id, data);
     }
 
     @Test
     public void unplug() {
-        mBinder.unplug(mTestDevice, mAttributionSource);
-        verify(mService).unplug(mTestDevice);
+        mBinder.unplug(mDevice, mAttributionSource);
+        verify(mService).unplug(mDevice);
     }
 
     @Test
     public void connect() {
-        mBinder.connect(mTestDevice, mAttributionSource);
-        verify(mService).connect(mTestDevice);
+        mBinder.connect(mDevice, mAttributionSource);
+        verify(mService).connect(mDevice);
     }
 
     @Test
     public void disconnect() {
-        mBinder.disconnect(mTestDevice, mAttributionSource);
-        verify(mService).disconnect(mTestDevice);
+        mBinder.disconnect(mDevice, mAttributionSource);
+        verify(mService).disconnect(mDevice);
     }
 
     @Test
     public void setConnectionPolicy() {
         int connectionPolicy = BluetoothProfile.CONNECTION_POLICY_ALLOWED;
-        mBinder.setConnectionPolicy(mTestDevice, connectionPolicy, mAttributionSource);
-        verify(mService).setConnectionPolicy(mTestDevice, connectionPolicy);
+        mBinder.setConnectionPolicy(mDevice, connectionPolicy, mAttributionSource);
+        verify(mService).setConnectionPolicy(mDevice, connectionPolicy);
     }
 
     @Test
     public void reportError() {
         byte error = -1;
-        mBinder.reportError(mTestDevice, error, mAttributionSource);
-        verify(mService).reportError(mTestDevice, error);
+        mBinder.reportError(mDevice, error, mAttributionSource);
+        verify(mService).reportError(mDevice, error);
     }
 
     @Test
     public void getConnectionState() {
-        mBinder.getConnectionState(mTestDevice, mAttributionSource);
-        verify(mService).getConnectionState(mTestDevice);
+        mBinder.getConnectionState(mDevice, mAttributionSource);
+        verify(mService).getConnectionState(mDevice);
     }
 
     @Test

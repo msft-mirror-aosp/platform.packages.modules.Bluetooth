@@ -40,8 +40,8 @@ import android.test.mock.MockCursor;
 import android.util.Log;
 import android.util.Pair;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.btservice.storage.Metadata;
@@ -82,7 +82,7 @@ public class DataMigrationTest {
     @Before
     public void setUp() throws Exception {
 
-        mTargetContext = InstrumentationRegistry.getTargetContext();
+        mTargetContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
         mTargetContext.deleteSharedPreferences(TEST_PREF);
         mPrefs = mTargetContext.getSharedPreferences(TEST_PREF, Context.MODE_PRIVATE);
         mPrefs.edit().clear().apply();

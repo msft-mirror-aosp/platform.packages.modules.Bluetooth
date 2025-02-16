@@ -326,6 +326,84 @@ TEST(LeAudioClientParserTest, testParsePacsInvalidMetaLength) {
   ASSERT_FALSE(ParsePacs(pac_recs, sizeof(value), value));
 }
 
+TEST(LeAudioClientParserTest, testParsePacsInvalidMetaLtvFormat) {
+  std::vector<struct types::acs_ac_record> pac_recs;
+
+  const uint8_t value[] = {
+          // Num records
+          0x03,
+          // [#1] Codec_ID for the valid entry
+          0x01, 0x03, 0x02, 0x05, 0x04,
+          // Codec Spec. Caps. Len
+          0x07,
+          // Codec Spec. Caps.
+          0x02,  // [0].length
+          0x02,  // [0].type
+          0x03,  // [0].value[0]
+          0x03,  // [1].length
+          0x03,  // [1].type
+          0x04,  // [1].value[0]
+          0x05,  // [1].value[1]
+                 // Metadata Length
+          0x04,  // Valid metadata length
+          // Valid Metadata
+          0x03,  // [0].length
+          0x01,  // [0].type - preferred audio context
+          0x00,  // [0].value[0]
+          0x04,  // [0].value[1]
+          // [#2] Codec_ID for the invalid entry
+          0x01, 0x03, 0x02, 0x05, 0x04,
+          // Codec Spec. Caps. Len
+          0x07,
+          // Codec Spec. Caps.
+          0x02,  // [0].length
+          0x02,  // [0].type
+          0x03,  // [0].value[0]
+          0x03,  // [1].length
+          0x03,  // [1].type
+          0x04,  // [1].value[0]
+          0x05,  // [1].value[1]
+                 // Metadata Length
+          0x09,  // Valid metadata length
+          // Metadata with invalid LTV entry
+          0x09,  // Invalid [0].length - off by 1
+          0x07,  // [0].type - program info uri
+          0x01,  // [0].value[0]
+          0x01,  // [0].value[1]
+          0x01,  // [0].value[2]
+          0x01,  // [0].value[3]
+          0x01,  // [0].value[4]
+          0x01,  // [0].value[5]
+          0x01,  // [0].value[6]
+          // [#3] Codec_ID for the valid entry
+          0x01, 0x03, 0x02, 0x05, 0x04,
+          // Codec Spec. Caps. Len
+          0x07,
+          // Codec Spec. Caps.
+          0x02,  // [0].length
+          0x02,  // [0].type
+          0x03,  // [0].value[0]
+          0x03,  // [1].length
+          0x03,  // [1].type
+          0x04,  // [1].value[0]
+          0x05,  // [1].value[1]
+                 // Metadata Length
+          0x06,  // Valid metadata length
+          // Valid Metadata
+          0x05,  // [0].length
+          0x07,  // [0].type - program info uri
+          0x01,  // [0].value[0]
+          0x01,  // [0].value[1]
+          0x01,  // [0].value[2]
+          0x01,  // [0].value[3]
+  };
+
+  ASSERT_FALSE(ParsePacs(pac_recs, sizeof(value), value));
+  // Expecting to stop parsing after the valid PAC record #1, since the data integrity is no
+  // longer guaranteed after the corrupted metadata format at record #2.
+  ASSERT_EQ(pac_recs.size(), 1lu);
+}
+
 TEST(LeAudioClientParserTest, testParsePacsValidMeta) {
   std::vector<struct types::acs_ac_record> pac_recs;
 

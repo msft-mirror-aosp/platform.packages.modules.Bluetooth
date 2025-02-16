@@ -100,9 +100,8 @@ public class PhonePolicyTest {
 
     private static final int MAX_CONNECTED_AUDIO_DEVICES = 5;
 
-    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
-    private final BluetoothDevice mDevice = getTestDevice(mAdapter, 0);
-    private final BluetoothDevice mDevice2 = getTestDevice(mAdapter, 1);
+    private final BluetoothDevice mDevice = getTestDevice(0);
+    private final BluetoothDevice mDevice2 = getTestDevice(1);
     private PhonePolicy mPhonePolicy;
     private boolean mOriginalDualModeState;
     private TestLooper mLooper;
@@ -200,7 +199,7 @@ public class PhonePolicyTest {
 
         List<BluetoothDevice> allConnectedDevices = new ArrayList<>();
         for (int i = 0; i < groupSize; i++) {
-            BluetoothDevice device = getTestDevice(mAdapter, i);
+            BluetoothDevice device = getTestDevice(i);
             allConnectedDevices.add(device);
         }
 
@@ -682,8 +681,8 @@ public class PhonePolicyTest {
         List<BluetoothDevice> connectionOrder = new ArrayList<>();
         connectionOrder.add(mDevice);
         connectionOrder.add(mDevice2);
-        connectionOrder.add(getTestDevice(mAdapter, 2));
-        connectionOrder.add(getTestDevice(mAdapter, 3));
+        connectionOrder.add(getTestDevice(2));
+        connectionOrder.add(getTestDevice(3));
 
         doReturn(mDevice).when(mDatabaseManager).getMostRecentlyConnectedA2dpDevice();
 
@@ -944,10 +943,7 @@ public class PhonePolicyTest {
         TestUtils.waitForLooperToFinishScheduledTask(db.getHandlerLooper());
 
         List<BluetoothDevice> devices =
-                List.of(
-                        getTestDevice(mAdapter, 1),
-                        getTestDevice(mAdapter, 2),
-                        getTestDevice(mAdapter, 3));
+                List.of(getTestDevice(1), getTestDevice(2), getTestDevice(3));
 
         for (BluetoothDevice device : devices) {
             db.setConnection(device, BluetoothProfile.HEADSET);
@@ -985,17 +981,14 @@ public class PhonePolicyTest {
         db.start(mDatabase);
         TestUtils.waitForLooperToFinishScheduledTask(db.getHandlerLooper());
 
-        BluetoothDevice deviceToDeconnect = getTestDevice(mAdapter, 0);
+        BluetoothDevice deviceToDeconnect = getTestDevice(0);
         db.setConnection(deviceToDeconnect, BluetoothProfile.HEADSET);
         doReturn(CONNECTION_POLICY_ALLOWED)
                 .when(mHeadsetService)
                 .getConnectionPolicy(eq(deviceToDeconnect));
 
         List<BluetoothDevice> devices =
-                List.of(
-                        getTestDevice(mAdapter, 1),
-                        getTestDevice(mAdapter, 2),
-                        getTestDevice(mAdapter, 3));
+                List.of(getTestDevice(1), getTestDevice(2), getTestDevice(3));
 
         for (BluetoothDevice device : devices) {
             db.setConnection(device, BluetoothProfile.HEADSET);
@@ -1034,7 +1027,7 @@ public class PhonePolicyTest {
         ArrayList<BluetoothDevice> a2dpConnectedDevices = new ArrayList<>();
 
         for (int i = 0; i < kMaxTestDevices; i++) {
-            BluetoothDevice testDevice = getTestDevice(mAdapter, i);
+            BluetoothDevice testDevice = getTestDevice(i);
             testDevices[i] = testDevice;
 
             // ACL is connected, lets simulate this.
@@ -1106,7 +1099,7 @@ public class PhonePolicyTest {
         ArrayList<BluetoothDevice> a2dpConnectedDevices = new ArrayList<>();
 
         for (int i = 0; i < kMaxTestDevices; i++) {
-            BluetoothDevice testDevice = getTestDevice(mAdapter, i);
+            BluetoothDevice testDevice = getTestDevice(i);
             testDevices[i] = testDevice;
 
             // ACL is connected, lets simulate this.

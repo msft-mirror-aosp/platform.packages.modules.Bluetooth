@@ -3374,7 +3374,6 @@ public class BluetoothMapContentObserver {
                 sentIntent.putExtra(EXTRA_MESSAGE_SENT_HANDLE, handle); // needed for notification
                 sentIntent.putExtra(EXTRA_MESSAGE_SENT_TRANSPARENT, transparent);
                 sentIntent.putExtra(EXTRA_MESSAGE_SENT_RETRY, retry);
-                // sentIntent.setDataAndNormalize(btMmsUri);
                 PendingIntent pendingSendIntent =
                         PendingIntent.getBroadcast(
                                 mContext, 0, sentIntent, PendingIntent.FLAG_IMMUTABLE);

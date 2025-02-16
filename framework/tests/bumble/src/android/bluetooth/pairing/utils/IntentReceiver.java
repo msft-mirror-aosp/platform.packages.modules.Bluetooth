@@ -79,22 +79,10 @@ public class IntentReceiver {
     }
 
     @Mock private BroadcastReceiver mReceiver;
-
-    /** Intent timeout value, can be configured through constructor, or setter method */
-    private final Duration mIntentTimeout;
-
     /** To verify the received intents in-order */
     private final InOrder mInOrder;
+    private final Deque<Builder> mDqBuilder;
     private final Context mContext;
-    private final String[] mIntentStrings;
-    private final Deque<IntentFilter> mDqIntentFilter;
-    /*
-     * Note: Since we are using Builder pattern, also add new variables added
-     *  to the Builder class
-     */
-
-    /** Listener for the received intents */
-    private final IntentListener mIntentListener;
 
     /**
      * Creates an Intent receiver from the builder instance
@@ -104,29 +92,23 @@ public class IntentReceiver {
      * @param builder Pre-built builder instance
      */
     private IntentReceiver(Builder builder) {
-        this.mIntentTimeout = builder.mIntentTimeout;
-        this.mContext = builder.mContext;
-        this.mIntentStrings = builder.mIntentStrings;
-        this.mIntentListener = builder.mIntentListener;
-
-        /* Perform other calls required for instantiation */
         MockitoAnnotations.initMocks(this);
         mInOrder = inOrder(mReceiver);
-        mDqIntentFilter = new ArrayDeque<>();
-        mDqIntentFilter.addFirst(prepareIntentFilter(mIntentStrings));
+        mDqBuilder = new ArrayDeque<>();
+        mDqBuilder.addFirst(builder);
 
-        setupListener();
-        registerReceiver();
+        // Context will remain same for all the builders in the deque
+        mContext = builder.mContext;
+
+        /* Perform other calls required for instantiation */
+        setup();
     }
 
     /** Private constructor to avoid creation of IntentReceiver instance directly */
     private IntentReceiver() {
-        mIntentTimeout = null;
         mInOrder = null;
         mContext = null;
-        mIntentStrings = null;
-        mDqIntentFilter = null;
-        mIntentListener = null;
+        mDqBuilder = null;
     }
 
     /**
@@ -137,17 +119,14 @@ public class IntentReceiver {
      *      .build();
      */
     public static class Builder {
-        /**
-         * Add all the instance variables from IntentReceiver,
-         *  which needs to be initiated from the constructor,
-         *  with either default, or user provided value.
-         */
         private final Context mContext;
-        private final String[] mIntentStrings;
 
-        /** Non-final variables as there are setters available */
         private Duration mIntentTimeout;
         private IntentListener mIntentListener;
+        private String[] mIntentStrings;
+
+        // Intermediate variable, prepared from mIntentStrings
+        private IntentFilter mIntentFilter;
 
         /**
          * Private default constructor to avoid creation of Builder default
@@ -156,7 +135,6 @@ public class IntentReceiver {
          */
         private Builder() {
             mContext = null;
-            mIntentStrings = null;
         }
 
         /**
@@ -173,6 +151,8 @@ public class IntentReceiver {
             if (mIntentStrings.length == 0) {
                 throw new RuntimeException("IntentReceiver.Builder(): No intents to register");
             }
+
+            mIntentFilter = Builder.prepareIntentFilter(mIntentStrings);
 
             /* Default values for remaining vars */
             mIntentTimeout = Duration.ofSeconds(10);
@@ -196,6 +176,15 @@ public class IntentReceiver {
         public IntentReceiver build() {
             return new IntentReceiver(this);
         }
+
+        public static IntentFilter prepareIntentFilter(String... intentStrings) {
+            IntentFilter intentFilter = new IntentFilter();
+            for (String intentString : intentStrings) {
+                intentFilter.addAction(intentString);
+            }
+
+            return intentFilter;
+        }
     }
 
     /**
@@ -204,7 +193,7 @@ public class IntentReceiver {
      * @param matchers Matchers
      */
     public void verifyReceivedOrdered(Matcher<Intent>... matchers) {
-        mInOrder.verify(mReceiver, timeout(mIntentTimeout.toMillis()))
+        mInOrder.verify(mReceiver, timeout(mDqBuilder.peekFirst().mIntentTimeout.toMillis()))
                 .onReceive(any(Context.class), MockitoHamcrest.argThat(AllOf.allOf(matchers)));
     }
 
@@ -215,7 +204,7 @@ public class IntentReceiver {
      * @param matchers Matchers
      */
     public void verifyReceived(int num, Matcher<Intent>... matchers) {
-        verify(mReceiver, timeout(mIntentTimeout.toMillis()).times(num))
+        verify(mReceiver, timeout(mDqBuilder.peekFirst().mIntentTimeout.toMillis()).times(num))
                 .onReceive(any(Context.class), MockitoHamcrest.argThat(AllOf.allOf(matchers)));
     }
 
@@ -235,68 +224,34 @@ public class IntentReceiver {
      *  as this either unregisters the latest registered actions, or free resources.
      */
     public void close() {
-        Log.d(TAG, "close(): " + mDqIntentFilter.size());
+        Log.d(TAG, "close(): " + mDqBuilder.size());
 
-        /* More than 1 IntentFilters are present */
-        if(mDqIntentFilter.size() > 1) {
-            /*
-             * It represents there are IntentFilters present to be rolled back.
-             * So, unregister and roll back to previous IntentFilter.
-             */
-            unregisterRecentAllIntentActions();
+        /* More than 1 Builders are present in deque */
+        if(mDqBuilder.size() > 1) {
+            rollbackBuilder();
         }
         else {
-            /*
-             * It represents that this close() is called in the scope of creation of
-             *  the object, and hence there is only 1 IntentFilter which is present.
-             *  So, we can safely close this instance.
-             */
+            // Only 1 builder remaining, safely close this instance.
             verifyNoMoreInteractions();
-            unregisterReceiver();
+            teardown();
         }
     }
 
     /**
-     * Registers the new actions passed as argument.
-     * 1. Unregister the receiver, and in turn old IntentFilter.
-     * 2. Creates a new IntentFilter from the String[], and treat that as latest.
-     * 3. Registers the new IntentFilter with the receiver to the current context.
-     */
-    public void registerIntentActions(String... intentStrings) {
-        IntentFilter intentFilter = prepareIntentFilter(intentStrings);
-
-        unregisterReceiver();
-        /* Pushes the new intentFilter to top to make it the latest registered */
-        mDqIntentFilter.addFirst(intentFilter);
-        registerReceiver();
-    }
-
-    /**
-     * Helper function to register intent actions, and get the IntentReceiver
-     *  instance.
+     * Registers the new builder instance with the parent IntentReceiver instance
      *
-     * @param parentIntentReceiver IntentReceiver instance from the parent test caller
-     *  This should be `null` if there is no parent IntentReceiver instance.
-     * @param targetContext Context instance
-     * @param intentStrings Intent actions string array
+     * @param parentIntentReceiver Parent IntentReceiver instance
+     * @param builder New builder instance
      *
-     * This should be used to register new intent actions in a testStep
-     *  function always.
+     * Note: This is a helper function to be used in testStep functions where properties
+     *  are updated in the new builder instance, and then pushed to the parent instance.
      */
-    public static IntentReceiver updateNewIntentActionsInParentReceiver(
-        IntentReceiver parentIntentReceiver, Context targetContext, String... intentStrings) {
-        /*
-         * If parentIntentReceiver is NULL, it indicates that the caller
-         *  is a fresh test/testStep and a new IntentReceiver will be returned.
-         *  else, update the intent actions and return the same instance.
-         */
-        // Create a new instance for the current test/testStep function.
+    public static IntentReceiver update(
+        IntentReceiver parentIntentReceiver, Builder builder) {
         if(parentIntentReceiver == null)
-            return new IntentReceiver.Builder(targetContext, intentStrings)
-                .build();
+            return builder.build();
 
-        /* Update the intent actions in the parent IntentReceiver instance */
-        parentIntentReceiver.registerIntentActions(intentStrings);
+        parentIntentReceiver.updateBuilder(builder);
         return parentIntentReceiver;
     }
 
@@ -311,39 +266,31 @@ public class IntentReceiver {
                             "onReceive(): intent=" +
                                 Arrays.toString(inv.getArguments()));
 
-                    if (mIntentListener == null) return null;
+                    if (mDqBuilder.peekFirst().mIntentListener == null) return null;
 
                     Intent intent = inv.getArgument(1);
 
                     /* Custom `onReceive` will be provided by the caller */
-                    mIntentListener.onReceive(intent);
+                    mDqBuilder.peekFirst().mIntentListener.onReceive(intent);
                     return null;
                 })
             .when(mReceiver)
             .onReceive(any(), any());
     }
 
-    private IntentFilter prepareIntentFilter(String... intentStrings) {
-        IntentFilter intentFilter = new IntentFilter();
-        for (String intentString : intentStrings) {
-          intentFilter.addAction(intentString);
-        }
-
-        return intentFilter;
-    }
-
     /**
      * Registers the latest intent filter which is at the deque.peekFirst()
-     * Note: The mDqIntentFilter must not be empty here.
+     * Note: The mDqBuilder must not be empty here.
      */
     private void registerReceiver() {
-        Log.d(TAG, "registerReceiver(): Registering for intents: " +
-            getActionsFromIntentFilter(mDqIntentFilter.peekFirst()));
-
+        IntentFilter intentFilter;
         /* ArrayDeque should not be empty at all while registering a receiver */
-        assertThat(mDqIntentFilter.isEmpty()).isFalse();
-        mContext.registerReceiver(mReceiver,
-            (IntentFilter)mDqIntentFilter.peekFirst());
+        assertThat(mDqBuilder.isEmpty()).isFalse();
+
+        intentFilter = (IntentFilter)mDqBuilder.peekFirst().mIntentFilter;
+        Log.d(TAG, "registerReceiver(): Registering for intents: " +
+            getActionsFromIntentFilter(intentFilter));
+        mContext.registerReceiver(mReceiver, intentFilter);
     }
 
     /**
@@ -366,17 +313,18 @@ public class IntentReceiver {
 
     /**
      * Registers the new actions passed as argument.
-     * 1. Unregister the receiver, and in turn new IntentFilter.
-     * 2. Pops the new IntentFilter to roll-back to the old one.
-     * 3. Registers the old IntentFilter with the receiver to the current context.
+     * 1. Unregister the Builder.
+     * 2. Pops a new Builder to roll-back to the old one.
+     * 3. Registers the old Builder.
      */
-    private void unregisterRecentAllIntentActions() {
-        assertThat(mDqIntentFilter.isEmpty()).isFalse();
+    private void rollbackBuilder() {
+        assertThat(mDqBuilder.isEmpty()).isFalse();
 
-        unregisterReceiver();
-        /* Restores the previous intent filter, and discard the latest */
-        mDqIntentFilter.removeFirst();
-        registerReceiver();
+        teardown();
+
+        /* Restores the previous Builder, and discard the latest */
+        mDqBuilder.removeFirst();
+        setup();
     }
 
     /**
@@ -397,4 +345,34 @@ public class IntentReceiver {
 
         return allIntentActions.toString();
     }
+
+    /**
+     * Helper function to perform the setup for the IntentReceiver instance
+     *
+     * This is a helper function to perform the setup for the IntentReceiver instance,
+     *  which includes setting up the listener, and registering the receiver, etc.
+     */
+    private void setup() {
+        setupListener();
+        registerReceiver();
+    }
+
+    private void teardown() {
+        unregisterReceiver();
+    }
+
+    /**
+     * Updates the current builder with the new builder instance.
+     *
+     * @param builder New builder instance
+     */
+    private void updateBuilder(Builder builder) {
+        teardown();
+        // Keep the new builder at the top of the deque
+        mDqBuilder.addFirst(builder);
+
+        // calls all required setup functions based on the new builder
+        setup();
+    }
+
 }

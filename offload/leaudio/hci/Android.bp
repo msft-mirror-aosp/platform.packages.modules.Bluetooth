@@ -42,5 +42,6 @@ rust_library {
 
 rust_test {
     name: "libbluetooth_offload_leaudio_hci_test",
+    test_suites: ["general-tests"],
     defaults: ["bluetooth_offload_leaudio_hci_defaults"],
 }

@@ -154,12 +154,13 @@ protected:
                 std::chrono::milliseconds config_save_delay, size_t temp_devices_capacity,
                 bool is_restricted_mode, bool is_single_user_mode);
 
+  void SetProperty(std::string section, std::string property, std::string value);
+
   bool HasSection(const std::string& section) const;
   bool HasProperty(const std::string& section, const std::string& property) const;
 
   std::optional<std::string> GetProperty(const std::string& section,
                                          const std::string& property) const;
-  void SetProperty(std::string section, std::string property, std::string value);
 
   std::vector<std::string> GetPersistentSections() const;
 
@@ -183,6 +184,9 @@ protected:
               const std::vector<uint8_t>& value);
   std::optional<std::vector<uint8_t>> GetBin(const std::string& section,
                                              const std::string& property) const;
+
+  // Enable testing of internal methods
+  friend class StorageModuleTest;
 
 private:
   struct impl;
