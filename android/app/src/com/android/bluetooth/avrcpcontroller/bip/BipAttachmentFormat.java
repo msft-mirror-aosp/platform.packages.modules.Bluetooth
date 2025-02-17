@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.avrcpcontroller;
 
+import static java.util.Objects.requireNonNull;
+
 import android.util.Log;
 
 import java.util.Date;
@@ -101,8 +103,8 @@ public class BipAttachmentFormat {
             int size,
             Date created,
             Date modified) {
-        mContentType = Objects.requireNonNull(contentType, "Content-Type cannot be null");
-        mName = Objects.requireNonNull(name, "Name cannot be null");
+        mContentType = requireNonNull(contentType);
+        mName = requireNonNull(name);
         mCharset = charset;
         mSize = size;
         mCreated = created != null ? new BipDateTime(created) : null;

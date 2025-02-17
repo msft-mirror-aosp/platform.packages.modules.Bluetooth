@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.avrcpcontroller;
 
+import static java.util.Objects.requireNonNull;
+
 import android.annotation.SuppressLint;
 
 import com.android.bluetooth.Utils;
@@ -101,7 +103,7 @@ public class BipDateTime {
     }
 
     public BipDateTime(Date date) {
-        mDate = Objects.requireNonNull(date, "Date cannot be null");
+        mDate = requireNonNull(date);
         mIsUtc = true; // All Java Date objects store timestamps as UTC
     }
 

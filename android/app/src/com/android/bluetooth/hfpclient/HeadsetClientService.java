@@ -56,7 +56,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -1190,7 +1189,7 @@ public class HeadsetClientService extends ProfileService {
 
     // Handle messages from native (JNI) to java
     public void messageFromNative(StackEvent stackEvent) {
-        Objects.requireNonNull(stackEvent.device);
+        requireNonNull(stackEvent.device);
 
         HeadsetClientStateMachine sm =
                 getStateMachine(stackEvent.device, isConnectionEvent(stackEvent));
