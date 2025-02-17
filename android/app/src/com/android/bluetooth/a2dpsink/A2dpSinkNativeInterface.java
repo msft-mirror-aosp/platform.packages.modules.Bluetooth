@@ -30,6 +30,7 @@ import com.android.internal.annotations.VisibleForTesting;
 /** A2DP Sink Native Interface to/from JNI. */
 public class A2dpSinkNativeInterface {
     private static final String TAG = A2dpSinkNativeInterface.class.getSimpleName();
+
     private AdapterService mAdapterService;
 
     @GuardedBy("INSTANCE_LOCK")

@@ -123,6 +123,8 @@ import java.util.UUID;
 @SmallTest
 @RunWith(TestParameterInjector.class)
 public class ScanManagerTest {
+    private static final String TAG = ScanManagerTest.class.getSimpleName();
+
     @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
     @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
@@ -138,7 +140,6 @@ public class ScanManagerTest {
     @Spy private GattObjectsFactory mGattObjectsFactory = GattObjectsFactory.getInstance();
     @Spy private ScanObjectsFactory mScanObjectsFactory = ScanObjectsFactory.getInstance();
 
-    private static final String TAG = ScanManagerTest.class.getSimpleName();
     private static final int DEFAULT_REGULAR_SCAN_REPORT_DELAY_MS = 0;
     private static final int DEFAULT_BATCH_SCAN_REPORT_DELAY_MS = 100;
     private static final int DEFAULT_NUM_OFFLOAD_SCAN_FILTER = 16;

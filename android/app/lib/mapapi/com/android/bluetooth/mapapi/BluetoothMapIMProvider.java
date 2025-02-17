@@ -37,8 +37,8 @@ import java.util.Set;
  * access to Instant messages from a Bluetooth device through the Message Access Profile.
  */
 public abstract class BluetoothMapIMProvider extends ContentProvider {
-
     private static final String TAG = "BluetoothMapIMProvider";
+
     private static final boolean D = true;
 
     private static final int MATCH_ACCOUNT = 1;

@@ -55,7 +55,7 @@ import java.util.Set;
  * and interactions with a remote controllable device.
  */
 class AvrcpControllerStateMachine extends StateMachine {
-    static final String TAG = AvrcpControllerStateMachine.class.getSimpleName();
+    private static final String TAG = AvrcpControllerStateMachine.class.getSimpleName();
 
     // 0->99 Events from Outside
     public static final int CONNECT = 1;

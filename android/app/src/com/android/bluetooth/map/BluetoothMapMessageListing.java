@@ -35,8 +35,9 @@ import java.util.List;
 
 // Next tag value for ContentProfileErrorReportUtils.report(): 3
 public class BluetoothMapMessageListing {
-    private boolean mHasUnread = false;
     private static final String TAG = "BluetoothMapMessageListing";
+
+    private boolean mHasUnread = false;
 
     private List<BluetoothMapMessageListingElement> mList;
 

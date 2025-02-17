@@ -28,7 +28,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 class FolderListing {
-
     private static final String TAG = "FolderListing";
 
     private final List<String> mFolders = new ArrayList<>();

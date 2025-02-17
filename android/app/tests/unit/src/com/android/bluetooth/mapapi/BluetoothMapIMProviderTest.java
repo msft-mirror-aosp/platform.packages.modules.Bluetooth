@@ -58,7 +58,6 @@ import java.util.Set;
 
 @RunWith(AndroidJUnit4.class)
 public class BluetoothMapIMProviderTest {
-
     private static final String TAG = "MapIMProviderTest";
 
     private static final String AUTHORITY = "com.test";

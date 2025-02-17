@@ -46,6 +46,8 @@ import java.util.concurrent.Executor;
  *     allows advancing time.
  */
 public class TestLooper {
+    private static final String TAG = "TestLooper";
+
     protected final Looper mLooper;
 
     private static final Constructor<Looper> LOOPER_CONSTRUCTOR;
@@ -54,7 +56,6 @@ public class TestLooper {
     private static final Field MESSAGE_NEXT_FIELD;
     private static final Field MESSAGE_WHEN_FIELD;
     private static final Method MESSAGE_MARK_IN_USE_METHOD;
-    private static final String TAG = "TestLooper";
 
     private final Clock mClock;
 

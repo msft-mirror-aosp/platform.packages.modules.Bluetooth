@@ -88,6 +88,7 @@ import java.util.stream.IntStream;
 
 class BassClientStateMachine extends StateMachine {
     private static final String TAG = "BassClientStateMachine";
+
     @VisibleForTesting static final byte[] REMOTE_SCAN_STOP = {00};
     @VisibleForTesting static final byte[] REMOTE_SCAN_START = {01};
     private static final byte OPCODE_ADD_SOURCE = 0x02;

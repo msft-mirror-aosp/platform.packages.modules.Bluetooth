@@ -40,6 +40,7 @@ import java.util.Map;
  */
 public class EventReport {
     private static final String TAG = "EventReport";
+
     private final Type mType;
     private final String mDateTime;
     private final String mHandle;

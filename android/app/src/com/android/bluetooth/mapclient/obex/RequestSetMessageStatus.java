@@ -25,12 +25,13 @@ import com.android.obex.HeaderSet;
 import java.io.IOException;
 
 final class RequestSetMessageStatus extends Request {
+    private static final String TAG = "RequestSetMessageStatus";
+
     public enum StatusIndicator {
         READ,
         DELETED
     }
 
-    private static final String TAG = "RequestSetMessageStatus";
     private static final String TYPE = "x-bt/messageStatus";
     private final StatusIndicator mStatusInd;
     private final byte mValue;

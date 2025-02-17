@@ -69,7 +69,6 @@ import java.io.OutputStream;
 /** This class runs as an OBEX client */
 // Next tag value for ContentProfileErrorReportUtils.report(): 17
 public class BluetoothOppObexClientSession implements BluetoothOppObexSession {
-
     private static final String TAG = "BtOppObexClient";
 
     private final ObexTransport mTransport;
