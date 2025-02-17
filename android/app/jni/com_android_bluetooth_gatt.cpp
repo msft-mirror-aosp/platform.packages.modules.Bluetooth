@@ -49,6 +49,7 @@
 #include "hardware/distance_measurement_interface.h"
 #include "main/shim/le_scanning_manager.h"
 #include "rust/cxx.h"
+#include "src/core/ffi/module.h"
 #include "src/gatt/ffi.rs.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
@@ -586,6 +587,11 @@ static const btgatt_client_callbacks_t sGattClientCallbacks = {
  */
 
 void btgatts_register_app_cb(int status, int server_if, const Uuid& uuid) {
+  // TODO(b/356462170): Remove this when we have fixed the bug
+  if (!is_module_started(&rust_module)) {
+    log::error("Rust module isn't started! scan_manager_refactor={}",
+               com::android::bluetooth::flags::scan_manager_refactor());
+  }
   bluetooth::gatt::open_server(server_if);
   std::shared_lock<std::shared_mutex> lock(callbacks_mutex);
   CallbackEnv sCallbackEnv(__func__);
