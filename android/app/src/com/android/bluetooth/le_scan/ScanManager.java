@@ -939,13 +939,13 @@ public class ScanManager {
     /** Parameters for batch scans. */
     static class BatchScanParams {
         @VisibleForTesting int mScanMode;
-        private int mFullScanscannerId;
-        private int mTruncatedScanscannerId;
+        private int mFullScanScannerId;
+        private int mTruncatedScanScannerId;
 
         BatchScanParams() {
             mScanMode = -1;
-            mFullScanscannerId = -1;
-            mTruncatedScanscannerId = -1;
+            mFullScanScannerId = -1;
+            mTruncatedScanScannerId = -1;
         }
 
         @Override
@@ -957,13 +957,13 @@ public class ScanManager {
                 return false;
             }
             return mScanMode == other.mScanMode
-                    && mFullScanscannerId == other.mFullScanscannerId
-                    && mTruncatedScanscannerId == other.mTruncatedScanscannerId;
+                    && mFullScanScannerId == other.mFullScanScannerId
+                    && mTruncatedScanScannerId == other.mTruncatedScanScannerId;
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(mScanMode, mFullScanscannerId, mTruncatedScanscannerId);
+            return Objects.hash(mScanMode, mFullScanScannerId, mTruncatedScanScannerId);
         }
     }
 
@@ -1393,9 +1393,9 @@ public class ScanManager {
             // collections.
             for (ScanClient client : mBatchClients) {
                 if (client.settings.getScanResultType() == ScanSettings.SCAN_RESULT_TYPE_FULL) {
-                    params.mFullScanscannerId = client.scannerId;
+                    params.mFullScanScannerId = client.scannerId;
                 } else {
-                    params.mTruncatedScanscannerId = client.scannerId;
+                    params.mTruncatedScanScannerId = client.scannerId;
                 }
             }
             return params;
@@ -1586,16 +1586,16 @@ public class ScanManager {
 
         void flushBatchResults(int scannerId) {
             Log.d(TAG, "flushPendingBatchResults - scannerId = " + scannerId);
-            if (mBatchScanParams.mFullScanscannerId != -1) {
+            if (mBatchScanParams.mFullScanScannerId != -1) {
                 resetCountDownLatch();
                 mNativeInterface.gattClientReadScanReports(
-                        mBatchScanParams.mFullScanscannerId, SCAN_RESULT_TYPE_FULL);
+                        mBatchScanParams.mFullScanScannerId, SCAN_RESULT_TYPE_FULL);
                 waitForCallback();
             }
-            if (mBatchScanParams.mTruncatedScanscannerId != -1) {
+            if (mBatchScanParams.mTruncatedScanScannerId != -1) {
                 resetCountDownLatch();
                 mNativeInterface.gattClientReadScanReports(
-                        mBatchScanParams.mTruncatedScanscannerId, SCAN_RESULT_TYPE_TRUNCATED);
+                        mBatchScanParams.mTruncatedScanScannerId, SCAN_RESULT_TYPE_TRUNCATED);
                 waitForCallback();
             }
             setBatchAlarm();
@@ -1724,13 +1724,12 @@ public class ScanManager {
                 }
             }
             // Remove if ALL_PASS filters are used.
-            removeFilterIfExisits(
+            removeFilterIfExists(
                     mAllPassRegularClients, scannerId, ALL_PASS_FILTER_INDEX_REGULAR_SCAN);
-            removeFilterIfExisits(
-                    mAllPassBatchClients, scannerId, ALL_PASS_FILTER_INDEX_BATCH_SCAN);
+            removeFilterIfExists(mAllPassBatchClients, scannerId, ALL_PASS_FILTER_INDEX_BATCH_SCAN);
         }
 
-        private void removeFilterIfExisits(Set<Integer> clients, int scannerId, int filterIndex) {
+        private void removeFilterIfExists(Set<Integer> clients, int scannerId, int filterIndex) {
             if (!clients.contains(scannerId)) {
                 return;
             }
@@ -1754,13 +1753,13 @@ public class ScanManager {
 
         /** Return batch scan result type value defined in bt stack. */
         private int getResultType(BatchScanParams params) {
-            if (params.mFullScanscannerId != -1 && params.mTruncatedScanscannerId != -1) {
+            if (params.mFullScanScannerId != -1 && params.mTruncatedScanScannerId != -1) {
                 return SCAN_RESULT_TYPE_BOTH;
             }
-            if (params.mTruncatedScanscannerId != -1) {
+            if (params.mTruncatedScanScannerId != -1) {
                 return SCAN_RESULT_TYPE_TRUNCATED;
             }
-            if (params.mFullScanscannerId != -1) {
+            if (params.mFullScanScannerId != -1) {
                 return SCAN_RESULT_TYPE_FULL;
             }
             return -1;
@@ -2086,7 +2085,7 @@ public class ScanManager {
                 }
 
                 // Some chipsets don't support multiple monitors with the same pattern. Skip
-                // creating a new monitor if the pattern has alreaady been registered
+                // creating a new monitor if the pattern has already been registered
                 int filterIndex = mFilterIndexStack.pop();
                 int existingFilterIndex =
                         mMsftAdvMonitorMergedPatternList.add(filterIndex, monitor.getPatterns());
