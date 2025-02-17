@@ -5357,11 +5357,17 @@ public:
        * no incoming call to accept or reject on TBS could confuse the remote
        * device and interrupt the stream establish procedure.
        */
-      if (!IsInCall()) {
+      if (!IsInCall() && !IsInVoipCall()) {
         SetInVoipCall(true);
       }
     } else if (IsInVoipCall()) {
-      SetInVoipCall(false);
+      /* When determining whether the VoIP has ended or not make sure
+       * we check the just updated direction metadata for CONVERSATIONAL
+       */
+      auto const local_direction_contexts = local_metadata_context_types_.get(local_direction);
+      if (!local_direction_contexts.test_any(possible_voip_contexts)) {
+        SetInVoipCall(false);
+      }
     }
 
     BidirectionalPair<AudioContexts> remote_metadata = {
