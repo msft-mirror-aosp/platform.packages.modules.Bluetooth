@@ -35,13 +35,10 @@ import static com.android.bluetooth.bass_client.BassClientStateMachine.DISCONNEC
 import static com.android.bluetooth.bass_client.BassClientStateMachine.GATT_TXN_PROCESSED;
 import static com.android.bluetooth.bass_client.BassClientStateMachine.GATT_TXN_TIMEOUT;
 import static com.android.bluetooth.bass_client.BassClientStateMachine.INITIATE_PA_SYNC_TRANSFER;
-import static com.android.bluetooth.bass_client.BassClientStateMachine.PSYNC_ACTIVE_TIMEOUT;
-import static com.android.bluetooth.bass_client.BassClientStateMachine.REACHED_MAX_SOURCE_LIMIT;
 import static com.android.bluetooth.bass_client.BassClientStateMachine.READ_BASS_CHARACTERISTICS;
 import static com.android.bluetooth.bass_client.BassClientStateMachine.REMOTE_SCAN_START;
 import static com.android.bluetooth.bass_client.BassClientStateMachine.REMOTE_SCAN_STOP;
 import static com.android.bluetooth.bass_client.BassClientStateMachine.REMOVE_BCAST_SOURCE;
-import static com.android.bluetooth.bass_client.BassClientStateMachine.SELECT_BCAST_SOURCE;
 import static com.android.bluetooth.bass_client.BassClientStateMachine.SET_BCAST_CODE;
 import static com.android.bluetooth.bass_client.BassClientStateMachine.START_SCAN_OFFLOAD;
 import static com.android.bluetooth.bass_client.BassClientStateMachine.STOP_SCAN_OFFLOAD;
@@ -87,9 +84,6 @@ import android.bluetooth.BluetoothLeBroadcastSubgroup;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothStatusCodes;
-import android.bluetooth.le.PeriodicAdvertisingCallback;
-import android.bluetooth.le.ScanRecord;
-import android.bluetooth.le.ScanResult;
 import android.content.Context;
 import android.content.Intent;
 import android.os.HandlerThread;
@@ -150,7 +144,6 @@ public class BassClientStateMachineTest {
     private static final int TEST_BROADCAST_ID = 42;
     private static final int TEST_SOURCE_ID = 1;
     private static final int TEST_CHANNEL_INDEX = 1;
-    private static final String TEST_BROADCAST_NAME = "Test";
     private static final String EMPTY_BLUETOOTH_DEVICE_ADDRESS = "00:00:00:00:00:00";
     private static final byte OPCODE_UPDATE_SOURCE = 0x03;
     private static final int UPDATE_SOURCE_FIXED_LENGTH = 6;
@@ -360,8 +353,6 @@ public class BassClientStateMachineTest {
         BassClientStateMachine.BluetoothGattTestableWrapper btGatt =
                 Mockito.mock(BassClientStateMachine.BluetoothGattTestableWrapper.class);
         mBassClientStateMachine.mBluetoothGatt = btGatt;
-        // need this to ensure expected mock behavior for getActiveSyncedSource
-        when(mBassClientService.getActiveSyncedSources(any())).thenReturn(null);
 
         assertThat(mBassClientStateMachine.getCurrentState())
                 .isInstanceOf(BassClientStateMachine.Disconnected.class);
@@ -542,122 +533,6 @@ public class BassClientStateMachineTest {
         assertThat(mBassClientStateMachine.isPendingRemove(invalidSourceId)).isFalse();
     }
 
-    @Test
-    @DisableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
-    public void parseScanRecord_withoutBaseData_callCancelActiveSync() {
-        byte[] scanRecord =
-                new byte[] {
-                    0x02,
-                    0x01,
-                    0x1a, // advertising flags
-                    0x05,
-                    0x02,
-                    0x0b,
-                    0x11,
-                    0x0a,
-                    0x11, // 16 bit service uuids
-                    0x04,
-                    0x09,
-                    0x50,
-                    0x65,
-                    0x64, // name
-                    0x02,
-                    0x0A,
-                    (byte) 0xec, // tx power level
-                    0x05,
-                    0x16,
-                    0x0b,
-                    0x11,
-                    0x50,
-                    0x64, // service data
-                    0x05,
-                    (byte) 0xff,
-                    (byte) 0xe0,
-                    0x00,
-                    0x02,
-                    0x15, // manufacturer specific data
-                    0x03,
-                    0x50,
-                    0x01,
-                    0x02, // an unknown data type won't cause trouble
-                };
-        // need this to ensure expected mock behavior for getActiveSyncedSource
-        when(mBassClientService.getActiveSyncedSources(any())).thenReturn(null);
-
-        ScanRecord data = ScanRecord.parseFromBytes(scanRecord);
-        mBassClientStateMachine.parseScanRecord(0, data);
-        // verify getActiveSyncedSource got called in CancelActiveSync
-        verify(mBassClientService).getActiveSyncedSources(any());
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
-    public void parseScanRecord_withBaseData_callsUpdateBase() {
-        byte[] scanRecordWithBaseData =
-                new byte[] {
-                    (byte) 0x02,
-                    (byte) 0x01,
-                    (byte) 0x1a, // advertising flags
-                    (byte) 0x05,
-                    (byte) 0x02,
-                    (byte) 0x51,
-                    (byte) 0x18,
-                    (byte) 0x0a,
-                    (byte) 0x11, // 16 bit service uuids
-                    (byte) 0x04,
-                    (byte) 0x09,
-                    (byte) 0x50,
-                    (byte) 0x65,
-                    (byte) 0x64, // name
-                    (byte) 0x02,
-                    (byte) 0x0A,
-                    (byte) 0xec, // tx power level
-                    (byte) 0x19,
-                    (byte) 0x16,
-                    (byte) 0x51,
-                    (byte) 0x18, // service data (base data with 18 bytes)
-                    // LEVEL 1
-                    (byte) 0x01,
-                    (byte) 0x02,
-                    (byte) 0x03, // presentationDelay
-                    (byte) 0x01, // numSubGroups
-                    // LEVEL 2
-                    (byte) 0x01, // numSubGroups
-                    (byte) 0x00,
-                    (byte) 0x00,
-                    (byte) 0x00,
-                    (byte) 0x00,
-                    (byte) 0x00, // UNKNOWN_CODEC
-                    (byte) 0x02, // codecConfigLength
-                    (byte) 0x01,
-                    (byte) 'A', // codecConfigInfo
-                    (byte) 0x03, // metaDataLength
-                    (byte) 0x06,
-                    (byte) 0x07,
-                    (byte) 0x08, // metaData
-                    // LEVEL 3
-                    (byte) 0x04, // index
-                    (byte) 0x03, // codecConfigLength
-                    (byte) 0x02,
-                    (byte) 'B',
-                    (byte) 'C', // codecConfigInfo
-                    (byte) 0x05,
-                    (byte) 0xff,
-                    (byte) 0xe0,
-                    (byte) 0x00,
-                    (byte) 0x02,
-                    (byte) 0x15, // manufacturer specific data
-                    (byte) 0x03,
-                    (byte) 0x50,
-                    (byte) 0x01,
-                    (byte) 0x02, // an unknown data type won't cause trouble
-                };
-        ScanRecord data = ScanRecord.parseFromBytes(scanRecordWithBaseData);
-        assertThat(data.getServiceUuids()).contains(BassConstants.BASIC_AUDIO_UUID);
-        assertThat(data.getServiceData(BassConstants.BASIC_AUDIO_UUID)).isNotNull();
-        mBassClientStateMachine.parseScanRecord(0, data);
-        verify(mBassClientService).updateBase(anyInt(), any());
-    }
 
     @Test
     public void gattCallbackOnConnectionStateChange_changedToConnected()
@@ -1504,9 +1379,6 @@ public class BassClientStateMachineTest {
     public void sendOtherMessages_inDisconnectedState_doesNotChangeState() {
         initToDisconnectedState();
 
-        // need this to ensure expected mock behavior for getActiveSyncedSource
-        when(mBassClientService.getActiveSyncedSources(any())).thenReturn(null);
-
         mBassClientStateMachine.sendMessage(STOP_SCAN_OFFLOAD);
         TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
         verify(mBassClientService, never()).sendBroadcast(any(Intent.class), anyString(), any());
@@ -1542,15 +1414,6 @@ public class BassClientStateMachineTest {
         TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
         assertThat(mBassClientStateMachine.hasDeferredMessagesSuper(READ_BASS_CHARACTERISTICS))
                 .isTrue();
-    }
-
-    @Test
-    public void sendPsyncActiveTimeoutMessage_inConnectingState_defersMessage() {
-        initToConnectingState();
-
-        mBassClientStateMachine.sendMessage(PSYNC_ACTIVE_TIMEOUT);
-        TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
-        assertThat(mBassClientStateMachine.hasDeferredMessagesSuper(PSYNC_ACTIVE_TIMEOUT)).isTrue();
     }
 
     @Test
@@ -1617,8 +1480,6 @@ public class BassClientStateMachineTest {
         initToConnectedState();
 
         mBassClientStateMachine.mBluetoothGatt = null;
-        // need this to ensure expected mock behavior for getActiveSyncedSource
-        when(mBassClientService.getActiveSyncedSources(any())).thenReturn(null);
 
         mBassClientStateMachine.sendMessage(DISCONNECT);
         TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
@@ -1640,9 +1501,6 @@ public class BassClientStateMachineTest {
 
         Message connectedMsg = mBassClientStateMachine.obtainMessage(CONNECTION_STATE_CHANGED);
         connectedMsg.obj = BluetoothProfile.STATE_CONNECTED;
-
-        // need this to ensure expected mock behavior for getActiveSyncedSource
-        when(mBassClientService.getActiveSyncedSources(any())).thenReturn(null);
 
         mBassClientStateMachine.sendMessage(connectedMsg);
         TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
@@ -1722,19 +1580,6 @@ public class BassClientStateMachineTest {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
-    public void sendPsyncActiveMessage_inConnectedState() {
-        initToConnectedState();
-        // need this to ensure expected mock behavior for getActiveSyncedSource
-        when(mBassClientService.getActiveSyncedSources(any())).thenReturn(null);
-
-        mBassClientStateMachine.sendMessage(PSYNC_ACTIVE_TIMEOUT);
-        TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
-        // verify getActiveSyncedSource got called in CancelActiveSync
-        verify(mBassClientService).getActiveSyncedSources(any());
-    }
-
-    @Test
     public void sendInvalidMessage_inConnectedState_doesNotChangeState() {
         initToConnectedState();
 
@@ -1744,87 +1589,6 @@ public class BassClientStateMachineTest {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
-    public void sendSelectBcastSourceMessage_inConnectedState() {
-        initToConnectedState();
-
-        byte[] scanRecord =
-                new byte[] {
-                    0x02,
-                    0x01,
-                    0x1a, // advertising flags
-                    0x05,
-                    0x02,
-                    0x52,
-                    0x18,
-                    0x0a,
-                    0x11, // 16 bit service uuids
-                    0x04,
-                    0x09,
-                    0x50,
-                    0x65,
-                    0x64, // name
-                    0x02,
-                    0x0A,
-                    (byte) 0xec, // tx power level
-                    0x05,
-                    0x30,
-                    0x54,
-                    0x65,
-                    0x73,
-                    0x74, // broadcast name: Test
-                    0x06,
-                    0x16,
-                    0x52,
-                    0x18,
-                    0x50,
-                    0x64,
-                    0x65, // service data
-                    0x08,
-                    0x16,
-                    0x56,
-                    0x18,
-                    0x07,
-                    0x03,
-                    0x06,
-                    0x07,
-                    0x08,
-                    // service data - public broadcast,
-                    // feature - 0x7, metadata len - 0x3, metadata - 0x6, 0x7, 0x8
-                    0x05,
-                    (byte) 0xff,
-                    (byte) 0xe0,
-                    0x00,
-                    0x02,
-                    0x15, // manufacturer specific data
-                    0x03,
-                    0x50,
-                    0x01,
-                    0x02, // an unknown data type won't cause trouble
-                };
-        ScanRecord record = ScanRecord.parseFromBytes(scanRecord);
-
-        doNothing()
-                .when(mMethodProxy)
-                .periodicAdvertisingManagerRegisterSync(
-                        any(), any(), anyInt(), anyInt(), any(), any());
-        ScanResult scanResult = new ScanResult(mTestDevice, 0, 0, 0, 0, 0, 0, 0, record, 0);
-        mBassClientStateMachine.sendMessage(SELECT_BCAST_SOURCE, BassConstants.AUTO, 0, scanResult);
-        TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
-        verify(mBassClientService)
-                .updatePeriodicAdvertisementResultMap(
-                        any(),
-                        anyInt(),
-                        anyInt(),
-                        anyInt(),
-                        anyInt(),
-                        anyInt(),
-                        any(),
-                        eq(TEST_BROADCAST_NAME));
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void sendAddBcastSourceMessage_inConnectedState() {
         initToConnectedState();
 
@@ -1855,19 +1619,6 @@ public class BassClientStateMachineTest {
         verify(scanControlPoint).setValue(any(byte[].class));
         verify(btGatt).writeCharacteristic(any());
         assertThat(mBassClientStateMachine.mPendingSourceToSwitch).isNull();
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
-    public void sendReachedMaxSourceLimitMessage_inConnectedState() {
-        initToConnectedState();
-        // need this to ensure expected mock behavior for getActiveSyncedSource
-        when(mBassClientService.getActiveSyncedSources(any())).thenReturn(null);
-
-        mBassClientStateMachine.sendMessage(REACHED_MAX_SOURCE_LIMIT);
-        TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
-        // verify getActiveSyncedSource got called in CancelActiveSync
-        verify(mBassClientService).getActiveSyncedSources(any());
     }
 
     @Test
@@ -2181,8 +1932,6 @@ public class BassClientStateMachineTest {
         // Mock instance of btGatt was created in initToConnectedProcessingState().
         BassClientStateMachine.BluetoothGattTestableWrapper btGatt =
                 mBassClientStateMachine.mBluetoothGatt;
-        // need this to ensure expected mock behavior for getActiveSyncedSource
-        when(mBassClientService.getActiveSyncedSources(any())).thenReturn(null);
 
         mBassClientStateMachine.mBluetoothGatt = null;
         mBassClientStateMachine.sendMessage(DISCONNECT);
@@ -2204,9 +1953,6 @@ public class BassClientStateMachineTest {
         Message msgToConnectedState =
                 mBassClientStateMachine.obtainMessage(CONNECTION_STATE_CHANGED);
         msgToConnectedState.obj = BluetoothProfile.STATE_CONNECTED;
-
-        // need this to ensure expected mock behavior for getActiveSyncedSource
-        when(mBassClientService.getActiveSyncedSources(any())).thenReturn(null);
 
         mBassClientStateMachine.sendMessage(msgToConnectedState);
         TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
@@ -2230,29 +1976,12 @@ public class BassClientStateMachineTest {
         initToConnectedProcessingState();
         BassClientService.Callbacks callbacks = Mockito.mock(BassClientService.Callbacks.class);
         when(mBassClientService.getCallbacks()).thenReturn(callbacks);
-        // need this to ensure expected mock behavior for getActiveSyncedSource
-        when(mBassClientService.getActiveSyncedSources(any())).thenReturn(null);
 
         // Test sendPendingCallbacks(START_SCAN_OFFLOAD, ERROR_UNKNOWN)
         mBassClientStateMachine.mPendingOperation = START_SCAN_OFFLOAD;
-        mBassClientStateMachine.mAutoTriggered = false;
         sendMessageAndVerifyTransition(
                 mBassClientStateMachine.obtainMessage(GATT_TXN_PROCESSED, GATT_FAILURE),
                 BassClientStateMachine.Connected.class);
-
-        if (!Flags.leaudioBroadcastExtractPeriodicScannerFromStateMachine()) {
-            // verify getActiveSyncedSource got called in CancelActiveSync
-            verify(mBassClientService).getActiveSyncedSources(any());
-
-            // Test sendPendingCallbacks(START_SCAN_OFFLOAD, ERROR_UNKNOWN)
-            moveConnectedStateToConnectedProcessingState();
-            mBassClientStateMachine.mPendingOperation = START_SCAN_OFFLOAD;
-            mBassClientStateMachine.mAutoTriggered = true;
-            sendMessageAndVerifyTransition(
-                    mBassClientStateMachine.obtainMessage(GATT_TXN_PROCESSED, GATT_FAILURE),
-                    BassClientStateMachine.Connected.class);
-            assertThat(mBassClientStateMachine.mAutoTriggered).isFalse();
-        }
 
         // Test sendPendingCallbacks(ADD_BCAST_SOURCE, ERROR_UNKNOWN)
         moveConnectedStateToConnectedProcessingState();
@@ -2262,17 +1991,6 @@ public class BassClientStateMachineTest {
                 mBassClientStateMachine.obtainMessage(GATT_TXN_PROCESSED, GATT_FAILURE),
                 BassClientStateMachine.Connected.class);
         verify(callbacks).notifySourceAddFailed(any(), any(), anyInt());
-
-        if (!Flags.leaudioBroadcastExtractPeriodicScannerFromStateMachine()) {
-            // Test sendPendingCallbacks(UPDATE_BCAST_SOURCE, REASON_LOCAL_APP_REQUEST)
-            moveConnectedStateToConnectedProcessingState();
-            mBassClientStateMachine.mPendingOperation = UPDATE_BCAST_SOURCE;
-            mBassClientStateMachine.mAutoTriggered = true;
-            sendMessageAndVerifyTransition(
-                    mBassClientStateMachine.obtainMessage(GATT_TXN_PROCESSED, GATT_SUCCESS),
-                    BassClientStateMachine.Connected.class);
-            assertThat(mBassClientStateMachine.mAutoTriggered).isFalse();
-        }
 
         // Test sendPendingCallbacks(UPDATE_BCAST_SOURCE, ERROR_UNKNOWN)
         moveConnectedStateToConnectedProcessingState();
@@ -2337,10 +2055,6 @@ public class BassClientStateMachineTest {
         TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
         assertThat(mBassClientStateMachine.hasDeferredMessagesSuper(STOP_SCAN_OFFLOAD)).isTrue();
 
-        mBassClientStateMachine.sendMessage(SELECT_BCAST_SOURCE);
-        TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
-        assertThat(mBassClientStateMachine.hasDeferredMessagesSuper(SELECT_BCAST_SOURCE)).isTrue();
-
         mBassClientStateMachine.sendMessage(ADD_BCAST_SOURCE);
         TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
         assertThat(mBassClientStateMachine.hasDeferredMessagesSuper(ADD_BCAST_SOURCE)).isTrue();
@@ -2352,15 +2066,6 @@ public class BassClientStateMachineTest {
         mBassClientStateMachine.sendMessage(REMOVE_BCAST_SOURCE);
         TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
         assertThat(mBassClientStateMachine.hasDeferredMessagesSuper(REMOVE_BCAST_SOURCE)).isTrue();
-
-        mBassClientStateMachine.sendMessage(PSYNC_ACTIVE_TIMEOUT);
-        TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
-        assertThat(mBassClientStateMachine.hasDeferredMessagesSuper(PSYNC_ACTIVE_TIMEOUT)).isTrue();
-
-        mBassClientStateMachine.sendMessage(REACHED_MAX_SOURCE_LIMIT);
-        TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
-        assertThat(mBassClientStateMachine.hasDeferredMessagesSuper(REACHED_MAX_SOURCE_LIMIT))
-                .isTrue();
 
         mBassClientStateMachine.sendMessage(SWITCH_BCAST_SOURCE);
         TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
@@ -2456,330 +2161,11 @@ public class BassClientStateMachineTest {
         verify(btGatt).writeCharacteristic(any());
     }
 
-    @Test
-    @DisableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
-    public void selectBcastSource_withSameBroadcastId() {
-        final int testSyncHandle = 1;
-        initToConnectedState();
-
-        byte[] scanRecord =
-                new byte[] {
-                    0x02,
-                    0x01,
-                    0x1a, // advertising flags
-                    0x05,
-                    0x02,
-                    0x52,
-                    0x18,
-                    0x0a,
-                    0x11, // 16 bit service uuids
-                    0x04,
-                    0x09,
-                    0x50,
-                    0x65,
-                    0x64, // name
-                    0x02,
-                    0x0A,
-                    (byte) 0xec, // tx power level
-                    0x05,
-                    0x30,
-                    0x54,
-                    0x65,
-                    0x73,
-                    0x74, // broadcast name: Test
-                    0x06,
-                    0x16,
-                    0x52,
-                    0x18,
-                    0x2A,
-                    0x00,
-                    0x00, // service data, broadcast id TEST_BROADCAST_ID
-                    0x08,
-                    0x16,
-                    0x56,
-                    0x18,
-                    0x07,
-                    0x03,
-                    0x06,
-                    0x07,
-                    0x08,
-                    // service data - public broadcast,
-                    // feature - 0x7, metadata len - 0x3, metadata - 0x6, 0x7, 0x8
-                    0x05,
-                    (byte) 0xff,
-                    (byte) 0xe0,
-                    0x00,
-                    0x02,
-                    0x15, // manufacturer specific data
-                    0x03,
-                    0x50,
-                    0x01,
-                    0x02, // an unknown data type won't cause trouble
-                };
-        ScanRecord record = ScanRecord.parseFromBytes(scanRecord);
-        ScanResult scanResult = new ScanResult(mTestDevice, 0, 0, 0, 0, 0, 0, 0, record, 0);
-
-        List<Integer> activeSyncedSrc = new ArrayList<>();
-        activeSyncedSrc.add(testSyncHandle);
-        // need this to ensure expected mock behavior for getActiveSyncedSource
-        when(mBassClientService.getActiveSyncedSources(any())).thenReturn(activeSyncedSrc);
-        when(mBassClientService.getSyncHandleForBroadcastId(anyInt())).thenReturn(testSyncHandle);
-        doNothing()
-                .when(mMethodProxy)
-                .periodicAdvertisingManagerRegisterSync(
-                        any(), any(), anyInt(), anyInt(), any(), any());
-
-        mBassClientStateMachine.sendMessage(SELECT_BCAST_SOURCE, BassConstants.AUTO, 0, scanResult);
-        TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
-        // validate syncing to the same broadcast id will be skipped
-        verify(mBassClientService, never())
-                .updatePeriodicAdvertisementResultMap(
-                        any(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), any(), any());
-
-        // need this to ensure expected mock behavior for getActiveSyncedSource
-        when(mBassClientService.getActiveSyncedSources(any())).thenReturn(null);
-
-        mBassClientStateMachine.sendMessage(SELECT_BCAST_SOURCE, BassConstants.AUTO, 0, scanResult);
-        TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
-        verify(mBassClientService)
-                .updatePeriodicAdvertisementResultMap(
-                        any(),
-                        anyInt(),
-                        anyInt(),
-                        anyInt(),
-                        anyInt(),
-                        anyInt(),
-                        any(),
-                        eq(TEST_BROADCAST_NAME));
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
-    public void addBcastSource_withCachedScanResults() {
-        initToConnectedState();
-
-        BassClientService.Callbacks callbacks = Mockito.mock(BassClientService.Callbacks.class);
-        when(mBassClientService.getCallbacks()).thenReturn(callbacks);
-
-        BluetoothLeBroadcastMetadata metadata = createBroadcastMetadata();
-        when(mBassClientService.isLocalBroadcast(any(BluetoothLeBroadcastMetadata.class)))
-                .thenReturn(false);
-        when(mBassClientService.getActiveSyncedSources(any())).thenReturn(null);
-        when(mBassClientService.getCachedBroadcast(anyInt())).thenReturn(null);
-        mBassClientStateMachine.sendMessage(ADD_BCAST_SOURCE, metadata);
-        TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
-
-        verify(mBassClientService).getCallbacks();
-        verify(callbacks).notifySourceAddFailed(any(), any(), anyInt());
-
-        byte[] scanRecord =
-                new byte[] {
-                    0x02,
-                    0x01,
-                    0x1a, // advertising flags
-                    0x05,
-                    0x02,
-                    0x52,
-                    0x18,
-                    0x0a,
-                    0x11, // 16 bit service uuids
-                    0x04,
-                    0x09,
-                    0x50,
-                    0x65,
-                    0x64, // name
-                    0x02,
-                    0x0A,
-                    (byte) 0xec, // tx power level
-                    0x05,
-                    0x30,
-                    0x54,
-                    0x65,
-                    0x73,
-                    0x74, // broadcast name: Test
-                    0x06,
-                    0x16,
-                    0x52,
-                    0x18,
-                    0x2A,
-                    0x00,
-                    0x00, // service data, broadcast id TEST_BROADCAST_ID
-                    0x08,
-                    0x16,
-                    0x56,
-                    0x18,
-                    0x07,
-                    0x03,
-                    0x06,
-                    0x07,
-                    0x08,
-                    // service data - public broadcast,
-                    // feature - 0x7, metadata len - 0x3, metadata - 0x6, 0x7, 0x8
-                    0x05,
-                    (byte) 0xff,
-                    (byte) 0xe0,
-                    0x00,
-                    0x02,
-                    0x15, // manufacturer specific data
-                    0x03,
-                    0x50,
-                    0x01,
-                    0x02, // an unknown data type won't cause trouble
-                };
-        ScanRecord record = ScanRecord.parseFromBytes(scanRecord);
-        ScanResult scanResult =
-                new ScanResult(
-                        mAdapter.getRemoteLeDevice(
-                                "00:11:22:33:44:55", BluetoothDevice.ADDRESS_TYPE_RANDOM),
-                        0,
-                        0,
-                        0,
-                        0,
-                        0,
-                        0,
-                        0,
-                        record,
-                        0);
-        when(mBassClientService.getCachedBroadcast(anyInt())).thenReturn(scanResult);
-        doNothing()
-                .when(mMethodProxy)
-                .periodicAdvertisingManagerRegisterSync(
-                        any(), any(), anyInt(), anyInt(), any(), any());
-        // validate add source will trigger select source and update mPendingSourceToAdd
-        mBassClientStateMachine.sendMessage(ADD_BCAST_SOURCE, metadata);
-        TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
-
-        verify(mMethodProxy, timeout(TIMEOUT_MS))
-                .periodicAdvertisingManagerRegisterSync(
-                        any(), any(), anyInt(), anyInt(), any(), any());
-        assertThat(mBassClientStateMachine.mPendingSourceToAdd).isEqualTo(metadata);
-        verify(mBassClientService, never()).sendBroadcast(any(Intent.class), anyString(), any());
-    }
-
     private void initToDisconnectedState() {
         allowConnection(true);
         allowConnectGatt(true);
         assertThat(mBassClientStateMachine.getCurrentState())
                 .isInstanceOf(BassClientStateMachine.Disconnected.class);
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
-    public void periodicAdvertisingCallbackOnSyncLost_notifySourceLost() {
-        PeriodicAdvertisingCallback cb = mBassClientStateMachine.mLocalPeriodicAdvCallback;
-        BassClientService.Callbacks callbacks = Mockito.mock(BassClientService.Callbacks.class);
-        int syncHandle = 1;
-        int broadcastId = 2;
-        when(mBassClientService.getBroadcastIdForSyncHandle(syncHandle)).thenReturn(broadcastId);
-        when(mBassClientService.getCallbacks()).thenReturn(callbacks);
-        cb.onSyncLost(syncHandle);
-
-        verify(callbacks).notifySourceLost(broadcastId);
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
-    public void periodicAdvertisingCallbackOnBigInfoAdvertisingReport_updateRssi() {
-        PeriodicAdvertisingCallback cb = mBassClientStateMachine.mLocalPeriodicAdvCallback;
-        BassClientService.Callbacks callbacks = Mockito.mock(BassClientService.Callbacks.class);
-        int testRssi = -40;
-        int syncHandle = 1;
-        final String testMacAddress = "00:11:22:33:44:55";
-        BluetoothDevice testDevice =
-                mAdapter.getRemoteLeDevice(testMacAddress, BluetoothDevice.ADDRESS_TYPE_RANDOM);
-
-        byte[] scanRecordWithBaseData =
-                new byte[] {
-                    (byte) 0x02,
-                    (byte) 0x01,
-                    (byte) 0x1a, // advertising flags
-                    (byte) 0x05,
-                    (byte) 0x02,
-                    (byte) 0x51,
-                    (byte) 0x18,
-                    (byte) 0x0a,
-                    (byte) 0x11, // 16 bit service uuids
-                    (byte) 0x04,
-                    (byte) 0x09,
-                    (byte) 0x50,
-                    (byte) 0x65,
-                    (byte) 0x64, // name
-                    (byte) 0x02,
-                    (byte) 0x0A,
-                    (byte) 0xec, // tx power level
-                    (byte) 0x19,
-                    (byte) 0x16,
-                    (byte) 0x51,
-                    (byte) 0x18, // service data (base data with 18 bytes)
-                    // LEVEL 1
-                    (byte) 0x01,
-                    (byte) 0x02,
-                    (byte) 0x03, // presentationDelay
-                    (byte) 0x01, // numSubGroups
-                    // LEVEL 2
-                    (byte) 0x01, // numSubGroups
-                    (byte) 0x00,
-                    (byte) 0x00,
-                    (byte) 0x00,
-                    (byte) 0x00,
-                    (byte) 0x00, // UNKNOWN_CODEC
-                    (byte) 0x02, // codecConfigLength
-                    (byte) 0x01,
-                    (byte) 'A', // codecConfigInfo
-                    (byte) 0x03, // metaDataLength
-                    (byte) 0x06,
-                    (byte) 0x07,
-                    (byte) 0x08, // metaData
-                    // LEVEL 3
-                    (byte) 0x04, // index
-                    (byte) 0x03, // codecConfigLength
-                    (byte) 0x02,
-                    (byte) 'B',
-                    (byte) 'C', // codecConfigInfo
-                    (byte) 0x05,
-                    (byte) 0xff,
-                    (byte) 0xe0,
-                    (byte) 0x00,
-                    (byte) 0x02,
-                    (byte) 0x15, // manufacturer specific data
-                    (byte) 0x03,
-                    (byte) 0x50,
-                    (byte) 0x01,
-                    (byte) 0x02, // an unknown data type won't cause trouble
-                };
-
-        ScanRecord record = ScanRecord.parseFromBytes(scanRecordWithBaseData);
-        ScanResult scanResult =
-                new ScanResult(
-                        mAdapter.getRemoteLeDevice(
-                                "00:11:22:33:44:55", BluetoothDevice.ADDRESS_TYPE_RANDOM),
-                        0,
-                        0,
-                        0,
-                        0,
-                        0,
-                        testRssi,
-                        0,
-                        record,
-                        0);
-        BaseData data =
-                BaseData.parseBaseData(record.getServiceData(BassConstants.BASIC_AUDIO_UUID));
-
-        when(mBassClientService.getDeviceForSyncHandle(syncHandle)).thenReturn(testDevice);
-        PeriodicAdvertisementResult paResult = Mockito.mock(PeriodicAdvertisementResult.class);
-        when(mBassClientService.getPeriodicAdvertisementResult(any(), anyInt()))
-                .thenReturn(paResult);
-        when(paResult.isNotified()).thenReturn(false);
-        when(mBassClientService.getBase(anyInt())).thenReturn(data);
-        when(mBassClientService.getCachedBroadcast(anyInt())).thenReturn(scanResult);
-        when(mBassClientService.getCallbacks()).thenReturn(callbacks);
-
-        cb.onBigInfoAdvertisingReport(syncHandle, true);
-        ArgumentCaptor<BluetoothLeBroadcastMetadata> metaData =
-                ArgumentCaptor.forClass(BluetoothLeBroadcastMetadata.class);
-        verify(callbacks).notifySourceFound(metaData.capture());
-
-        assertThat(metaData.getValue().getRssi()).isEqualTo(testRssi);
     }
 
     @Test
@@ -2924,7 +2310,6 @@ public class BassClientStateMachineTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void receiveSinkReceiveStateChange_logSyncMetricsWhenSyncNoPast() {
         prepareInitialReceiveStateForGatt();
 
@@ -2947,7 +2332,6 @@ public class BassClientStateMachineTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void receiveSinkReceiveStateChange_logSyncMetricsWhenBigEncryptFailed() {
         prepareInitialReceiveStateForGatt();
 
@@ -2970,7 +2354,6 @@ public class BassClientStateMachineTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void receiveSinkReceiveStateChange_logSyncMetricsWhenAudioSyncFailed() {
         prepareInitialReceiveStateForGatt();
 
@@ -2993,7 +2376,6 @@ public class BassClientStateMachineTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void receiveSinkReceiveStateChange_logSyncMetricsWhenSourceRemoved() {
         prepareInitialReceiveStateForGatt();
 
@@ -3030,7 +2412,6 @@ public class BassClientStateMachineTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void sinkDisconnected_logSyncMetricsWhenSourceRemoved() {
         prepareInitialReceiveStateForGatt();
 
@@ -3059,10 +2440,7 @@ public class BassClientStateMachineTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void sinkConnected_queueAddingSourceForReceiveStateReady() {
         mBassClientStateMachine.connectGatt(true);
         BluetoothGattCallback cb = mBassClientStateMachine.mGattCallback;
@@ -3093,7 +2471,6 @@ public class BassClientStateMachineTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void updateBroadcastSource_withoutMetadata() {
         int sourceId = 1;
         int paSync = BassConstants.PA_SYNC_DO_NOT_SYNC;
@@ -3127,7 +2504,6 @@ public class BassClientStateMachineTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void updateBroadcastSource_pendingSourceToRemove() {
         prepareInitialReceiveStateForGatt();
 
