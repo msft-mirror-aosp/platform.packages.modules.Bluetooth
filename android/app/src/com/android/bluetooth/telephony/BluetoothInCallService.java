@@ -20,6 +20,7 @@ import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.MODIFY_PHONE_STATE;
 
 import static java.util.Objects.requireNonNull;
+import static java.util.Objects.requireNonNullElseGet;
 
 import android.annotation.NonNull;
 import android.annotation.RequiresPermission;
@@ -364,7 +365,7 @@ public class BluetoothInCallService extends InCallService {
 
     private BluetoothInCallService(CallInfo callInfo) {
         Log.i(TAG, "BluetoothInCallService is created");
-        mCallInfo = Objects.requireNonNullElseGet(callInfo, () -> new CallInfo());
+        mCallInfo = requireNonNullElseGet(callInfo, () -> new CallInfo());
         mExecutor = Executors.newSingleThreadExecutor();
     }
 

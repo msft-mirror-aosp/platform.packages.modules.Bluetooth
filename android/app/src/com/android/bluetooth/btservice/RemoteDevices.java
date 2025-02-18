@@ -22,6 +22,8 @@ import static android.Manifest.permission.BLUETOOTH_SCAN;
 
 import static com.android.modules.utils.build.SdkLevel.isAtLeastV;
 
+import static java.util.Objects.requireNonNullElseGet;
+
 import android.annotation.RequiresPermission;
 import android.annotation.SuppressLint;
 import android.app.Activity;
@@ -63,7 +65,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
 
@@ -1323,7 +1324,7 @@ public class RemoteDevices {
         }
 
         final BluetoothDevice device =
-                Objects.requireNonNullElseGet(
+                requireNonNullElseGet(
                         getDevice(address),
                         () -> {
                             Log.w(
