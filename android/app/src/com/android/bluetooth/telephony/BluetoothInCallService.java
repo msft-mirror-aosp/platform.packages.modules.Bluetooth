@@ -389,15 +389,8 @@ public class BluetoothInCallService extends InCallService {
         return sInstance;
     }
 
-    @RequiresPermission(MODIFY_PHONE_STATE)
-    private void enforceModifyPermission() {
-        enforceCallingOrSelfPermission(MODIFY_PHONE_STATE, null);
-    }
-
-    @RequiresPermission(MODIFY_PHONE_STATE)
     public boolean answerCall() {
         synchronized (LOCK) {
-            enforceModifyPermission();
             Log.i(TAG, "BT - answering call");
             BluetoothCall call = mCallInfo.getRingingOrSimulatedRingingCall();
             if (mCallInfo.isNullCall(call)) {
@@ -408,10 +401,8 @@ public class BluetoothInCallService extends InCallService {
         }
     }
 
-    @RequiresPermission(MODIFY_PHONE_STATE)
     public boolean hangupCall() {
         synchronized (LOCK) {
-            enforceModifyPermission();
             Log.i(TAG, "BT - hanging up call");
             BluetoothCall call = mCallInfo.getForegroundCall();
             if (mCallInfo.isNullCall(call)) {
@@ -446,27 +437,22 @@ public class BluetoothInCallService extends InCallService {
         }
     }
 
-    @RequiresPermission(MODIFY_PHONE_STATE)
     public boolean sendDtmf(int dtmf) {
         synchronized (LOCK) {
-            enforceModifyPermission();
             Log.i(TAG, "BT - sendDtmf " + dtmf);
             BluetoothCall call = mCallInfo.getForegroundCall();
             if (mCallInfo.isNullCall(call)) {
                 return false;
             }
-            // TODO: Consider making this a queue instead of starting/stopping
-            // in quick succession.
+            // TODO: Consider making this a queue instead of starting/stopping in quick succession.
             call.playDtmfTone((char) dtmf);
             call.stopDtmfTone();
             return true;
         }
     }
 
-    @RequiresPermission(MODIFY_PHONE_STATE)
     public String getNetworkOperator() {
         synchronized (LOCK) {
-            enforceModifyPermission();
             Log.i(TAG, "getNetworkOperator");
             PhoneAccount account = mCallInfo.getBestPhoneAccount();
             if (account != null && account.getLabel() != null) {
@@ -482,10 +468,9 @@ public class BluetoothInCallService extends InCallService {
      *
      * @return bearer technology as defined in Bluetooth Assigned Numbers
      */
-    @RequiresPermission(MODIFY_PHONE_STATE)
-    public int getBearerTechnology() {
+    @VisibleForTesting
+    int getBearerTechnology() {
         synchronized (LOCK) {
-            enforceModifyPermission();
             Log.i(TAG, "getBearerTechnology");
             // Get the network name from telephony.
             int dataNetworkType = mTelephonyManager.getDataNetworkType();
@@ -533,10 +518,8 @@ public class BluetoothInCallService extends InCallService {
         }
     }
 
-    @RequiresPermission(MODIFY_PHONE_STATE)
     public String getSubscriberNumber() {
         synchronized (LOCK) {
-            enforceModifyPermission();
             Log.i(TAG, "getSubscriberNumber");
             String address = null;
             PhoneAccount account = mCallInfo.getBestPhoneAccount();
@@ -557,7 +540,6 @@ public class BluetoothInCallService extends InCallService {
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, MODIFY_PHONE_STATE})
     public boolean listCurrentCalls() {
         synchronized (LOCK) {
-            enforceModifyPermission();
             // only log if it is after we recently updated the headset state or else it can
             // clog the android log since this can be queried every second.
             boolean logQuery = mHeadsetUpdatedRecently;
@@ -575,7 +557,6 @@ public class BluetoothInCallService extends InCallService {
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, MODIFY_PHONE_STATE})
     public boolean queryPhoneState() {
         synchronized (LOCK) {
-            enforceModifyPermission();
             Log.i(TAG, "queryPhoneState");
             updateHeadsetWithCallState(true);
             return true;
@@ -615,10 +596,8 @@ public class BluetoothInCallService extends InCallService {
         return isHighDef;
     }
 
-    @RequiresPermission(MODIFY_PHONE_STATE)
     public boolean processChld(int chld) {
         synchronized (LOCK) {
-            enforceModifyPermission();
             final long token = Binder.clearCallingIdentity();
             try {
                 Log.i(TAG, "processChld " + chld);
@@ -1803,10 +1782,8 @@ public class BluetoothInCallService extends InCallService {
             new BluetoothLeCallControl.Callback() {
 
                 @Override
-                @RequiresPermission(MODIFY_PHONE_STATE)
                 public void onAcceptCall(int requestId, UUID callId) {
                     synchronized (LOCK) {
-                        enforceModifyPermission();
                         Log.i(TAG, "TBS - accept call=" + callId);
                         int result = BluetoothLeCallControl.RESULT_SUCCESS;
                         BluetoothCall call = mCallInfo.getCallByCallId(callId);
@@ -1820,10 +1797,8 @@ public class BluetoothInCallService extends InCallService {
                 }
 
                 @Override
-                @RequiresPermission(MODIFY_PHONE_STATE)
                 public void onTerminateCall(int requestId, UUID callId) {
                     synchronized (LOCK) {
-                        enforceModifyPermission();
                         Log.i(TAG, "TBS - terminate call=" + callId);
                         int result = BluetoothLeCallControl.RESULT_SUCCESS;
                         BluetoothCall call = mCallInfo.getCallByCallId(callId);
@@ -1838,10 +1813,8 @@ public class BluetoothInCallService extends InCallService {
                 }
 
                 @Override
-                @RequiresPermission(MODIFY_PHONE_STATE)
                 public void onHoldCall(int requestId, UUID callId) {
                     synchronized (LOCK) {
-                        enforceModifyPermission();
                         Log.i(TAG, "TBS - hold call=" + callId);
                         int result = BluetoothLeCallControl.RESULT_SUCCESS;
                         BluetoothCall call = mCallInfo.getCallByCallId(callId);
@@ -1855,10 +1828,8 @@ public class BluetoothInCallService extends InCallService {
                 }
 
                 @Override
-                @RequiresPermission(MODIFY_PHONE_STATE)
                 public void onUnholdCall(int requestId, UUID callId) {
                     synchronized (LOCK) {
-                        enforceModifyPermission();
                         Log.i(TAG, "TBS - unhold call=" + callId);
                         int result = BluetoothLeCallControl.RESULT_SUCCESS;
                         BluetoothCall call = mCallInfo.getCallByCallId(callId);
