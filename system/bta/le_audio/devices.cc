@@ -202,9 +202,18 @@ static uint32_t GetFirstRight(const AudioLocations& audio_locations) {
   return 0;
 }
 
-static uint32_t PickAudioLocation(types::LeAudioConfigurationStrategy strategy,
-                                  const AudioLocations& device_locations,
-                                  AudioLocations& group_locations) {
+static uint32_t PickAudioLocation(
+        types::LeAudioConfigurationStrategy strategy, uint8_t direction,
+        const types::BidirectionalPair<
+                std::optional<types::hdl_pair_wrapper<types::AudioLocations>>>&
+                device_audio_locations,
+        AudioLocations& group_locations) {
+  if (!device_audio_locations.get(direction)) {
+    log::error("No valid location is available for direction {}", +direction);
+    return 0;
+  }
+  auto const device_locations = device_audio_locations.get(direction)->value;
+
   log::debug("strategy: {}, locations: 0x{:x}, input group locations: 0x{:x}", (int)strategy,
              device_locations.to_ulong(), group_locations.to_ulong());
 
@@ -215,7 +224,9 @@ static uint32_t PickAudioLocation(types::LeAudioConfigurationStrategy strategy,
   uint32_t left_device_loc = GetFirstLeft(device_locations);
   uint32_t right_device_loc = GetFirstRight(device_locations);
 
-  if (left_device_loc == 0 && right_device_loc == 0) {
+  /* Sink locations should be either Left or Right - TMAP 1.0 Sec. 3.5.1.2.1 */
+  if (direction == le_audio::types::kLeAudioDirectionSink && left_device_loc == 0 &&
+      right_device_loc == 0) {
     log::warn("Can't find device able to render left  and right audio channel");
   }
 
@@ -244,15 +255,23 @@ static uint32_t PickAudioLocation(types::LeAudioConfigurationStrategy strategy,
       return 0;
   }
 
-  log::error(
-          "Can't find device for left/right channel. Strategy: {}, "
-          "device_locations: {:x}, output group_locations: {:x}.",
-          strategy, device_locations.to_ulong(), group_locations.to_ulong());
-
   /* Return either any left or any right audio location. It might result with
    * multiple devices within the group having the same location.
    */
-  return left_device_loc ? left_device_loc : right_device_loc;
+  auto location = left_device_loc ? left_device_loc : right_device_loc;
+
+  if (direction == le_audio::types::kLeAudioDirectionSink) {
+    log::error(
+            "Can't find device for left/right channel. Strategy: {}, device_locations: {:x}, "
+            "output group_locations: {:x}, chosen location: {}.",
+            strategy, device_locations.to_ulong(), group_locations.to_ulong(), location);
+  } else {
+    log::debug(
+            "No left or right audio location available. Strategy: {}, device_locations: {:x}, "
+            "output group_locations: {:x}, chosen location: {}.",
+            strategy, device_locations.to_ulong(), group_locations.to_ulong(), location);
+  }
+  return location;
 }
 
 bool LeAudioDevice::IsAudioSetConfigurationSupported(
@@ -414,7 +433,7 @@ bool LeAudioDevice::ConfigureAses(const types::AudioSetConfiguration* audio_set_
       /* Let's choose audio channel allocation if not set */
       ase->codec_config.params.Add(
               codec_spec_conf::kLeAudioLtvTypeAudioChannelAllocation,
-              PickAudioLocation(strategy, audio_locations, group_audio_locations_memo));
+              PickAudioLocation(strategy, direction, audio_locations_, group_audio_locations_memo));
 
       /* Get default value if no requirement for specific frame blocks per sdu
        */
