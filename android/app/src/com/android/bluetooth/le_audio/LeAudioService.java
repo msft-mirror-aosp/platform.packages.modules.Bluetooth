@@ -1942,7 +1942,7 @@ public class LeAudioService extends ProfileService {
                 Utils.getTempBroadcastOptions().toBundle());
     }
 
-    void sentActiveDeviceChangeIntent(BluetoothDevice device) {
+    void sendActiveDeviceChangeIntent(BluetoothDevice device) {
         Intent intent = new Intent(BluetoothLeAudio.ACTION_LE_AUDIO_ACTIVE_DEVICE_CHANGED);
         intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
         intent.addFlags(
@@ -1951,6 +1951,7 @@ public class LeAudioService extends ProfileService {
         createContextAsUser(UserHandle.ALL, /* flags= */ 0)
                 .sendBroadcastWithMultiplePermissions(
                         intent, new String[] {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED});
+        mExposedActiveDevice = device;
     }
 
     void notifyVolumeControlServiceAboutActiveGroup(BluetoothDevice device) {
@@ -1979,12 +1980,13 @@ public class LeAudioService extends ProfileService {
                 "Notify Active device changed."
                         + device
                         + ". Currently active device is "
-                        + mActiveAudioOutDevice);
+                        + mActiveAudioOutDevice
+                        + " Currently exposed device "
+                        + mExposedActiveDevice);
 
         mAdapterService.handleActiveDeviceChange(BluetoothProfile.LE_AUDIO, device);
-        sentActiveDeviceChangeIntent(device);
         notifyVolumeControlServiceAboutActiveGroup(device);
-        mExposedActiveDevice = device;
+        sendActiveDeviceChangeIntent(device);
     }
 
     boolean isAnyGroupDisabledFromAutoActiveMode() {
@@ -2556,7 +2558,7 @@ public class LeAudioService extends ProfileService {
                                 + groupId
                                 + ", exposedDevice: "
                                 + mExposedActiveDevice);
-                sentActiveDeviceChangeIntent(mExposedActiveDevice);
+                sendActiveDeviceChangeIntent(mExposedActiveDevice);
             }
             return true;
         }
