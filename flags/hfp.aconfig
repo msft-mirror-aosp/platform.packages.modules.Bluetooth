@@ -15,12 +15,6 @@ flag {
     bug: "315234036"
 }
 
-flag {
-    name: "retry_esco_with_zero_retransmission_effort"
-    namespace: "bluetooth"
-    description: "retry eSCO connection based on retransmission_effort"
-    bug: "316498257"
-}
 
 flag {
     name: "hfp_software_datapath"
