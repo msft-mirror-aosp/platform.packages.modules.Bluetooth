@@ -116,16 +116,6 @@ flag {
 }
 
 flag {
-    name: "leaudio_broadcast_destroy_after_timeout"
-    namespace: "bluetooth"
-    description: "Destroy broadcast if it fails to start in time"
-    bug: "332500141"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "leaudio_broadcast_volume_control_with_set_volume"
     namespace: "bluetooth"
     description: "Set broadcast sink volume with setVolume API"

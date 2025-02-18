@@ -5673,29 +5673,16 @@ public class LeAudioService extends ProfileService {
                     return;
                 }
 
-                if (Flags.leaudioBroadcastDestroyAfterTimeout()) {
-                    LeAudioBroadcastSessionStats sessionStats =
-                            mBroadcastSessionStats.get(mBroadcastId);
-                    if (sessionStats != null) {
-                        sessionStats.updateSessionStatus(
-                                BluetoothStatsLog
-                                        .BROADCAST_AUDIO_SESSION_REPORTED__SESSION_SETUP_STATUS__SETUP_STATUS_STREAMING_FAILED);
-                        // log once destroyed
-                    }
-                    transitionFromBroadcastToUnicast();
-                    destroyBroadcast(mBroadcastId);
-                } else {
-                    if (mActiveBroadcastAudioDevice != null) {
-                        updateBroadcastActiveDevice(null, mActiveBroadcastAudioDevice, false);
-                    }
-
-                    mHandler.post(
-                            () -> notifyBroadcastStartFailed(BluetoothStatusCodes.ERROR_TIMEOUT));
-                    logBroadcastSessionStatsWithStatus(
-                            mBroadcastId,
+                LeAudioBroadcastSessionStats sessionStats =
+                        mBroadcastSessionStats.get(mBroadcastId);
+                if (sessionStats != null) {
+                    sessionStats.updateSessionStatus(
                             BluetoothStatsLog
                                     .BROADCAST_AUDIO_SESSION_REPORTED__SESSION_SETUP_STATUS__SETUP_STATUS_STREAMING_FAILED);
+                    // log once destroyed
                 }
+                transitionFromBroadcastToUnicast();
+                destroyBroadcast(mBroadcastId);
             }
         }
     }
