@@ -135,3 +135,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "ignore_unselected_hid_transport_states"
+    namespace: "bluetooth"
+    description: "Ignore HID state transitions for transports that are not selected"
+    bug: "397460323"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
