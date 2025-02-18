@@ -631,7 +631,7 @@ static int out_resume(struct audio_stream_out* stream) {
   LOG(VERBOSE) << __func__ << ": state=" << out->bluetooth_output_->GetState()
                << ", resuming (start)";
   if (out->bluetooth_output_->GetState() == BluetoothStreamState::STANDBY) {
-    bool low_latency = out->is_low_latency_ && out->bt_dev_->support_low_latency_;
+    bool low_latency = out->bt_dev_->support_low_latency_;
     LOG(INFO) << __func__ << ": low_latency=" << low_latency
               << ", out->is_low_latency_=" << out->is_low_latency_
               << ", out->bt_dev_->support_low_latency_=" << out->bt_dev_->support_low_latency_;
