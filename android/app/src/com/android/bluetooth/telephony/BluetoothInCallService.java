@@ -58,6 +58,7 @@ import androidx.annotation.VisibleForTesting;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.hfp.BluetoothHeadsetProxy;
+import com.android.bluetooth.hfp.HeadsetService;
 import com.android.bluetooth.tbs.BluetoothLeCallControlProxy;
 
 import java.util.ArrayDeque;
@@ -537,8 +538,7 @@ public class BluetoothInCallService extends InCallService {
         }
     }
 
-    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, MODIFY_PHONE_STATE})
-    public boolean listCurrentCalls() {
+    public boolean listCurrentCalls(HeadsetService headsetService) {
         synchronized (LOCK) {
             // only log if it is after we recently updated the headset state or else it can
             // clog the android log since this can be queried every second.
@@ -549,7 +549,7 @@ public class BluetoothInCallService extends InCallService {
                 Log.i(TAG, "listcurrentCalls");
             }
 
-            sendListOfCalls(logQuery);
+            sendListOfCalls(headsetService, logQuery);
             return true;
         }
     }
@@ -827,8 +827,7 @@ public class BluetoothInCallService extends InCallService {
                         || call.getChildrenIds().isEmpty());
     }
 
-    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, MODIFY_PHONE_STATE})
-    private void sendListOfCalls(boolean shouldLog) {
+    private void sendListOfCalls(HeadsetService headsetService, boolean shouldLog) {
         Collection<BluetoothCall> calls = mCallInfo.getBluetoothCalls();
 
         // either do conference call CLCC index inference or normal conference call
@@ -924,7 +923,7 @@ public class BluetoothInCallService extends InCallService {
                                 (int) response[2],
                                 (boolean) response[4],
                                 (int) response[6]));
-                mBluetoothHeadset.clccResponse(
+                headsetService.clccResponse(
                         (int) response[0],
                         (int) response[1],
                         (int) response[2],
@@ -933,7 +932,7 @@ public class BluetoothInCallService extends InCallService {
                         (String) response[5],
                         (int) response[6]);
             }
-            sendClccEndMarker();
+            headsetService.clccResponse(0 /* index */, 0, 0, 0, false, null, 0); // End marker
             return;
         }
 
@@ -949,23 +948,15 @@ public class BluetoothInCallService extends InCallService {
                             + ", call.getChildrenIds() size "
                             + call.getChildrenIds().size());
             if (!call.isConference() || isConferenceWithNoChildren) {
-                sendClccForCall(call, shouldLog);
+                sendClccForCall(headsetService, call, shouldLog);
             }
         }
-        sendClccEndMarker();
-    }
-
-    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, MODIFY_PHONE_STATE})
-    private void sendClccEndMarker() {
-        // End marker is recognized with an index value of 0. All other parameters are ignored.
-        if (mBluetoothHeadset != null) {
-            mBluetoothHeadset.clccResponse(0 /* index */, 0, 0, 0, false, null, 0);
-        }
+        headsetService.clccResponse(0 /* index */, 0, 0, 0, false, null, 0); // End marker
     }
 
     /** Sends a single clcc (C* List Current Calls) event for the specified call. */
-    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, MODIFY_PHONE_STATE})
-    private void sendClccForCall(BluetoothCall call, boolean shouldLog) {
+    private void sendClccForCall(
+            HeadsetService headsetService, BluetoothCall call, boolean shouldLog) {
         boolean isForeground = call.equals(mCallInfo.getForegroundCall());
         int state = getBtCallState(call, isForeground);
         boolean isPartOfConference = false;
@@ -1058,23 +1049,8 @@ public class BluetoothInCallService extends InCallService {
                             + addressType);
         }
 
-        if (mBluetoothHeadset == null) {
-            Log.w(
-                    TAG,
-                    "mBluetoothHeasdset is null when sending clcc for BluetoothCall "
-                            + index
-                            + ", "
-                            + direction
-                            + ", "
-                            + state
-                            + ", "
-                            + isPartOfConference
-                            + ", "
-                            + addressType);
-        } else {
-            mBluetoothHeadset.clccResponse(
-                    index, direction, state, 0, isPartOfConference, address, addressType);
-        }
+        headsetService.clccResponse(
+                index, direction, state, 0, isPartOfConference, address, addressType);
     }
 
     int getNextAvailableClccIndex(int index) {

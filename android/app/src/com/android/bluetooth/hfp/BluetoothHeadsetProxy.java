@@ -48,12 +48,6 @@ public class BluetoothHeadsetProxy {
     }
 
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, MODIFY_PHONE_STATE})
-    public void clccResponse(
-            int index, int direction, int status, int mode, boolean mpty, String number, int type) {
-        mBluetoothHeadset.clccResponse(index, direction, status, mode, mpty, number, type);
-    }
-
-    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, MODIFY_PHONE_STATE})
     public void phoneStateChanged(
             int numActive, int numHeld, int callState, String number, int type, String name) {
         mBluetoothHeadset.phoneStateChanged(numActive, numHeld, callState, number, type, name);

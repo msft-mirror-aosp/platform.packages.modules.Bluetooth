@@ -52,6 +52,7 @@ import androidx.test.runner.AndroidJUnit4;
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.hfp.BluetoothHeadsetProxy;
+import com.android.bluetooth.hfp.HeadsetService;
 import com.android.bluetooth.tbs.BluetoothLeCallControlProxy;
 
 import org.junit.Before;
@@ -99,6 +100,7 @@ public class BluetoothInCallServiceTest {
     @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     @Mock private BluetoothHeadsetProxy mMockBluetoothHeadset;
+    @Mock private HeadsetService mHeadsetService;
     @Mock private BluetoothLeCallControlProxy mLeCallControl;
     @Mock private BluetoothInCallService.CallInfo mMockCallInfo;
 
@@ -211,19 +213,11 @@ public class BluetoothInCallServiceTest {
         doReturn(List.of(activeCall)).when(mMockCallInfo).getBluetoothCalls();
         mBluetoothInCallService.onCallAdded(activeCall);
 
-        clearInvocations(mMockBluetoothHeadset);
-        mBluetoothInCallService.listCurrentCalls();
+        mBluetoothInCallService.listCurrentCalls(mHeadsetService);
 
-        verify(mMockBluetoothHeadset)
-                .clccResponse(
-                        eq(1),
-                        eq(0),
-                        eq(0),
-                        eq(0),
-                        eq(false),
-                        eq("555000"),
-                        eq(PhoneNumberUtils.TOA_Unknown));
-        verify(mMockBluetoothHeadset).clccResponse(0, 0, 0, 0, false, null, 0);
+        verify(mHeadsetService)
+                .clccResponse(1, 0, 0, 0, false, "555000", PhoneNumberUtils.TOA_Unknown);
+        verify(mHeadsetService).clccResponse(0, 0, 0, 0, false, null, 0);
     }
 
     /**
@@ -272,19 +266,11 @@ public class BluetoothInCallServiceTest {
         doReturn(silentRingingCall).when(mMockCallInfo).getRingingOrSimulatedRingingCall();
         mBluetoothInCallService.onCallAdded(silentRingingCall);
 
-        clearInvocations(mMockBluetoothHeadset);
-        mBluetoothInCallService.listCurrentCalls();
+        mBluetoothInCallService.listCurrentCalls(mHeadsetService);
 
-        verify(mMockBluetoothHeadset, never())
-                .clccResponse(
-                        eq(1),
-                        eq(0),
-                        eq(0),
-                        eq(0),
-                        eq(false),
-                        eq("555000"),
-                        eq(PhoneNumberUtils.TOA_Unknown));
-        verify(mMockBluetoothHeadset).clccResponse(0, 0, 0, 0, false, null, 0);
+        verify(mHeadsetService, never())
+                .clccResponse(1, 0, 0, 0, false, "555000", PhoneNumberUtils.TOA_Unknown);
+        verify(mHeadsetService).clccResponse(0, 0, 0, 0, false, null, 0);
     }
 
     @Test
@@ -388,28 +374,15 @@ public class BluetoothInCallServiceTest {
         doReturn(parentId).when(heldCall).getParentId();
         doReturn(true).when(parentCall).hasProperty(Call.Details.PROPERTY_GENERIC_CONFERENCE);
 
-        clearInvocations(mMockBluetoothHeadset);
-        mBluetoothInCallService.listCurrentCalls();
+        mBluetoothInCallService.listCurrentCalls(mHeadsetService);
 
-        verify(mMockBluetoothHeadset)
+        verify(mHeadsetService)
                 .clccResponse(
-                        eq(1),
-                        eq(0),
-                        eq(CALL_STATE_ACTIVE),
-                        eq(0),
-                        eq(false),
-                        eq("5550001"),
-                        eq(PhoneNumberUtils.TOA_Unknown));
-        verify(mMockBluetoothHeadset)
+                        1, 0, CALL_STATE_ACTIVE, 0, false, "5550001", PhoneNumberUtils.TOA_Unknown);
+        verify(mHeadsetService)
                 .clccResponse(
-                        eq(2),
-                        eq(1),
-                        eq(CALL_STATE_HELD),
-                        eq(0),
-                        eq(false),
-                        eq("5550002"),
-                        eq(PhoneNumberUtils.TOA_Unknown));
-        verify(mMockBluetoothHeadset).clccResponse(0, 0, 0, 0, false, null, 0);
+                        2, 1, CALL_STATE_HELD, 0, false, "5550002", PhoneNumberUtils.TOA_Unknown);
+        verify(mHeadsetService).clccResponse(0, 0, 0, 0, false, null, 0);
     }
 
     @Test
@@ -445,28 +418,15 @@ public class BluetoothInCallServiceTest {
         doReturn(parentId).when(confCall2).getParentId();
         doReturn(true).when(parentCall).hasProperty(Call.Details.PROPERTY_GENERIC_CONFERENCE);
 
-        clearInvocations(mMockBluetoothHeadset);
-        mBluetoothInCallService.listCurrentCalls();
+        mBluetoothInCallService.listCurrentCalls(mHeadsetService);
 
-        verify(mMockBluetoothHeadset)
+        verify(mHeadsetService)
                 .clccResponse(
-                        eq(1),
-                        eq(0),
-                        eq(CALL_STATE_ACTIVE),
-                        eq(0),
-                        eq(true),
-                        eq("5550000"),
-                        eq(PhoneNumberUtils.TOA_Unknown));
-        verify(mMockBluetoothHeadset)
+                        1, 0, CALL_STATE_ACTIVE, 0, true, "5550000", PhoneNumberUtils.TOA_Unknown);
+        verify(mHeadsetService)
                 .clccResponse(
-                        eq(2),
-                        eq(1),
-                        eq(CALL_STATE_ACTIVE),
-                        eq(0),
-                        eq(true),
-                        eq("5550001"),
-                        eq(PhoneNumberUtils.TOA_Unknown));
-        verify(mMockBluetoothHeadset).clccResponse(0, 0, 0, 0, false, null, 0);
+                        2, 1, CALL_STATE_ACTIVE, 0, true, "5550001", PhoneNumberUtils.TOA_Unknown);
+        verify(mHeadsetService).clccResponse(0, 0, 0, 0, false, null, 0);
     }
 
     @Test
@@ -485,9 +445,8 @@ public class BluetoothInCallServiceTest {
         doReturn(Call.STATE_RINGING).when(waitingCall).getState();
         doReturn(Uri.parse("tel:555-0000")).when(waitingCall).getHandle();
 
-        clearInvocations(mMockBluetoothHeadset);
-        mBluetoothInCallService.listCurrentCalls();
-        verify(mMockBluetoothHeadset)
+        mBluetoothInCallService.listCurrentCalls(mHeadsetService);
+        verify(mHeadsetService)
                 .clccResponse(
                         1,
                         1,
@@ -496,8 +455,8 @@ public class BluetoothInCallServiceTest {
                         false,
                         "5550000",
                         PhoneNumberUtils.TOA_Unknown);
-        verify(mMockBluetoothHeadset).clccResponse(0, 0, 0, 0, false, null, 0);
-        verify(mMockBluetoothHeadset, times(2))
+        verify(mHeadsetService).clccResponse(0, 0, 0, 0, false, null, 0);
+        verify(mHeadsetService, times(2))
                 .clccResponse(
                         anyInt(),
                         anyInt(),
@@ -516,10 +475,9 @@ public class BluetoothInCallServiceTest {
 
         doReturn(Call.STATE_NEW).when(newCall).getState();
 
-        clearInvocations(mMockBluetoothHeadset);
-        mBluetoothInCallService.listCurrentCalls();
-        verify(mMockBluetoothHeadset).clccResponse(0, 0, 0, 0, false, null, 0);
-        verify(mMockBluetoothHeadset)
+        mBluetoothInCallService.listCurrentCalls(mHeadsetService);
+        verify(mHeadsetService).clccResponse(0, 0, 0, 0, false, null, 0);
+        verify(mHeadsetService)
                 .clccResponse(
                         anyInt(),
                         anyInt(),
@@ -546,9 +504,8 @@ public class BluetoothInCallServiceTest {
                 .when(activeCall)
                 .getGatewayInfo();
 
-        clearInvocations(mMockBluetoothHeadset);
-        mBluetoothInCallService.listCurrentCalls();
-        verify(mMockBluetoothHeadset)
+        mBluetoothInCallService.listCurrentCalls(mHeadsetService);
+        verify(mHeadsetService)
                 .clccResponse(
                         1,
                         1,
@@ -560,10 +517,10 @@ public class BluetoothInCallServiceTest {
 
         // call handle changed
         doReturn(Uri.parse("tel:213-555-0000")).when(activeCall).getHandle();
-        clearInvocations(mMockBluetoothHeadset);
+        clearInvocations(mHeadsetService);
         Log.w(TAG, "call handle" + Uri.parse("tel:213-555-0000"));
-        mBluetoothInCallService.listCurrentCalls();
-        verify(mMockBluetoothHeadset)
+        mBluetoothInCallService.listCurrentCalls(mHeadsetService);
+        verify(mHeadsetService)
                 .clccResponse(
                         1,
                         1,
@@ -587,9 +544,8 @@ public class BluetoothInCallServiceTest {
                 .when(ringingCall)
                 .getGatewayInfo();
 
-        clearInvocations(mMockBluetoothHeadset);
-        mBluetoothInCallService.listCurrentCalls();
-        verify(mMockBluetoothHeadset)
+        mBluetoothInCallService.listCurrentCalls(mHeadsetService);
+        verify(mHeadsetService)
                 .clccResponse(
                         1,
                         1,
@@ -598,8 +554,8 @@ public class BluetoothInCallServiceTest {
                         false,
                         "5550000",
                         PhoneNumberUtils.TOA_Unknown);
-        verify(mMockBluetoothHeadset).clccResponse(0, 0, 0, 0, false, null, 0);
-        verify(mMockBluetoothHeadset, times(2))
+        verify(mHeadsetService).clccResponse(0, 0, 0, 0, false, null, 0);
+        verify(mHeadsetService, times(2))
                 .clccResponse(
                         anyInt(),
                         anyInt(),
@@ -626,8 +582,8 @@ public class BluetoothInCallServiceTest {
                 .getGatewayInfo();
 
         clearInvocations(mMockBluetoothHeadset);
-        mBluetoothInCallService.listCurrentCalls();
-        verify(mMockBluetoothHeadset)
+        mBluetoothInCallService.listCurrentCalls(mHeadsetService);
+        verify(mHeadsetService)
                 .clccResponse(
                         1,
                         1,
@@ -650,14 +606,14 @@ public class BluetoothInCallServiceTest {
                 .when(newHoldingCall)
                 .getGatewayInfo();
 
-        mBluetoothInCallService.listCurrentCalls();
-        verify(mMockBluetoothHeadset)
+        mBluetoothInCallService.listCurrentCalls(mHeadsetService);
+        verify(mHeadsetService)
                 .clccResponse(
                         1, 1, CALL_STATE_ACTIVE, 0, false, "5550000", PhoneNumberUtils.TOA_Unknown);
-        verify(mMockBluetoothHeadset)
+        verify(mHeadsetService)
                 .clccResponse(
                         2, 1, CALL_STATE_HELD, 0, false, "5550001", PhoneNumberUtils.TOA_Unknown);
-        verify(mMockBluetoothHeadset, times(2)).clccResponse(0, 0, 0, 0, false, null, 0);
+        verify(mHeadsetService, times(2)).clccResponse(0, 0, 0, 0, false, null, 0);
     }
 
     @Test
@@ -673,8 +629,8 @@ public class BluetoothInCallServiceTest {
                 .getGatewayInfo();
 
         clearInvocations(mMockBluetoothHeadset);
-        mBluetoothInCallService.listCurrentCalls();
-        verify(mMockBluetoothHeadset)
+        mBluetoothInCallService.listCurrentCalls(mHeadsetService);
+        verify(mHeadsetService)
                 .clccResponse(
                         1,
                         0,
@@ -683,8 +639,8 @@ public class BluetoothInCallServiceTest {
                         false,
                         "5550000",
                         PhoneNumberUtils.TOA_Unknown);
-        verify(mMockBluetoothHeadset).clccResponse(0, 0, 0, 0, false, null, 0);
-        verify(mMockBluetoothHeadset, times(2))
+        verify(mHeadsetService).clccResponse(0, 0, 0, 0, false, null, 0);
+        verify(mHeadsetService, times(2))
                 .clccResponse(
                         anyInt(),
                         anyInt(),
@@ -720,8 +676,8 @@ public class BluetoothInCallServiceTest {
                 .getGatewayInfo();
 
         clearInvocations(mMockBluetoothHeadset);
-        mBluetoothInCallService.listCurrentCalls();
-        verify(mMockBluetoothHeadset)
+        mBluetoothInCallService.listCurrentCalls(mHeadsetService);
+        verify(mHeadsetService)
                 .clccResponse(
                         1,
                         0,
@@ -730,11 +686,11 @@ public class BluetoothInCallServiceTest {
                         false,
                         "5550000",
                         PhoneNumberUtils.TOA_Unknown);
-        verify(mMockBluetoothHeadset)
+        verify(mHeadsetService)
                 .clccResponse(
                         2, 1, CALL_STATE_HELD, 0, false, "5550001", PhoneNumberUtils.TOA_Unknown);
-        verify(mMockBluetoothHeadset).clccResponse(0, 0, 0, 0, false, null, 0);
-        verify(mMockBluetoothHeadset, times(3))
+        verify(mHeadsetService).clccResponse(0, 0, 0, 0, false, null, 0);
+        verify(mHeadsetService, times(3))
                 .clccResponse(
                         anyInt(),
                         anyInt(),
@@ -759,18 +715,10 @@ public class BluetoothInCallServiceTest {
         mBluetoothInCallService.onCallAdded(parentCall);
 
         clearInvocations(mMockBluetoothHeadset);
-        mBluetoothInCallService.listCurrentCalls();
+        mBluetoothInCallService.listCurrentCalls(mHeadsetService);
 
-        verify(mMockBluetoothHeadset)
-                .clccResponse(
-                        eq(1),
-                        eq(1),
-                        eq(CALL_STATE_ACTIVE),
-                        eq(0),
-                        eq(true),
-                        eq("5550000"),
-                        eq(129));
-        verify(mMockBluetoothHeadset).clccResponse(0, 0, 0, 0, false, null, 0);
+        verify(mHeadsetService).clccResponse(1, 1, CALL_STATE_ACTIVE, 0, true, "5550000", 129);
+        verify(mHeadsetService).clccResponse(0, 0, 0, 0, false, null, 0);
     }
 
     @Test
@@ -804,27 +752,15 @@ public class BluetoothInCallServiceTest {
         doReturn(true).when(parentCall).isIncoming();
 
         clearInvocations(mMockBluetoothHeadset);
-        mBluetoothInCallService.listCurrentCalls();
+        mBluetoothInCallService.listCurrentCalls(mHeadsetService);
 
-        verify(mMockBluetoothHeadset)
+        verify(mHeadsetService)
                 .clccResponse(
-                        eq(1),
-                        eq(0),
-                        eq(CALL_STATE_HELD),
-                        eq(0),
-                        eq(true),
-                        eq("5550001"),
-                        eq(PhoneNumberUtils.TOA_Unknown));
-        verify(mMockBluetoothHeadset)
+                        1, 0, CALL_STATE_HELD, 0, true, "5550001", PhoneNumberUtils.TOA_Unknown);
+        verify(mHeadsetService)
                 .clccResponse(
-                        eq(2),
-                        eq(0),
-                        eq(CALL_STATE_HELD),
-                        eq(0),
-                        eq(true),
-                        eq("5550002"),
-                        eq(PhoneNumberUtils.TOA_Unknown));
-        verify(mMockBluetoothHeadset).clccResponse(0, 0, 0, 0, false, null, 0);
+                        2, 0, CALL_STATE_HELD, 0, true, "5550002", PhoneNumberUtils.TOA_Unknown);
+        verify(mHeadsetService).clccResponse(0, 0, 0, 0, false, null, 0);
     }
 
     @Test
@@ -842,9 +778,8 @@ public class BluetoothInCallServiceTest {
         mBluetoothInCallService.onCallAdded(conferenceCall);
 
         clearInvocations(mMockBluetoothHeadset);
-        mBluetoothInCallService.listCurrentCalls();
-        verify(mMockBluetoothHeadset)
-                .clccResponse(eq(1), eq(1), eq(0), eq(0), eq(true), eq("5551234"), eq(129));
+        mBluetoothInCallService.listCurrentCalls(mHeadsetService);
+        verify(mHeadsetService).clccResponse(1, 1, 0, 0, true, "5551234", 129);
     }
 
     @Test
@@ -879,11 +814,11 @@ public class BluetoothInCallServiceTest {
 
         // needs to have at least one CLCC response before merge to enable call inference
         clearInvocations(mMockBluetoothHeadset);
-        mBluetoothInCallService.listCurrentCalls();
-        verify(mMockBluetoothHeadset)
+        mBluetoothInCallService.listCurrentCalls(mHeadsetService);
+        verify(mHeadsetService)
                 .clccResponse(
                         1, 0, CALL_STATE_ACTIVE, 0, false, "5550001", PhoneNumberUtils.TOA_Unknown);
-        verify(mMockBluetoothHeadset)
+        verify(mHeadsetService)
                 .clccResponse(
                         2, 1, CALL_STATE_HELD, 0, false, "5550002", PhoneNumberUtils.TOA_Unknown);
         calls.clear();
@@ -911,11 +846,11 @@ public class BluetoothInCallServiceTest {
         mBluetoothInCallService.onCallAdded(conferenceCall);
 
         clearInvocations(mMockBluetoothHeadset);
-        mBluetoothInCallService.listCurrentCalls();
-        verify(mMockBluetoothHeadset)
+        mBluetoothInCallService.listCurrentCalls(mHeadsetService);
+        verify(mHeadsetService)
                 .clccResponse(
                         1, 0, CALL_STATE_ACTIVE, 0, true, "5550001", PhoneNumberUtils.TOA_Unknown);
-        verify(mMockBluetoothHeadset)
+        verify(mHeadsetService)
                 .clccResponse(
                         2, 1, CALL_STATE_ACTIVE, 0, true, "5550002", PhoneNumberUtils.TOA_Unknown);
 
@@ -929,12 +864,12 @@ public class BluetoothInCallServiceTest {
         doReturn(true).when(holdingCall).isConference();
         doReturn(List.of(1, 2)).when(conferenceCall).getChildrenIds();
 
-        clearInvocations(mMockBluetoothHeadset);
-        mBluetoothInCallService.listCurrentCalls();
-        verify(mMockBluetoothHeadset)
+        clearInvocations(mHeadsetService);
+        mBluetoothInCallService.listCurrentCalls(mHeadsetService);
+        verify(mHeadsetService)
                 .clccResponse(
                         1, 0, CALL_STATE_ACTIVE, 0, true, "5550001", PhoneNumberUtils.TOA_Unknown);
-        verify(mMockBluetoothHeadset)
+        verify(mHeadsetService)
                 .clccResponse(
                         2, 1, CALL_STATE_ACTIVE, 0, true, "5550002", PhoneNumberUtils.TOA_Unknown);
 
@@ -948,36 +883,18 @@ public class BluetoothInCallServiceTest {
         calls.remove(holdingCall);
         assertThat(calls).hasSize(1);
 
-        clearInvocations(mMockBluetoothHeadset);
-        mBluetoothInCallService.listCurrentCalls();
-        verify(mMockBluetoothHeadset).clccResponse(0, 0, 0, 0, false, null, 0);
-        verify(mMockBluetoothHeadset)
-                .clccResponse(
-                        anyInt(),
-                        anyInt(),
-                        anyInt(),
-                        anyInt(),
-                        anyBoolean(),
-                        nullable(String.class),
-                        anyInt());
+        clearInvocations(mHeadsetService);
+        mBluetoothInCallService.listCurrentCalls(mHeadsetService);
+        verify(mHeadsetService).clccResponse(0, 0, 0, 0, false, null, 0);
 
         // when parent is removed
         doReturn(cause).when(conferenceCall).getDisconnectCause();
         calls.remove(conferenceCall);
         mBluetoothInCallService.onCallRemoved(conferenceCall, true);
 
-        clearInvocations(mMockBluetoothHeadset);
-        mBluetoothInCallService.listCurrentCalls();
-        verify(mMockBluetoothHeadset).clccResponse(0, 0, 0, 0, false, null, 0);
-        verify(mMockBluetoothHeadset)
-                .clccResponse(
-                        anyInt(),
-                        anyInt(),
-                        anyInt(),
-                        anyInt(),
-                        anyBoolean(),
-                        nullable(String.class),
-                        anyInt());
+        clearInvocations(mHeadsetService);
+        mBluetoothInCallService.listCurrentCalls(mHeadsetService);
+        verify(mHeadsetService).clccResponse(0, 0, 0, 0, false, null, 0);
     }
 
     @Test
@@ -1081,12 +998,12 @@ public class BluetoothInCallServiceTest {
                 .getGatewayInfo();
 
         // needs to have at least one CLCC response before merge to enable call inference
-        clearInvocations(mMockBluetoothHeadset);
-        mBluetoothInCallService.listCurrentCalls();
-        verify(mMockBluetoothHeadset)
+        clearInvocations(mHeadsetService);
+        mBluetoothInCallService.listCurrentCalls(mHeadsetService);
+        verify(mHeadsetService)
                 .clccResponse(
                         1, 0, CALL_STATE_ACTIVE, 0, false, "5550001", PhoneNumberUtils.TOA_Unknown);
-        verify(mMockBluetoothHeadset)
+        verify(mHeadsetService)
                 .clccResponse(
                         2, 1, CALL_STATE_HELD, 0, false, "5550002", PhoneNumberUtils.TOA_Unknown);
         calls.clear();
@@ -1114,12 +1031,12 @@ public class BluetoothInCallServiceTest {
         assertThat(calls).hasSize(1);
         mBluetoothInCallService.onCallAdded(conferenceCall);
 
-        clearInvocations(mMockBluetoothHeadset);
-        mBluetoothInCallService.listCurrentCalls();
-        verify(mMockBluetoothHeadset)
+        clearInvocations(mHeadsetService);
+        mBluetoothInCallService.listCurrentCalls(mHeadsetService);
+        verify(mHeadsetService)
                 .clccResponse(
                         1, 0, CALL_STATE_ACTIVE, 0, true, "5550001", PhoneNumberUtils.TOA_Unknown);
-        verify(mMockBluetoothHeadset)
+        verify(mHeadsetService)
                 .clccResponse(
                         2, 1, CALL_STATE_ACTIVE, 0, true, "5550002", PhoneNumberUtils.TOA_Unknown);
 
@@ -1133,12 +1050,12 @@ public class BluetoothInCallServiceTest {
         doReturn(true).when(activeCall_2).isConference();
         doReturn(List.of(1, 2)).when(conferenceCall).getChildrenIds();
 
-        clearInvocations(mMockBluetoothHeadset);
-        mBluetoothInCallService.listCurrentCalls();
-        verify(mMockBluetoothHeadset)
+        clearInvocations(mHeadsetService);
+        mBluetoothInCallService.listCurrentCalls(mHeadsetService);
+        verify(mHeadsetService)
                 .clccResponse(
                         1, 0, CALL_STATE_ACTIVE, 0, true, "5550001", PhoneNumberUtils.TOA_Unknown);
-        verify(mMockBluetoothHeadset)
+        verify(mHeadsetService)
                 .clccResponse(
                         2, 1, CALL_STATE_ACTIVE, 0, true, "5550002", PhoneNumberUtils.TOA_Unknown);
 
@@ -1156,11 +1073,11 @@ public class BluetoothInCallServiceTest {
         mBluetoothInCallService.onCallRemoved(activeCall_2, true);
         doReturn(false).when(activeCall_2).isConference();
 
-        clearInvocations(mMockBluetoothHeadset);
-        mBluetoothInCallService.listCurrentCalls();
+        clearInvocations(mHeadsetService);
+        mBluetoothInCallService.listCurrentCalls(mHeadsetService);
 
         // Index 2 is retained
-        verify(mMockBluetoothHeadset)
+        verify(mHeadsetService)
                 .clccResponse(
                         2, 1, CALL_STATE_ACTIVE, 0, false, "5550002", PhoneNumberUtils.TOA_Unknown);
     }
