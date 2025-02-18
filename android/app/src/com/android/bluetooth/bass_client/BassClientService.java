@@ -173,7 +173,7 @@ public class BassClientService extends ProfileService {
     private final Map<BluetoothDevice, List<Integer>> mActiveSourceMap = new ConcurrentHashMap<>();
     private final Map<BluetoothDevice, Map<Integer, BluetoothLeBroadcastMetadata>>
             mBroadcastMetadataMap = new ConcurrentHashMap<>();
-    private final HashSet<BluetoothDevice> mPausedBroadcastSinks = new HashSet<>();
+    private final Set<BluetoothDevice> mPausedBroadcastSinks = ConcurrentHashMap.newKeySet();
     private final Map<BluetoothDevice, Pair<Integer, Integer>> mSinksWaitingForPast =
             new HashMap<>();
     private final Map<Integer, PauseType> mPausedBroadcastIds = new HashMap<>();
