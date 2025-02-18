@@ -2572,16 +2572,14 @@ public class LeAudioService extends ProfileService {
             return false;
         }
 
-        if (Flags.leaudioGettingActiveStateSupport()) {
-            mGroupReadLock.lock();
-            try {
-                LeAudioGroupDescriptor descriptor = mGroupDescriptorsView.get(groupId);
-                if (descriptor != null) {
-                    descriptor.setActiveState(ACTIVE_STATE_GETTING_ACTIVE);
-                }
-            } finally {
-                mGroupReadLock.unlock();
+        mGroupReadLock.lock();
+        try {
+            LeAudioGroupDescriptor descriptor = mGroupDescriptorsView.get(groupId);
+            if (descriptor != null) {
+                descriptor.setActiveState(ACTIVE_STATE_GETTING_ACTIVE);
             }
+        } finally {
+            mGroupReadLock.unlock();
         }
 
         mNativeInterface.groupSetActive(groupId);
@@ -3715,51 +3713,47 @@ public class LeAudioService extends ProfileService {
                     }
                 case LeAudioStackEvent.GROUP_STATUS_INACTIVE:
                     {
-                        if (Flags.leaudioGettingActiveStateSupport()) {
-                            LeAudioGroupDescriptor descriptor = getGroupDescriptor(groupId);
-                            if (descriptor == null) {
-                                Log.e(
-                                        TAG,
-                                        "deviceDisconnected: no descriptors for group: " + groupId);
-                                return;
-                            }
+                        LeAudioGroupDescriptor descriptor = getGroupDescriptor(groupId);
+                        if (descriptor == null) {
+                            Log.e(
+                                    TAG,
+                                    "deviceDisconnected: no descriptors for group: " + groupId);
+                            return;
+                        }
 
-                            if (descriptor.isActive()) {
-                                handleGroupTransitToInactive(groupId);
-                            }
+                        if (descriptor.isActive()) {
+                            handleGroupTransitToInactive(groupId);
+                        }
 
-                            descriptor.setActiveState(ACTIVE_STATE_INACTIVE);
+                        descriptor.setActiveState(ACTIVE_STATE_INACTIVE);
 
-                            /* In case if group is inactivated due to switch to other */
-                            Integer gettingActiveGroupId = getFirstGroupIdInGettingActiveState();
-                            if (gettingActiveGroupId != LE_AUDIO_GROUP_ID_INVALID) {
-                                if (leaudioAllowedContextMask()) {
-                                    /* Context were modified, apply mask to activating group */
-                                    if (descriptor.areAllowedContextsModified()) {
-                                        setGroupAllowedContextMask(
-                                                gettingActiveGroupId,
-                                                descriptor.getAllowedSinkContexts(),
-                                                descriptor.getAllowedSourceContexts());
-                                        setGroupAllowedContextMask(
-                                                groupId,
-                                                BluetoothLeAudio.CONTEXTS_ALL,
-                                                BluetoothLeAudio.CONTEXTS_ALL);
-                                    }
-                                }
-                                break;
-                            }
-
+                        /* In case if group is inactivated due to switch to other */
+                        Integer gettingActiveGroupId = getFirstGroupIdInGettingActiveState();
+                        if (gettingActiveGroupId != LE_AUDIO_GROUP_ID_INVALID) {
                             if (leaudioAllowedContextMask()) {
-                                /* Clear allowed context mask if there is no switch of group */
+                                /* Context were modified, apply mask to activating group */
                                 if (descriptor.areAllowedContextsModified()) {
+                                    setGroupAllowedContextMask(
+                                            gettingActiveGroupId,
+                                            descriptor.getAllowedSinkContexts(),
+                                            descriptor.getAllowedSourceContexts());
                                     setGroupAllowedContextMask(
                                             groupId,
                                             BluetoothLeAudio.CONTEXTS_ALL,
                                             BluetoothLeAudio.CONTEXTS_ALL);
                                 }
                             }
-                        } else {
-                            handleGroupTransitToInactive(groupId);
+                            break;
+                        }
+
+                        if (leaudioAllowedContextMask()) {
+                            /* Clear allowed context mask if there is no switch of group */
+                            if (descriptor.areAllowedContextsModified()) {
+                                setGroupAllowedContextMask(
+                                        groupId,
+                                        BluetoothLeAudio.CONTEXTS_ALL,
+                                        BluetoothLeAudio.CONTEXTS_ALL);
+                            }
                         }
 
                         if (isBroadcastAllowedToBeActivateInCurrentAudioMode()) {
