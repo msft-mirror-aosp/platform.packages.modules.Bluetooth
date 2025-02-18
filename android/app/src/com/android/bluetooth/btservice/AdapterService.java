@@ -1582,7 +1582,6 @@ public class AdapterService extends Service {
             Log.d(TAG, logHdr + " stopping profile");
             profileService.setAvailable(false);
             onProfileServiceStateChanged(profileService, BluetoothAdapter.STATE_OFF);
-            profileService.stop();
             removeProfile(profileService);
             profileService.cleanup();
             if (profileService.getBinder() != null) {
