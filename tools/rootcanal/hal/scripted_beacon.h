@@ -21,7 +21,7 @@
 #include <vector>
 
 #include "model/devices/beacon.h"
-#include "model/devices/scripted_beacon_ble_payload.pb.h"
+#include "scripted_beacon_ble_payload.pb.h"
 
 using android::bluetooth::rootcanal::model::devices::ScriptedBeaconBleAdProto::PlaybackEvent;
 
