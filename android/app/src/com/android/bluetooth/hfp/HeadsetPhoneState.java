@@ -70,8 +70,13 @@ public class HeadsetPhoneState {
 
     private final HashMap<BluetoothDevice, Integer> mDeviceEventMap = new HashMap<>();
     private PhoneStateListener mPhoneStateListener;
-    private final OnSubscriptionsChangedListener mOnSubscriptionsChangedListener;
-    private SignalStrengthUpdateRequest mSignalStrengthUpdateRequest;
+    private final OnSubscriptionsChangedListener mOnSubscriptionsChangedListener =
+            new HeadsetPhoneStateOnSubscriptionChangedListener();
+    private final SignalStrengthUpdateRequest mSignalStrengthUpdateRequest =
+            new SignalStrengthUpdateRequest.Builder()
+                    .setSignalThresholdInfos(Collections.EMPTY_LIST)
+                    .setSystemThresholdReportingRequestedWhileIdle(true)
+                    .build();
     private final Object mPhoneStateListenerLock = new Object();
 
     HeadsetPhoneState(HeadsetService headsetService) {
@@ -84,14 +89,8 @@ public class HeadsetPhoneState {
 
         // Initialize subscription on the handler thread
         mHandler = new Handler(headsetService.getStateMachinesThreadLooper());
-        mOnSubscriptionsChangedListener = new HeadsetPhoneStateOnSubscriptionChangedListener();
         mSubscriptionManager.addOnSubscriptionsChangedListener(
-                command -> mHandler.post(command), mOnSubscriptionsChangedListener);
-        mSignalStrengthUpdateRequest =
-                new SignalStrengthUpdateRequest.Builder()
-                        .setSignalThresholdInfos(Collections.EMPTY_LIST)
-                        .setSystemThresholdReportingRequestedWhileIdle(true)
-                        .build();
+                mHandler::post, mOnSubscriptionsChangedListener);
     }
 
     /** Cleanup this instance. Instance can no longer be used after calling this method. */
@@ -172,7 +171,7 @@ public class HeadsetPhoneState {
                 return;
             }
             Log.i(TAG, "startListenForPhoneState(), subId=" + subId + ", enabled_events=" + events);
-            mPhoneStateListener = new HeadsetPhoneStateListener(command -> mHandler.post(command));
+            mPhoneStateListener = new HeadsetPhoneStateListener(mHandler::post);
             mTelephonyManager.listen(mPhoneStateListener, events);
             if ((events & PhoneStateListener.LISTEN_SIGNAL_STRENGTHS) != 0) {
                 mTelephonyManager.setSignalStrengthUpdateRequest(mSignalStrengthUpdateRequest);
@@ -282,10 +281,6 @@ public class HeadsetPhoneState {
     @SuppressLint("AndroidFrameworkRequiresPermission")
     private class HeadsetPhoneStateOnSubscriptionChangedListener
             extends OnSubscriptionsChangedListener {
-        HeadsetPhoneStateOnSubscriptionChangedListener() {
-            super();
-        }
-
         @Override
         public void onSubscriptionsChanged() {
             synchronized (mDeviceEventMap) {
