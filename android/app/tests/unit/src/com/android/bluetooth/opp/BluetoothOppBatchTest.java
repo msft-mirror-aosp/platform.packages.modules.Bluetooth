@@ -16,8 +16,6 @@
 
 package com.android.bluetooth.opp;
 
-import static com.android.bluetooth.TestUtils.MockitoRule;
-
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.any;
@@ -33,40 +31,36 @@ import androidx.test.runner.AndroidJUnit4;
 import com.android.bluetooth.BluetoothMethodProxy;
 
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mock;
 
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class BluetoothOppBatchTest {
-    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
-    @Mock private Context mContext;
-
-    private final Context mTargetContext =
-            InstrumentationRegistry.getInstrumentation().getTargetContext();
-    private final BluetoothOppShareInfo mInitShareInfo =
-            new BluetoothOppShareInfo(
-                    0,
-                    null,
-                    null,
-                    null,
-                    null,
-                    0,
-                    "00:11:22:33:44:55",
-                    0,
-                    0,
-                    BluetoothShare.STATUS_PENDING,
-                    0,
-                    0,
-                    0,
-                    false);
     private BluetoothOppBatch mBluetoothOppBatch;
+    private Context mContext;
+
+    private BluetoothOppShareInfo mInitShareInfo;
 
     @Before
     public void setUp() throws Exception {
-        doReturn(mTargetContext.getContentResolver()).when(mContext).getContentResolver();
+        mInitShareInfo =
+                new BluetoothOppShareInfo(
+                        0,
+                        null,
+                        null,
+                        null,
+                        null,
+                        0,
+                        "00:11:22:33:44:55",
+                        0,
+                        0,
+                        BluetoothShare.STATUS_PENDING,
+                        0,
+                        0,
+                        0,
+                        false);
+        mContext = InstrumentationRegistry.getInstrumentation().getContext();
         mBluetoothOppBatch = new BluetoothOppBatch(mContext, mInitShareInfo);
     }
 

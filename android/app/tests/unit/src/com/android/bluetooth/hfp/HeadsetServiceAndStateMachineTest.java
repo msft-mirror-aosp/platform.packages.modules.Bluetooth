@@ -126,7 +126,6 @@ public class HeadsetServiceAndStateMachineTest {
         doReturn(mTargetContext.getPackageName()).when(mAdapterService).getPackageName();
         doReturn(mTargetContext.getPackageManager()).when(mAdapterService).getPackageManager();
         doReturn(mTargetContext.getResources()).when(mAdapterService).getResources();
-        doReturn(mTargetContext.getContentResolver()).when(mAdapterService).getContentResolver();
 
         PowerManager powerManager = mTargetContext.getSystemService(PowerManager.class);
         mVoiceRecognitionWakeLock =
