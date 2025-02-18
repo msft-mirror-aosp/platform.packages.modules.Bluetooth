@@ -73,8 +73,9 @@ public class PbapStateMachineTest {
     }
 
     @After
-    public void tearDown() {
+    public void tearDown() throws InterruptedException {
         mHandlerThread.quitSafely();
+        mHandlerThread.join();
     }
 
     /** Test that initial state is WaitingForAuth */

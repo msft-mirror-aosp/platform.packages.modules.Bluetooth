@@ -209,10 +209,7 @@ public class ScanManagerTest {
                 DisplayManager.class,
                 mTargetContext.getSystemService(DisplayManager.class));
         TestUtils.mockGetSystemService(
-                mAdapterService,
-                Context.BATTERY_STATS_SERVICE,
-                BatteryStatsManager.class,
-                mTargetContext.getSystemService(BatteryStatsManager.class));
+                mAdapterService, Context.BATTERY_STATS_SERVICE, BatteryStatsManager.class);
         TestUtils.mockGetSystemService(mAdapterService, Context.ALARM_SERVICE, AlarmManager.class);
 
         mMockContentResolver = new MockContentResolver(mTargetContext);

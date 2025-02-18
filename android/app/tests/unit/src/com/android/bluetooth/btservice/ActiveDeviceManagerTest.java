@@ -42,6 +42,7 @@ import android.bluetooth.BluetoothLeBroadcastMetadata;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothSinkAudioPolicy;
 import android.content.Context;
+import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
@@ -1714,44 +1715,39 @@ public class ActiveDeviceManagerTest {
         verify(mHearingAidService).removeActiveDevice(false);
     }
 
-    // TODO: b/393810023 - re-enable when AudioDeviceInfo can be mocked
-    // /** A wired audio device is disconnected. Check if falls back to connected A2DP. */
-    // @Test
-    // @DisableFlags(Flags.FLAG_ADM_REMOVE_HANDLING_WIRED)
-    // public void wiredAudioDeviceDisconnected_setFallbackDevice() throws Exception {
-    //     AudioDevicePort a2dpPort = mock(AudioDevicePort.class);
-    //     doReturn(AudioDeviceInfo.TYPE_BLUETOOTH_A2DP).when(a2dpPort).type();
-    //     doReturn("a2dp").when(a2dpPort).name();
+    /** A wired audio device is disconnected. Check if falls back to connected A2DP. */
+    @Test
+    @DisableFlags(Flags.FLAG_ADM_REMOVE_HANDLING_WIRED)
+    public void wiredAudioDeviceDisconnected_setFallbackDevice() throws Exception {
+        AudioDeviceInfo a2dpDevice = mock(AudioDeviceInfo.class);
+        doReturn(AudioDeviceInfo.TYPE_BLUETOOTH_A2DP).when(a2dpDevice).getType();
 
-    //     AudioDevicePort usbPort = mock(AudioDevicePort.class);
-    //     doReturn(AudioDeviceInfo.TYPE_USB_HEADSET).when(usbPort).type();
-    //     doReturn("usb").when(usbPort).name();
+        AudioDeviceInfo usbDevice = mock(AudioDeviceInfo.class);
+        doReturn(AudioDeviceInfo.TYPE_USB_HEADSET).when(usbDevice).getType();
 
-    //     AudioDeviceInfo a2dpDevice = new AudioDeviceInfo(a2dpPort);
-    //     AudioDeviceInfo usbDevice = new AudioDeviceInfo(usbPort);
-    //     return new AudioDeviceInfo[] {a2dpDevice, usbDevice};
+        AudioDeviceInfo[] testDevices = new AudioDeviceInfo[] {a2dpDevice, usbDevice};
 
-    //     // Connect A2DP headphones
-    //     a2dpConnected(mA2dpDevice, false);
-    //     mTestLooper.dispatchAll();
-    //     verify(mA2dpService).setActiveDevice(mA2dpDevice);
-    //     verify(mLeAudioService).removeActiveDevice(true);
+        // Connect A2DP headphones
+        a2dpConnected(mA2dpDevice, false);
+        mTestLooper.dispatchAll();
+        verify(mA2dpService).setActiveDevice(mA2dpDevice);
+        verify(mLeAudioService).removeActiveDevice(true);
 
-    //     // Connect wired audio device
-    //     mActiveDeviceManager.mAudioManagerAudioDeviceCallback.onAudioDevicesAdded(testDevices);
+        // Connect wired audio device
+        mActiveDeviceManager.mAudioManagerAudioDeviceCallback.onAudioDevicesAdded(testDevices);
 
-    //     // Check wiredAudioDeviceConnected invoked properly
-    //     verify(mA2dpService).removeActiveDevice(false);
-    //     verify(mHeadsetService).setActiveDevice(isNull());
-    //     verify(mHearingAidService).removeActiveDevice(false);
-    //     verify(mLeAudioService, times(2)).removeActiveDevice(true);
+        // Check wiredAudioDeviceConnected invoked properly
+        verify(mA2dpService).removeActiveDevice(false);
+        verify(mHeadsetService).setActiveDevice(isNull());
+        verify(mHearingAidService).removeActiveDevice(false);
+        verify(mLeAudioService, times(2)).removeActiveDevice(true);
 
-    //     // Disconnect wired audio device
-    //     mActiveDeviceManager.mAudioManagerAudioDeviceCallback.onAudioDevicesRemoved(testDevices);
+        // Disconnect wired audio device
+        mActiveDeviceManager.mAudioManagerAudioDeviceCallback.onAudioDevicesRemoved(testDevices);
 
-    //     // Verify fallback to A2DP device
-    //     verify(mA2dpService, times(2)).setActiveDevice(mA2dpDevice);
-    // }
+        // Verify fallback to A2DP device
+        verify(mA2dpService, times(2)).setActiveDevice(mA2dpDevice);
+    }
 
     /**
      * Verifies if Le Audio Broadcast is streaming, connected a2dp device should not be set as

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 The Android Open Source Project
+ * Copyright 2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,8 +27,10 @@ import static androidx.test.espresso.matcher.ViewMatchers.withText;
 
 import static org.mockito.Mockito.mock;
 
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.sysprop.BluetoothProperties;
 
 import androidx.test.core.app.ActivityScenario;
@@ -60,6 +62,14 @@ public class BluetoothOppBtEnableActivityTest {
         Assume.assumeTrue(BluetoothProperties.isProfileOppEnabled().orElse(false));
 
         mTargetContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        mTargetContext
+                .getPackageManager()
+                .setComponentEnabledSetting(
+                        new ComponentName(
+                                mTargetContext.getPackageName(),
+                                "com.android.bluetooth.opp.BluetoothOppBtEnableActivity"),
+                        PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                        PackageManager.DONT_KILL_APP);
         mIntent = new Intent();
         mIntent.setClass(mTargetContext, BluetoothOppBtEnableActivity.class);
         Intents.init();

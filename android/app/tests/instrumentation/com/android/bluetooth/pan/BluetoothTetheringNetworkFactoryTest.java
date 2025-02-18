@@ -17,10 +17,17 @@
 package com.android.bluetooth.pan;
 
 import static com.android.bluetooth.TestUtils.MockitoRule;
+import static com.android.bluetooth.TestUtils.getTestDevice;
+import static com.android.bluetooth.TestUtils.mockGetSystemService;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import android.bluetooth.BluetoothDevice;
 import android.content.Context;
+import android.net.ConnectivityManager;
 import android.os.Looper;
 
 import androidx.test.filters.SmallTest;
@@ -30,6 +37,9 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /** Test cases for {@link BluetoothTetheringNetworkFactory}. */
 @SmallTest
@@ -42,7 +52,9 @@ public class BluetoothTetheringNetworkFactoryTest {
     @Mock Context mContext;
 
     @Test
-    public void networkStartReverseTetherEmptyIface() {
+    public void networkStartReverseTether() {
+        mockGetSystemService(mContext, Context.CONNECTIVITY_SERVICE, ConnectivityManager.class);
+
         if (Looper.myLooper() == null) {
             Looper.prepare();
         }
@@ -50,14 +62,15 @@ public class BluetoothTetheringNetworkFactoryTest {
         BluetoothTetheringNetworkFactory bluetoothTetheringNetworkFactory =
                 new BluetoothTetheringNetworkFactory(mContext, Looper.myLooper(), mPanService);
 
-        String iface = "";
+        String iface = "iface";
         bluetoothTetheringNetworkFactory.startReverseTether(iface);
 
-        assertThat(bluetoothTetheringNetworkFactory.getProvider()).isNull();
+        assertThat(bluetoothTetheringNetworkFactory.getProvider()).isNotNull();
     }
 
     @Test
-    public void networkStopEmptyIface() {
+    public void networkStartReverseTetherStop() {
+        mockGetSystemService(mContext, Context.CONNECTIVITY_SERVICE, ConnectivityManager.class);
         if (Looper.myLooper() == null) {
             Looper.prepare();
         }
@@ -65,9 +78,20 @@ public class BluetoothTetheringNetworkFactoryTest {
         BluetoothTetheringNetworkFactory bluetoothTetheringNetworkFactory =
                 new BluetoothTetheringNetworkFactory(mContext, Looper.myLooper(), mPanService);
 
-        bluetoothTetheringNetworkFactory.stopNetwork();
+        String iface = "iface";
+        bluetoothTetheringNetworkFactory.startReverseTether(iface);
+
+        assertThat(bluetoothTetheringNetworkFactory.getProvider()).isNotNull();
+
+        List<BluetoothDevice> bluetoothDevices = new ArrayList<>();
+        BluetoothDevice bluetoothDevice = getTestDevice(11);
+        bluetoothDevices.add(bluetoothDevice);
+
+        when(mPanService.getConnectedDevices()).thenReturn(bluetoothDevices);
+
         bluetoothTetheringNetworkFactory.stopReverseTether();
 
-        assertThat(bluetoothTetheringNetworkFactory.getProvider()).isNull();
+        verify(mPanService).getConnectedDevices();
+        verify(mPanService).disconnect(bluetoothDevice);
     }
 }
