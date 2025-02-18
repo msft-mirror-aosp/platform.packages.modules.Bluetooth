@@ -193,11 +193,11 @@ import java.util.UUID;
 
     /** Compute feature selection based on the filters presented. */
     int getFeatureSelection() {
-        int selc = 0;
+        int selection = 0;
         for (Entry entry : mEntries) {
-            selc |= (1 << entry.type);
+            selection |= (1 << entry.type);
         }
-        return selc;
+        return selection;
     }
 
     ScanFilterQueue.Entry[] toArray() {
@@ -214,9 +214,9 @@ import java.util.UUID;
         }
         if (filter.getDeviceAddress() != null) {
             /*
-             * Pass the addres type here.  This address type will be used for the resolving address,
-             * however, the host stack will force the type to 0x02 for the APCF filter in
-             * btm_ble_adv_filter.cc#BTM_LE_PF_addr_filter(...)
+             * Pass the address type here. This address type will be used for the resolving
+             * address, however, the host stack will force the type to 0x02 for the APCF filter
+             * in btm_ble_adv_filter.cc#BTM_LE_PF_addr_filter(...)
              */
             addDeviceAddress(
                     filter.getDeviceAddress(), (byte) filter.getAddressType(), filter.getIrk());

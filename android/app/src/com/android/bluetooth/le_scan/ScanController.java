@@ -1139,7 +1139,7 @@ public class ScanController {
             return;
         }
 
-        enforceImpersonatationPermissionIfNeeded(workSource);
+        enforceImpersonationPermissionIfNeeded(workSource);
 
         AppScanStats app = mScannerMap.getAppScanStatsByUid(Binder.getCallingUid());
         if (app != null
@@ -1658,15 +1658,15 @@ public class ScanController {
     // apps for Bluetooth usage. A {@link SecurityException} will be thrown if the caller app does
     // not have UPDATE_DEVICE_STATS permission.
     @RequiresPermission(UPDATE_DEVICE_STATS)
-    private void enforceImpersonatationPermission() {
+    private void enforceImpersonationPermission() {
         mAdapterService.enforceCallingOrSelfPermission(
                 UPDATE_DEVICE_STATS, "Need UPDATE_DEVICE_STATS permission");
     }
 
     @SuppressLint("AndroidFrameworkRequiresPermission")
-    private void enforceImpersonatationPermissionIfNeeded(WorkSource workSource) {
+    private void enforceImpersonationPermissionIfNeeded(WorkSource workSource) {
         if (workSource != null) {
-            enforceImpersonatationPermission();
+            enforceImpersonationPermission();
         }
     }
 

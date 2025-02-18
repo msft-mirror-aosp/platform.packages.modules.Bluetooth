@@ -154,12 +154,12 @@ public class AppScanStats {
     private long mOppScanTime = 0;
     private long mLowPowerScanTime = 0;
     private long mBalancedScanTime = 0;
-    private long mLowLantencyScanTime = 0;
+    private long mLowLatencyScanTime = 0;
     private long mAmbientDiscoveryScanTime = 0;
     private int mOppScan = 0;
     private int mLowPowerScan = 0;
     private int mBalancedScan = 0;
-    private int mLowLantencyScan = 0;
+    private int mLowLatencyScan = 0;
     private int mAmbientDiscoveryScan = 0;
     private List<LastScan> mLastScans = new ArrayList<LastScan>();
     private HashMap<Integer, LastScan> mOngoingScans = new HashMap<Integer, LastScan>();
@@ -284,7 +284,7 @@ public class AppScanStats {
                     mBalancedScan++;
                     break;
                 case ScanSettings.SCAN_MODE_LOW_LATENCY:
-                    mLowLantencyScan++;
+                    mLowLatencyScan++;
                     break;
                 case ScanSettings.SCAN_MODE_AMBIENT_DISCOVERY:
                     mAmbientDiscoveryScan++;
@@ -378,7 +378,7 @@ public class AppScanStats {
                 mBalancedScanTime += activeDuration;
                 break;
             case ScanSettings.SCAN_MODE_LOW_LATENCY:
-                mLowLantencyScanTime += activeDuration;
+                mLowLatencyScanTime += activeDuration;
                 break;
             case ScanSettings.SCAN_MODE_AMBIENT_DISCOVERY:
                 mAmbientDiscoveryScanTime += activeDuration;
@@ -966,12 +966,12 @@ public class AppScanStats {
         long oppScanTime = mOppScanTime;
         long lowPowerScanTime = mLowPowerScanTime;
         long balancedScanTime = mBalancedScanTime;
-        long lowLatencyScanTime = mLowLantencyScanTime;
+        long lowLatencyScanTime = mLowLatencyScanTime;
         long ambientDiscoveryScanTime = mAmbientDiscoveryScanTime;
         int oppScan = mOppScan;
         int lowPowerScan = mLowPowerScan;
         int balancedScan = mBalancedScan;
-        int lowLatencyScan = mLowLantencyScan;
+        int lowLatencyScan = mLowLatencyScan;
         long ambientDiscoveryScan = mAmbientDiscoveryScan;
 
         if (!mOngoingScans.isEmpty()) {
