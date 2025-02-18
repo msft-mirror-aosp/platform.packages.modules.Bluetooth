@@ -83,7 +83,7 @@ class MsftAdvMonitor {
     private final Address mAddress = new Address();
 
     // Constructor that converts an APCF-friendly filter to an MSFT-friendly format
-    public MsftAdvMonitor(ScanFilter filter) {
+    MsftAdvMonitor(ScanFilter filter) {
         // Hardcoded values taken from CrOS defaults
         mMonitor.rssi_threshold_high = RSSI_THRESHOLD_HIGH;
         mMonitor.rssi_threshold_low = RSSI_THRESHOLD_LOW;

@@ -50,14 +50,14 @@ public class PeriodicScanManager {
     static int sTempRegistrationId = -1;
 
     /** Constructor of {@link PeriodicScanManager}. */
-    public PeriodicScanManager(AdapterService adapterService) {
+    PeriodicScanManager(AdapterService adapterService) {
         Log.d(TAG, "periodic scan manager created");
         mAdapter = BluetoothAdapter.getDefaultAdapter();
         mNativeInterface = PeriodicScanNativeInterface.getInstance();
         mNativeInterface.init(this);
     }
 
-    public void cleanup() {
+    void cleanup() {
         Log.d(TAG, "cleanup()");
         mNativeInterface.cleanup();
         mSyncs.clear();
