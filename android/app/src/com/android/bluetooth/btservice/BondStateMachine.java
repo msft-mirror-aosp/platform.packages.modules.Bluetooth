@@ -21,6 +21,8 @@ import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static com.android.bluetooth.BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__BOND_RETRY;
 import static com.android.bluetooth.BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__STATE__FAIL;
 
+import static java.util.Objects.requireNonNull;
+
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothClass;
@@ -54,7 +56,6 @@ import com.android.internal.util.StateMachine;
 
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -690,7 +691,7 @@ final class BondStateMachine extends StateMachine {
         if (device == null) {
             warnLog("Device is not known for:" + Utils.getRedactedAddressStringFromByte(address));
             mRemoteDevices.addDeviceProperties(address);
-            device = Objects.requireNonNull(mRemoteDevices.getDevice(address));
+            device = requireNonNull(mRemoteDevices.getDevice(address));
         }
 
         BluetoothStatsLog.write(
@@ -720,7 +721,7 @@ final class BondStateMachine extends StateMachine {
         BluetoothDevice bdDevice = mRemoteDevices.getDevice(address);
         if (bdDevice == null) {
             mRemoteDevices.addDeviceProperties(address);
-            bdDevice = Objects.requireNonNull(mRemoteDevices.getDevice(address));
+            bdDevice = requireNonNull(mRemoteDevices.getDevice(address));
         }
 
         BluetoothStatsLog.write(

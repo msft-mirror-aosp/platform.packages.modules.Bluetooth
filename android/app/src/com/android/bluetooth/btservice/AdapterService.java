@@ -701,16 +701,12 @@ public class AdapterService extends Service {
         mBluetoothKeystoreService.initJni();
 
         mBluetoothQualityReportNativeInterface =
-                requireNonNull(
-                        BluetoothQualityReportNativeInterface.getInstance(),
-                        "BluetoothQualityReportNativeInterface cannot be null when BQR starts");
+                requireNonNull(BluetoothQualityReportNativeInterface.getInstance());
         mBluetoothQualityReportNativeInterface.init();
 
         if (Flags.hciVendorSpecificExtension()) {
             mBluetoothHciVendorSpecificNativeInterface =
-                    requireNonNull(
-                            mBluetoothHciVendorSpecificNativeInterface.getInstance(),
-                            "mBluetoothHciVendorSpecificNativeInterface cannot be null");
+                    requireNonNull(mBluetoothHciVendorSpecificNativeInterface.getInstance());
             mBluetoothHciVendorSpecificNativeInterface.init(mBluetoothHciVendorSpecificDispatcher);
         }
 

@@ -24,6 +24,8 @@ import static android.bluetooth.BluetoothGattCharacteristic.PROPERTY_READ;
 import static android.bluetooth.BluetoothGattCharacteristic.PROPERTY_WRITE;
 import static android.bluetooth.BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE;
 
+import static java.util.Objects.requireNonNull;
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SuppressLint;
@@ -59,7 +61,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -1270,7 +1271,7 @@ public class MediaControlGattService implements MediaControlGattServiceInterface
 
         mMcpService = mcpService;
         mAdapterService =
-                Objects.requireNonNull(
+                requireNonNull(
                         AdapterService.getAdapterService(),
                         "AdapterService shouldn't be null when creating MediaControlCattService");
 

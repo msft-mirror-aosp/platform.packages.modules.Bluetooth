@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.avrcpcontroller;
 
+import static java.util.Objects.requireNonNull;
+
 import android.annotation.SuppressLint;
 import android.util.Log;
 import android.util.Xml;
@@ -31,7 +33,6 @@ import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * Represents the return value of a BIP GetImageProperties request, giving a detailed description of
@@ -241,7 +242,7 @@ public class BipImageProperties {
     }
 
     private void addNativeFormat(BipImageFormat format) {
-        Objects.requireNonNull(format);
+        requireNonNull(format);
         if (format.getType() != BipImageFormat.FORMAT_NATIVE) {
             throw new IllegalArgumentException(
                     "Format type '"
@@ -258,7 +259,7 @@ public class BipImageProperties {
     }
 
     private void addVariantFormat(BipImageFormat format) {
-        Objects.requireNonNull(format);
+        requireNonNull(format);
         if (format.getType() != BipImageFormat.FORMAT_VARIANT) {
             throw new IllegalArgumentException(
                     "Format type '"
@@ -294,7 +295,7 @@ public class BipImageProperties {
     }
 
     private void addAttachment(BipAttachmentFormat format) {
-        Objects.requireNonNull(format);
+        requireNonNull(format);
         mAttachments.add(format);
     }
 
