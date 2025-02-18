@@ -428,8 +428,6 @@ public class LeAudioBroadcastServiceTest {
 
     @Test
     public void testCreateBroadcastTimeout() throws RemoteException {
-        mSetFlagsRule.enableFlags(Flags.FLAG_LEAUDIO_BROADCAST_DESTROY_AFTER_TIMEOUT);
-
         byte[] code = {0x00, 0x01, 0x00, 0x02};
 
         synchronized (mService.mBroadcastCallbacks) {
