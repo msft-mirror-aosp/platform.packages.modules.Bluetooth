@@ -95,11 +95,6 @@ public class CsipSetCoordinatorStateMachine extends StateMachine {
         return CsisSm;
     }
 
-    @VisibleForTesting
-    boolean doesSuperHaveDeferredMessages(int what) {
-        return super.hasDeferredMessages(what);
-    }
-
     /** Quit state machine execution */
     public void doQuit() {
         log("doQuit for device " + mDevice);

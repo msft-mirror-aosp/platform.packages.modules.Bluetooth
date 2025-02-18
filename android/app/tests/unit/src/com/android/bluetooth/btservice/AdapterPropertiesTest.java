@@ -84,6 +84,7 @@ public class AdapterPropertiesTest {
         when(mNativeInterface.removeBond(any(byte[].class))).thenReturn(true);
 
         mRemoteDevices = new RemoteDevices(mAdapterService, mHandlerThread.getLooper());
+        verify(mAdapterService).getSystemService(Context.BLUETOOTH_SERVICE);
         verify(mAdapterService).getSystemService(BluetoothManager.class);
 
         mRemoteDevices.reset();

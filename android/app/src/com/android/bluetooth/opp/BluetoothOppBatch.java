@@ -100,11 +100,12 @@ public class BluetoothOppBatch {
      * @param info, BluetoothOppShareInfo
      */
     public BluetoothOppBatch(Context context, BluetoothOppShareInfo info) {
+        BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
         mContext = context;
         mShares = new ArrayList();
         mTimestamp = info.mTimestamp;
         mDirection = info.mDirection;
-        mDestination = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(info.mDestination);
+        mDestination = adapter.getRemoteDevice(info.mDestination);
         mStatus = Constants.BATCH_STATUS_PENDING;
         mShares.add(info);
 
