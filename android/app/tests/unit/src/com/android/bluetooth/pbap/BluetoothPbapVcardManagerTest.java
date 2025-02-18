@@ -22,7 +22,6 @@ import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -199,7 +198,6 @@ public class BluetoothPbapVcardManagerTest {
         final int expectedSize = 10;
         when(cursor.getCount()).thenReturn(expectedSize);
         BluetoothPbapSimVcardManager simVcardManager = mock(BluetoothPbapSimVcardManager.class);
-        doCallRealMethod().when(simVcardManager).getSIMContactsSize();
 
         assertThat(
                         mManager.getPhonebookSize(

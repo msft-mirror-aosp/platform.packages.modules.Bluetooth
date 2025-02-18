@@ -4,9 +4,6 @@
       "name": "CtsBluetoothTestCases"
     },
     {
-      "name": "BluetoothJavaUnitTests"
-    },
-    {
       "name": "GoogleBluetoothInstrumentationTests"
     },
     {
@@ -236,9 +233,6 @@
     },
     {
       "name": "CtsStrictJavaPackagesTestCases"
-    },
-    {
-      "name": "BluetoothJavaUnitTests"
     },
     {
       "name": "BluetoothInstrumentationTests"
@@ -471,9 +465,6 @@
     // android_test targets
     {
       "name": "CtsBluetoothTestCases"
-    },
-    {
-      "name": "BluetoothJavaUnitTests"
     },
     {
       "name": "BluetoothInstrumentationTests"

@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 The Android Open Source Project
+ * Copyright 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 package com.android.bluetooth.telephony;
 
 import static com.android.bluetooth.TestUtils.MockitoRule;
-import static com.android.bluetooth.TestUtils.mockGetSystemService;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -40,12 +39,13 @@ import androidx.test.core.app.ApplicationProvider;
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
+import com.android.bluetooth.TestUtils;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mock;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -61,7 +61,7 @@ public class CallInfoTest {
 
     @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
-    @Mock private TelecomManager mTelecomManager;
+    private TelecomManager mMockTelecomManager;
 
     private BluetoothInCallService mBluetoothInCallService;
     private BluetoothInCallService.CallInfo mMockCallInfo;
@@ -69,8 +69,9 @@ public class CallInfoTest {
     @Before
     public void setUp() throws Exception {
         Context spiedContext = spy(new ContextWrapper(ApplicationProvider.getApplicationContext()));
-        mockGetSystemService(
-                spiedContext, Context.TELECOM_SERVICE, TelecomManager.class, mTelecomManager);
+        mMockTelecomManager =
+                TestUtils.mockGetSystemService(
+                        spiedContext, Context.TELECOM_SERVICE, TelecomManager.class);
 
         mBluetoothInCallService = new BluetoothInCallService(spiedContext, null, null, null);
         mBluetoothInCallService.onCreate();
@@ -277,11 +278,11 @@ public class CallInfoTest {
         List<PhoneAccountHandle> handles = new ArrayList<>();
         PhoneAccountHandle testHandle = makeQuickAccountHandle(testId);
         handles.add(testHandle);
-        when(mTelecomManager.getPhoneAccountsSupportingScheme(PhoneAccount.SCHEME_TEL))
+        when(mMockTelecomManager.getPhoneAccountsSupportingScheme(PhoneAccount.SCHEME_TEL))
                 .thenReturn(handles);
 
         PhoneAccount fakePhoneAccount = makeQuickAccount(testId, TEST_ACCOUNT_INDEX);
-        when(mTelecomManager.getPhoneAccount(testHandle)).thenReturn(fakePhoneAccount);
+        when(mMockTelecomManager.getPhoneAccount(testHandle)).thenReturn(fakePhoneAccount);
 
         assertThat(mMockCallInfo.getBestPhoneAccount()).isEqualTo(fakePhoneAccount);
     }
