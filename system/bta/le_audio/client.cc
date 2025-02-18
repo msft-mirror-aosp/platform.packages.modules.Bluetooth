@@ -5382,6 +5382,24 @@ public:
     auto all_bidirectional_contexts = group->GetAllSupportedBidirectionalContextTypes();
     log::debug("all_bidirectional_contexts {}", ToString(all_bidirectional_contexts));
 
+    /*
+     * Detect the gaming scenario and mirror the context to the other direction.
+     * Thanks to this, we will be able to configure even Microphone only devices, for the GAME
+     * audio context detected on the local audio source, which never gets resumed for such devices.
+     */
+    if (remote_metadata.sink.test(LeAudioContextType::GAME)) {
+      auto ctxs = group->GetSupportedContexts(bluetooth::le_audio::types::kLeAudioDirectionSource) &
+                  AudioContexts(LeAudioContextType::GAME) &
+                  bluetooth::le_audio::types::kLeAudioContextAllBidir;
+      if (ctxs.any()) {
+        log::debug(
+                "Gaming scenario detected. Use this audio context for the other direction if "
+                "supported");
+        remote_metadata.source.clear();
+        remote_metadata.source.set_all(ctxs);
+      }
+    }
+
     /* Make sure we have CONVERSATIONAL when in a call and it is not mixed
      * with any other bidirectional context
      */
@@ -5421,10 +5439,26 @@ public:
     log::debug("is_ongoing_call_on_other_direction={}",
                is_ongoing_call_on_other_direction ? "True" : "False");
 
-    if (remote_metadata.get(remote_other_direction).test_any(all_bidirectional_contexts) &&
-        !(is_streaming_other_direction || is_releasing_for_reconfiguration_other_direction)) {
-      log::debug("The other direction is not streaming bidirectional, ignore that context.");
-      remote_metadata.get(remote_other_direction).clear();
+    /* If the other direction is a bidir scenario we might want to take it into the account, but
+     * not always. Look below for details.
+     */
+    auto is_other_direction_bidir =
+            remote_metadata.get(remote_other_direction).test_any(all_bidirectional_contexts);
+
+    /* If the not-resumed direction is local source, we might need to take it's metadata,
+     * (this way we detect GAME scenario), but local sink metadata is unreliable.
+     */
+    bool take_unresumed_local_source_metadata_for_mic_only_devices =
+            (group->audio_locations_.sink == std::nullopt) &&
+            (local_other_direction == bluetooth::le_audio::types::kLeAudioDirectionSource);
+    if (is_other_direction_bidir) {
+      if (!(is_streaming_other_direction || is_releasing_for_reconfiguration_other_direction) &&
+          !take_unresumed_local_source_metadata_for_mic_only_devices) {
+        log::debug(
+                "The other direction is not streaming bidirectional or is not a reliable source of "
+                "metadata, ignore that context.");
+        remote_metadata.get(remote_other_direction).clear();
+      }
     }
 
     auto single_direction_only_context_types =
@@ -5449,7 +5483,8 @@ public:
         remote_metadata.get(remote_direction).unset_all(all_bidirectional_contexts);
         remote_metadata.get(remote_direction).set(LeAudioContextType::CONVERSATIONAL);
       } else {
-        if (!(is_streaming_other_direction || is_releasing_for_reconfiguration_other_direction)) {
+        if (!(is_streaming_other_direction || is_releasing_for_reconfiguration_other_direction) &&
+            !take_unresumed_local_source_metadata_for_mic_only_devices) {
           // Do not take the obsolete metadata
           remote_metadata.get(remote_other_direction).clear();
         } else {

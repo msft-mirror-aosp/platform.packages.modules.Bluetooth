@@ -6678,6 +6678,110 @@ TEST_F(UnicastTest, TestUnidirectionalGameAndLiveRecording) {
   Mock::VerifyAndClearExpectations(&mock_state_machine_);
 }
 
+TEST_F(UnicastTest, TestUnidirectionalGameAndLiveRecordingMicOnlyDev) {
+  const RawAddress test_address0 = GetTestAddress(0);
+  int group_id = bluetooth::groups::kGroupUnknown;
+
+  /**
+   * Scenario test steps
+   * 1. Configure group to support GAME | LIVE | CONVERSATIONAL | VOICEASSISTANTS only on Source
+   * 2. Start a GAME
+   * 3. Start recording during the GAME
+   */
+
+  // No sink at all
+  available_snk_context_types_ = 0;
+  supported_snk_context_types_ = 0;
+
+  // Source available for
+  available_src_context_types_ =
+          (types::LeAudioContextType::CONVERSATIONAL | types::LeAudioContextType::GAME |
+           types::LeAudioContextType::LIVE | types::LeAudioContextType::VOICEASSISTANTS |
+           types::LeAudioContextType::UNSPECIFIED)
+                  .value();
+  supported_src_context_types_ = available_src_context_types_;
+
+  // Setup a single mic-only device
+  empty_sink_pack_ = true;
+  default_channel_cnt = 1;
+  SampleDatabaseParameters db_params{
+          .conn_id = 1,
+          .addr = test_address0,
+          .sink_audio_allocation = std::nullopt,
+          .source_audio_allocation = codec_spec_conf::kLeAudioLocationMonoAudio,
+          .sink_channel_cnt = 0,
+          .source_channel_cnt = default_channel_cnt,
+          .sample_freq_mask = le_audio::codec_spec_caps::kLeAudioSamplingFreq32000Hz,
+          .add_csis = false,
+          .add_cas = false,
+          .add_pacs = true,
+          .add_ascs_cnt = 1,
+          .set_size = 0,
+          .rank = 0,
+          .gatt_status = GATT_SUCCESS,
+          .max_supported_codec_frames_per_sdu = 1,
+  };
+  SetSampleDatabaseEarbudsValid(db_params);
+
+  EXPECT_CALL(mock_audio_hal_client_callbacks_,
+              OnConnectionState(ConnectionState::CONNECTED, test_address0))
+          .Times(1);
+  EXPECT_CALL(mock_audio_hal_client_callbacks_,
+              OnGroupNodeStatus(test_address0, _, GroupNodeStatus::ADDED))
+          .WillOnce(DoAll(SaveArg<1>(&group_id)));
+
+  types::BidirectionalPair<types::AudioContexts> expected_metadata_contexts = {
+          .sink = types::AudioContexts(),
+          .source = types::AudioContexts(types::LeAudioContextType::GAME)};
+  EXPECT_CALL(mock_state_machine_,
+              StartStream(_, types::LeAudioContextType::GAME, expected_metadata_contexts, _))
+          .Times(1);
+
+  log::info("Connecting LeAudio to {}", test_address0);
+  ConnectLeAudio(test_address0);
+  ASSERT_NE(group_id, bluetooth::groups::kGroupUnknown);
+
+  // Both audio sessions are always started to monitor the metadata (even for mic only devices)
+  EXPECT_CALL(*mock_le_audio_source_hal_client_, Start(_, _, _)).Times(1);
+  EXPECT_CALL(*mock_le_audio_sink_hal_client_, Start(_, _, _)).Times(1);
+
+  EXPECT_CALL(*mock_codec_manager_,
+              UpdateActiveUnicastAudioHalClient(mock_le_audio_source_hal_client_,
+                                                mock_le_audio_sink_hal_client_, true))
+          .Times(1);
+
+  LeAudioClient::Get()->GroupSetActive(group_id);
+  SyncOnMainLoop();
+
+  // Configure a bidirectional GAME scenario (on a mic-only device)
+  UpdateLocalSourceMetadata(AUDIO_USAGE_GAME, AUDIO_CONTENT_TYPE_UNKNOWN);
+  UpdateLocalSinkMetadata(AUDIO_SOURCE_MIC);
+  LocalAudioSinkResume();
+  SyncOnMainLoop();
+
+  Mock::VerifyAndClearExpectations(&mock_audio_hal_client_callbacks_);
+  Mock::VerifyAndClearExpectations(mock_le_audio_source_hal_client_);
+  Mock::VerifyAndClearExpectations(mock_le_audio_sink_hal_client_);
+  Mock::VerifyAndClearExpectations(mock_codec_manager_);
+  Mock::VerifyAndClearExpectations(&mock_state_machine_);
+  SyncOnMainLoop();
+
+  // We do expect only unidirectional CIS
+  uint8_t cis_count_out = 0;
+  uint8_t cis_count_in = 1;
+
+  // Verify Data transfer on one local audio sink
+  TestAudioDataTransfer(group_id, cis_count_out, cis_count_in, 0, 40);
+  SyncOnMainLoop();
+
+  // Expect no reconfiguration triggered by the GAME updates
+  EXPECT_CALL(mock_state_machine_, StopStream(_)).Times(0);
+  UpdateLocalSourceMetadata(AUDIO_USAGE_GAME, AUDIO_CONTENT_TYPE_UNKNOWN);
+  LocalAudioSinkSuspend();
+  SyncOnMainLoop();
+  Mock::VerifyAndClearExpectations(&mock_state_machine_);
+}
+
 TEST_F(UnicastTest, TestUnidirectionalVoiceAssistant_Sink) {
   com::android::bluetooth::flags::provider_->le_audio_support_unidirectional_voice_assistant(true);
   const RawAddress test_address0 = GetTestAddress(0);

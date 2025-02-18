@@ -600,6 +600,8 @@ const struct types::acs_ac_record* GetConfigurationSupportedPac(
   /* Doesn't match required configuration with any PAC */
   if (pacs.size() == 0) {
     log::error("No PAC records");
+  } else {
+    log::error("No matching PAC record");
   }
   return nullptr;
 }
