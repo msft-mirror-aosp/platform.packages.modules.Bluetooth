@@ -14,8 +14,7 @@ use bt_topshim::profiles::gatt::{
     GattStatus, LePhy, MsftAdvMonitor, MsftAdvMonitorAddress, MsftAdvMonitorPattern,
 };
 use bt_topshim::sysprop;
-use bt_utils::adv_parser;
-use bt_utils::array_utils;
+use bt_utils::{adv_parser, array_utils};
 
 use crate::bluetooth::{Bluetooth, BluetoothDevice};
 use crate::bluetooth_adv::{
@@ -3846,10 +3845,15 @@ impl BtifGattScannerInbandCallbacks for BluetoothGatt {
         } else {
             self.msft_enabled = enabled;
         }
-        self.update_scan(true); // Force restart the scan as the MSFT enable just changed.
-        if !self.msft_command_queue.is_empty() {
-            self.msft_run_queue_and_update_scan();
-        }
+
+        // Force restart the scan as the MSFT enable just changed.
+        self.update_scan(true);
+
+        // We should call this even if the queue is empty to ensure the MSFT enabled state correct.
+        // This covers a rare case: If an unfiltered scanner is added/removed when the pending
+        // command is MsftCommandPending::Enable, the add/remove become no-op but the info in the
+        // pending command could be outdated.
+        self.msft_run_queue_and_update_scan();
     }
 
     #[log_cb_args]
