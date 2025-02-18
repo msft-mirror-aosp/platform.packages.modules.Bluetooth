@@ -2599,6 +2599,23 @@ TEST_P(LeAudioAseConfigurationTest, test_vendor_codec_configure_incomplete_group
                             direction_to_verify);
 }
 
+TEST_P(LeAudioAseConfigurationTest, test_get_metadata_no_ccid) {
+  auto mono_microphone = AddTestDevice(1, 0);
+  auto metadata = mono_microphone->GetMetadata(
+          bluetooth::le_audio::types::AudioContexts(
+                  bluetooth::le_audio::types::LeAudioContextType::MEDIA),
+          std::vector<uint8_t>());
+  ASSERT_EQ(metadata.Find(types::kLeAudioMetadataTypeCcidList), std::nullopt);
+  ASSERT_TRUE(metadata.Find(bluetooth::le_audio::types::kLeAudioMetadataTypeStreamingAudioContext)
+                      .has_value());
+  ASSERT_EQ(metadata.Find(bluetooth::le_audio::types::kLeAudioMetadataTypeStreamingAudioContext)
+                    .value()[0],
+            uint8_t(LeAudioContextType::MEDIA));
+  ASSERT_EQ(metadata.Find(bluetooth::le_audio::types::kLeAudioMetadataTypeStreamingAudioContext)
+                    .value()[1],
+            uint8_t((uint16_t)LeAudioContextType::MEDIA >> 8));
+}
+
 INSTANTIATE_TEST_CASE_P(Test, LeAudioAseConfigurationTest,
                         ::testing::Values(kLeAudioCodingFormatLC3,
                                           kLeAudioCodingFormatVendorSpecific));
