@@ -46,7 +46,7 @@ import java.util.List;
 import java.util.Objects;
 
 /** ScanStats class helps keep track of information about scans on a per application basis. */
-public class AppScanStats {
+class AppScanStats {
     private static final String TAG = AppScanStats.class.getSimpleName();
 
     private static final ThreadLocal<DateFormat> DATE_FORMAT =
@@ -87,7 +87,7 @@ public class AppScanStats {
     static boolean sIsRadioStarted = false;
     static boolean sIsScreenOn = false;
 
-    static class LastScan {
+    private static class LastScan {
         public long duration;
         public long suspendDuration;
         public long suspendStartTime;
@@ -168,7 +168,7 @@ public class AppScanStats {
     private int results = 0;
     public boolean isAppDead = false;
 
-    public AppScanStats(
+    AppScanStats(
             String name,
             WorkSource source,
             ScannerMap map,
@@ -190,7 +190,7 @@ public class AppScanStats {
         mWorkSourceUtil = new WorkSourceUtil(source);
     }
 
-    public synchronized void addResult(int scannerId) {
+    synchronized void addResult(int scannerId) {
         LastScan scan = getScanFromScannerId(scannerId);
         if (scan != null) {
             scan.results++;
@@ -242,7 +242,7 @@ public class AppScanStats {
         return scan.isAutoBatchScan;
     }
 
-    public synchronized void recordScanStart(
+    synchronized void recordScanStart(
             ScanSettings settings,
             List<ScanFilter> filters,
             boolean isFilterScan,
@@ -331,7 +331,7 @@ public class AppScanStats {
         mOngoingScans.put(scannerId, scan);
     }
 
-    public synchronized void recordScanStop(int scannerId) {
+    synchronized void recordScanStop(int scannerId) {
         LastScan scan = getScanFromScannerId(scannerId);
         if (scan == null) {
             return;
@@ -504,7 +504,7 @@ public class AppScanStats {
     }
 
     @VisibleForTesting
-    public static int convertScanMode(int mode) {
+    static int convertScanMode(int mode) {
         switch (mode) {
             case ScanSettings.SCAN_MODE_OPPORTUNISTIC:
                 return BluetoothStatsLog
@@ -703,7 +703,7 @@ public class AppScanStats {
         }
     }
 
-    public static void recordScanRadioResultCount() {
+    static void recordScanRadioResultCount() {
         synchronized (sLock) {
             if (!sIsRadioStarted) {
                 return;
@@ -727,7 +727,7 @@ public class AppScanStats {
         }
     }
 
-    public static void recordBatchScanRadioResultCount(int numRecords) {
+    static void recordBatchScanRadioResultCount(int numRecords) {
         boolean isScreenOn;
         synchronized (sLock) {
             isScreenOn = sIsScreenOn;
@@ -819,7 +819,7 @@ public class AppScanStats {
         }
     }
 
-    public synchronized boolean isScanningTooFrequently() {
+    synchronized boolean isScanningTooFrequently() {
         if (mLastScans.size() < mAdapterService.getScanQuotaCount()) {
             return false;
         }
