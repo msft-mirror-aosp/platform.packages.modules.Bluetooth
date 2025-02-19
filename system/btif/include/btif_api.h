@@ -308,17 +308,6 @@ void btif_dm_pin_reply(const RawAddress bd_addr, uint8_t accept, uint8_t pin_len
 
 /*******************************************************************************
  *
- * Function         btif_dm_passkey_reply
- *
- * Description      BT SSP passkey reply
- *
- * Returns          bt_status_t
- *
- ******************************************************************************/
-bt_status_t btif_dm_passkey_reply(const RawAddress* bd_addr, uint8_t accept, uint32_t passkey);
-
-/*******************************************************************************
- *
  * Function         btif_dm_ssp_reply
  *
  * Description      BT SSP Reply - Just Works, Numeric Comparison & Passkey
