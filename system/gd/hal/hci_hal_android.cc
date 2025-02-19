@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
+#include <android_bluetooth_sysprop.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <future>
 #include <mutex>
@@ -25,7 +27,6 @@
 #include "hal/hci_hal.h"
 #include "hal/link_clocker.h"
 #include "hal/snoop_logger.h"
-#include "os/mgmt.h"
 
 namespace bluetooth::hal {
 
@@ -159,7 +160,10 @@ public:
   }
 
   uint16_t getMsftOpcode() override {
-    return os::Management::getInstance().getVendorSpecificCode(MGMT_VS_OPCODE_MSFT);
+    if (com::android::bluetooth::flags::le_scan_msft_support()) {
+      return android::sysprop::bluetooth::Hci::msft_vendor_opcode().value_or(0);
+    }
+    return 0;
   }
 
 protected:
