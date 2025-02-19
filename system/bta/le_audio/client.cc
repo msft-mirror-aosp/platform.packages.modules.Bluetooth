@@ -1371,6 +1371,11 @@ public:
         // Preemptively remove conversational context for reconfiguration speed up
         in_call_metadata_context_types_.sink.unset(LeAudioContextType::CONVERSATIONAL);
         in_call_metadata_context_types_.source.unset(LeAudioContextType::CONVERSATIONAL);
+        if (in_call_metadata_context_types_.sink.none() &&
+            in_call_metadata_context_types_.source.none()) {
+          log::debug("No metadata, set default Media");
+          in_call_metadata_context_types_.source.set(LeAudioContextType::MEDIA);
+        }
         local_metadata_context_types_ = in_call_metadata_context_types_;
         log::debug("restored local_metadata_context_types_ sink: {}  source: {}",
                    local_metadata_context_types_.sink.to_string(),
