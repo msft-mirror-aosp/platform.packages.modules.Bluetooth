@@ -557,8 +557,7 @@ public class HeadsetNativeInterface {
      * @param device current active SCO device
      * @return True on success, False on failure
      */
-    @VisibleForTesting
-    public boolean enableSwb(int swbCodec, boolean enable, BluetoothDevice device) {
+    boolean enableSwb(int swbCodec, boolean enable, BluetoothDevice device) {
         return enableSwbNative(swbCodec, enable, getByteAddress(device));
     }
 

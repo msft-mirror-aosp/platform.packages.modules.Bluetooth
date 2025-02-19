@@ -1127,36 +1127,6 @@ public final class BluetoothHeadset implements BluetoothProfile {
     }
 
     /**
-     * Notify Headset of phone state change. This is a backdoor for phone app to call
-     * BluetoothHeadset since there is currently not a good way to get precise call state change
-     * outside of phone app.
-     *
-     * @hide
-     */
-    @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
-    @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                MODIFY_PHONE_STATE,
-            })
-    public void phoneStateChanged(
-            int numActive, int numHeld, int callState, String number, int type, String name) {
-        final IBluetoothHeadset service = getService();
-        if (service == null) {
-            Log.w(TAG, "Proxy not attached to service");
-            if (DBG) log(Log.getStackTraceString(new Throwable()));
-        } else if (isEnabled()) {
-            try {
-                service.phoneStateChanged(
-                        numActive, numHeld, callState, number, type, name, mAttributionSource);
-            } catch (RemoteException e) {
-                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-            }
-        }
-    }
-
-    /**
      * Sends a vendor-specific unsolicited result code to the headset.
      *
      * <p>The actual string to be sent is <code>command + ": " + arg</code>. For example, if {@code

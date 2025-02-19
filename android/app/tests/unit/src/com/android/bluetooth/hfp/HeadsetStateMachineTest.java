@@ -1509,7 +1509,7 @@ public class HeadsetStateMachineTest {
     @Test
     public void testProcessAtChld_withProcessChldTrue() {
         int chld = 1;
-        when(mSystemInterface.processChld(chld)).thenReturn(true);
+        when(mSystemInterface.processChld(mHeadsetService, chld)).thenReturn(true);
 
         mHeadsetStateMachine.processAtChld(chld, mDevice);
 
@@ -1519,7 +1519,7 @@ public class HeadsetStateMachineTest {
     @Test
     public void testProcessAtChld_withProcessChldFalse() {
         int chld = 1;
-        when(mSystemInterface.processChld(chld)).thenReturn(false);
+        when(mSystemInterface.processChld(mHeadsetService, chld)).thenReturn(false);
 
         mHeadsetStateMachine.processAtChld(chld, mDevice);
 
