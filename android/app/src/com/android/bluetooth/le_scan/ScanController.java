@@ -20,8 +20,8 @@ import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static android.Manifest.permission.BLUETOOTH_SCAN;
 import static android.Manifest.permission.UPDATE_DEVICE_STATS;
 
-import static com.android.bluetooth.flags.Flags.leaudioBassScanWithInternalScanController;
 import static com.android.bluetooth.Utils.checkCallerTargetSdk;
+import static com.android.bluetooth.flags.Flags.leaudioBassScanWithInternalScanController;
 
 import static java.util.Objects.requireNonNull;
 
@@ -402,7 +402,9 @@ public class ScanController {
                         + ", originalAddress="
                         + originalAddress);
 
-        String identityAddress = mAdapterService.getIdentityAddress(address);
+        // Retain the original behavior of returning bluetoothAddress when identityAddress is null
+        String identityAddress = Utils.getBrEdrAddress(address, mAdapterService);
+
         if (!address.equals(identityAddress)) {
             Log.v(
                     TAG,
@@ -1137,7 +1139,7 @@ public class ScanController {
             return;
         }
 
-        enforceImpersonatationPermissionIfNeeded(workSource);
+        enforceImpersonationPermissionIfNeeded(workSource);
 
         AppScanStats app = mScannerMap.getAppScanStatsByUid(Binder.getCallingUid());
         if (app != null
@@ -1656,15 +1658,15 @@ public class ScanController {
     // apps for Bluetooth usage. A {@link SecurityException} will be thrown if the caller app does
     // not have UPDATE_DEVICE_STATS permission.
     @RequiresPermission(UPDATE_DEVICE_STATS)
-    private void enforceImpersonatationPermission() {
+    private void enforceImpersonationPermission() {
         mAdapterService.enforceCallingOrSelfPermission(
                 UPDATE_DEVICE_STATS, "Need UPDATE_DEVICE_STATS permission");
     }
 
     @SuppressLint("AndroidFrameworkRequiresPermission")
-    private void enforceImpersonatationPermissionIfNeeded(WorkSource workSource) {
+    private void enforceImpersonationPermissionIfNeeded(WorkSource workSource) {
         if (workSource != null) {
-            enforceImpersonatationPermission();
+            enforceImpersonationPermission();
         }
     }
 

@@ -308,8 +308,7 @@ public class BluetoothPbapService extends ProfileService implements IObexConnect
                 if (sm == null) {
                     return;
                 }
-                Message msg = sm.obtainMessage(PbapStateMachine.AUTH_KEY_INPUT, sessionKey);
-                sm.sendMessage(msg);
+                sm.sendMessage(sm.obtainMessage(PbapStateMachine.AUTH_KEY_INPUT, sessionKey));
             }
         } else if (AUTH_CANCELLED_ACTION.equals(action)) {
             BluetoothDevice device = intent.getParcelableExtra(EXTRA_DEVICE);
@@ -730,8 +729,9 @@ public class BluetoothPbapService extends ProfileService implements IObexConnect
     }
 
     @Override
-    public void stop() {
-        Log.v(TAG, "stop()");
+    public void cleanup() {
+        Log.i(TAG, "Cleanup BluetoothPbap Service");
+
         setBluetoothPbapService(null);
         mSessionStatusHandler.sendEmptyMessage(SHUTDOWN);
         mHandlerThread.quitSafely();

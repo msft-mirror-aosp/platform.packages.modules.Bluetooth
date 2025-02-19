@@ -35,6 +35,7 @@
 #include "stack/btm/btm_sec.h"
 #include "stack/btm/security_device_record.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/btm_log_history.h"
 #include "stack/include/main_thread.h"
 #include "stack/include/rnr_interface.h"
 #include "stack/rnr/remote_name_request.h"
@@ -44,6 +45,10 @@
 #define PROPERTY_BLE_PRIVACY_OWN_ADDRESS_ENABLED \
   "bluetooth.core.gap.le.privacy.own_address_type.enabled"
 #endif
+
+namespace {
+constexpr char kBtmLogTag[] = "ACL";
+}
 
 void bluetooth::shim::ACL_CreateClassicConnection(const RawAddress& raw_address) {
   auto address = ToGdAddress(raw_address);
@@ -55,17 +60,16 @@ void bluetooth::shim::ACL_CancelClassicConnection(const RawAddress& raw_address)
   Stack::GetInstance()->GetAcl()->CancelClassicConnection(address);
 }
 
-bool bluetooth::shim::ACL_AcceptLeConnectionFrom(const tBLE_BD_ADDR& legacy_address_with_type,
+void bluetooth::shim::ACL_AcceptLeConnectionFrom(const tBLE_BD_ADDR& legacy_address_with_type,
                                                  bool is_direct) {
-  std::promise<bool> promise;
-  auto future = promise.get_future();
-  Stack::GetInstance()->GetAcl()->AcceptLeConnectionFrom(
-          ToAddressWithTypeFromLegacy(legacy_address_with_type), is_direct, std::move(promise));
-  return future.get();
+  BTM_LogHistory(kBtmLogTag, legacy_address_with_type, "Allow connection from", "Le");
+  bluetooth::shim::GetAclManager()->CreateLeConnection(
+          ToAddressWithTypeFromLegacy(legacy_address_with_type), is_direct);
 }
 
 void bluetooth::shim::ACL_IgnoreLeConnectionFrom(const tBLE_BD_ADDR& legacy_address_with_type) {
-  Stack::GetInstance()->GetAcl()->IgnoreLeConnectionFrom(
+  BTM_LogHistory(kBtmLogTag, legacy_address_with_type, "Ignore connection from", "Le");
+  bluetooth::shim::GetAclManager()->CancelLeConnect(
           ToAddressWithTypeFromLegacy(legacy_address_with_type));
 }
 

@@ -24,8 +24,6 @@
 constexpr size_t kDevClassLength = 3;
 typedef std::array<uint8_t, kDevClassLength> DEV_CLASS; /* Device class */
 
-inline constexpr DEV_CLASS kDevClassEmpty = {};
-
 /***************************
  * major device class field
  * Note: All values are deduced by basing BIT_X to BIT_8, values as per
@@ -48,6 +46,7 @@ inline constexpr DEV_CLASS kDevClassEmpty = {};
  * Note: All values are deduced by basing BIT_X to BIT_8, values as per
  *  BT-spec assigned-numbers.
  ***************************/
+#define COD_SERVICE_NA 0x0000
 #define COD_SERVICE_LMTD_DISCOVER 0x0020  // BIT13 (eg. 13-8 = BIT5 = 0x0020)
 #define COD_SERVICE_LE_AUDIO 0x0040       // BIT14
 #define COD_SERVICE_POSITIONING 0x0100    // BIT16
@@ -117,6 +116,7 @@ inline constexpr DEV_CLASS kDevClassEmpty = {};
 
 /* Minor Device class field - Peripheral Major Class (COD_MAJOR_PERIPHERAL) */
 /* Bits 6-7 independently specify mouse, keyboard, or combo mouse/keyboard */
+#define COD_MAJOR_PERIPH_MINOR_UNCATEGORIZED 0x00
 #define COD_MAJOR_PERIPH_MINOR_KEYBOARD 0x40 // BIT6
 #define COD_MAJOR_PERIPH_MINOR_POINTING 0x80 // BIT7
 #define COD_MAJOR_PERIPH_MINOR_KEYBOARD_AND_POINTING_DEVICE 0xC0 // BIT6 | BIT7
@@ -167,7 +167,7 @@ inline constexpr DEV_CLASS kDevClassEmpty = {};
 #define COD_MAJOR_HEALTH_MINOR_PULSE_OXIMETER 0x14 // BIT2 | BIT4
 #define COD_MAJOR_HEALTH_MINOR_HEART_PULSE_MONITOR 0x18 // BIT3 | BIT4
 #define COD_MAJOR_HEALTH_MINOR_HEALTH_DATA_DISPLAY 0x1C // BIT2 | BIT3 | BIT4
-#define COD_MAJO_HEALTH_MINOR_STEP_COUNTER 0x20 // BIT5
+#define COD_MAJOR_HEALTH_MINOR_STEP_COUNTER 0x20 // BIT5
 #define COD_MAJOR_HEALTH_MINOR_BODY_COMPOSITION_ANALYZER 0x24 // BIT2 | BIT5
 #define COD_MAJOR_HEALTH_MINOR_PEAK_FLOW_MONITOR 0x28 // BIT3 | BIT5
 #define COD_MAJOR_HEALTH_MINOR_MEDICATION_MONITOR 0x2C // BIT2 | BIT3 | BIT5
@@ -215,7 +215,7 @@ inline constexpr DEV_CLASS kDevClassEmpty = {};
 #define BTM_COD_MINOR_GLUCOSE_METER COD_MAJOR_HEALTH_MINOR_GLUCOSE_METER
 #define BTM_COD_MINOR_PULSE_OXIMETER COD_MAJOR_HEALTH_MINOR_PULSE_OXIMETER
 #define BTM_COD_MINOR_HEART_PULSE_MONITOR COD_MAJOR_HEALTH_MINOR_HEART_PULSE_MONITOR
-#define BTM_COD_MINOR_STEP_COUNTER COD_MAJO_HEALTH_MINOR_STEP_COUNTER
+#define BTM_COD_MINOR_STEP_COUNTER COD_MAJOR_HEALTH_MINOR_STEP_COUNTER
 
 /***************************
  * major device class field
@@ -249,6 +249,8 @@ inline constexpr DEV_CLASS kDevClassEmpty = {};
 #define BTM_COD_SERVICE_CLASS_LO_B 0x00E0
 #define BTM_COD_SERVICE_CLASS_MASK 0xFFE0
 
+inline constexpr DEV_CLASS kDevClassEmpty = {COD_SERVICE_NA, COD_MAJOR_MISC,
+                                             COD_MINOR_UNCATEGORIZED};
 inline constexpr DEV_CLASS kDevClassUnclassified = {0x00, BTM_COD_MAJOR_UNCLASSIFIED,
                                                     BTM_COD_MINOR_UNCLASSIFIED};
 

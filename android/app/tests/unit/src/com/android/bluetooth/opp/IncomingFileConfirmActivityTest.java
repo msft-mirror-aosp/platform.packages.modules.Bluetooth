@@ -23,6 +23,7 @@ import static androidx.test.espresso.matcher.RootMatchers.isDialog;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.opp.BluetoothOppIncomingFileConfirmActivity.DISMISS_TIMEOUT_DIALOG;
 import static com.android.bluetooth.opp.BluetoothOppIncomingFileConfirmActivity.DISMISS_TIMEOUT_DIALOG_VALUE;
 
@@ -62,8 +63,6 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.Spy;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -72,7 +71,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 // Long class name cause problem with Junit4. It will raise java.lang.NoClassDefFoundError
 @RunWith(AndroidJUnit4.class)
 public class IncomingFileConfirmActivityTest {
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock Cursor mCursor;
     @Spy BluetoothMethodProxy mBluetoothMethodProxy;

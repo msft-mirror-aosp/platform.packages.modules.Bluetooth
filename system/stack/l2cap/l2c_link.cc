@@ -210,60 +210,34 @@ void l2c_link_sec_comp(RawAddress p_bda, tBT_TRANSPORT transport, void* p_ref_da
     return;
   }
 
-  if (com::android::bluetooth::flags::l2cap_p_ccb_check_rewrite()) {
-    if (!p_ref_data) {
-      log::warn("Argument p_ref_data is NULL");
+  if (!p_ref_data) {
+    log::warn("Argument p_ref_data is NULL");
+    return;
+  }
+
+  /* Match p_ccb with p_ref_data returned by sec manager */
+  p_ccb = (tL2C_CCB*)p_ref_data;
+
+  if (p_lcb != p_ccb->p_lcb) {
+    log::warn("p_ref_data doesn't match with sec manager record");
+    return;
+  }
+
+  switch (btm_status) {
+    case tBTM_STATUS::BTM_SUCCESS:
+      l2c_csm_execute(p_ccb, L2CEVT_SEC_COMP, &ci);
+      break;
+
+    case tBTM_STATUS::BTM_DELAY_CHECK:
+      /* start a timer - encryption change not received before L2CAP connect
+       * req */
+      alarm_set_on_mloop(p_ccb->l2c_ccb_timer, L2CAP_DELAY_CHECK_SM4_TIMEOUT_MS,
+                         l2c_ccb_timer_timeout, p_ccb);
       return;
-    }
 
-    /* Match p_ccb with p_ref_data returned by sec manager */
-    p_ccb = (tL2C_CCB*)p_ref_data;
-
-    if (p_lcb != p_ccb->p_lcb) {
-      log::warn("p_ref_data doesn't match with sec manager record");
-      return;
-    }
-
-    switch (btm_status) {
-      case tBTM_STATUS::BTM_SUCCESS:
-        l2c_csm_execute(p_ccb, L2CEVT_SEC_COMP, &ci);
-        break;
-
-      case tBTM_STATUS::BTM_DELAY_CHECK:
-        /* start a timer - encryption change not received before L2CAP connect
-         * req */
-        alarm_set_on_mloop(p_ccb->l2c_ccb_timer, L2CAP_DELAY_CHECK_SM4_TIMEOUT_MS,
-                           l2c_ccb_timer_timeout, p_ccb);
-        return;
-
-      default:
-        l2c_csm_execute(p_ccb, L2CEVT_SEC_COMP_NEG, &ci);
-        break;
-    }
-  } else {
-    /* Match p_ccb with p_ref_data returned by sec manager */
-    for (p_ccb = p_lcb->ccb_queue.p_first_ccb; p_ccb; p_ccb = p_next_ccb) {
-      p_next_ccb = p_ccb->p_next_ccb;
-
-      if (p_ccb == p_ref_data) {
-        switch (btm_status) {
-          case tBTM_STATUS::BTM_SUCCESS:
-            l2c_csm_execute(p_ccb, L2CEVT_SEC_COMP, &ci);
-            break;
-
-          case tBTM_STATUS::BTM_DELAY_CHECK:
-            /* start a timer - encryption change not received before L2CAP
-             * connect req */
-            alarm_set_on_mloop(p_ccb->l2c_ccb_timer, L2CAP_DELAY_CHECK_SM4_TIMEOUT_MS,
-                               l2c_ccb_timer_timeout, p_ccb);
-            return;
-
-          default:
-            l2c_csm_execute(p_ccb, L2CEVT_SEC_COMP_NEG, &ci);
-            break;
-        }
-      }
-    }
+    default:
+      l2c_csm_execute(p_ccb, L2CEVT_SEC_COMP_NEG, &ci);
+      break;
   }
 }
 

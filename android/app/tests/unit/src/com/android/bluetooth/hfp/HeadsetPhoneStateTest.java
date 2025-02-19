@@ -15,6 +15,7 @@
  */
 package com.android.bluetooth.hfp;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 
 import static org.junit.Assume.assumeTrue;
@@ -41,14 +42,12 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 /** Unit test to verify various methods in {@link HeadsetPhoneState} */
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class HeadsetPhoneStateTest {
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private HeadsetService mHeadsetService;
     @Mock private TelephonyManager mTelephonyManager;

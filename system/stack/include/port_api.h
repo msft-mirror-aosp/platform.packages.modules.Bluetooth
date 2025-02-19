@@ -334,19 +334,6 @@ typedef void(tPORT_MGMT_CALLBACK)(const tPORT_RESULT code, uint16_t port_handle)
 
 /*******************************************************************************
  *
- * Function         PORT_IsOpening
- *
- * Description      This function returns true if there is any RFCOMM connection
- *                  opening in process.
- *
- * Parameters:      true if any connection opening is found
- *                  bd_addr    - bd_addr of the peer
- *
- ******************************************************************************/
-[[nodiscard]] bool PORT_IsOpening(RawAddress* bd_addr);
-
-/*******************************************************************************
- *
  * Function         PORT_IsCollisionDetected
  *
  * Description      This function returns true if there is already an incoming

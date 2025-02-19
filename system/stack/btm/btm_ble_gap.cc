@@ -37,6 +37,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "ble_appearance.h"
 #include "bta/include/bta_api.h"
 #include "common/time_util.h"
 #include "hci/controller.h"
@@ -1801,139 +1802,18 @@ static uint8_t btm_ble_is_discoverable(const RawAddress& /* bda */,
   return scan_state;
 }
 
+/**
+ * Converts BLE appearance value to Class of Device
+ * Note: To add mapping for a new BLE appearance value for a category, add the
+ *  mapping under the appropriate APPEARANCE_TO_COD_XXXX macro.
+ */
 static DEV_CLASS btm_ble_appearance_to_cod(uint16_t appearance) {
-  DEV_CLASS dev_class = kDevClassEmpty;
-
   switch (appearance) {
-    case BTM_BLE_APPEARANCE_GENERIC_PHONE:
-      dev_class[1] = BTM_COD_MAJOR_PHONE;
-      dev_class[2] = BTM_COD_MINOR_UNCLASSIFIED;
-      break;
-    case BTM_BLE_APPEARANCE_GENERIC_COMPUTER:
-      dev_class[1] = BTM_COD_MAJOR_COMPUTER;
-      dev_class[2] = BTM_COD_MINOR_UNCLASSIFIED;
-      break;
-    case BTM_BLE_APPEARANCE_GENERIC_REMOTE:
-      dev_class[1] = BTM_COD_MAJOR_PERIPHERAL;
-      dev_class[2] = BTM_COD_MINOR_REMOTE_CONTROL;
-      break;
-    case BTM_BLE_APPEARANCE_GENERIC_THERMOMETER:
-    case BTM_BLE_APPEARANCE_THERMOMETER_EAR:
-      dev_class[1] = BTM_COD_MAJOR_HEALTH;
-      dev_class[2] = BTM_COD_MINOR_THERMOMETER;
-      break;
-    case BTM_BLE_APPEARANCE_GENERIC_HEART_RATE:
-    case BTM_BLE_APPEARANCE_HEART_RATE_BELT:
-      dev_class[1] = BTM_COD_MAJOR_HEALTH;
-      dev_class[2] = BTM_COD_MINOR_HEART_PULSE_MONITOR;
-      break;
-    case BTM_BLE_APPEARANCE_GENERIC_BLOOD_PRESSURE:
-    case BTM_BLE_APPEARANCE_BLOOD_PRESSURE_ARM:
-    case BTM_BLE_APPEARANCE_BLOOD_PRESSURE_WRIST:
-      dev_class[1] = BTM_COD_MAJOR_HEALTH;
-      dev_class[2] = BTM_COD_MINOR_BLOOD_MONITOR;
-      break;
-    case BTM_BLE_APPEARANCE_GENERIC_PULSE_OXIMETER:
-    case BTM_BLE_APPEARANCE_PULSE_OXIMETER_FINGERTIP:
-    case BTM_BLE_APPEARANCE_PULSE_OXIMETER_WRIST:
-      dev_class[1] = BTM_COD_MAJOR_HEALTH;
-      dev_class[2] = BTM_COD_MINOR_PULSE_OXIMETER;
-      break;
-    case BTM_BLE_APPEARANCE_GENERIC_GLUCOSE:
-      dev_class[1] = BTM_COD_MAJOR_HEALTH;
-      dev_class[2] = BTM_COD_MINOR_GLUCOSE_METER;
-      break;
-    case BTM_BLE_APPEARANCE_GENERIC_WEIGHT:
-      dev_class[1] = BTM_COD_MAJOR_HEALTH;
-      dev_class[2] = BTM_COD_MINOR_WEIGHING_SCALE;
-      break;
-    case BTM_BLE_APPEARANCE_GENERIC_WALKING:
-    case BTM_BLE_APPEARANCE_WALKING_IN_SHOE:
-    case BTM_BLE_APPEARANCE_WALKING_ON_SHOE:
-    case BTM_BLE_APPEARANCE_WALKING_ON_HIP:
-      dev_class[1] = BTM_COD_MAJOR_HEALTH;
-      dev_class[2] = BTM_COD_MINOR_STEP_COUNTER;
-      break;
-    case BTM_BLE_APPEARANCE_GENERIC_WATCH:
-    case BTM_BLE_APPEARANCE_SPORTS_WATCH:
-      dev_class[1] = BTM_COD_MAJOR_WEARABLE;
-      dev_class[2] = BTM_COD_MINOR_WRIST_WATCH;
-      break;
-    case BTM_BLE_APPEARANCE_GENERIC_EYEGLASSES:
-      dev_class[1] = BTM_COD_MAJOR_WEARABLE;
-      dev_class[2] = BTM_COD_MINOR_GLASSES;
-      break;
-    case BTM_BLE_APPEARANCE_GENERIC_DISPLAY:
-      dev_class[1] = BTM_COD_MAJOR_IMAGING;
-      dev_class[2] = BTM_COD_MINOR_DISPLAY;
-      break;
-    case BTM_BLE_APPEARANCE_GENERIC_MEDIA_PLAYER:
-      dev_class[1] = BTM_COD_MAJOR_AUDIO;
-      dev_class[2] = BTM_COD_MINOR_UNCLASSIFIED;
-      break;
-    case BTM_BLE_APPEARANCE_GENERIC_WEARABLE_AUDIO_DEVICE:
-    case BTM_BLE_APPEARANCE_WEARABLE_AUDIO_DEVICE_EARBUD:
-    case BTM_BLE_APPEARANCE_WEARABLE_AUDIO_DEVICE_HEADSET:
-    case BTM_BLE_APPEARANCE_WEARABLE_AUDIO_DEVICE_HEADPHONES:
-    case BTM_BLE_APPEARANCE_WEARABLE_AUDIO_DEVICE_NECK_BAND:
-      dev_class[0] = (BTM_COD_SERVICE_AUDIO | BTM_COD_SERVICE_RENDERING) >> 8;
-      dev_class[1] = (BTM_COD_MAJOR_AUDIO | BTM_COD_SERVICE_LE_AUDIO);
-      dev_class[2] = BTM_COD_MINOR_WEARABLE_HEADSET;
-      break;
-    case BTM_BLE_APPEARANCE_GENERIC_BARCODE_SCANNER:
-    case BTM_BLE_APPEARANCE_HID_BARCODE_SCANNER:
-    case BTM_BLE_APPEARANCE_GENERIC_HID:
-      dev_class[1] = BTM_COD_MAJOR_PERIPHERAL;
-      dev_class[2] = BTM_COD_MINOR_UNCLASSIFIED;
-      break;
-    case BTM_BLE_APPEARANCE_HID_KEYBOARD:
-      dev_class[1] = BTM_COD_MAJOR_PERIPHERAL;
-      dev_class[2] = BTM_COD_MINOR_KEYBOARD;
-      break;
-    case BTM_BLE_APPEARANCE_HID_MOUSE:
-      dev_class[1] = BTM_COD_MAJOR_PERIPHERAL;
-      dev_class[2] = BTM_COD_MINOR_POINTING;
-      break;
-    case BTM_BLE_APPEARANCE_HID_JOYSTICK:
-      dev_class[1] = BTM_COD_MAJOR_PERIPHERAL;
-      dev_class[2] = BTM_COD_MINOR_JOYSTICK;
-      break;
-    case BTM_BLE_APPEARANCE_HID_GAMEPAD:
-      dev_class[1] = BTM_COD_MAJOR_PERIPHERAL;
-      dev_class[2] = BTM_COD_MINOR_GAMEPAD;
-      break;
-    case BTM_BLE_APPEARANCE_HID_DIGITIZER_TABLET:
-      dev_class[1] = BTM_COD_MAJOR_PERIPHERAL;
-      dev_class[2] = BTM_COD_MINOR_DIGITIZING_TABLET;
-      break;
-    case BTM_BLE_APPEARANCE_HID_CARD_READER:
-      dev_class[1] = BTM_COD_MAJOR_PERIPHERAL;
-      dev_class[2] = BTM_COD_MINOR_CARD_READER;
-      break;
-    case BTM_BLE_APPEARANCE_HID_DIGITAL_PEN:
-      dev_class[1] = BTM_COD_MAJOR_PERIPHERAL;
-      dev_class[2] = BTM_COD_MINOR_DIGITAL_PAN;
-      break;
-    case BTM_BLE_APPEARANCE_UNKNOWN:
-    case BTM_BLE_APPEARANCE_GENERIC_CLOCK:
-    case BTM_BLE_APPEARANCE_GENERIC_TAG:
-    case BTM_BLE_APPEARANCE_GENERIC_KEYRING:
-    case BTM_BLE_APPEARANCE_GENERIC_CYCLING:
-    case BTM_BLE_APPEARANCE_CYCLING_COMPUTER:
-    case BTM_BLE_APPEARANCE_CYCLING_SPEED:
-    case BTM_BLE_APPEARANCE_CYCLING_CADENCE:
-    case BTM_BLE_APPEARANCE_CYCLING_POWER:
-    case BTM_BLE_APPEARANCE_CYCLING_SPEED_CADENCE:
-    case BTM_BLE_APPEARANCE_GENERIC_OUTDOOR_SPORTS:
-    case BTM_BLE_APPEARANCE_OUTDOOR_SPORTS_LOCATION:
-    case BTM_BLE_APPEARANCE_OUTDOOR_SPORTS_LOCATION_AND_NAV:
-    case BTM_BLE_APPEARANCE_OUTDOOR_SPORTS_LOCATION_POD:
-    case BTM_BLE_APPEARANCE_OUTDOOR_SPORTS_LOCATION_POD_AND_NAV:
-    default:
-      dev_class[1] = BTM_COD_MAJOR_UNCLASSIFIED;
-      dev_class[2] = BTM_COD_MINOR_UNCLASSIFIED;
+    APPEARANCE_TO_COD(ADD_APPEARANCE_TO_COD_CASE);
+    // No need of adding default case
   };
-  return dev_class;
+
+  return kDevClassEmpty;
 }
 
 DEV_CLASS btm_ble_get_appearance_as_cod(std::vector<uint8_t> const& data) {

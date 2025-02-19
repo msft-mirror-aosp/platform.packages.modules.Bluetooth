@@ -78,10 +78,9 @@
     {
       "name": "bluetooth-test-audio-hal-a2dp-provider-info"
     },
-    // Broken
-    //{
-    //  "name": "bluetooth-test-audio-hal-aidl-leaudio-utils"
-    //},
+    {
+      "name": "bluetooth-test-audio-hal-aidl-leaudio-utils"
+    },
     {
       "name": "bluetooth-test-audio-hal-hfp-client-interface"
     },
@@ -118,10 +117,9 @@
     {
       "name": "libbluetooth_core_rs_test"
     },
-    // Broken
-    //{
-    //  "name": "libbluetooth_log_test"
-    //},
+    {
+      "name": "libbluetooth_log_test"
+    },
     {
       "name": "libbluetooth_offload_hci_test"
     },
@@ -315,10 +313,9 @@
     {
       "name": "bluetooth-test-audio-hal-a2dp-provider-info"
     },
-    // Broken
-    //{
-    //  "name": "bluetooth-test-audio-hal-aidl-leaudio-utils"
-    //},
+    {
+      "name": "bluetooth-test-audio-hal-aidl-leaudio-utils"
+    },
     {
       "name": "bluetooth-test-audio-hal-hfp-client-interface"
     },
@@ -355,10 +352,9 @@
     {
       "name": "libbluetooth_core_rs_test"
     },
-    // Broken
-    //{
-    //  "name": "libbluetooth_log_test"
-    //},
+    {
+      "name": "libbluetooth_log_test"
+    },
     {
       "name": "libbluetooth_offload_hci_test"
     },

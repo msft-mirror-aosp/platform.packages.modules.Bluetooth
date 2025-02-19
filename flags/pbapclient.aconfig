@@ -14,3 +14,13 @@ flag {
     description: "Use primary and secondary versions to persist contacts across connections"
     bug: "376461947"
 }
+
+flag {
+    name: "pbap_cleanup_use_handler"
+    namespace: "bluetooth"
+    description: "Use handler to prevent NPE from multi threading"
+    bug: "396306579"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

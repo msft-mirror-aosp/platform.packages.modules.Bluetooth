@@ -92,11 +92,11 @@ public class McpService extends ProfileService {
     }
 
     @Override
-    public void stop() {
-        Log.d(TAG, "stop()");
+    public void cleanup() {
+        Log.i(TAG, "Cleanup Mcp Service");
 
         if (sMcpService == null) {
-            Log.w(TAG, "stop() called before start()");
+            Log.w(TAG, "cleanup() called before initialization");
             return;
         }
 
@@ -104,11 +104,6 @@ public class McpService extends ProfileService {
 
         // Mark service as stopped
         setMcpService(null);
-    }
-
-    @Override
-    public void cleanup() {
-        Log.d(TAG, "cleanup()");
     }
 
     @Override

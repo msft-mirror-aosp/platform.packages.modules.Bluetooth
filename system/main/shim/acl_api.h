@@ -29,7 +29,7 @@ namespace shim {
 
 void ACL_CreateClassicConnection(const RawAddress& raw_address);
 void ACL_CancelClassicConnection(const RawAddress& raw_address);
-bool ACL_AcceptLeConnectionFrom(const tBLE_BD_ADDR& legacy_address_with_type, bool is_direct);
+void ACL_AcceptLeConnectionFrom(const tBLE_BD_ADDR& legacy_address_with_type, bool is_direct);
 void ACL_IgnoreLeConnectionFrom(const tBLE_BD_ADDR& legacy_address_with_type);
 
 void ACL_Disconnect(uint16_t handle, bool is_classic, tHCI_STATUS reason, std::string comment);

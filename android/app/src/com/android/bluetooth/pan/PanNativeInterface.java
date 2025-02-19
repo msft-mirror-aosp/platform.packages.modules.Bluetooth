@@ -43,13 +43,13 @@ public class PanNativeInterface {
     }
 
     boolean connect(byte[] identityAddress) {
-        requireNonNull(identityAddress, "Identity address can not be null");
+        requireNonNull(identityAddress);
         return connectPanNative(
                 identityAddress, BluetoothPan.LOCAL_PANU_ROLE, BluetoothPan.REMOTE_NAP_ROLE);
     }
 
     boolean disconnect(byte[] identityAddress) {
-        requireNonNull(identityAddress, "Identity address can not be null");
+        requireNonNull(identityAddress);
         return disconnectPanNative(identityAddress);
     }
 

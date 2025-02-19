@@ -16,6 +16,7 @@
 
 package com.android.bluetooth.mcp;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -47,8 +48,6 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.util.HashMap;
 import java.util.UUID;
@@ -66,7 +65,7 @@ public class MediaControlProfileTest {
     private CharSequence charSequence = "TestPlayer";
     private MediaControlServiceCallbacks mMcpServiceCallbacks;
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private AdapterService mAdapterService;
     @Mock private MediaData mMockMediaData;

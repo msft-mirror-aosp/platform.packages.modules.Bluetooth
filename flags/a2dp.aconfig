@@ -22,16 +22,6 @@ flag {
 }
 
 flag {
-    name: "avrcp_sdp_records"
-    namespace: "bluetooth"
-    description: "Update SDP records for AVRC"
-    bug: "341353017"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "a2dp_variable_aac_capability"
     namespace: "bluetooth"
     description: "Enable AAC 48 kHz sampling rate for sink devices in the allow list"
@@ -43,16 +33,6 @@ flag {
     namespace: "bluetooth"
     description: "Handle AVDT stream reconfiguration in an event"
     bug: "348351688"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "avdt_prioritize_mandatory_codec"
-    namespace: "bluetooth"
-    description: "Reject remote peer HD codec configuration if mandatory codec is preferred in the stack"
-    bug: "350427803"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

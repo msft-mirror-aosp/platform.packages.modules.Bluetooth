@@ -21,6 +21,8 @@ import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static android.bluetooth.BluetoothUtils.executeFromBinder;
 
+import static java.util.Objects.requireNonNull;
+
 import android.annotation.CallbackExecutor;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
@@ -46,7 +48,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.Executor;
 
@@ -283,8 +284,8 @@ public final class BluetoothCsipSetCoordinator implements BluetoothProfile, Auto
             @NonNull @CallbackExecutor Executor executor,
             @NonNull ClientLockCallback callback) {
         if (VDBG) log("lockGroup()");
-        Objects.requireNonNull(executor, "executor cannot be null");
-        Objects.requireNonNull(callback, "callback cannot be null");
+        requireNonNull(executor);
+        requireNonNull(callback);
         final IBluetoothCsipSetCoordinator service = getService();
         if (service == null) {
             Log.w(TAG, "Proxy not attached to service");
@@ -315,7 +316,7 @@ public final class BluetoothCsipSetCoordinator implements BluetoothProfile, Auto
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public boolean unlockGroup(@NonNull UUID lockUuid) {
         if (VDBG) log("unlockGroup()");
-        Objects.requireNonNull(lockUuid, "lockUuid cannot be null");
+        requireNonNull(lockUuid);
         final IBluetoothCsipSetCoordinator service = getService();
         if (service == null) {
             Log.w(TAG, "Proxy not attached to service");
