@@ -1023,7 +1023,7 @@ public class ScanManager {
         private final MsftAdvMonitorMergedPatternList mMsftAdvMonitorMergedPatternList =
                 new MsftAdvMonitorMergedPatternList();
 
-        ScanNative(ScanController scanController) {
+        private ScanNative(ScanController scanController) {
             mNativeInterface = ScanObjectsFactory.getInstance().getScanNativeInterface();
             mNativeInterface.init(scanController);
             mFilterIndexStack = new ArrayDeque<Integer>();
