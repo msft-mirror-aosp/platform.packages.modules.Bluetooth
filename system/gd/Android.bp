@@ -37,44 +37,10 @@ cc_defaults {
     header_libs: ["jni_headers"],
 }
 
-soong_config_module_type {
-    name: "mgmt_cc_defaults",
-    module_type: "cc_defaults",
-    config_namespace: "mgmt",
-    variables: ["vertical"],
-    properties: ["srcs"],
-}
-
-soong_config_string_variable {
-    name: "vertical",
-    values: [
-        "android_default",
-        "android_desktop",
-    ],
-}
-
-mgmt_cc_defaults {
-    name: "mgmt_defaults",
-    soong_config_variables: {
-        vertical: {
-            android_desktop: {
-                srcs: [":BluetoothOsSources_mgmt_linux"],
-            },
-            android_default: {
-                srcs: [":BluetoothOsSources_mgmt"],
-            },
-            conditions_default: {
-                srcs: [":BluetoothOsSources_mgmt"],
-            },
-        },
-    },
-}
-
 cc_defaults {
     name: "libbluetooth_gd_defaults",
     defaults: [
         "gd_defaults",
-        "mgmt_defaults",
     ],
     host_supported: true,
     target: {
