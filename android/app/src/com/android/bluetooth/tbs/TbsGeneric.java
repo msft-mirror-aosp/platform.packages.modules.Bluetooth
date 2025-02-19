@@ -17,12 +17,14 @@
 
 package com.android.bluetooth.tbs;
 
+import static com.android.bluetooth.telephony.BluetoothInCallService.Capability;
+import static com.android.bluetooth.telephony.BluetoothInCallService.Result;
+
 import static java.util.Objects.requireNonNull;
 
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothLeAudio;
 import android.bluetooth.BluetoothLeCall;
-import android.bluetooth.BluetoothLeCallControl;
 import android.bluetooth.IBluetoothLeCallControlCallback;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -477,11 +479,11 @@ public class TbsGeneric {
     }
 
     private synchronized int getTbsResult(int result, int requestedOpcode) {
-        if (result == BluetoothLeCallControl.RESULT_ERROR_UNKNOWN_CALL_ID) {
+        if (result == Result.ERROR_UNKNOWN_CALL_ID) {
             return TbsGatt.CALL_CONTROL_POINT_RESULT_INVALID_CALL_INDEX;
         }
 
-        if (result == BluetoothLeCallControl.RESULT_ERROR_INVALID_URI
+        if (result == Result.ERROR_INVALID_URI
                 && requestedOpcode == TbsGatt.CALL_CONTROL_POINT_OPCODE_ORIGINATE) {
             return TbsGatt.CALL_CONTROL_POINT_RESULT_INVALID_OUTGOING_URI;
         }
@@ -503,7 +505,7 @@ public class TbsGeneric {
             return;
         }
 
-        if (result == BluetoothLeCallControl.RESULT_SUCCESS) {
+        if (result == Result.SUCCESS) {
             // don't send the success here, wait for state transition instead
             return;
         }
@@ -888,10 +890,7 @@ public class TbsGeneric {
                                                     requestId, new ParcelUuid(callId));
                                         } else if (opcode
                                                 == TbsGatt.CALL_CONTROL_POINT_OPCODE_LOCAL_HOLD) {
-                                            if ((bearer.capabilities
-                                                            & BluetoothLeCallControl
-                                                                    .CAPABILITY_HOLD_CALL)
-                                                    == 0) {
+                                            if ((bearer.capabilities & Capability.HOLD_CALL) == 0) {
                                                 result =
                                                         TbsGatt
                                                                 .CALL_CONTROL_POINT_RESULT_OPCODE_NOT_SUPPORTED;
@@ -900,10 +899,7 @@ public class TbsGeneric {
                                             bearer.callback.onHoldCall(
                                                     requestId, new ParcelUuid(callId));
                                         } else {
-                                            if ((bearer.capabilities
-                                                            & BluetoothLeCallControl
-                                                                    .CAPABILITY_HOLD_CALL)
-                                                    == 0) {
+                                            if ((bearer.capabilities & Capability.HOLD_CALL) == 0) {
                                                 result =
                                                         TbsGatt
                                                                 .CALL_CONTROL_POINT_RESULT_OPCODE_NOT_SUPPORTED;
