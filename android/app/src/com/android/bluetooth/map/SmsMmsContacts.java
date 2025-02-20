@@ -42,7 +42,6 @@ import java.util.regex.Pattern;
  */
 // Next tag value for ContentProfileErrorReportUtils.report(): 2
 public class SmsMmsContacts {
-
     private static final String TAG = "SmsMmsContacts";
 
     private HashMap<Long, String> mPhoneNumbers = null;

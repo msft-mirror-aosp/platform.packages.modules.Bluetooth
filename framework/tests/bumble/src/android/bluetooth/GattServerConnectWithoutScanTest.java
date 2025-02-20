@@ -44,6 +44,7 @@ import pandora.HostProto.OwnAddressType;
 @RunWith(AndroidJUnit4.class)
 public class GattServerConnectWithoutScanTest {
     private static final String TAG = "GattServerConnectWithoutScanTest";
+
     private static final int TIMEOUT_GATT_CONNECTION_MS = 2_000;
 
     @Rule(order = 1)

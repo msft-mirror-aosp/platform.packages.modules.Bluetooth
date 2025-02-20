@@ -99,6 +99,7 @@ import java.util.concurrent.TimeUnit;
 @RunWith(AndroidJUnit4.class)
 public class HidHeadTrackerTest {
     private static final String TAG = HidHeadTrackerTest.class.getSimpleName();
+
     private static final String BUMBLE_DEVICE_NAME = "Bumble";
     private static final Duration BOND_INTENT_TIMEOUT = Duration.ofSeconds(10);
     private static final Duration INTENT_TIMEOUT = Duration.ofSeconds(10);

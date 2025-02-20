@@ -44,6 +44,7 @@ import java.util.List;
 class HapClientBinder extends IBluetoothHapClient.Stub
         implements ProfileService.IProfileServiceBinder {
     private static final String TAG = HapClientBinder.class.getSimpleName();
+
     private HapClientService mService;
 
     HapClientBinder(HapClientService svc) {

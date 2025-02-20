@@ -55,9 +55,9 @@ import java.util.stream.IntStream;
 
 /** A set of methods useful in Bluetooth instrumentation tests */
 public class TestUtils {
-    private static String sSystemScreenOffTimeout = "10000";
-
     private static final String TAG = "BluetoothTestUtils";
+
+    private static String sSystemScreenOffTimeout = "10000";
 
     /**
      * Set the return value of {@link AdapterService#getAdapterService()} to a test specified value

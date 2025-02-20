@@ -502,6 +502,7 @@ public class PbapClientObexClientTest {
 
     private static class FakePbapObexServer extends FakeObexServer {
         private static final String TAG = FakePbapObexServer.class.getSimpleName();
+
         private static final String TYPE_GET_PHONEBOOK = "x-bt/phonebook";
         private static final byte SIZE_BYTES = 2;
         private static final byte DATABASE_IDENTIFIER_BYTES = 4;

@@ -59,6 +59,7 @@ import java.util.List;
  */
 public class BipImageProperties {
     private static final String TAG = "avrcpcontroller.BipImageProperties";
+
     private static final String sVersion = "1.0";
 
     /** A Builder for a BipImageProperties object */

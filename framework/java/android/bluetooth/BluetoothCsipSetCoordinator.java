@@ -60,6 +60,7 @@ import java.util.concurrent.Executor;
  */
 public final class BluetoothCsipSetCoordinator implements BluetoothProfile, AutoCloseable {
     private static final String TAG = "BluetoothCsipSetCoordinator";
+
     private static final boolean DBG = false;
     private static final boolean VDBG = false;
 

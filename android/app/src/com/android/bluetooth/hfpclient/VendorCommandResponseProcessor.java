@@ -35,7 +35,6 @@ import java.util.Map;
 import java.util.Objects;
 
 class VendorCommandResponseProcessor {
-
     private static final String TAG = VendorCommandResponseProcessor.class.getSimpleName();
 
     private final HeadsetClientService mService;
