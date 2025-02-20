@@ -294,3 +294,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "distance_measurement_thread"
+    namespace: "bluetooth"
+    description: "Makes distance measurement opreations run on one thread."
+    bug: "397809459"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
