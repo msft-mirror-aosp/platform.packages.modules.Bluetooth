@@ -117,6 +117,7 @@ import javax.crypto.spec.SecretKeySpec;
 @RunWith(ParameterizedAndroidJunit4.class)
 public class AdapterServiceTest {
     private static final String TAG = AdapterServiceTest.class.getSimpleName();
+
     private static final String TEST_BT_ADDR_1 = "00:11:22:33:44:55";
     private static final String TEST_BT_ADDR_2 = "00:11:22:33:44:66";
 

@@ -52,6 +52,7 @@ import java.util.Objects;
  */
 public class BipImageDescriptor {
     private static final String TAG = "avrcpcontroller.BipImageDescriptor";
+
     private static final String sVersion = "1.0";
 
     /** A Builder for an ImageDescriptor object */

@@ -84,8 +84,8 @@ import java.util.concurrent.Executors;
  * the service triggering InCallActivity (via CallList) to finish soon after.
  */
 public class BluetoothInCallService extends InCallService {
-
     private static final String TAG = "BluetoothInCallService";
+
     // match up with bthf_call_state_t of bt_hf.h
     private static final int CALL_STATE_ACTIVE = 0;
     private static final int CALL_STATE_HELD = 1;

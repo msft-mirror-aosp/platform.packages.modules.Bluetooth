@@ -28,6 +28,7 @@ import java.util.UUID;
 /** Helper class containing useful tools for GATT service debugging. */
 /*package*/ class GattDebugUtils {
     private static final String TAG = GattServiceConfig.TAG_PREFIX + "DebugUtils";
+
     private static final boolean DEBUG_ADMIN = GattServiceConfig.DEBUG_ADMIN;
 
     @VisibleForTesting

@@ -52,7 +52,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /** Provides Bluetooth AVRCP Controller profile, as a service in the Bluetooth application. */
 public class AvrcpControllerService extends ProfileService {
-    static final String TAG = AvrcpControllerService.class.getSimpleName();
+    private static final String TAG = AvrcpControllerService.class.getSimpleName();
 
     static final int MAXIMUM_CONNECTED_DEVICES = 5;
 

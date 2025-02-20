@@ -53,7 +53,6 @@ import java.lang.annotation.RetentionPolicy;
  */
 @SystemApi
 public final class OobData implements Parcelable {
-
     private static final String TAG = "OobData";
 
     /** The {@link OobData#mClassicLength} may be. (AD 3.1.1) (CSS 1.6.2) @hide */

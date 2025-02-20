@@ -41,7 +41,6 @@ import java.util.function.Predicate;
 /** Represents a scan record from Bluetooth LE scan. */
 @SuppressLint("AndroidFrameworkBluetoothPermission")
 public final class ScanRecord {
-
     private static final String TAG = "ScanRecord";
 
     /** @hide */

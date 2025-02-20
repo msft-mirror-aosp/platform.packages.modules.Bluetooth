@@ -42,6 +42,7 @@ import java.util.Set;
  */
 public class BrowsablePlayerConnector extends Handler {
     private static final String TAG = "AvrcpBrowsablePlayerConnector";
+
     private static final long CONNECT_TIMEOUT_MS = 10000; // Time in ms to wait for a connection
 
     private static final int MSG_GET_FOLDER_ITEMS_CB = 0;

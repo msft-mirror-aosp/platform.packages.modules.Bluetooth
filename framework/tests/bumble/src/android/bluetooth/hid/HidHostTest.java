@@ -94,6 +94,7 @@ import java.util.concurrent.TimeUnit;
 @VirtualOnly
 public class HidHostTest {
     private static final String TAG = HidHostTest.class.getSimpleName();
+
     private static final Duration INTENT_TIMEOUT = Duration.ofSeconds(10);
     private BluetoothDevice mDevice;
     private BluetoothHidHost mHidService;

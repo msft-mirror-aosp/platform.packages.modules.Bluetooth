@@ -21,10 +21,6 @@ import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.timeout;
-import static org.mockito.Mockito.verify;
-
 import android.bluetooth.BluetoothA2dp;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -37,16 +33,15 @@ import android.bluetooth.BluetoothStatusCodes;
 import android.bluetooth.PandoraDevice;
 import android.bluetooth.StreamObserverSpliterator;
 import android.bluetooth.Utils;
-import android.bluetooth.test_utils.BlockingBluetoothAdapter;
-import android.bluetooth.test_utils.EnableBluetoothRule;
 import android.bluetooth.pairing.utils.IntentReceiver;
 import android.bluetooth.pairing.utils.TestUtil;
+import android.bluetooth.test_utils.BlockingBluetoothAdapter;
+import android.bluetooth.test_utils.EnableBluetoothRule;
 import android.content.Context;
 import android.os.ParcelUuid;
 import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
-import android.util.Log;
 
 import androidx.test.platform.app.InstrumentationRegistry;
 
@@ -64,7 +59,6 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -88,6 +82,7 @@ import java.util.concurrent.TimeUnit;
 @RunWith(TestParameterInjector.class)
 public class PairingTest {
     private static final String TAG = "PairingTest";
+
     private static final Duration BOND_INTENT_TIMEOUT = Duration.ofSeconds(10);
     private static final int TEST_DELAY_MS = 1000;
 

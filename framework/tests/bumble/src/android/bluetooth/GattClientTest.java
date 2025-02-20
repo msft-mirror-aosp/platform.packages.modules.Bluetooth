@@ -83,6 +83,7 @@ import java.util.UUID;
 @RunWith(TestParameterInjector.class)
 public class GattClientTest {
     private static final String TAG = "GattClientTest";
+
     private static final int ANDROID_MTU = 517;
     private static final int MTU_REQUESTED = 23;
     private static final int ANOTHER_MTU_REQUESTED = 42;

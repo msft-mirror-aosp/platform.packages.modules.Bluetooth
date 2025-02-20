@@ -52,7 +52,6 @@ import java.util.Calendar;
 
 // Next tag value for ContentProfileErrorReportUtils.report(): 74
 public class BluetoothMapObexServer extends ServerRequestHandler {
-
     private static final String TAG = "BluetoothMapObexServer";
 
     private static final int UUID_LENGTH = 16;

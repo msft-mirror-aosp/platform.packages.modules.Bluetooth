@@ -86,6 +86,8 @@ import java.util.Set;
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class HeadsetServiceAndStateMachineTest {
+    private static final String TAG = HeadsetServiceAndStateMachineTest.class.getSimpleName();
+
     @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     @Rule public final MockitoRule mMockitoRule = new MockitoRule();
@@ -105,7 +107,6 @@ public class HeadsetServiceAndStateMachineTest {
     @Mock private RemoteDevices mRemoteDevices;
     @Mock private SystemProperties.MockableSystemProperties mProperties;
 
-    private static final String TAG = HeadsetServiceAndStateMachineTest.class.getSimpleName();
     private static final int MAX_HEADSET_CONNECTIONS = 5;
     private static final ParcelUuid[] FAKE_HEADSET_UUID = {BluetoothUuid.HFP};
     private static final String TEST_PHONE_NUMBER = "1234567890";

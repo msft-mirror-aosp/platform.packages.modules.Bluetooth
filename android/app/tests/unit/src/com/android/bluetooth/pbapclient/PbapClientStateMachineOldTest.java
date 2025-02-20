@@ -50,12 +50,13 @@ import org.mockito.Mockito;
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class PbapClientStateMachineOldTest {
+    private static final String TAG = "PbapClientStateMachineOldTest";
+
     @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private PbapClientService mMockPbapClientService;
     @Mock private PbapClientConnectionHandler mMockHandler;
 
-    private static final String TAG = "PbapClientStateMachineOldTest";
     private static final int DISCONNECT_TIMEOUT = 5000;
 
     private final BluetoothDevice mDevice = getTestDevice(40);

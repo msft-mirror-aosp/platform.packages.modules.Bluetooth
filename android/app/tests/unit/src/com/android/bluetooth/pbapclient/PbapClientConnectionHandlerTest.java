@@ -48,14 +48,14 @@ import org.mockito.Mock;
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class PbapClientConnectionHandlerTest {
+    private static final String TAG = "ConnHandlerTest";
+
     @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private PbapClientService mService;
     @Mock private Resources mMockResources;
     @Mock private ContentResolver mMockContentResolver;
     @Mock private PbapClientStateMachineOld mStateMachine;
-
-    private static final String TAG = "ConnHandlerTest";
 
     // Normal supported features for our client
     private static final int SUPPORTED_FEATURES =

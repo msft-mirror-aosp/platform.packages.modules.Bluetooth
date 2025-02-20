@@ -48,7 +48,6 @@ import java.util.IdentityHashMap;
  * @hide
  */
 public final class PeriodicAdvertisingManager {
-
     private static final String TAG = "PeriodicAdvertisingManager";
 
     private static final int SKIP_MIN = 0;

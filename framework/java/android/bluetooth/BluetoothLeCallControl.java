@@ -200,7 +200,6 @@ public final class BluetoothLeCallControl implements BluetoothProfile {
      * @hide
      */
     public abstract static class Callback {
-
         private static final String TAG = "BluetoothLeCallControl.Callback";
 
         /**
