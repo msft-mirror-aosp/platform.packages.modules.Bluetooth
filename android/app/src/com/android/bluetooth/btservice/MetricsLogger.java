@@ -15,6 +15,7 @@
  */
 package com.android.bluetooth.btservice;
 
+import static android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
 
 import static com.android.bluetooth.BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__BOND;
@@ -654,6 +655,18 @@ public class MetricsLogger {
         return matchedString;
     }
 
+    private static int convertAppImportance(int importance) {
+        if (importance < IMPORTANCE_FOREGROUND_SERVICE) {
+            return BluetoothStatsLog
+                    .LE_APP_SCAN_STATE_CHANGED__APP_IMPORTANCE__IMPORTANCE_HIGHER_THAN_FGS;
+        }
+        if (importance > IMPORTANCE_FOREGROUND_SERVICE) {
+            return BluetoothStatsLog
+                    .LE_APP_SCAN_STATE_CHANGED__APP_IMPORTANCE__IMPORTANCE_LOWER_THAN_FGS;
+        }
+        return BluetoothStatsLog.LE_APP_SCAN_STATE_CHANGED__APP_IMPORTANCE__IMPORTANCE_EQUAL_TO_FGS;
+    }
+
     /** Logs the app scan stats with app attribution when the app scan state changed. */
     public void logAppScanStateChanged(
             int[] uids,
@@ -668,7 +681,8 @@ public class MetricsLogger {
             long scanDurationMillis,
             int numOngoingScan,
             boolean isScreenOn,
-            boolean isAppDead) {
+            boolean isAppDead,
+            int appImportance) {
         BluetoothStatsLog.write(
                 BluetoothStatsLog.LE_APP_SCAN_STATE_CHANGED,
                 uids,
@@ -684,7 +698,7 @@ public class MetricsLogger {
                 numOngoingScan,
                 isScreenOn,
                 isAppDead,
-                0);
+                convertAppImportance(appImportance));
     }
 
     /** Logs the radio scan stats with app attribution when the radio scan stopped. */
@@ -696,7 +710,8 @@ public class MetricsLogger {
             long scanIntervalMillis,
             long scanWindowMillis,
             boolean isScreenOn,
-            long scanDurationMillis) {
+            long scanDurationMillis,
+            int appImportance) {
         BluetoothStatsLog.write(
                 BluetoothStatsLog.LE_RADIO_SCAN_STOPPED,
                 uids,
@@ -707,7 +722,7 @@ public class MetricsLogger {
                 scanWindowMillis,
                 isScreenOn,
                 scanDurationMillis,
-                0);
+                convertAppImportance(appImportance));
     }
 
     /** Logs the advertise stats with app attribution when the advertise state changed. */
@@ -722,7 +737,8 @@ public class MetricsLogger {
             boolean hasScanResponse,
             boolean isExtendedAdv,
             int instanceCount,
-            long advDurationMs) {
+            long advDurationMs,
+            int appImportance) {
         BluetoothStatsLog.write(
                 BluetoothStatsLog.LE_ADV_STATE_CHANGED,
                 uids,
@@ -736,7 +752,7 @@ public class MetricsLogger {
                 isExtendedAdv,
                 instanceCount,
                 advDurationMs,
-                0);
+                convertAppImportance(appImportance));
     }
 
     protected String getAllowlistedDeviceNameHash(
