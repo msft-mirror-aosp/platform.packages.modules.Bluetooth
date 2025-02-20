@@ -2964,6 +2964,11 @@ public class BassClientService extends ProfileService {
                         + ", hasPriority: "
                         + hasPriority);
 
+        if (getActiveSyncedSources().contains(getSyncHandleForBroadcastId(broadcastId))) {
+            log("addSelectSourceRequest: Already synced");
+            return;
+        }
+
         if (isAddedToSelectSourceRequest(broadcastId, hasPriority)) {
             log("addSelectSourceRequest: Already added");
             return;
