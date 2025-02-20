@@ -32,7 +32,6 @@ import android.app.PendingIntent;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothUtils;
-import android.bluetooth.IBluetoothScan;
 import android.bluetooth.le.BluetoothLeScanner;
 import android.bluetooth.le.IPeriodicAdvertisingCallback;
 import android.bluetooth.le.IScannerCallback;
@@ -153,7 +152,7 @@ public class ScanController {
 
     public final HandlerThread mScanThread;
 
-    private final BluetoothScanBinder mBinder;
+    private final ScanBinder mBinder;
 
     /** Internal list of scan events to use with the proto */
     private final ArrayDeque<BluetoothMetricsProto.ScanEvent> mScanEvents =
@@ -193,7 +192,7 @@ public class ScanController {
                     return false;
                 };
         mMainLooper = adapterService.getMainLooper();
-        mBinder = new BluetoothScanBinder(this);
+        mBinder = new ScanBinder(this);
         mIsAvailable = true;
         mScanThread = new HandlerThread("BluetoothScanManager");
         mScanThread.start();
@@ -219,6 +218,10 @@ public class ScanController {
         mScannerMap.clear();
         mScanManager.cleanup();
         mPeriodicScanManager.cleanup();
+    }
+
+    boolean isAvailable() {
+        return mIsAvailable;
     }
 
     ScannerMap getScannerMap() {
@@ -1131,7 +1134,6 @@ public class ScanController {
      *************************************************************************/
 
     @RequiresPermission(BLUETOOTH_SCAN)
-    @VisibleForTesting
     void registerScanner(
             IScannerCallback callback, WorkSource workSource, AttributionSource attributionSource) {
         if (!Utils.checkScanPermissionForDataDelivery(
@@ -1167,7 +1169,7 @@ public class ScanController {
     }
 
     @RequiresPermission(BLUETOOTH_SCAN)
-    private void unregisterScanner(int scannerId, AttributionSource attributionSource) {
+    void unregisterScanner(int scannerId, AttributionSource attributionSource) {
         if (!Utils.checkScanPermissionForDataDelivery(
                 mAdapterService, attributionSource, "ScanHelper unregisterScanner")) {
             return;
@@ -1210,7 +1212,7 @@ public class ScanController {
     }
 
     @RequiresPermission(BLUETOOTH_SCAN)
-    private void startScan(
+    void startScan(
             int scannerId,
             ScanSettings settings,
             List<ScanFilter> filters,
@@ -1304,7 +1306,7 @@ public class ScanController {
     }
 
     @RequiresPermission(BLUETOOTH_SCAN)
-    private void registerPiAndStartScan(
+    void registerPiAndStartScan(
             PendingIntent pendingIntent,
             ScanSettings settings,
             List<ScanFilter> filters,
@@ -1418,7 +1420,6 @@ public class ScanController {
     }
 
     @RequiresPermission(BLUETOOTH_SCAN)
-    @VisibleForTesting
     void flushPendingBatchResults(int scannerId, AttributionSource attributionSource) {
         if (!Utils.checkScanPermissionForDataDelivery(
                 mAdapterService, attributionSource, "ScanHelper flushPendingBatchResults")) {
@@ -1433,7 +1434,7 @@ public class ScanController {
     }
 
     @RequiresPermission(BLUETOOTH_SCAN)
-    private void stopScan(int scannerId, AttributionSource attributionSource) {
+    void stopScan(int scannerId, AttributionSource attributionSource) {
         if (!Utils.checkScanPermissionForDataDelivery(
                 mAdapterService, attributionSource, "ScanHelper stopScan")) {
             return;
@@ -1456,7 +1457,7 @@ public class ScanController {
     }
 
     @RequiresPermission(BLUETOOTH_SCAN)
-    private void stopScan(PendingIntent intent, AttributionSource attributionSource) {
+    void stopScan(PendingIntent intent, AttributionSource attributionSource) {
         if (!Utils.checkScanPermissionForDataDelivery(
                 mAdapterService, attributionSource, "ScanHelper stopScan")) {
             return;
@@ -1483,7 +1484,6 @@ public class ScanController {
      * PERIODIC SCANNING
      *************************************************************************/
     @RequiresPermission(BLUETOOTH_SCAN)
-    @VisibleForTesting
     void registerSync(
             ScanResult scanResult,
             int skip,
@@ -1498,7 +1498,6 @@ public class ScanController {
     }
 
     @RequiresPermission(BLUETOOTH_SCAN)
-    @VisibleForTesting
     void unregisterSync(
             IPeriodicAdvertisingCallback callback, AttributionSource attributionSource) {
         if (!Utils.checkScanPermissionForDataDelivery(
@@ -1509,7 +1508,6 @@ public class ScanController {
     }
 
     @RequiresPermission(BLUETOOTH_SCAN)
-    @VisibleForTesting
     void transferSync(
             BluetoothDevice bda,
             int serviceData,
@@ -1523,7 +1521,6 @@ public class ScanController {
     }
 
     @RequiresPermission(BLUETOOTH_SCAN)
-    @VisibleForTesting
     void transferSetInfo(
             BluetoothDevice bda,
             int serviceData,
@@ -1538,7 +1535,7 @@ public class ScanController {
     }
 
     @RequiresPermission(BLUETOOTH_SCAN)
-    private int numHwTrackFiltersAvailable(AttributionSource attributionSource) {
+    int numHwTrackFiltersAvailable(AttributionSource attributionSource) {
         if (!Utils.checkScanPermissionForDataDelivery(
                 mAdapterService, attributionSource, "ScanHelper numHwTrackFiltersAvailable")) {
             return 0;
@@ -1737,167 +1734,4 @@ public class ScanController {
         }
     }
 
-    static class BluetoothScanBinder extends IBluetoothScan.Stub {
-        private ScanController mScanController;
-
-        BluetoothScanBinder(ScanController scanController) {
-            mScanController = scanController;
-        }
-
-        @Override
-        public void registerScanner(
-                IScannerCallback callback,
-                WorkSource workSource,
-                AttributionSource attributionSource) {
-            ScanController mScanController = getScanController();
-            if (mScanController == null) {
-                return;
-            }
-            mScanController
-                    .registerScanner(callback, workSource, attributionSource);
-        }
-
-        @Override
-        public void unregisterScanner(int scannerId, AttributionSource attributionSource) {
-            ScanController mScanController = getScanController();
-            if (mScanController == null) {
-                return;
-            }
-            mScanController
-                    .unregisterScanner(scannerId, attributionSource);
-        }
-
-        @Override
-        public void startScan(
-                int scannerId,
-                ScanSettings settings,
-                List<ScanFilter> filters,
-                AttributionSource attributionSource) {
-            ScanController mScanController = getScanController();
-            if (mScanController == null) {
-                return;
-            }
-            mScanController
-                    .startScan(scannerId, settings, filters, attributionSource);
-        }
-
-        @Override
-        public void startScanForIntent(
-                PendingIntent intent,
-                ScanSettings settings,
-                List<ScanFilter> filters,
-                AttributionSource attributionSource) {
-            ScanController mScanController = getScanController();
-            if (mScanController == null) {
-                return;
-            }
-            mScanController
-                    .registerPiAndStartScan(intent, settings, filters, attributionSource);
-        }
-
-        @Override
-        public void stopScan(int scannerId, AttributionSource attributionSource) {
-            ScanController mScanController = getScanController();
-            if (mScanController == null) {
-                return;
-            }
-            mScanController.stopScan(scannerId, attributionSource);
-        }
-
-        @Override
-        public void stopScanForIntent(PendingIntent intent, AttributionSource attributionSource) {
-            ScanController mScanController = getScanController();
-            if (mScanController == null) {
-                return;
-            }
-            mScanController.stopScan(intent, attributionSource);
-        }
-
-        @Override
-        public void flushPendingBatchResults(int scannerId, AttributionSource attributionSource) {
-            ScanController mScanController = getScanController();
-            if (mScanController == null) {
-                return;
-            }
-            mScanController
-                    .flushPendingBatchResults(scannerId, attributionSource);
-        }
-
-        @Override
-        public void registerSync(
-                ScanResult scanResult,
-                int skip,
-                int timeout,
-                IPeriodicAdvertisingCallback callback,
-                AttributionSource attributionSource) {
-            ScanController mScanController = getScanController();
-            if (mScanController == null) {
-                return;
-            }
-            mScanController
-                    .registerSync(scanResult, skip, timeout, callback, attributionSource);
-        }
-
-        @Override
-        public void unregisterSync(
-                IPeriodicAdvertisingCallback callback, AttributionSource attributionSource) {
-            ScanController mScanController = getScanController();
-            if (mScanController == null) {
-                return;
-            }
-            mScanController.unregisterSync(callback, attributionSource);
-        }
-
-        @Override
-        public void transferSync(
-                BluetoothDevice bda,
-                int serviceData,
-                int syncHandle,
-                AttributionSource attributionSource) {
-            ScanController mScanController = getScanController();
-            if (mScanController == null) {
-                return;
-            }
-            mScanController
-                    .transferSync(bda, serviceData, syncHandle, attributionSource);
-        }
-
-        @Override
-        public void transferSetInfo(
-                BluetoothDevice bda,
-                int serviceData,
-                int advHandle,
-                IPeriodicAdvertisingCallback callback,
-                AttributionSource attributionSource) {
-            ScanController mScanController = getScanController();
-            if (mScanController == null) {
-                return;
-            }
-            mScanController
-                    .transferSetInfo(bda, serviceData, advHandle, callback, attributionSource);
-        }
-
-        @Override
-        public int numHwTrackFiltersAvailable(AttributionSource attributionSource) {
-            ScanController mScanController = getScanController();
-            if (mScanController == null) {
-                return 0;
-            }
-            return mScanController
-                    .numHwTrackFiltersAvailable(attributionSource);
-        }
-
-        private void clearScanController() {
-            mScanController = null;
-        }
-
-        private ScanController getScanController() {
-            ScanController controller = mScanController;
-            if (controller != null && controller.mIsAvailable) {
-                return controller;
-            }
-            Log.e(TAG, "getScanController() - ScanController requested, but not available!");
-            return null;
-        }
-    }
 }
