@@ -26,7 +26,6 @@ import static com.android.bluetooth.flags.Flags.leaudioBigDependsOnAudioState;
 import static com.android.bluetooth.flags.Flags.leaudioBroadcastApiManagePrimaryGroup;
 import static com.android.bluetooth.flags.Flags.leaudioBroadcastAssistantPeripheralEntrustment;
 import static com.android.bluetooth.flags.Flags.leaudioMonitorUnicastSourceWhenManagedByBroadcastDelegator;
-import static com.android.bluetooth.flags.Flags.leaudioUseAudioModeListener;
 import static com.android.bluetooth.flags.Flags.leaudioUseAudioRecordingListener;
 import static com.android.modules.utils.build.SdkLevel.isAtLeastU;
 
@@ -287,9 +286,7 @@ public class LeAudioService extends ProfileService {
         mLeAudioCodecConfig = new LeAudioCodecConfig(this);
         mNativeInterface.init(mLeAudioCodecConfig.getCodecConfigOffloading());
 
-        if (leaudioUseAudioModeListener()) {
-            mAudioManager.addOnModeChangedListener(getMainExecutor(), mAudioModeChangeListener);
-        }
+        mAudioManager.addOnModeChangedListener(getMainExecutor(), mAudioModeChangeListener);
 
         if (leaudioUseAudioRecordingListener()) {
             mAudioManager.registerAudioRecordingCallback(mAudioRecordingCallback, null);
@@ -656,9 +653,7 @@ public class LeAudioService extends ProfileService {
         }
 
         mQueuedInCallValue = Optional.empty();
-        if (leaudioUseAudioModeListener()) {
-            mAudioManager.removeOnModeChangedListener(mAudioModeChangeListener);
-        }
+        mAudioManager.removeOnModeChangedListener(mAudioModeChangeListener);
 
         if (leaudioUseAudioRecordingListener()) {
             mAudioManager.unregisterAudioRecordingCallback(mAudioRecordingCallback);
@@ -3240,13 +3235,6 @@ public class LeAudioService extends ProfileService {
             return;
         }
 
-        if (!leaudioUseAudioModeListener()) {
-            if (mQueuedInCallValue.isPresent()) {
-                mNativeInterface.setInCall(mQueuedInCallValue.get());
-                mQueuedInCallValue = Optional.empty();
-            }
-        }
-
         BluetoothDevice unicastDevice =
                 getLeadDeviceForTheGroup(mUnicastGroupIdDeactivatedForBroadcastTransition);
         if (unicastDevice == null) {
@@ -3756,9 +3744,6 @@ public class LeAudioService extends ProfileService {
                             if (mBroadcastIdDeactivatedForUnicastTransition.isPresent()) {
                                 if (!Flags.leaudioBroadcastPrimaryGroupSelection()) {
                                     updateFallbackUnicastGroupIdForBroadcast(groupId);
-                                }
-                                if (!leaudioUseAudioModeListener()) {
-                                    mQueuedInCallValue = Optional.empty();
                                 }
                                 startBroadcast(mBroadcastIdDeactivatedForUnicastTransition.get());
                                 mBroadcastIdDeactivatedForUnicastTransition = Optional.empty();
@@ -4407,29 +4392,7 @@ public class LeAudioService extends ProfileService {
             return;
         }
 
-        if (!leaudioUseAudioModeListener()) {
-            /* For setting inCall mode */
-            if (inCall && !areBroadcastsAllStopped()) {
-                mQueuedInCallValue = Optional.of(true);
-
-                /* Request activation of unicast group */
-                handleUnicastStreamStatusChange(
-                        LeAudioStackEvent.DIRECTION_SINK,
-                        LeAudioStackEvent.STATUS_LOCAL_STREAM_REQUESTED);
-                return;
-            }
-        }
-
         mNativeInterface.setInCall(inCall);
-
-        if (!leaudioUseAudioModeListener()) {
-            /* For clearing inCall mode */
-            if (!inCall && mBroadcastIdDeactivatedForUnicastTransition.isPresent()) {
-                handleUnicastStreamStatusChange(
-                        LeAudioStackEvent.DIRECTION_SINK,
-                        LeAudioStackEvent.STATUS_LOCAL_STREAM_SUSPENDED);
-            }
-        }
     }
 
     /**
