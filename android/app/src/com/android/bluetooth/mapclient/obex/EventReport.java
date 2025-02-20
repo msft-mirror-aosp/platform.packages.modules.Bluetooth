@@ -39,7 +39,7 @@ import java.util.Map;
  * <p>This object will be received in {@link Client#EVENT_EVENT_REPORT} callback message.
  */
 public class EventReport {
-    private static final String TAG = "EventReport";
+    private static final String TAG = EventReport.class.getSimpleName();
 
     private final Type mType;
     private final String mDateTime;

@@ -90,7 +90,7 @@ import java.util.concurrent.TimeUnit;
 
 // Next tag value for ContentProfileErrorReportUtils.report(): 41
 public class BluetoothMapContentObserver {
-    private static final String TAG = "BluetoothMapContentObserver";
+    private static final String TAG = BluetoothMapContentObserver.class.getSimpleName();
 
     // A message older than this will be ignored when notifying a new message.
     @VisibleForTesting

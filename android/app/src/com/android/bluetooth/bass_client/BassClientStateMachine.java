@@ -87,7 +87,7 @@ import java.util.UUID;
 import java.util.stream.IntStream;
 
 class BassClientStateMachine extends StateMachine {
-    private static final String TAG = "BassClientStateMachine";
+    private static final String TAG = BassClientStateMachine.class.getSimpleName();
 
     @VisibleForTesting static final byte[] REMOTE_SCAN_STOP = {00};
     @VisibleForTesting static final byte[] REMOTE_SCAN_START = {01};

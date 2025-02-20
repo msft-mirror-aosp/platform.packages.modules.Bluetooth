@@ -64,7 +64,7 @@ import java.util.Objects;
  */
 // Next tag value for ContentProfileErrorReportUtils.report(): 16
 public class BluetoothOppSendFileInfo {
-    private static final String TAG = "BluetoothOppSendFileInfo";
+    private static final String TAG = BluetoothOppSendFileInfo.class.getSimpleName();
 
     /** Reusable SendFileInfo for error status. */
     static final BluetoothOppSendFileInfo SEND_FILE_INFO_ERROR =

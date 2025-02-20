@@ -40,7 +40,8 @@ import java.util.concurrent.ConcurrentHashMap;
 /** Manages Bluetooth LE Periodic scans */
 @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
 public class PeriodicScanManager {
-    private static final String TAG = GattServiceConfig.TAG_PREFIX + "SyncManager";
+    private static final String TAG =
+            GattServiceConfig.TAG_PREFIX + PeriodicScanManager.class.getSimpleName();
 
     private final BluetoothAdapter mAdapter;
     private final PeriodicScanNativeInterface mNativeInterface;

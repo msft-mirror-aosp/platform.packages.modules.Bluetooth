@@ -34,7 +34,7 @@ import com.android.internal.annotations.VisibleForTesting;
  * file.
  */
 public class HeadsetNativeInterface {
-    private static final String TAG = "HeadsetNativeInterface";
+    private static final String TAG = HeadsetNativeInterface.class.getSimpleName();
 
     private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
 

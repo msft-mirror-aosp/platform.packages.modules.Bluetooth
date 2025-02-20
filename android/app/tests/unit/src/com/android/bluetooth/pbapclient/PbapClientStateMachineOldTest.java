@@ -50,7 +50,7 @@ import org.mockito.Mockito;
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class PbapClientStateMachineOldTest {
-    private static final String TAG = "PbapClientStateMachineOldTest";
+    private static final String TAG = PbapClientStateMachineOldTest.class.getSimpleName();
 
     @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 

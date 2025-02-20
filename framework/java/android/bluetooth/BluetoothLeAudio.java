@@ -66,7 +66,7 @@ import java.util.function.Consumer;
  * protected with its appropriate permission.
  */
 public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
-    private static final String TAG = "BluetoothLeAudio";
+    private static final String TAG = BluetoothLeAudio.class.getSimpleName();
 
     private static final boolean DBG = Log.isLoggable(TAG, Log.DEBUG);
     private static final boolean VDBG = false;

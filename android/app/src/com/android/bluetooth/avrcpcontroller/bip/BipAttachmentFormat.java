@@ -32,7 +32,9 @@ import java.util.Objects;
  * content-type="audio/basic" name="ABCD1234.wav" size="102400"/>
  */
 public class BipAttachmentFormat {
-    private static final String TAG = "avrcpcontroller.BipAttachmentFormat";
+    private static final String TAG =
+            AvrcpControllerUtils.TAG_PREFIX_AVRCP_CONTROLLER
+                    + BipAttachmentFormat.class.getSimpleName();
 
     /**
      * MIME content type of the image attachment, i.e. "text/plain"

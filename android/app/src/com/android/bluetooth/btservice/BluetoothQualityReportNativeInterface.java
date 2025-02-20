@@ -29,7 +29,7 @@ import com.android.internal.annotations.VisibleForTesting;
 
 /** Native interface to BQR */
 public class BluetoothQualityReportNativeInterface {
-    private static final String TAG = "BluetoothQualityReportNativeInterface";
+    private static final String TAG = BluetoothQualityReportNativeInterface.class.getSimpleName();
 
     @GuardedBy("INSTANCE_LOCK")
     private static BluetoothQualityReportNativeInterface sInstance;

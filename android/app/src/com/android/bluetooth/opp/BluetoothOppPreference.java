@@ -50,7 +50,7 @@ import java.util.HashMap;
  * replaced by bluetooth_devices in SettingsProvider
  */
 public class BluetoothOppPreference {
-    private static final String TAG = "BluetoothOppPreference";
+    private static final String TAG = BluetoothOppPreference.class.getSimpleName();
 
     private static BluetoothOppPreference sInstance;
 

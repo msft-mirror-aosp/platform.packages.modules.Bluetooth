@@ -43,7 +43,7 @@ import java.util.Random;
 
 // Next tag value for ContentProfileErrorReportUtils.report(): 10
 public class BluetoothMapSmsPdu {
-    private static final String TAG = "BluetoothMapSmsPdu";
+    private static final String TAG = BluetoothMapSmsPdu.class.getSimpleName();
 
     private static final int INVALID_VALUE = -1;
     public static final int SMS_TYPE_GSM = 1;

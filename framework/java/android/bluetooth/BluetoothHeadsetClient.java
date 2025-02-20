@@ -58,7 +58,7 @@ import java.util.List;
  */
 @SystemApi
 public final class BluetoothHeadsetClient implements BluetoothProfile, AutoCloseable {
-    private static final String TAG = "BluetoothHeadsetClient";
+    private static final String TAG = BluetoothHeadsetClient.class.getSimpleName();
 
     private static final boolean DBG = true;
     private static final boolean VDBG = false;

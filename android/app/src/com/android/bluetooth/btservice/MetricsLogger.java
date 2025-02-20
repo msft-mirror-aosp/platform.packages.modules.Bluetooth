@@ -95,7 +95,8 @@ import java.util.List;
 
 /** Class of Bluetooth Metrics */
 public class MetricsLogger {
-    private static final String TAG = "BluetoothMetricsLogger";
+    private static final String TAG =
+            Utils.TAG_PREFIX_BLUETOOTH + MetricsLogger.class.getSimpleName();
 
     private static final String BLOOMFILTER_PATH = "/data/misc/bluetooth";
     private static final String BLOOMFILTER_FILE = "/devices_for_metrics_v3";

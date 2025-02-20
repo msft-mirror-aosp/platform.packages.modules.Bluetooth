@@ -107,7 +107,7 @@ import java.util.stream.Collectors;
 
 /** Broadcast Assistant Scan Service */
 public class BassClientService extends ProfileService {
-    private static final String TAG = BassClientService.class.getSimpleName();
+    static final String TAG = BassClientService.class.getSimpleName();
 
     private static final int MAX_ACTIVE_SYNCED_SOURCES_NUM = 4;
     private static final int MAX_BIS_DISCOVERY_TRIES_NUM = 5;

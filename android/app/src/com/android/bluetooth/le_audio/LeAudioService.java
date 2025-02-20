@@ -119,7 +119,7 @@ import java.util.stream.Collectors;
 
 /** Provides Bluetooth LeAudio profile, as a service in the Bluetooth application. */
 public class LeAudioService extends ProfileService {
-    private static final String TAG = "LeAudioService";
+    private static final String TAG = LeAudioService.class.getSimpleName();
 
     // Timeout for state machine thread join, to prevent potential ANR.
     private static final int SM_THREAD_JOIN_TIMEOUT_MS = 1000;

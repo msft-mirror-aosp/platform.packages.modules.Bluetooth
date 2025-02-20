@@ -53,7 +53,7 @@ import java.util.List;
 
 // Next tag value for ContentProfileErrorReportUtils.report(): 34
 public class BluetoothPbapObexServer extends ServerRequestHandler {
-    private static final String TAG = "BluetoothPbapObexServer";
+    private static final String TAG = BluetoothPbapObexServer.class.getSimpleName();
 
     private static final int UUID_LENGTH = 16;
 

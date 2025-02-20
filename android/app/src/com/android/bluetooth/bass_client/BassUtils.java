@@ -33,7 +33,7 @@ import java.util.Map;
 
 /** Bass Utility functions */
 class BassUtils {
-    private static final String TAG = "BassUtils";
+    private static final String TAG = BassUtils.class.getSimpleName();
 
     static boolean containUuid(List<ScanFilter> filters, ParcelUuid uuid) {
         for (ScanFilter filter : filters) {

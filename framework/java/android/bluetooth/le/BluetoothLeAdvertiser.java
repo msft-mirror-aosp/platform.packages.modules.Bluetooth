@@ -57,7 +57,7 @@ import java.util.Map;
  * @see AdvertiseData
  */
 public final class BluetoothLeAdvertiser {
-    private static final String TAG = "BluetoothLeAdvertiser";
+    private static final String TAG = BluetoothLeAdvertiser.class.getSimpleName();
 
     private static final int MAX_LEGACY_ADVERTISING_DATA_BYTES = 31;
     // Each fields need one byte for field length and another byte for field type.
