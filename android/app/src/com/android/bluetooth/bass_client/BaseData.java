@@ -29,6 +29,7 @@ import java.util.MissingResourceException;
 /** Helper class to parse the Broadcast Announcement BASE data */
 class BaseData {
     private static final String TAG = "Bassclient-BaseData";
+
     private static final int METADATA_LEVEL1 = 1;
     private static final int METADATA_LEVEL2 = 2;
     private static final int METADATA_LEVEL3 = 3;

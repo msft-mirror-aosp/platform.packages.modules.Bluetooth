@@ -742,6 +742,7 @@ public final class BluetoothQualityReport implements Parcelable {
     @SystemApi
     public static final class BqrCommon implements Parcelable {
         private static final String TAG = BluetoothQualityReport.TAG + ".BqrCommon";
+
         static final int BQR_COMMON_LEN = 85;
 
         private @QualityReportId int mQualityReportId;

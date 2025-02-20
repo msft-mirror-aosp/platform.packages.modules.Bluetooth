@@ -182,6 +182,11 @@ void LogMetricLeConnectionLifecycle(hci::Address address, bool is_connect, bool 
   }
 }
 
+void LogMetricLeConnectionCompletion(hci::Address address, hci::ErrorCode reason,
+                                     bool is_locally_initiated) {
+  bluetooth::metrics::LogLeAclCompletionEvent(address, reason, is_locally_initiated);
+}
+
 bool CountCounterMetrics(int32_t key, int64_t count) {
   auto counter_metrics = GetCounterMetrics();
   if (counter_metrics == nullptr) {

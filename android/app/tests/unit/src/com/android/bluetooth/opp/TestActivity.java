@@ -369,7 +369,6 @@ public class TestActivity extends Activity {
 
 /** This class listens on OPUSH channel for incoming connection */
 class TestTcpListener {
-
     private static final String TAG = "BtOppRfcommListener";
 
     private static final boolean D = Log.isLoggable(TAG, Log.DEBUG);
@@ -608,14 +607,13 @@ class TestTcpServer extends ServerRequestHandler implements Runnable {
     }
 }
 
+/* implements SessionNotifier */
 class TestTcpSessionNotifier {
-    /* implements SessionNotifier */
+    private static final String TAG = "TestTcpSessionNotifier";
 
     ServerSocket mServer = null;
 
     Socket mConn = null;
-
-    private static final String TAG = "TestTcpSessionNotifier";
 
     TestTcpSessionNotifier(int port) throws IOException {
         mServer = new ServerSocket(port);

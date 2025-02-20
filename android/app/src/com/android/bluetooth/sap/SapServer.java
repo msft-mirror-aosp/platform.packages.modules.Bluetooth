@@ -45,6 +45,7 @@ import java.util.concurrent.CountDownLatch;
  */
 public class SapServer extends Thread implements Handler.Callback {
     private static final String TAG = "SapServer";
+
     private static final String TAG_HANDLER = "SapServerHandler";
 
     @VisibleForTesting

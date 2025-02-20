@@ -37,44 +37,10 @@ cc_defaults {
     header_libs: ["jni_headers"],
 }
 
-soong_config_module_type {
-    name: "mgmt_cc_defaults",
-    module_type: "cc_defaults",
-    config_namespace: "mgmt",
-    variables: ["vertical"],
-    properties: ["srcs"],
-}
-
-soong_config_string_variable {
-    name: "vertical",
-    values: [
-        "android_default",
-        "android_desktop",
-    ],
-}
-
-mgmt_cc_defaults {
-    name: "mgmt_defaults",
-    soong_config_variables: {
-        vertical: {
-            android_desktop: {
-                srcs: [":BluetoothOsSources_mgmt_linux"],
-            },
-            android_default: {
-                srcs: [":BluetoothOsSources_mgmt"],
-            },
-            conditions_default: {
-                srcs: [":BluetoothOsSources_mgmt"],
-            },
-        },
-    },
-}
-
 cc_defaults {
     name: "libbluetooth_gd_defaults",
     defaults: [
         "gd_defaults",
-        "mgmt_defaults",
     ],
     host_supported: true,
     target: {
@@ -127,6 +93,7 @@ cc_defaults {
             ],
             static_libs: [
                 "libexpresslog",
+                "libperfetto_client_experimental",
                 "libstatslog_express",
                 "libtextclassifier_hash_static",
             ],
@@ -148,6 +115,7 @@ cc_defaults {
         "hal/snoop_logger.cc",
         "hal/snoop_logger_socket.cc",
         "hal/snoop_logger_socket_thread.cc",
+        "hal/snoop_logger_tracing.cc",
         "hal/syscall_wrapper_impl.cc",
         "hci/acl_manager.cc",
         "hci/acl_manager/acl_connection.cc",
@@ -375,6 +343,7 @@ cc_test {
                 "android.hardware.bluetooth@1.1",
                 "android.system.suspend-V1-ndk",
                 "android.system.suspend.control-V1-ndk",
+                "libperfetto_client_experimental",
                 "libstatslog_bt",
             ],
             shared_libs: [
@@ -578,6 +547,9 @@ cc_defaults {
                 "libhidlbase",
                 "libstatslog_bt",
                 "libutils",
+            ],
+            static_libs: [
+                "libperfetto_client_experimental",
             ],
         },
     },

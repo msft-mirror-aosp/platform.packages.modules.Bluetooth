@@ -28,6 +28,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public final class MsftAdvMonitorTest {
     private static final String TAG = MsftAdvMonitorTest.class.getSimpleName();
+
     // Hardcoded values taken from CrOS defaults
     private static final byte RSSI_THRESHOLD_HIGH = (byte) 0xBF; // 191
     private static final byte RSSI_THRESHOLD_LOW = (byte) 0xB0; // 176

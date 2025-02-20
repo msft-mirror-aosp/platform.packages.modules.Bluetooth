@@ -104,6 +104,8 @@ import java.util.concurrent.TimeUnit;
 @MediumTest
 @RunWith(ParameterizedAndroidJunit4.class)
 public class MapClientStateMachineTest {
+    private static final String TAG = "MapClientStateMachineTest";
+
     @Rule public final SetFlagsRule mSetFlagsRule;
     @Rule public final MockitoRule mMockitoRule = new MockitoRule();
     @Rule public final ServiceTestRule mServiceRule = new ServiceTestRule();
@@ -118,8 +120,6 @@ public class MapClientStateMachineTest {
     @Mock private RequestGetMessagesListingForOwnNumber mRequestOwnNumberIncompleteSearch;
     @Mock private RequestGetMessage mRequestGetMessage;
     @Mock private RequestGetMessagesListing mRequestGetMessagesListing;
-
-    private static final String TAG = "MapClientStateMachineTest";
 
     private static final long PENDING_INTENT_TIMEOUT_MS = 3_000;
     private static final boolean MESSAGE_SEEN = true;

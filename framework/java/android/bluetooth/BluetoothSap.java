@@ -56,8 +56,8 @@ import java.util.List;
  */
 @SystemApi
 public final class BluetoothSap implements BluetoothProfile, AutoCloseable {
-
     private static final String TAG = "BluetoothSap";
+
     private static final boolean DBG = true;
     private static final boolean VDBG = false;
 

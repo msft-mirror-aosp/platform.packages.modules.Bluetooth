@@ -99,6 +99,7 @@ import java.util.function.Consumer;
 
 public final class Utils {
     private static final String TAG = "BluetoothUtils";
+
     private static final int MICROS_PER_UNIT = 625;
     private static final String PTS_TEST_MODE_PROPERTY = "persist.bluetooth.pts";
 

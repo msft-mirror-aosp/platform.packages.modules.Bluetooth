@@ -61,8 +61,8 @@ import java.util.List;
  */
 @SystemApi
 public class BluetoothPbap implements BluetoothProfile {
-
     private static final String TAG = "BluetoothPbap";
+
     private static final boolean DBG = false;
 
     /**

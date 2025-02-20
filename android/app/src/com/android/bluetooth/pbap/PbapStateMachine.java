@@ -61,6 +61,7 @@ import java.io.IOException;
 @VisibleForTesting(visibility = Visibility.PACKAGE)
 public class PbapStateMachine extends StateMachine {
     private static final String TAG = "PbapStateMachine";
+
     private static final String PBAP_OBEX_NOTIFICATION_CHANNEL = "pbap_obex_notification_channel";
 
     static final int AUTHORIZED = 1;

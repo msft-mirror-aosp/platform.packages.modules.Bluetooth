@@ -40,7 +40,6 @@ import java.util.Objects;
 /** Class to construct content observers for email applications on the system. */
 // Next tag value for ContentProfileErrorReportUtils.report(): 6
 public class BluetoothMapAppObserver {
-
     private static final String TAG = "BluetoothMapAppObserver";
 
     /*  */
