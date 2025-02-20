@@ -4624,7 +4624,7 @@ public class LeAudioService extends ProfileService {
         try {
             LeAudioDeviceDescriptor descriptor = getDeviceDescriptor(device);
             if (descriptor == null) {
-                Log.e(TAG, "getGroupId: No valid descriptor for device: " + device);
+                Log.v(TAG, "getGroupId: No valid descriptor for device: " + device);
                 return LE_AUDIO_GROUP_ID_INVALID;
             }
 
