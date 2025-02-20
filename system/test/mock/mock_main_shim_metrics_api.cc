@@ -60,6 +60,7 @@ struct LogMetricLeDeviceInAcceptList LogMetricLeDeviceInAcceptList;
 struct LogMetricLeConnectionLifecycle LogMetricLeConnectionLifecycle;
 struct LogMetricLeConnectionCompletion LogMetricLeConnectionCompletion;
 struct LogMetricRfcommConnectionAtClose LogMetricRfcommConnectionAtClose;
+struct LogMetricLeConnectionRejected LogMetricLeConnectionRejected;
 
 }  // namespace main_shim_metrics_api
 }  // namespace mock
@@ -228,4 +229,10 @@ void bluetooth::shim::LogMetricRfcommConnectionAtClose(
           raw_address, close_reason, security, last_event, previous_state, open_duration_ms, uid,
           sdp_status, is_server, sdp_initiated, sdp_duration_ms);
 }
+
+void bluetooth::shim::LogMetricLeConnectionRejected(bluetooth::hci::Address address) {
+  inc_func_call_count(__func__);
+  test::mock::main_shim_metrics_api::LogMetricLeConnectionRejected(address);
+}
+
 // END mockcify generation

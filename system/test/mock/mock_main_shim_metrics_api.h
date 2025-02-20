@@ -404,6 +404,15 @@ struct LogMetricRfcommConnectionAtClose {
 };
 extern struct LogMetricRfcommConnectionAtClose LogMetricRfcommConnectionAtClose;
 
+// Name: LogMetricLeConnectionRejected
+// Params: bluetooth::hci::Address
+// Returns: void
+struct LogMetricLeConnectionRejected {
+  std::function<void(bluetooth::hci::Address address)> body{
+          [](bluetooth::hci::Address /* address */) {}};
+  void operator()(bluetooth::hci::Address address) { body(address); }
+};
+extern struct LogMetricLeConnectionRejected LogMetricLeConnectionRejected;
 }  // namespace main_shim_metrics_api
 }  // namespace mock
 }  // namespace test
