@@ -351,6 +351,22 @@ struct LogMetricLeConnectionLifecycle {
 };
 extern struct LogMetricLeConnectionLifecycle LogMetricLeConnectionLifecycle;
 
+// Name: LogMetricLeConnectionCompletion
+// Params: bluetooth::hci::Address, hci::ErrorCode reason, bool
+// is_locally_initiated
+// Returns: void
+struct LogMetricLeConnectionCompletion {
+  std::function<void(bluetooth::hci::Address address, bluetooth::hci::ErrorCode reason,
+                     bool is_locally_initiated)>
+          body{[](bluetooth::hci::Address /* address */, bluetooth::hci::ErrorCode /* reason */,
+                  bool /* is_locally_initiated */) {}};
+  void operator()(bluetooth::hci::Address address, bluetooth::hci::ErrorCode reason,
+                  bool is_locally_initiated) {
+    body(address, reason, is_locally_initiated);
+  }
+};
+extern struct LogMetricLeConnectionCompletion LogMetricLeConnectionCompletion;
+
 }  // namespace main_shim_metrics_api
 }  // namespace mock
 }  // namespace test
