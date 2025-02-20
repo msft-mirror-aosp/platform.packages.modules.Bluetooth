@@ -4179,9 +4179,7 @@ public class BassClientService extends ProfileService {
                 if (pendingSourcesToAdd.mSink.equals(sink)) {
                     Log.d(TAG, "handleBassStateReady: retry adding source with device, " + sink);
                     addSource(
-                            pendingSourcesToAdd.mSink,
-                            pendingSourcesToAdd.mSourceMetadata,
-                            pendingSourcesToAdd.mIsGroupOp);
+                            pendingSourcesToAdd.mSink, pendingSourcesToAdd.mSourceMetadata, false);
                     iterator.remove();
                     return;
                 }
