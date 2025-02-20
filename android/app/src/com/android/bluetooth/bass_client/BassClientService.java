@@ -268,6 +268,7 @@ public class BassClientService extends ProfileService {
                 }
                 controller.stopScanInternal(mScannerId);
                 controller.unregisterScannerInternal(mScannerId);
+                mBaasUuidFilters.clear();
                 mScannerId = SCANNER_ID_NOT_INITIALIZED;
             }
         }
