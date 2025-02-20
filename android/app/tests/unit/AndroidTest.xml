@@ -62,6 +62,8 @@
              So instead we use the app cache folder for filter -->
         <option name="test-filter-dir" value="/data/data/com.android.bluetooth/cache" />
         <option name="hidden-api-checks" value="false"/>
+        <!-- Ignores tests introduced by guava-android-testlib -->
+        <option name="exclude-annotation" value="org.junit.Ignore"/>
     </test>
 
     <!-- Only run if the Bluetooth Mainline module is installed. -->
