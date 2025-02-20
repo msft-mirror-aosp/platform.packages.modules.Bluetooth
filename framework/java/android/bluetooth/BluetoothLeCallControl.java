@@ -527,39 +527,6 @@ public final class BluetoothLeCallControl implements BluetoothProfile {
     }
 
     /**
-     * Provide the network current status
-     *
-     * <p>This function must be invoked on change of network state.
-     * <!-- The Technology is an integer value. The possible values are defined at
-     * https://www.bluetooth.com/specifications/assigned-numbers (login required).
-     * -->
-     *
-     * @param provider Network provider name
-     * @param technology Network technology
-     * @hide
-     */
-    @RequiresBluetoothConnectPermission
-    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
-    public void networkStateChanged(@NonNull String provider, int technology) {
-        Log.d(TAG, "networkStateChanged: provider=" + provider + ", technology=" + technology);
-        if (mCcid == 0) {
-            return;
-        }
-
-        final IBluetoothLeCallControl service = getService();
-        if (service == null) {
-            Log.w(TAG, "Proxy not attached to service");
-            return;
-        }
-
-        try {
-            service.networkStateChanged(mCcid, provider, technology, mAttributionSource);
-        } catch (RemoteException e) {
-            Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-        }
-    }
-
-    /**
      * Send a response to a call control request to a remote device.
      *
      * <p>This function must be invoked in when a request is received by one of these callback

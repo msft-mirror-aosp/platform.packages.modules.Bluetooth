@@ -92,8 +92,4 @@ public class BluetoothLeCallControlProxy {
     public void currentCallsList(List<BluetoothLeCall> calls) {
         mBluetoothLeCallControl.currentCallsList(calls);
     }
-
-    public void networkStateChanged(String providerName, int technology) {
-        mBluetoothLeCallControl.networkStateChanged(providerName, technology);
-    }
 }
