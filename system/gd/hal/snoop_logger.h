@@ -29,6 +29,7 @@
 #include "hal/snoop_logger_socket_interface.h"
 #include "hal/snoop_logger_socket_thread.h"
 #include "hal/syscall_wrapper_impl.h"
+#include "hci/hci_packets.h"
 #include "module.h"
 #include "os/repeating_alarm.h"
 
@@ -320,7 +321,8 @@ protected:
   std::unique_ptr<SnoopLoggerSocketThread> snoop_logger_socket_thread_;
 
 #ifdef __ANDROID__
-  void LogTracePoint(const HciPacket& packet, Direction direction, PacketType type);
+  void LogTracePoint(uint64_t timestamp_us, const HciPacket& packet, Direction direction,
+                     PacketType type);
 #endif  // __ANDROID__
 
 private:

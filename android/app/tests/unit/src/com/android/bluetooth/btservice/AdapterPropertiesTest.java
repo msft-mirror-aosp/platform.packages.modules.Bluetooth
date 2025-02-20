@@ -15,6 +15,9 @@
  */
 package com.android.bluetooth.btservice;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+import static com.android.bluetooth.TestUtils.mockGetSystemService;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.any;
@@ -40,8 +43,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 @MediumTest
 @RunWith(AndroidJUnit4.class)
@@ -49,30 +50,31 @@ public class AdapterPropertiesTest {
     private static final byte[] TEST_BT_ADDR_BYTES = {00, 11, 22, 33, 44, 55};
     private static final byte[] TEST_BT_ADDR_BYTES_2 = {00, 11, 22, 33, 44, 66};
 
-    private BluetoothManager mBluetoothManager;
+    private final Context mTargetContext =
+            InstrumentationRegistry.getInstrumentation().getTargetContext();
+    private final BluetoothManager mBluetoothManager =
+            mTargetContext.getSystemService(BluetoothManager.class);
+
     private AdapterProperties mAdapterProperties;
     private RemoteDevices mRemoteDevices;
     private HandlerThread mHandlerThread;
-    private Context mTargetContext;
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private AdapterService mAdapterService;
     @Mock private AdapterNativeInterface mNativeInterface;
 
     @Before
     public void setUp() throws Exception {
-        mTargetContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
-
         doReturn(mNativeInterface).when(mAdapterService).getNative();
         mHandlerThread = new HandlerThread("RemoteDevicesTestHandlerThread");
         mHandlerThread.start();
 
-        mBluetoothManager = mTargetContext.getSystemService(BluetoothManager.class);
-        when(mAdapterService.getSystemService(Context.BLUETOOTH_SERVICE))
-                .thenReturn(mBluetoothManager);
-        when(mAdapterService.getSystemServiceName(BluetoothManager.class))
-                .thenReturn(Context.BLUETOOTH_SERVICE);
+        mockGetSystemService(
+                mAdapterService,
+                Context.BLUETOOTH_SERVICE,
+                BluetoothManager.class,
+                mBluetoothManager);
 
         when(mAdapterService.getIdentityAddress(Utils.getAddressStringFromByte(TEST_BT_ADDR_BYTES)))
                 .thenReturn(Utils.getAddressStringFromByte(TEST_BT_ADDR_BYTES));

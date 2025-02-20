@@ -15,11 +15,14 @@
 //! The core event loop for Rust modules. Here Rust modules are started in
 //! dependency order.
 
-use gatt::{channel::AttTransport, GattCallbacks};
+use gatt::channel::AttTransport;
+use gatt::GattCallbacks;
 use log::{info, warn};
 use tokio::task::LocalSet;
 
-use std::{rc::Rc, sync::Mutex, thread::JoinHandle};
+use std::rc::Rc;
+use std::sync::Mutex;
+use std::thread::JoinHandle;
 use tokio::runtime::Builder;
 
 use tokio::sync::mpsc;
@@ -37,7 +40,11 @@ enum RustModuleRunner {
     NotRunning,
     /// Main event loop is running and messages can be processed.  Use [`RustModuleRunner::send`] to
     /// queue a callback to be sent.
-    Running { thread: JoinHandle<()>, tx: mpsc::UnboundedSender<BoxedMainThreadCallback> },
+    Running {
+        thread: JoinHandle<()>,
+        tx: mpsc::UnboundedSender<BoxedMainThreadCallback>,
+    },
+    DisabledInTest,
 }
 
 /// The ModuleViews lets us access all publicly accessible Rust modules from
@@ -93,6 +100,15 @@ impl RustModuleRunner {
                 // Wait for the thread to terminate.
                 let _ = thread.join();
             }
+            Self::DisabledInTest => {}
+        }
+    }
+
+    pub fn set_disabled_in_test() {
+        let mut runner = GLOBAL_MODULE_RUNNER.lock().unwrap();
+        match &*runner {
+            RustModuleRunner::NotRunning => *runner = Self::DisabledInTest,
+            _ => warn!("Unexpected state {:?}", &*runner),
         }
     }
 
@@ -148,8 +164,8 @@ impl RustModuleRunner {
     #[allow(dead_code)]
     fn send(&self, f: BoxedMainThreadCallback) -> Result<(), (String, BoxedMainThreadCallback)> {
         match self {
-            Self::NotRunning => Err(("Not running".to_string(), f)),
             Self::Running { tx, .. } => tx.send(f).map_err(|e| ("Failed to send".to_string(), e.0)),
+            _ => Err((format!("Bad state {self:?}"), f)),
         }
     }
 }

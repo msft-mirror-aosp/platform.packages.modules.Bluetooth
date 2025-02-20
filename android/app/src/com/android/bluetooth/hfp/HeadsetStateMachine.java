@@ -218,7 +218,7 @@ class HeadsetStateMachine extends StateMachine {
         }
 
         // Create phonebook helper
-        mPhonebook = new AtPhonebook(mHeadsetService, mNativeInterface);
+        mPhonebook = new AtPhonebook(mAdapterService, mNativeInterface);
         // Initialize state machine
         addState(mDisconnected);
         addState(mConnecting);
@@ -2077,7 +2077,6 @@ class HeadsetStateMachine extends StateMachine {
         log("processSWBEvent AptX SWB config: " + prevSwbAptx + " -> " + mHasSwbAptXEnabled);
     }
 
-    @RequiresPermission(MODIFY_PHONE_STATE)
     @VisibleForTesting
     void processAtChld(int chld, BluetoothDevice device) {
         if (mSystemInterface.processChld(chld)) {
@@ -2087,7 +2086,6 @@ class HeadsetStateMachine extends StateMachine {
         }
     }
 
-    @RequiresPermission(MODIFY_PHONE_STATE)
     @VisibleForTesting
     void processSubscriberNumberRequest(BluetoothDevice device) {
         String number = mSystemInterface.getSubscriberNumber();
@@ -2154,7 +2152,6 @@ class HeadsetStateMachine extends StateMachine {
                 phoneState.getCindBatteryCharge());
     }
 
-    @RequiresPermission(MODIFY_PHONE_STATE)
     @VisibleForTesting
     void processAtCops(BluetoothDevice device) {
         // Get operator name suggested by Telephony
@@ -2176,8 +2173,8 @@ class HeadsetStateMachine extends StateMachine {
         mNativeInterface.copsResponse(device, operatorName);
     }
 
-    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, MODIFY_PHONE_STATE})
     @VisibleForTesting
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, MODIFY_PHONE_STATE})
     void processAtClcc(BluetoothDevice device) {
         if (mHeadsetService.isVirtualCallStarted()) {
             // In virtual call, send our phone number instead of remote phone number
@@ -2587,7 +2584,6 @@ class HeadsetStateMachine extends StateMachine {
     }
 
     // HSP +CKPD command
-    @RequiresPermission(MODIFY_PHONE_STATE)
     private void processKeyPressed(BluetoothDevice device) {
         if (mSystemInterface.isRinging()) {
             mSystemInterface.answerCall(device);

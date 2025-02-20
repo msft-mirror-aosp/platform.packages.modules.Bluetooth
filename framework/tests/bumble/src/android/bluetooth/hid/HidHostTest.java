@@ -94,6 +94,7 @@ import java.util.concurrent.TimeUnit;
 @VirtualOnly
 public class HidHostTest {
     private static final String TAG = HidHostTest.class.getSimpleName();
+
     private static final Duration INTENT_TIMEOUT = Duration.ofSeconds(10);
     private BluetoothDevice mDevice;
     private BluetoothHidHost mHidService;
@@ -112,6 +113,7 @@ public class HidHostTest {
     private static final int INVALID_RPT_ID = 3;
     private static final int CONNECTION_TIMEOUT_MS = 2_000;
     private static final int BT_ON_DELAY_MS = 3000;
+    private static final int REPORT_UPDATE_TIMEOUT_MS = 100;
 
     private static final Duration PROTO_MODE_TIMEOUT = Duration.ofSeconds(10);
 
@@ -130,6 +132,7 @@ public class HidHostTest {
     @Mock private BroadcastReceiver mReceiver;
     private InOrder mInOrder = null;
     private byte[] mReportData = {};
+    private CompletableFuture<Boolean> mIsReportUpdated;
     @Mock private BluetoothProfile.ServiceListener mProfileServiceListener;
 
     @SuppressLint("MissingPermission")
@@ -239,6 +242,9 @@ public class HidHostTest {
                                         + device
                                         + " reportBufferSize "
                                         + reportBufferSize);
+                        if (mIsReportUpdated != null) {
+                            mIsReportUpdated.complete(true);
+                        }
                         break;
                     case BluetoothDevice.ACTION_ACL_DISCONNECTED:
                         device =
@@ -595,22 +601,30 @@ public class HidHostTest {
     public void hidGetReportTest() throws Exception {
         // Keyboard report
         mReportData = new byte[0];
+        mIsReportUpdated = new CompletableFuture<>();
         mHidService.getReport(mDevice, BluetoothHidHost.REPORT_TYPE_INPUT, (byte) KEYBD_RPT_ID, 0);
         // Report Buffer = Report ID (1 byte) + Report Data (KEYBD_RPT_SIZE byte)
         verifyIntentReceived(
                 hasAction(BluetoothHidHost.ACTION_REPORT),
                 hasExtra(BluetoothHidHost.EXTRA_REPORT_BUFFER_SIZE, KEYBD_RPT_SIZE + 1));
+        mIsReportUpdated
+                .completeOnTimeout(null, REPORT_UPDATE_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                .join();
         assertThat(mReportData).isNotNull();
         assertThat(mReportData.length).isGreaterThan(0);
         assertThat(mReportData[0]).isEqualTo(KEYBD_RPT_ID);
 
         // Mouse report
         mReportData = new byte[0];
+        mIsReportUpdated = new CompletableFuture<>();
         mHidService.getReport(mDevice, BluetoothHidHost.REPORT_TYPE_INPUT, (byte) MOUSE_RPT_ID, 0);
         // Report Buffer = Report ID (1 byte) + Report Data (MOUSE_RPT_SIZE byte)
         verifyIntentReceived(
                 hasAction(BluetoothHidHost.ACTION_REPORT),
                 hasExtra(BluetoothHidHost.EXTRA_REPORT_BUFFER_SIZE, MOUSE_RPT_SIZE + 1));
+        mIsReportUpdated
+                .completeOnTimeout(null, REPORT_UPDATE_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                .join();
         assertThat(mReportData).isNotNull();
         assertThat(mReportData.length).isGreaterThan(0);
         assertThat(mReportData[0]).isEqualTo(MOUSE_RPT_ID);

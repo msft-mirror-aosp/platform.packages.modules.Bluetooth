@@ -16,12 +16,13 @@
 
 package com.android.bluetooth.hfpclient;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
+import static com.android.bluetooth.TestUtils.mockGetSystemService;
 
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -51,8 +52,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.util.Arrays;
 import java.util.List;
@@ -60,7 +59,7 @@ import java.util.List;
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class HfpClientConnectionServiceTest {
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private AdapterService mAdapterService;
     @Mock private HeadsetClientService mMockHeadsetClientService;
@@ -78,9 +77,6 @@ public class HfpClientConnectionServiceTest {
         Context targetContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
 
         TestUtils.setAdapterService(mAdapterService);
-        // Setup a mock TelecomManager so our calls don't start a real instance of this service
-        doNothing().when(mMockTelecomManager).addNewIncomingCall(any(), any());
-        doNothing().when(mMockTelecomManager).addNewUnknownCall(any(), any());
 
         // Set a mocked HeadsetClientService for testing so we can insure the right functions were
         // called through the service interface
@@ -104,20 +100,18 @@ public class HfpClientConnectionServiceTest {
                 .when(mMockResources)
                 .getBoolean(R.bool.hfp_client_connection_service_support_emergency_call);
 
-        doReturn(Context.TELECOM_SERVICE)
-                .when(mHfpClientConnectionService)
-                .getSystemServiceName(TelecomManager.class);
-        doReturn(mMockTelecomManager)
-                .when(mHfpClientConnectionService)
-                .getSystemService(Context.TELECOM_SERVICE);
+        mockGetSystemService(
+                mHfpClientConnectionService,
+                Context.TELECOM_SERVICE,
+                TelecomManager.class,
+                mMockTelecomManager);
         doReturn(getPhoneAccount(mDevice)).when(mMockTelecomManager).getPhoneAccount(any());
 
-        doReturn(Context.BLUETOOTH_SERVICE)
-                .when(mHfpClientConnectionService)
-                .getSystemServiceName(BluetoothManager.class);
-        doReturn(targetContext.getSystemService(BluetoothManager.class))
-                .when(mHfpClientConnectionService)
-                .getSystemService(Context.BLUETOOTH_SERVICE);
+        mockGetSystemService(
+                mHfpClientConnectionService,
+                Context.BLUETOOTH_SERVICE,
+                BluetoothManager.class,
+                targetContext.getSystemService(BluetoothManager.class));
     }
 
     @After

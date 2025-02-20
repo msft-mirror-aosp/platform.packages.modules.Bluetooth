@@ -19,6 +19,8 @@ package com.android.bluetooth.opp;
 import static android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED;
 import static android.content.pm.PackageManager.DONT_KILL_APP;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+
 import android.content.ComponentName;
 import android.content.ContentValues;
 import android.content.Context;
@@ -33,23 +35,21 @@ import com.android.bluetooth.btservice.AdapterService;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class BluetoothOppServiceCleanupTest {
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     private final Context mTargetContext =
             InstrumentationRegistry.getInstrumentation().getTargetContext();
 
     @Test
     @UiThreadTest
-    public void testStopAndCleanup() throws Exception {
+    public void testCleanup() throws Exception {
         AdapterService adapterService = new AdapterService(mTargetContext);
 
-        // Don't need to disable again since it will be handled in OppService.stop
+        // Don't need to disable again since it will be handled in OppService.cleanup
         enableBtOppProvider();
 
         // Add thousands of placeholder rows
@@ -63,8 +63,7 @@ public class BluetoothOppServiceCleanupTest {
             service = new BluetoothOppService(adapterService);
             service.setAvailable(true);
 
-            // Call stop while UpdateThread is running.
-            service.stop();
+            // Call cleanup while UpdateThread is running.
             service.cleanup();
         } finally {
             if (service != null) {

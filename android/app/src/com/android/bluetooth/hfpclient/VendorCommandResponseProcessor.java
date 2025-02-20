@@ -15,7 +15,7 @@
  */
 
 /*
- * Defines utility inteface that is used by state machine/service to either send vendor specific AT
+ * Defines utility interface that is used by state machine/service to either send vendor specific AT
  * command or receive vendor specific response from the native stack.
  */
 package com.android.bluetooth.hfpclient;
@@ -35,7 +35,6 @@ import java.util.Map;
 import java.util.Objects;
 
 class VendorCommandResponseProcessor {
-
     private static final String TAG = VendorCommandResponseProcessor.class.getSimpleName();
 
     private final HeadsetClientService mService;

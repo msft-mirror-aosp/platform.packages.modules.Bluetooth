@@ -5,10 +5,8 @@
 //! not be held across async points. This reduces the risk of accidental
 //! lifetime extension.
 
-use std::{
-    ops::Deref,
-    rc::{Rc, Weak},
-};
+use std::ops::Deref;
+use std::rc::{Rc, Weak};
 
 /// A Box<> where static "weak" references to the contents can be taken,
 /// and fallibly upgraded at a later point. Unlike Rc<>, weak references

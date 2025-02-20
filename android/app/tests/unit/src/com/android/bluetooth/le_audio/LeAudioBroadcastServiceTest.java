@@ -30,6 +30,7 @@ import static android.bluetooth.IBluetoothLeAudio.LE_AUDIO_GROUP_ID_INVALID;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 import static com.android.bluetooth.TestUtils.mockGetSystemService;
 import static com.android.bluetooth.bass_client.BassConstants.INVALID_BROADCAST_ID;
@@ -108,8 +109,6 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.Spy;
 import org.mockito.hamcrest.MockitoHamcrest;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -118,7 +117,7 @@ import java.util.List;
 @RunWith(AndroidJUnit4.class)
 public class LeAudioBroadcastServiceTest {
     @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private ActiveDeviceManager mActiveDeviceManager;
     @Mock private AdapterService mAdapterService;
@@ -234,7 +233,8 @@ public class LeAudioBroadcastServiceTest {
 
     @After
     public void tearDown() throws Exception {
-        mService.stop();
+        mService.cleanup();
+        ;
         assertThat(LeAudioService.getLeAudioService()).isNull();
         LeAudioBroadcasterNativeInterface.setInstance(null);
         MetricsLogger.setInstanceForTesting(null);
@@ -428,8 +428,6 @@ public class LeAudioBroadcastServiceTest {
 
     @Test
     public void testCreateBroadcastTimeout() throws RemoteException {
-        mSetFlagsRule.enableFlags(Flags.FLAG_LEAUDIO_BROADCAST_DESTROY_AFTER_TIMEOUT);
-
         byte[] code = {0x00, 0x01, 0x00, 0x02};
 
         synchronized (mService.mBroadcastCallbacks) {

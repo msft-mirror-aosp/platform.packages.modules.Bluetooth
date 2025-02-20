@@ -15,10 +15,12 @@
  */
 
 /*
- * Defines the native inteface that is used by state machine/service to either or receive messages
+ * Defines the native interface that is used by state machine/service to either or receive messages
  * from the native stack. This file is registered for the native methods in corresponding CPP file.
  */
 package com.android.bluetooth.hfpclient;
+
+import static java.util.Objects.requireNonNull;
 
 import android.bluetooth.BluetoothDevice;
 import android.util.Log;
@@ -29,8 +31,6 @@ import com.android.bluetooth.flags.Flags;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 
-import java.util.Objects;
-
 /**
  * Defines native calls that are used by state machine/service to either send or receive messages
  * to/from the native stack. This file is registered for the native methods in corresponding CPP
@@ -39,18 +39,16 @@ import java.util.Objects;
 public class NativeInterface {
     private static final String TAG = NativeInterface.class.getSimpleName();
 
-    private AdapterService mAdapterService;
+    private final AdapterService mAdapterService;
 
     @GuardedBy("INSTANCE_LOCK")
     private static NativeInterface sInstance;
 
     private static final Object INSTANCE_LOCK = new Object();
 
-    private NativeInterface() {
-        mAdapterService =
-                Objects.requireNonNull(
-                        AdapterService.getAdapterService(),
-                        "AdapterService cannot be null when NativeInterface init");
+    @VisibleForTesting
+    NativeInterface(AdapterService adapterService) {
+        mAdapterService = requireNonNull(adapterService);
     }
 
     /**
@@ -61,7 +59,7 @@ public class NativeInterface {
     public static NativeInterface getInstance() {
         synchronized (INSTANCE_LOCK) {
             if (sInstance == null) {
-                sInstance = new NativeInterface();
+                sInstance = new NativeInterface(AdapterService.getAdapterService());
             }
             return sInstance;
         }

@@ -32,6 +32,7 @@ import static android.bluetooth.le.ScanSettings.SCAN_MODE_OPPORTUNISTIC;
 import static android.bluetooth.le.ScanSettings.SCAN_MODE_SCREEN_OFF;
 import static android.bluetooth.le.ScanSettings.SCAN_MODE_SCREEN_OFF_BALANCED;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.btservice.AdapterService.DeviceConfigListener.DEFAULT_SCAN_DOWNGRADE_DURATION_BT_CONNECTING_MILLIS;
 import static com.android.bluetooth.btservice.AdapterService.DeviceConfigListener.DEFAULT_SCAN_TIMEOUT_MILLIS;
 import static com.android.bluetooth.btservice.AdapterService.DeviceConfigListener.DEFAULT_SCAN_UPGRADE_DURATION_MILLIS;
@@ -110,8 +111,6 @@ import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.Spy;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -124,8 +123,10 @@ import java.util.UUID;
 @SmallTest
 @RunWith(TestParameterInjector.class)
 public class ScanManagerTest {
+    private static final String TAG = ScanManagerTest.class.getSimpleName();
+
     @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private AdapterService mAdapterService;
     @Mock private BluetoothAdapterProxy mBluetoothAdapterProxy;
@@ -139,7 +140,6 @@ public class ScanManagerTest {
     @Spy private GattObjectsFactory mGattObjectsFactory = GattObjectsFactory.getInstance();
     @Spy private ScanObjectsFactory mScanObjectsFactory = ScanObjectsFactory.getInstance();
 
-    private static final String TAG = ScanManagerTest.class.getSimpleName();
     private static final int DEFAULT_REGULAR_SCAN_REPORT_DELAY_MS = 0;
     private static final int DEFAULT_BATCH_SCAN_REPORT_DELAY_MS = 100;
     private static final int DEFAULT_NUM_OFFLOAD_SCAN_FILTER = 16;
@@ -2025,6 +2025,9 @@ public class ScanManagerTest {
         sendMessageWaitForProcessed(createStartStopScanMessage(false, clientCoded));
 
         verify(mScanNativeInterface, atLeastOnce()).gattClientScan(false);
+        verify(mScanNativeInterface, never())
+                .gattSetScanParameters(
+                        anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), eq(0));
     }
 
     @Test

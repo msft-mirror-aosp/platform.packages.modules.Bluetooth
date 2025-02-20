@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.btservice.bluetoothkeystore;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import android.os.Binder;
@@ -30,8 +32,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -45,9 +45,10 @@ import java.util.Map;
 @RunWith(JUnit4.class)
 public final class BluetoothKeystoreServiceTest {
     private static final String TAG = "BluetoothKeystoreServiceTest";
+
     private BluetoothKeystoreService mBluetoothKeystoreService;
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private BluetoothKeystoreNativeInterface mMockNativeInterface;
 

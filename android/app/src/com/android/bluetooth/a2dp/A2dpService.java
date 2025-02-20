@@ -168,10 +168,11 @@ public class A2dpService extends ProfileService {
     }
 
     @Override
-    public void stop() {
-        Log.i(TAG, "stop()");
+    public void cleanup() {
+        Log.i(TAG, "Cleanup A2dp Service");
+
         if (sA2dpService == null) {
-            Log.w(TAG, "stop() called before start()");
+            Log.w(TAG, "cleanup() called before initialization");
             return;
         }
 

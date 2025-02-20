@@ -69,7 +69,6 @@ import java.util.stream.Collectors;
 
 // Next tag value for ContentProfileErrorReportUtils.report(): 15
 public class BluetoothMapContent {
-
     private static final String TAG = "BluetoothMapContent";
 
     // Parameter Mask for selection of parameters to return in listings

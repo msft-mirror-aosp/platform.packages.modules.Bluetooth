@@ -16,6 +16,7 @@
 
 package com.android.bluetooth.sap;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.sap.SapMessage.CON_STATUS_OK;
 import static com.android.bluetooth.sap.SapMessage.DISC_GRACEFULL;
 import static com.android.bluetooth.sap.SapMessage.ID_CONNECT_RESP;
@@ -69,8 +70,6 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mock;
 import org.mockito.Spy;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.util.Arrays;
 
@@ -85,7 +84,7 @@ public class SapRilReceiverTest {
 
     @Spy private TestHandlerCallback mCallback = new TestHandlerCallback();
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private Handler mServiceHandler;
 

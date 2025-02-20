@@ -23,6 +23,8 @@ import static androidx.test.espresso.matcher.RootMatchers.isDialog;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doReturn;
@@ -57,8 +59,6 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.Spy;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -66,7 +66,7 @@ import java.util.List;
 /** This class will also test BluetoothOppTransferAdapter */
 @RunWith(AndroidJUnit4.class)
 public class BluetoothOppTransferHistoryTest {
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock Cursor mCursor;
     @Spy BluetoothMethodProxy mBluetoothMethodProxy;

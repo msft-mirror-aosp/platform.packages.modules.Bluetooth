@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.audio_util;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.*;
@@ -30,7 +32,6 @@ import android.media.session.MediaSession;
 import android.media.session.PlaybackState;
 import android.os.HandlerThread;
 import android.os.TestLooperManager;
-import android.util.Log;
 
 import androidx.test.filters.SmallTest;
 import androidx.test.platform.app.InstrumentationRegistry;
@@ -46,8 +47,6 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -69,7 +68,7 @@ public class MediaPlayerWrapperTest {
 
     @Captor ArgumentCaptor<MediaController.Callback> mControllerCbs;
     @Captor ArgumentCaptor<MediaData> mMediaUpdateData;
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock MediaController mMockController;
     @Mock MediaPlayerWrapper.Callback mTestCbs;

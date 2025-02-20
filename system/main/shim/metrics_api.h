@@ -281,6 +281,16 @@ void LogMetricLeDeviceInAcceptList(hci::Address address, bool is_connect);
  */
 void LogMetricLeConnectionLifecycle(hci::Address address, bool is_connect, bool is_direct);
 
+/**
+ * Logs LE Connection Events
+ * @param address Address of the device
+ * @param reason the reason/status of the connection event
+ * @param is_locally_initiated the direction in which the connection request was
+ * sent
+ */
+void LogMetricLeConnectionCompletion(hci::Address address, hci::ErrorCode reason,
+                                     bool is_locally_initiated);
+
 bool CountCounterMetrics(int32_t key, int64_t count);
 
 }  // namespace shim

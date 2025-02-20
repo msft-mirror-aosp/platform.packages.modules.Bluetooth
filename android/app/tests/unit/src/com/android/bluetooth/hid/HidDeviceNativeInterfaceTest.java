@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.hid;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -31,13 +33,11 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 public class HidDeviceNativeInterfaceTest {
     private static final byte[] TEST_DEVICE_ADDRESS =
             new byte[] {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock HidDeviceService mService;
     @Mock AdapterService mAdapterService;

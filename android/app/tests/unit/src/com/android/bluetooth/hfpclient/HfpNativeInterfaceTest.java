@@ -16,13 +16,14 @@
 
 package com.android.bluetooth.hfpclient;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 
 import org.junit.After;
@@ -31,13 +32,11 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 public class HfpNativeInterfaceTest {
     private static final byte[] TEST_DEVICE_ADDRESS =
             new byte[] {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock HeadsetClientService mService;
     @Mock AdapterService mAdapterService;
@@ -45,17 +44,15 @@ public class HfpNativeInterfaceTest {
     private NativeInterface mNativeInterface;
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         when(mService.isAvailable()).thenReturn(true);
         HeadsetClientService.setHeadsetClientService(mService);
-        TestUtils.setAdapterService(mAdapterService);
-        mNativeInterface = NativeInterface.getInstance();
+        mNativeInterface = new NativeInterface(mAdapterService);
     }
 
     @After
-    public void tearDown() throws Exception {
+    public void tearDown() {
         HeadsetClientService.setHeadsetClientService(null);
-        TestUtils.clearAdapterService(mAdapterService);
     }
 
     @Test

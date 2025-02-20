@@ -34,6 +34,7 @@ import static android.bluetooth.IBluetoothVolumeControl.VOLUME_CONTROL_UNKNOWN_V
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -89,8 +90,6 @@ import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.hamcrest.MockitoHamcrest;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -100,7 +99,7 @@ import java.util.stream.IntStream;
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class VolumeControlServiceTest {
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
     @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     @Mock private AdapterService mAdapterService;
@@ -181,7 +180,7 @@ public class VolumeControlServiceTest {
     @After
     public void tearDown() {
         assertThat(mLooper.nextMessage()).isNull();
-        mService.stop();
+        mService.cleanup();
         mLooper.dispatchAll();
         assertThat(VolumeControlService.getVolumeControlService()).isNull();
     }

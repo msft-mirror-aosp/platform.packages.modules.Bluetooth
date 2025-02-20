@@ -17,6 +17,8 @@
 
 package android.bluetooth;
 
+import static java.util.Objects.requireNonNull;
+
 import android.annotation.DurationMillisLong;
 import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
@@ -33,7 +35,6 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.Objects;
 
 /**
  * This class provides the System APIs to access the data of BQR event reported from firmware side.
@@ -613,7 +614,7 @@ public final class BluetoothQualityReport implements Parcelable {
          */
         @SystemApi
         public Builder(@NonNull byte[] rawData) {
-            this.rawData = Objects.requireNonNull(rawData);
+            this.rawData = requireNonNull(rawData);
         }
 
         /**
@@ -741,6 +742,7 @@ public final class BluetoothQualityReport implements Parcelable {
     @SystemApi
     public static final class BqrCommon implements Parcelable {
         private static final String TAG = BluetoothQualityReport.TAG + ".BqrCommon";
+
         static final int BQR_COMMON_LEN = 85;
 
         private @QualityReportId int mQualityReportId;

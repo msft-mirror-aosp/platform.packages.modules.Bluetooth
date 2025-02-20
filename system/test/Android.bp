@@ -618,7 +618,7 @@ cc_defaults {
     name: "mts_defaults",
     target: {
         android: {
-            test_config_template: ":BluetoothTestConfigTemplate",
+            test_config_template: ":BluetoothGTestConfigTemplate",
             test_suites: ["mts-bt"],
         },
     },

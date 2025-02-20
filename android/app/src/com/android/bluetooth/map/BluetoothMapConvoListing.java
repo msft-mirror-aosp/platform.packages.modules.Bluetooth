@@ -39,8 +39,9 @@ import java.util.Objects;
 
 // Next tag value for ContentProfileErrorReportUtils.report(): 3
 public class BluetoothMapConvoListing {
-    private boolean mHasUnread = false;
     private static final String TAG = "BluetoothMapConvoListing";
+
+    private boolean mHasUnread = false;
     private static final String XML_TAG = "MAP-convo-listing";
 
     private List<BluetoothMapConvoListingElement> mList;

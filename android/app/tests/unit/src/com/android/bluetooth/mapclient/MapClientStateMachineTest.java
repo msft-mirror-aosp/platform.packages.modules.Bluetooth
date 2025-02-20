@@ -29,6 +29,7 @@ import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasPackage;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -88,8 +89,6 @@ import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.hamcrest.MockitoHamcrest;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import platform.test.runner.parameterized.ParameterizedAndroidJunit4;
 import platform.test.runner.parameterized.Parameters;
@@ -105,8 +104,10 @@ import java.util.concurrent.TimeUnit;
 @MediumTest
 @RunWith(ParameterizedAndroidJunit4.class)
 public class MapClientStateMachineTest {
+    private static final String TAG = "MapClientStateMachineTest";
+
     @Rule public final SetFlagsRule mSetFlagsRule;
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
     @Rule public final ServiceTestRule mServiceRule = new ServiceTestRule();
 
     @Mock private AdapterService mAdapterService;
@@ -119,8 +120,6 @@ public class MapClientStateMachineTest {
     @Mock private RequestGetMessagesListingForOwnNumber mRequestOwnNumberIncompleteSearch;
     @Mock private RequestGetMessage mRequestGetMessage;
     @Mock private RequestGetMessagesListing mRequestGetMessagesListing;
-
-    private static final String TAG = "MapClientStateMachineTest";
 
     private static final long PENDING_INTENT_TIMEOUT_MS = 3_000;
     private static final boolean MESSAGE_SEEN = true;

@@ -16,6 +16,7 @@
 
 package com.android.bluetooth.pbapclient;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -54,8 +55,6 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -69,7 +68,7 @@ public class PbapClientObexClientTest {
     private static final int TEST_L2CAP_PSM = 4098;
     private static final int TEST_RFCOMM_CHANNEL_ID = 3;
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     private BluetoothAdapter mAdapter = null;
     private BluetoothDevice mDevice;
@@ -503,6 +502,7 @@ public class PbapClientObexClientTest {
 
     private static class FakePbapObexServer extends FakeObexServer {
         private static final String TAG = FakePbapObexServer.class.getSimpleName();
+
         private static final String TYPE_GET_PHONEBOOK = "x-bt/phonebook";
         private static final byte SIZE_BYTES = 2;
         private static final byte DATABASE_IDENTIFIER_BYTES = 4;

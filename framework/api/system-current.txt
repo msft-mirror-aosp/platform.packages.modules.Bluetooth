@@ -316,7 +316,7 @@ package android.bluetooth {
     field public static final int METADATA_COMPANION_APP = 4; // 0x4
     field public static final int METADATA_DEVICE_TYPE = 17; // 0x11
     field public static final int METADATA_ENHANCED_SETTINGS_UI_URI = 16; // 0x10
-    field @FlaggedApi("com.android.bluetooth.flags.support_exclusive_manager") public static final int METADATA_EXCLUSIVE_MANAGER = 29; // 0x1d
+    field public static final int METADATA_EXCLUSIVE_MANAGER = 29; // 0x1d
     field public static final int METADATA_HARDWARE_VERSION = 3; // 0x3
     field @FlaggedApi("com.android.bluetooth.flags.support_remote_device_metadata") public static final int METADATA_HEAD_UNIT_BUILD = 33; // 0x21
     field @FlaggedApi("com.android.bluetooth.flags.support_remote_device_metadata") public static final int METADATA_HEAD_UNIT_MANUFACTURER_NAME = 31; // 0x1f

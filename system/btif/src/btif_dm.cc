@@ -542,6 +542,13 @@ static bool check_sdp_bl(const RawAddress* remote_bdaddr) {
   return false;
 }
 
+static void wipe_le_audio_metadata_cache_for_pairing_device() {
+  if (!pairing_cb.static_bdaddr.IsEmpty()) {
+    metadata_cb.le_audio_cache.extract(pairing_cb.static_bdaddr);
+  }
+  metadata_cb.le_audio_cache.extract(pairing_cb.bd_addr);
+}
+
 static void bond_state_changed(bt_status_t status, const RawAddress& bd_addr,
                                bt_bond_state_t state) {
   btif_stats_add_bond_event(bd_addr, BTIF_DM_FUNC_BOND_STATE_CHANGED, state);
@@ -597,6 +604,7 @@ static void bond_state_changed(bt_status_t status, const RawAddress& bd_addr,
     pairing_cb.bd_addr = bd_addr;
   } else {
     log::debug("clearing btif pairing_cb");
+    wipe_le_audio_metadata_cache_for_pairing_device();
     pairing_cb = {};
   }
 }
@@ -1671,6 +1679,7 @@ static void btif_on_service_discovery_results(RawAddress bd_addr,
     if (!skip_reporting_wait_for_le) {
       // Both SDP and bonding are done, clear pairing control block in case
       // it is not already cleared
+      wipe_le_audio_metadata_cache_for_pairing_device();
       pairing_cb = {};
       log::debug("clearing btif pairing_cb");
     }
@@ -1720,6 +1729,7 @@ static void btif_on_gatt_results(RawAddress bd_addr, std::vector<bluetooth::Uuid
         // Both SDP and bonding are either done, or not scheduled,
         // we are safe to clear the service discovery part of CB.
         log::debug("clearing pairing_cb");
+        wipe_le_audio_metadata_cache_for_pairing_device();
         pairing_cb = {};
       }
 
@@ -1964,6 +1974,7 @@ void BTIF_dm_enable() {
     }
   }
   /* clear control blocks */
+  wipe_le_audio_metadata_cache_for_pairing_device();
   pairing_cb = {};
   pairing_cb.bond_type = BOND_TYPE_PERSISTENT;
 

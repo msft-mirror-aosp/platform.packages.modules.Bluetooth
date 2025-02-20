@@ -24,6 +24,7 @@ import static android.bluetooth.BluetoothAdapter.STATE_ON;
 import static android.bluetooth.BluetoothAdapter.STATE_TURNING_OFF;
 import static android.bluetooth.BluetoothAdapter.STATE_TURNING_ON;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -95,8 +96,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InOrder;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import platform.test.runner.parameterized.ParameterizedAndroidJunit4;
 import platform.test.runner.parameterized.Parameters;
@@ -118,6 +117,7 @@ import javax.crypto.spec.SecretKeySpec;
 @RunWith(ParameterizedAndroidJunit4.class)
 public class AdapterServiceTest {
     private static final String TAG = AdapterServiceTest.class.getSimpleName();
+
     private static final String TEST_BT_ADDR_1 = "00:11:22:33:44:55";
     private static final String TEST_BT_ADDR_2 = "00:11:22:33:44:66";
 
@@ -141,7 +141,7 @@ public class AdapterServiceTest {
         }
     }
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     private @Mock Context mMockContext;
     private @Mock ApplicationInfo mMockApplicationInfo;

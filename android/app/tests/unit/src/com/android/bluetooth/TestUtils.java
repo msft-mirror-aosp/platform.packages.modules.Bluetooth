@@ -19,7 +19,8 @@ import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 
 import android.annotation.IntRange;
 import android.bluetooth.BluetoothDevice;
@@ -41,9 +42,12 @@ import androidx.test.uiautomator.UiDevice;
 import com.android.bluetooth.avrcpcontroller.BluetoothMediaBrowserService;
 import com.android.bluetooth.btservice.AdapterService;
 
+import org.junit.rules.MethodRule;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
+import org.junit.runners.model.FrameworkMethod;
 import org.junit.runners.model.Statement;
+import org.mockito.junit.MockitoJUnit;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -51,9 +55,9 @@ import java.util.stream.IntStream;
 
 /** A set of methods useful in Bluetooth instrumentation tests */
 public class TestUtils {
-    private static String sSystemScreenOffTimeout = "10000";
-
     private static final String TAG = "BluetoothTestUtils";
+
+    private static String sSystemScreenOffTimeout = "10000";
 
     /**
      * Set the return value of {@link AdapterService#getAdapterService()} to a test specified value
@@ -92,8 +96,8 @@ public class TestUtils {
     /** Helper function to mock getSystemService calls */
     public static <T> void mockGetSystemService(
             Context ctx, String serviceName, Class<T> serviceClass, T mockService) {
-        when(ctx.getSystemService(eq(serviceName))).thenReturn(mockService);
-        when(ctx.getSystemServiceName(eq(serviceClass))).thenReturn(serviceName);
+        doReturn(mockService).when(ctx).getSystemService(eq(serviceName));
+        doReturn(serviceName).when(ctx).getSystemServiceName(eq(serviceClass));
     }
 
     /** Helper function to mock getSystemService calls */
@@ -318,6 +322,22 @@ public class TestUtils {
                                     + retryCount
                                     + " failures");
                     throw caughtThrowable;
+                }
+            };
+        }
+    }
+
+    /** Wrapper around MockitoJUnit.rule() to be extended in follow-up. */
+    public static class MockitoRule implements MethodRule {
+        private final org.mockito.junit.MockitoRule mMockitoRule = MockitoJUnit.rule();
+
+        public Statement apply(Statement base, FrameworkMethod method, Object target) {
+            Statement nestedStatement = mMockitoRule.apply(base, method, target);
+
+            return new Statement() {
+                @Override
+                public void evaluate() throws Throwable {
+                    nestedStatement.evaluate();
                 }
             };
         }

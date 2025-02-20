@@ -55,17 +55,14 @@ public abstract class ProfileService extends ContextWrapper {
     }
 
     /**
-     * Called in ProfileService constructor to init binder interface for this profile service
+     * Called in ProfileService constructor to init binder interface for this profile service.
      *
-     * @return initialized binder interface for this profile service
+     * @return initialized binder interface for this profile service.
      */
     protected abstract IProfileServiceBinder initBinder();
 
-    /** Stop service */
-    public abstract void stop();
-
-    /** Called when this object is completely discarded */
-    public void cleanup() {}
+    /** Called when this object is no longer needed and is being discarded. */
+    public abstract void cleanup();
 
     /**
      * @param testModeEnabled if the profile should enter or exit a testing mode

@@ -310,12 +310,7 @@ bool background_connect_add(uint8_t app_id, const RawAddress& address) {
         return false;
       }
 
-      if (!bluetooth::shim::ACL_AcceptLeConnectionFrom(BTM_Sec_GetAddressWithType(address),
-                                                       false)) {
-        log::warn("Failed to add device {} to accept list for app {}", address,
-                  static_cast<int>(app_id));
-        return false;
-      }
+      bluetooth::shim::ACL_AcceptLeConnectionFrom(BTM_Sec_GetAddressWithType(address), false);
       bgconn_dev[address].is_in_accept_list = true;
     }
   }
@@ -330,15 +325,13 @@ bool background_connect_add(uint8_t app_id, const RawAddress& address) {
  * Returns true if anything was removed, false otherwise */
 bool remove_unconditional(const RawAddress& address) {
   log::debug("address={}", address);
-  auto it = bgconn_dev.find(address);
-  if (it == bgconn_dev.end()) {
-    log::warn("address {} is not found", address);
-    return false;
+  int count = bgconn_dev.erase(address);
+  if (count == 0) {
+    log::info("address {} is not found", address);
   }
 
   bluetooth::shim::ACL_IgnoreLeConnectionFrom(BTM_Sec_GetAddressWithType(address));
-  bgconn_dev.erase(it);
-  return true;
+  return count > 0;
 }
 
 /** Remove device from the background connection device list or listening to
@@ -378,12 +371,8 @@ bool background_connect_remove(uint8_t app_id, const RawAddress& address) {
         /* Keep using filtering */
         log::debug("Keep using target announcement filtering");
       } else if (!it->second.doing_bg_conn.empty()) {
-        if (!bluetooth::shim::ACL_AcceptLeConnectionFrom(BTM_Sec_GetAddressWithType(address),
-                                                         false)) {
-          log::warn("Could not re add device to accept list");
-        } else {
-          bgconn_dev[address].is_in_accept_list = true;
-        }
+        bluetooth::shim::ACL_AcceptLeConnectionFrom(BTM_Sec_GetAddressWithType(address), false);
+        bgconn_dev[address].is_in_accept_list = true;
       }
     }
     return true;
@@ -541,11 +530,7 @@ bool direct_connect_add(uint8_t app_id, const RawAddress& address, tBLE_ADDR_TYP
       return false;
     }
 
-    if (!bluetooth::shim::ACL_AcceptLeConnectionFrom(address_with_type, true /* is_direct */)) {
-      // if we can't add to acceptlist, turn parameters back to slow.
-      log::warn("unable to add to acceptlist {}", address_with_type);
-      return false;
-    }
+    bluetooth::shim::ACL_AcceptLeConnectionFrom(address_with_type, true /* is_direct */);
     bgconn_dev[address].is_in_accept_list = true;
   } else {
     // if already in accept list, we should just bump parameters up for direct
@@ -591,10 +576,8 @@ bool direct_connect_remove(uint8_t app_id, const RawAddress& address, bool conne
       /* In such case we need to add device back to allow list because, when connection timeout
        * out, the lower layer removes device from the allow list.
        */
-      if (!bluetooth::shim::ACL_AcceptLeConnectionFrom(BTM_Sec_GetAddressWithType(address),
-                                                       false /* is_direct */)) {
-        log::warn("Failed to re-add {} to accept list after connection timeout", address);
-      }
+      bluetooth::shim::ACL_AcceptLeConnectionFrom(BTM_Sec_GetAddressWithType(address),
+                                                  false /* is_direct */);
     }
     return true;
   }
