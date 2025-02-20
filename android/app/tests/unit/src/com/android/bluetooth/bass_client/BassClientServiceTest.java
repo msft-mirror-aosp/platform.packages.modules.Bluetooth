@@ -7117,11 +7117,7 @@ public class BassClientServiceTest {
         }
 
         // Remove source on the mCurrentDevice
-        for (BassClientStateMachine sm : mStateMachines.values()) {
-            if (sm.getDevice().equals(mCurrentDevice)) {
-                injectRemoteSourceStateRemoval(sm, TEST_SOURCE_ID);
-            }
-        }
+        injectRemoteSourceStateRemoval(mStateMachines.get(mCurrentDevice), TEST_SOURCE_ID);
 
         mBassClientService.getCallbacks().notifyBassStateReady(mCurrentDevice);
         TestUtils.waitForLooperToFinishScheduledTask(mBassClientService.getCallbacks().getLooper());
@@ -7203,6 +7199,70 @@ public class BassClientServiceTest {
         // Verify adding source is resumed once BASS state ready
         for (BassClientStateMachine sm : mStateMachines.values()) {
             if (sm.getDevice().equals(mCurrentDevice)) {
+                ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+                verify(sm, atLeast(1)).sendMessage(messageCaptor.capture());
+
+                Message msg =
+                        messageCaptor.getAllValues().stream()
+                                .filter(m -> (m.what == BassClientStateMachine.ADD_BCAST_SOURCE))
+                                .findFirst()
+                                .orElse(null);
+                assertThat(msg).isNotNull();
+                clearInvocations(sm);
+            }
+        }
+    }
+
+    /** Test add pending source when BASS state get ready */
+    @Test
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
+    public void sinkBassStateReady_addPendingSourceGroup_oneByOneReady() throws RemoteException {
+        prepareConnectedDeviceGroup();
+        BluetoothLeBroadcastMetadata meta = createBroadcastMetadata(TEST_BROADCAST_ID);
+        // Verify adding source when Bass state not ready
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            doReturn(false).when(sm).isBassStateReady();
+        }
+        doReturn(true).when(mLeAudioService).isPlaying(TEST_BROADCAST_ID);
+        doReturn(new ArrayList<BluetoothLeBroadcastMetadata>(Arrays.asList(meta)))
+                .when(mLeAudioService)
+                .getAllBroadcastMetadata();
+        // Add broadcast source and got queued due to BASS not ready
+        mBassClientService.addSource(mCurrentDevice, meta, /* isGroupOp */ true);
+
+        // First BASS ready
+        doReturn(true).when(mStateMachines.get(mCurrentDevice)).isBassStateReady();
+        mBassClientService.getCallbacks().notifyBassStateReady(mCurrentDevice);
+        TestUtils.waitForLooperToFinishScheduledTask(mBassClientService.getCallbacks().getLooper());
+
+        // Verify adding source is resumed once BASS state ready
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            if (sm.getDevice().equals(mCurrentDevice)) {
+                ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+                verify(sm, atLeast(1)).sendMessage(messageCaptor.capture());
+
+                Message msg =
+                        messageCaptor.getAllValues().stream()
+                                .filter(m -> (m.what == BassClientStateMachine.ADD_BCAST_SOURCE))
+                                .findFirst()
+                                .orElse(null);
+                assertThat(msg).isNotNull();
+                clearInvocations(sm);
+            } else if (sm.getDevice().equals(mCurrentDevice1)) {
+                verify(sm, never()).sendMessage(any());
+            }
+        }
+
+        // Second BASS ready
+        doReturn(true).when(mStateMachines.get(mCurrentDevice1)).isBassStateReady();
+        mBassClientService.getCallbacks().notifyBassStateReady(mCurrentDevice1);
+        TestUtils.waitForLooperToFinishScheduledTask(mBassClientService.getCallbacks().getLooper());
+
+        // Verify adding source is resumed once BASS state ready
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            if (sm.getDevice().equals(mCurrentDevice)) {
+                verify(sm, never()).sendMessage(any());
+            } else if (sm.getDevice().equals(mCurrentDevice1)) {
                 ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
                 verify(sm, atLeast(1)).sendMessage(messageCaptor.capture());
 
