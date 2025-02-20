@@ -1157,33 +1157,6 @@ public final class BluetoothHeadset implements BluetoothProfile {
     }
 
     /**
-     * Send Headset of CLCC response
-     *
-     * @hide
-     */
-    @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                MODIFY_PHONE_STATE,
-            })
-    public void clccResponse(
-            int index, int direction, int status, int mode, boolean mpty, String number, int type) {
-        final IBluetoothHeadset service = getService();
-        if (service == null) {
-            Log.w(TAG, "Proxy not attached to service");
-            if (DBG) log(Log.getStackTraceString(new Throwable()));
-        } else if (isEnabled()) {
-            try {
-                service.clccResponse(
-                        index, direction, status, mode, mpty, number, type, mAttributionSource);
-            } catch (RemoteException e) {
-                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-            }
-        }
-    }
-
-    /**
      * Sends a vendor-specific unsolicited result code to the headset.
      *
      * <p>The actual string to be sent is <code>command + ": " + arg</code>. For example, if {@code
