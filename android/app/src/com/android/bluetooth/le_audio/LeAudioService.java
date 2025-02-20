@@ -22,7 +22,6 @@ import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static android.bluetooth.IBluetoothLeAudio.LE_AUDIO_GROUP_ID_INVALID;
 
 import static com.android.bluetooth.bass_client.BassConstants.INVALID_BROADCAST_ID;
-import static com.android.bluetooth.flags.Flags.leaudioAllowedContextMask;
 import static com.android.bluetooth.flags.Flags.leaudioBigDependsOnAudioState;
 import static com.android.bluetooth.flags.Flags.leaudioBroadcastApiManagePrimaryGroup;
 import static com.android.bluetooth.flags.Flags.leaudioBroadcastAssistantPeripheralEntrustment;
@@ -3730,30 +3729,26 @@ public class LeAudioService extends ProfileService {
                         /* In case if group is inactivated due to switch to other */
                         Integer gettingActiveGroupId = getFirstGroupIdInGettingActiveState();
                         if (gettingActiveGroupId != LE_AUDIO_GROUP_ID_INVALID) {
-                            if (leaudioAllowedContextMask()) {
-                                /* Context were modified, apply mask to activating group */
-                                if (descriptor.areAllowedContextsModified()) {
-                                    setGroupAllowedContextMask(
-                                            gettingActiveGroupId,
-                                            descriptor.getAllowedSinkContexts(),
-                                            descriptor.getAllowedSourceContexts());
-                                    setGroupAllowedContextMask(
-                                            groupId,
-                                            BluetoothLeAudio.CONTEXTS_ALL,
-                                            BluetoothLeAudio.CONTEXTS_ALL);
-                                }
-                            }
-                            break;
-                        }
-
-                        if (leaudioAllowedContextMask()) {
-                            /* Clear allowed context mask if there is no switch of group */
+                            /* Context were modified, apply mask to activating group */
                             if (descriptor.areAllowedContextsModified()) {
+                                setGroupAllowedContextMask(
+                                        gettingActiveGroupId,
+                                        descriptor.getAllowedSinkContexts(),
+                                        descriptor.getAllowedSourceContexts());
                                 setGroupAllowedContextMask(
                                         groupId,
                                         BluetoothLeAudio.CONTEXTS_ALL,
                                         BluetoothLeAudio.CONTEXTS_ALL);
                             }
+                            break;
+                        }
+
+                        /* Clear allowed context mask if there is no switch of group */
+                        if (descriptor.areAllowedContextsModified()) {
+                            setGroupAllowedContextMask(
+                                    groupId,
+                                    BluetoothLeAudio.CONTEXTS_ALL,
+                                    BluetoothLeAudio.CONTEXTS_ALL);
                         }
 
                         if (isBroadcastAllowedToBeActivateInCurrentAudioMode()) {

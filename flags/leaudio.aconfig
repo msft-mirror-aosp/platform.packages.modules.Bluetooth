@@ -116,16 +116,6 @@ flag {
 }
 
 flag {
-    name: "leaudio_allowed_context_mask"
-    namespace: "bluetooth"
-    description: "Set allowed context mask to filter stream requests in native"
-    bug: "336468573"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "leaudio_no_context_validate_streaming_request"
     namespace: "bluetooth"
     description: "Request streaming would be send without available cotext validation"

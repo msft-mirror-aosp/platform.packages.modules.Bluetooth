@@ -3313,7 +3313,6 @@ public class BassClientServiceTest {
 
     @Test
     @EnableFlags({
-        Flags.FLAG_LEAUDIO_ALLOWED_CONTEXT_MASK,
         Flags.FLAG_LEAUDIO_BROADCAST_ASSISTANT_PERIPHERAL_ENTRUSTMENT
     })
     public void testAddSourceForExternalBroadcast_triggerSetContextMask() {
