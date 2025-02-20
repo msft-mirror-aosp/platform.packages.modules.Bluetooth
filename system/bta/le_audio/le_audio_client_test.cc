@@ -13127,8 +13127,6 @@ TEST_F(UnicastTestHandoverMode, SetAllowedContextMask) {
 }
 
 TEST_F(UnicastTest, NoContextvalidateStreamingRequest) {
-  com::android::bluetooth::flags::provider_->leaudio_no_context_validate_streaming_request(true);
-
   const RawAddress test_address0 = GetTestAddress(0);
   int group_id = bluetooth::groups::kGroupUnknown;
 

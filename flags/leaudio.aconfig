@@ -116,16 +116,6 @@ flag {
 }
 
 flag {
-    name: "leaudio_no_context_validate_streaming_request"
-    namespace: "bluetooth"
-    description: "Request streaming would be send without available cotext validation"
-    bug: "336466406"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "leaudio_use_audio_mode_listener"
     namespace: "bluetooth"
     description: "Use Audio Mode listener instead of Telecom in call callback"
