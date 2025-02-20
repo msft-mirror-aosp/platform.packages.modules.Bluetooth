@@ -86,16 +86,6 @@ flag {
 }
 
 flag {
-    name: "leaudio_start_request_state_mutex_check"
-    namespace: "bluetooth"
-    description: "Check mutex before getting start request state"
-    bug: "332847150"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "leaudio_broadcast_assistant_peripheral_entrustment"
     namespace: "bluetooth"
     description: "Give peripheral devices more responsibility for source handling"
