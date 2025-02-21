@@ -37,7 +37,7 @@ import java.util.concurrent.Executor;
 @SuppressLint("AndroidFrameworkRequiresPermission") // TODO: b/350563786
 public class BluetoothLeCallControlProxy {
 
-    private BluetoothLeCallControl mBluetoothLeCallControl;
+    private final BluetoothLeCallControl mBluetoothLeCallControl;
 
     public static final int BEARER_TECHNOLOGY_3G = 0x01;
     public static final int BEARER_TECHNOLOGY_4G = 0x02;

@@ -121,7 +121,7 @@ public class BluetoothOppManager {
 
     // A list of devices that may send files over OPP to this device
     // without user confirmation. Used for connection handover from forex NFC.
-    private List<Pair<String, Long>> mAcceptlist = new ArrayList<Pair<String, Long>>();
+    private final List<Pair<String, Long>> mAcceptlist = new ArrayList<Pair<String, Long>>();
 
     // The time for which the acceptlist entries remain valid.
     private static final int ACCEPTLIST_DURATION_MS = 15000;

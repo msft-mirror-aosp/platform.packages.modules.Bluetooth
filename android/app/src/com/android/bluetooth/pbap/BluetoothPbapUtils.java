@@ -84,9 +84,9 @@ class BluetoothPbapUtils {
 
     private static class ContactData {
         private String mName;
-        private List<String> mEmail;
-        private List<String> mPhone;
-        private List<String> mAddress;
+        private final List<String> mEmail;
+        private final List<String> mPhone;
+        private final List<String> mAddress;
 
         ContactData() {
             mPhone = new ArrayList<>();

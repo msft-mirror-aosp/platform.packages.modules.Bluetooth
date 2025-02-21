@@ -74,7 +74,7 @@ public class SapServer extends Thread implements Handler.Callback {
 
     /* flag for when user forces disconnect of rfcomm */
     @VisibleForTesting boolean mIsLocalInitDisconnect = false;
-    private CountDownLatch mDeinitSignal = new CountDownLatch(1);
+    private final CountDownLatch mDeinitSignal = new CountDownLatch(1);
 
     /* Message ID's handled by the message handler */
     public static final int SAP_MSG_RFC_REPLY = 0x00;

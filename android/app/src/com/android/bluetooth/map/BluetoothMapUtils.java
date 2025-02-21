@@ -120,7 +120,7 @@ public class BluetoothMapUtils {
         SMS_CDMA,
         MMS,
         IM;
-        private static TYPE[] sAllValues = values();
+        private static final TYPE[] sAllValues = values();
 
         public static TYPE fromOrdinal(int n) {
             if (n < sAllValues.length) {

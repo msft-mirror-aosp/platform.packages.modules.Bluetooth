@@ -113,14 +113,13 @@ public class BluetoothInCallService extends InCallService {
     private int mRingingAddressType = DEFAULT_RINGING_ADDRESS_TYPE;
     private BluetoothCall mOldHeldCall = null;
     private boolean mHeadsetUpdatedRecently = false;
-    private boolean mIsDisconnectedTonePlaying = false;
 
     @VisibleForTesting boolean mIsTerminatedByClient = false;
 
     private static final Object LOCK = new Object();
 
     @VisibleForTesting BluetoothLeCallControlProxy mBluetoothLeCallControl;
-    private ExecutorService mExecutor;
+    private final ExecutorService mExecutor;
 
     private TelephonyManager mTelephonyManager;
     private TelecomManager mTelecomManager;
@@ -1341,7 +1340,7 @@ public class BluetoothInCallService extends InCallService {
             bluetoothCallState = CALL_STATE_INCOMING;
         } else if (!mCallInfo.isNullCall(dialingCall)) {
             bluetoothCallState = CALL_STATE_ALERTING;
-        } else if (hasOnlyDisconnectedCalls || mIsDisconnectedTonePlaying) {
+        } else if (hasOnlyDisconnectedCalls) {
             // Keep the DISCONNECTED state until the disconnect tone's playback is done
             bluetoothCallState = CALL_STATE_DISCONNECTED;
         }

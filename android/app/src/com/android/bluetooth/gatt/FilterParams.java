@@ -17,18 +17,18 @@
 package com.android.bluetooth.gatt;
 
 public class FilterParams {
-    private int mClientIf;
-    private int mFiltIndex;
-    private int mFeatSeln;
-    private int mListLogicType;
-    private int mFiltLogicType;
-    private int mRssiHighValue;
-    private int mRssiLowValue;
-    private int mDelyMode;
-    private int mFoundTimeOut;
-    private int mLostTimeOut;
-    private int mFoundTimeOutCnt;
-    private int mNumOfTrackEntries;
+    private final int mClientIf;
+    private final int mFiltIndex;
+    private final int mFeatSeln;
+    private final int mListLogicType;
+    private final int mFiltLogicType;
+    private final int mRssiHighValue;
+    private final int mRssiLowValue;
+    private final int mDelyMode;
+    private final int mFoundTimeOut;
+    private final int mLostTimeOut;
+    private final int mFoundTimeOutCnt;
+    private final int mNumOfTrackEntries;
 
     public FilterParams(
             int clientIf,

@@ -75,7 +75,7 @@ class AppScanStats {
     @GuardedBy("sLock")
     static long sRadioStartTime = 0;
 
-    private static Object sLock = new Object();
+    private static final Object sLock = new Object();
 
     private static class LastScan {
         public long duration;

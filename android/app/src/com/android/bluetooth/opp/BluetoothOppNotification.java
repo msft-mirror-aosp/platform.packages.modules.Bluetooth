@@ -134,11 +134,10 @@ class BluetoothOppNotification {
 
     public NotificationManager mNotificationMgr;
 
-    private NotificationChannel mNotificationChannel;
+    private final NotificationChannel mNotificationChannel;
     private static final String OPP_NOTIFICATION_CHANNEL = "opp_notification_channel";
 
-    private Context mContext;
-
+    private final Context mContext;
     private final HashMap<String, NotificationItem> mNotifications = new HashMap<>();
 
     @VisibleForTesting NotificationUpdateThread mUpdateNotificationThread;
@@ -226,7 +225,7 @@ class BluetoothOppNotification {
     // 3. Handler sends a delayed message to self
     // 4. Handler checks if there are any more updates after 1 second.
     // 5. If there is an update, update it else stop.
-    private Handler mHandler =
+    private final Handler mHandler =
             new Handler() {
                 @Override
                 public void handleMessage(Message msg) {

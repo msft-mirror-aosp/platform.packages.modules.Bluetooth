@@ -48,7 +48,7 @@ public class HfpClientDeviceBlock {
     private final TelecomManager mTelecomManager;
     private final HfpClientConnectionService mConnServ;
     private HfpClientConference mConference;
-    private Bundle mScoState;
+    private final Bundle mScoState;
     private final HeadsetClientServiceInterface mServiceInterface;
 
     HfpClientDeviceBlock(

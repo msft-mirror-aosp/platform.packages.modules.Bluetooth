@@ -77,9 +77,9 @@ public class RemoteDevices {
     // Maximum number of device properties to remember
     private static final int MAX_DEVICE_QUEUE_SIZE = 200;
 
-    private BluetoothAdapter mAdapter;
+    private final BluetoothAdapter mAdapter;
     private AdapterService mAdapterService;
-    private ArrayList<BluetoothDevice> mSdpTracker;
+    private final ArrayList<BluetoothDevice> mSdpTracker;
     private final Object mObject = new Object();
 
     private static final int UUID_INTENT_DELAY = 6000;

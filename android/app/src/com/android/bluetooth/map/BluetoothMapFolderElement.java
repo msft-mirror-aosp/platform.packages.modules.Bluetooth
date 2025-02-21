@@ -41,7 +41,7 @@ import java.util.Locale;
 public class BluetoothMapFolderElement implements Comparable<BluetoothMapFolderElement> {
     private static final String TAG = BluetoothMapFolderElement.class.getSimpleName();
 
-    private String mName;
+    private final String mName;
     private BluetoothMapFolderElement mParent = null;
     private long mFolderId = -1;
     private boolean mHasSmsMmsContent = false;
@@ -50,7 +50,7 @@ public class BluetoothMapFolderElement implements Comparable<BluetoothMapFolderE
 
     private boolean mIgnore = false;
 
-    private HashMap<String, BluetoothMapFolderElement> mSubFolders;
+    private final HashMap<String, BluetoothMapFolderElement> mSubFolders;
 
     public BluetoothMapFolderElement(String name, BluetoothMapFolderElement parent) {
         this.mName = name;

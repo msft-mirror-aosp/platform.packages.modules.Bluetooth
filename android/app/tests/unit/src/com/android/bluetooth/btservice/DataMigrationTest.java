@@ -448,7 +448,7 @@ public class DataMigrationTest {
 
     private static class FakeCursor extends MockCursor {
         int mNumItem = 1;
-        List<Pair<String, Object>> mRows;
+        final List<Pair<String, Object>> mRows;
 
         FakeCursor(List<Pair<String, Object>> rows) {
             mRows = rows;

@@ -63,7 +63,7 @@ import java.util.function.Consumer;
 public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable {
     private static final String TAG = BluetoothHapClient.class.getSimpleName();
 
-    private CloseGuard mCloseGuard;
+    private final CloseGuard mCloseGuard;
 
     /**
      * This class provides callbacks mechanism for the BluetoothHapClient profile.
