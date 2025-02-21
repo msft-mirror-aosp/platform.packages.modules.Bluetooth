@@ -58,5 +58,6 @@ struct hal_interface {
   void (*send_acl)(void *handle, const uint8_t *data, size_t len);
   void (*send_sco)(void *handle, const uint8_t *data, size_t len);
   void (*send_iso)(void *handle, const uint8_t *data, size_t len);
+  void (*client_died)(void *handle);
 };
 }
