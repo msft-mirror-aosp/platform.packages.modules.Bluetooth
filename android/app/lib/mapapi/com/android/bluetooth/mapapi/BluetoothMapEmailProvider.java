@@ -68,7 +68,7 @@ public abstract class BluetoothMapEmailProvider extends ContentProvider {
      * @param download true if any missing part of the message shall be downloaded before written to
      *     the stream. The download flag will determine whether or not attachments shall be
      *     downloaded or only the message content.
-     * @param out the FileOurputStream to write to.
+     * @param out the FileOutputStream to write to.
      * @throws IOException
      */
     protected abstract void WriteMessageToStream(
@@ -248,7 +248,7 @@ public abstract class BluetoothMapEmailProvider extends ContentProvider {
         if (accountId == null) {
             newUri = BluetoothMapContract.buildAccountUri(mAuthority);
         } else {
-            newUri = BluetoothMapContract.buildAccountUriwithId(mAuthority, accountId);
+            newUri = BluetoothMapContract.buildAccountUriWithId(mAuthority, accountId);
         }
         if (D) {
             Log.d(TAG, "onAccountChanged() accountId = " + accountId + " URI: " + newUri);
@@ -745,7 +745,7 @@ public abstract class BluetoothMapEmailProvider extends ContentProvider {
     public static String getAccountId(Uri uri) {
         final List<String> segments = uri.getPathSegments();
         if (segments.size() < 1) {
-            throw new IllegalArgumentException("No AccountId pressent in URI: " + uri);
+            throw new IllegalArgumentException("No AccountId present in URI: " + uri);
         }
         return segments.get(0);
     }

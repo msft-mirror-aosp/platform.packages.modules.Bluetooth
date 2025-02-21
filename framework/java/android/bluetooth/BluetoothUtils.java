@@ -41,7 +41,7 @@ public final class BluetoothUtils {
     /** This utility class cannot be instantiated */
     private BluetoothUtils() {}
 
-    /** Match with UserHandl.NULL but accessible inside bluetooth package */
+    /** Match with UserHandle.NULL but accessible inside bluetooth package */
     public static final UserHandle USER_HANDLE_NULL = UserHandle.of(-10000);
 
     /** Class for Length-Value-Entry array parsing */

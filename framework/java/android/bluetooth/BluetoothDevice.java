@@ -850,7 +850,7 @@ public final class BluetoothDevice implements Parcelable, Attributable {
     public static final int METADATA_SPATIAL_AUDIO = 24;
 
     /**
-     * The metadata of the Fast Pair for any custmized feature. Data type should be {@link Byte}
+     * The metadata of the Fast Pair for any customized feature. Data type should be {@link Byte}
      * array.
      *
      * @hide
