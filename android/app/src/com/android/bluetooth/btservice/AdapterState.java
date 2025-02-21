@@ -17,6 +17,7 @@
 package com.android.bluetooth.btservice;
 
 import android.bluetooth.BluetoothAdapter;
+import com.android.bluetooth.flags.Flags;
 import android.os.Looper;
 import android.os.Message;
 import android.os.SystemProperties;
@@ -342,6 +343,13 @@ final class AdapterState extends StateMachine {
         @Override
         public void exit() {
             removeMessages(BREDR_STOP_TIMEOUT);
+            if (Flags.disconnectAclsByBredrDisabled()) {
+              if (mAdapterService != null) {
+                Log.i(TAG, "Disconnecting all ACLs with BREDR Stopped");
+                mAdapterService.disconnectAllAcls();
+              }
+            }
+
             super.exit();
         }
 
