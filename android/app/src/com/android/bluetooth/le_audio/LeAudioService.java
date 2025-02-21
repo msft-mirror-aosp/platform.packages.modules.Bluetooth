@@ -4805,28 +4805,16 @@ public class LeAudioService extends ProfileService {
             if (Flags.leaudioBroadcastVolumeControlWithSetVolume()
                     && currentlyActiveGroupId == LE_AUDIO_GROUP_ID_INVALID
                     && !activeBroadcastSinks.isEmpty()) {
-                if (Flags.leaudioBroadcastVolumeControlPrimaryGroupOnly()) {
-                    if (activeBroadcastSinks.stream()
-                            .anyMatch(dev -> isPrimaryGroup(getGroupId(dev)))) {
-                        Log.d(
-                                TAG,
-                                "Setting volume for broadcast sink primary group: "
-                                        + mUnicastGroupIdDeactivatedForBroadcastTransition);
-                        volumeControlService.setGroupVolume(
-                                mUnicastGroupIdDeactivatedForBroadcastTransition, volume);
-                    } else {
-                        Log.w(TAG, "Setting volume when no active or broadcast primary group");
-                    }
+                if (activeBroadcastSinks.stream()
+                        .anyMatch(dev -> isPrimaryGroup(getGroupId(dev)))) {
+                    Log.d(
+                            TAG,
+                            "Setting volume for broadcast sink primary group: "
+                                    + mUnicastGroupIdDeactivatedForBroadcastTransition);
+                    volumeControlService.setGroupVolume(
+                            mUnicastGroupIdDeactivatedForBroadcastTransition, volume);
                 } else {
-                    Set<Integer> broadcastGroups =
-                            activeBroadcastSinks.stream()
-                                    .map(dev -> getGroupId(dev))
-                                    .filter(id -> id != IBluetoothLeAudio.LE_AUDIO_GROUP_ID_INVALID)
-                                    .collect(Collectors.toSet());
-
-                    Log.d(TAG, "Setting volume for broadcast sink groups: " + broadcastGroups);
-                    broadcastGroups.forEach(
-                            groupId -> volumeControlService.setGroupVolume(groupId, volume));
+                    Log.w(TAG, "Setting volume when no active or broadcast primary group");
                 }
             } else {
                 volumeControlService.setGroupVolume(currentlyActiveGroupId, volume);
