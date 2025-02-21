@@ -133,6 +133,7 @@ typedef struct {
   bool service_dereg_active;
 
   std::list<tAclLinkSpec> new_connection_requests;
+  tBTA_HH_CONN pending_incoming_connection;  // Early incoming connection request during pairing
 } btif_hh_cb_t;
 
 /*******************************************************************************

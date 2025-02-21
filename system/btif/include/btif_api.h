@@ -222,6 +222,8 @@ void btif_dm_start_discovery(void);
 void btif_dm_cancel_discovery(void);
 
 bool btif_dm_pairing_is_busy();
+bool btif_dm_is_pairing(const RawAddress& bdaddr);
+
 /*******************************************************************************
  *
  * Function         btif_dm_create_bond
