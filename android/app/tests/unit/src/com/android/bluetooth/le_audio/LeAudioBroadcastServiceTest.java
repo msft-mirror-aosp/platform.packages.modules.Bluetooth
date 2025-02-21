@@ -1405,11 +1405,7 @@ public class LeAudioBroadcastServiceTest {
         state_event.valueInt2 = LeAudioStackEvent.BROADCAST_STATE_PAUSED;
         mService.messageFromNative(state_event);
 
-        if (!Flags.leaudioBroadcastAssistantPeripheralEntrustment()) {
-            verify(mBassClientService).suspendReceiversSourceSynchronization(eq(broadcastId));
-        } else {
-            verify(mBassClientService).cacheSuspendingSources(eq(broadcastId));
-        }
+        verify(mBassClientService).cacheSuspendingSources(eq(broadcastId));
 
         /* Internal broadcast resumed due to onAudioResumed */
         state_event.valueInt2 = LeAudioStackEvent.BROADCAST_STATE_STREAMING;
