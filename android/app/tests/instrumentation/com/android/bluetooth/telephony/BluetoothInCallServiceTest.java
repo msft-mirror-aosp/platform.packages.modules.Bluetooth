@@ -1928,7 +1928,7 @@ public class BluetoothInCallServiceTest {
         verify(firstCall).conference(any(BluetoothCall.class));
     }
 
-    private void addCallCapability(BluetoothCall call, int capability) {
+    private static void addCallCapability(BluetoothCall call, int capability) {
         doReturn(true).when(call).can(eq(capability));
     }
 
@@ -1979,11 +1979,11 @@ public class BluetoothInCallServiceTest {
                 makeQuickConnectionServiceComponentName(), id, Binder.getCallingUserHandle());
     }
 
-    private PhoneAccount.Builder makeQuickAccountBuilder(String id, int idx) {
+    private static PhoneAccount.Builder makeQuickAccountBuilder(String id, int idx) {
         return new PhoneAccount.Builder(makeQuickAccountHandle(id), "label" + idx);
     }
 
-    private PhoneAccount makeQuickAccount(String id, int idx) {
+    private static PhoneAccount makeQuickAccount(String id, int idx) {
         return makeQuickAccountBuilder(id, idx)
                 .setAddress(Uri.parse(TEST_ACCOUNT_ADDRESS + idx))
                 .setSubscriptionAddress(Uri.parse("tel:555-000" + idx))
@@ -1992,7 +1992,7 @@ public class BluetoothInCallServiceTest {
                 .build();
     }
 
-    private BluetoothCall getMockCall(UUID uuid) {
+    private static BluetoothCall getMockCall(UUID uuid) {
         BluetoothCall call = mock(com.android.bluetooth.telephony.BluetoothCall.class);
         Integer integerUuid = uuid.hashCode();
         doReturn(integerUuid).when(call).getId();

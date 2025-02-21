@@ -86,7 +86,7 @@ public class BluetoothOppPreference {
         mChannels = (HashMap<String, Integer>) mChannelPreference.getAll();
     }
 
-    private String getChannelKey(BluetoothDevice remoteDevice, int uuid) {
+    private static String getChannelKey(BluetoothDevice remoteDevice, int uuid) {
         return getBrEdrAddress(remoteDevice) + "_" + Integer.toHexString(uuid);
     }
 
@@ -177,7 +177,7 @@ public class BluetoothOppPreference {
     }
 
     @SuppressLint("AndroidFrameworkRequiresPermission")
-    private String getBrEdrAddress(BluetoothDevice device) {
+    private static String getBrEdrAddress(BluetoothDevice device) {
         if (Flags.identityAddressNullIfNotKnown()) {
             return Utils.getBrEdrAddress(device);
         }

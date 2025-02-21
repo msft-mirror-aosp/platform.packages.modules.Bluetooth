@@ -208,8 +208,8 @@ public class BluetoothOppLauncherActivityTest {
         assertActivityState(scenario, Lifecycle.State.DESTROYED);
     }
 
-    private void assertActivityState(ActivityScenario activityScenario, Lifecycle.State state)
-            throws Exception {
+    private static void assertActivityState(
+            ActivityScenario activityScenario, Lifecycle.State state) throws Exception {
         Thread.sleep(2_000);
         assertThat(activityScenario.getState()).isEqualTo(state);
     }

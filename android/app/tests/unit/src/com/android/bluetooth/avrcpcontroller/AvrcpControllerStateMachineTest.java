@@ -239,7 +239,7 @@ public class AvrcpControllerStateMachineTest {
         return builder.build();
     }
 
-    private AvrcpPlayer makePlayer(
+    private static AvrcpPlayer makePlayer(
             BluetoothDevice device,
             int playerId,
             String playerName,

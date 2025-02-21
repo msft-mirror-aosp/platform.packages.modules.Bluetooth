@@ -765,7 +765,7 @@ final class BondStateMachine extends StateMachine {
         removeMessages(what);
     }
 
-    private void clearProfilePriority(BluetoothDevice device) {
+    private static void clearProfilePriority(BluetoothDevice device) {
         HidHostService hidService = HidHostService.getHidHostService();
         A2dpService a2dpService = A2dpService.getA2dpService();
         HeadsetService headsetService = HeadsetService.getHeadsetService();
@@ -825,19 +825,19 @@ final class BondStateMachine extends StateMachine {
         } else return "UNKNOWN(" + state + ")";
     }
 
-    private void infoLog(String msg) {
+    private static void infoLog(String msg) {
         Log.i(TAG, msg);
     }
 
-    private void errorLog(String msg) {
+    private static void errorLog(String msg) {
         Log.e(TAG, msg);
     }
 
-    private void warnLog(String msg) {
+    private static void warnLog(String msg) {
         Log.w(TAG, msg);
     }
 
-    private int getUnbondReasonFromHALCode(int reason) {
+    private static int getUnbondReasonFromHALCode(int reason) {
         if (reason == AbstractionLayer.BT_STATUS_SUCCESS) {
             return BluetoothDevice.BOND_SUCCESS;
         } else if (reason == AbstractionLayer.BT_STATUS_RMT_DEV_DOWN) {

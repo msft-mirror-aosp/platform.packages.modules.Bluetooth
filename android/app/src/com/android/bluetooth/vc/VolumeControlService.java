@@ -1925,7 +1925,7 @@ public class VolumeControlService extends ProfileService {
             service.unmuteGroup(groupId);
         }
 
-        private void postAndWait(Handler handler, Runnable runnable) {
+        private static void postAndWait(Handler handler, Runnable runnable) {
             FutureTask<Void> task = new FutureTask(Executors.callable(runnable));
 
             handler.post(task);
@@ -1980,7 +1980,7 @@ public class VolumeControlService extends ProfileService {
             postAndWait(service.mHandler, () -> service.notifyNewRegisteredCallback(callback));
         }
 
-        private void validateBluetoothDevice(BluetoothDevice device) {
+        private static void validateBluetoothDevice(BluetoothDevice device) {
             requireNonNull(device);
             String address = device.getAddress();
             if (!BluetoothAdapter.checkBluetoothAddress(address)) {

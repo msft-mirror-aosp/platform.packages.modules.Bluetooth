@@ -1353,7 +1353,7 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
         }
     }
 
-    private boolean isValidDevice(@Nullable BluetoothDevice device) {
+    private static boolean isValidDevice(@Nullable BluetoothDevice device) {
         if (device == null) return false;
 
         if (BluetoothAdapter.checkBluetoothAddress(device.getAddress())) return true;

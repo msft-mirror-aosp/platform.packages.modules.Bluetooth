@@ -620,7 +620,7 @@ public class HapClientService extends ProfileService {
         return 0x00;
     }
 
-    private int stackEventPresetInfoReasonToProfileStatus(int statusCode) {
+    private static int stackEventPresetInfoReasonToProfileStatus(int statusCode) {
         return switch (statusCode) {
             case HapClientStackEvent.PRESET_INFO_REASON_ALL_PRESET_INFO ->
                     BluetoothStatusCodes.REASON_LOCAL_STACK_REQUEST;
@@ -648,7 +648,7 @@ public class HapClientService extends ProfileService {
                                 stackEventPresetInfoReasonToProfileStatus(infoReason)));
     }
 
-    private int stackEventStatusToProfileStatus(int statusCode) {
+    private static int stackEventStatusToProfileStatus(int statusCode) {
         return switch (statusCode) {
             case HapClientStackEvent.STATUS_SET_NAME_NOT_ALLOWED ->
                     BluetoothStatusCodes.ERROR_REMOTE_OPERATION_REJECTED;

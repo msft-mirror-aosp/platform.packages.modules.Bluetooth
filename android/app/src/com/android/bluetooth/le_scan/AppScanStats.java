@@ -470,7 +470,7 @@ class AppScanStats {
         }
     }
 
-    private int convertScanCallbackType(int type) {
+    private static int convertScanCallbackType(int type) {
         switch (type) {
             case ScanSettings.CALLBACK_TYPE_ALL_MATCHES:
                 return BluetoothStatsLog
@@ -851,7 +851,7 @@ class AppScanStats {
     // or less package names names are untouched.
     // Examples: one.two.three.four => one.two.three
     //           one.two.three => one.two
-    private String truncateAppName(String name) {
+    private static String truncateAppName(String name) {
         String initiator = name;
         String[] nameSplit = initiator.split("\\.");
         if (nameSplit.length > 3) {

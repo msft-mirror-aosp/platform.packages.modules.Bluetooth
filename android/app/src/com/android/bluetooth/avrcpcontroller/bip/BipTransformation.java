@@ -122,7 +122,7 @@ public class BipTransformation {
      *     BipTransformation.* constants, but doesn't *have* to be
      * @return True if the transformation constant is valid, False otherwise
      */
-    private boolean isValid(int transformation) {
+    private static boolean isValid(int transformation) {
         return transformation >= STRETCH && transformation <= CROP;
     }
 

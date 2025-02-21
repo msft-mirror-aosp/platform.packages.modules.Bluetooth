@@ -48,7 +48,7 @@ public class SapRilReceiverHidl implements ISapRilReceiver {
     public static final int RIL_MAX_COMMAND_BYTES = (8 * 1024);
     public byte[] buffer = new byte[RIL_MAX_COMMAND_BYTES];
 
-    private ArrayList<Byte> primitiveArrayToContainerArrayList(byte[] arr) {
+    private static ArrayList<Byte> primitiveArrayToContainerArrayList(byte[] arr) {
         ArrayList<Byte> arrayList = new ArrayList<>(arr.length);
         for (byte b : arr) {
             arrayList.add(b);

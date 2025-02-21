@@ -267,7 +267,7 @@ public class BluetoothTetheringNetworkFactory extends NetworkFactory {
         terminate();
     }
 
-    private NetworkCapabilities initNetworkCapabilities() {
+    private static NetworkCapabilities initNetworkCapabilities() {
         final NetworkCapabilities.Builder builder =
                 new NetworkCapabilities.Builder()
                         .addTransportType(NetworkCapabilities.TRANSPORT_BLUETOOTH)

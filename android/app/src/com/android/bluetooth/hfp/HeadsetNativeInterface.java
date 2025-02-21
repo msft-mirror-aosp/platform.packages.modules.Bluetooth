@@ -71,12 +71,12 @@ public class HeadsetNativeInterface {
         }
     }
 
-    private void sendMessageToService(HeadsetStackEvent event) {
+    private static void sendMessageToService(HeadsetStackEvent event) {
         HeadsetService service = HeadsetService.getHeadsetService();
         if (service != null) {
             service.messageFromNative(event);
         } else {
-            // Service must call cleanup() when quiting and native stack shouldn't send any event
+            // Service must call cleanup() when quitting and native stack shouldn't send any event
             // after cleanup() -> cleanupNative() is called.
             Log.w(TAG, "Stack sent event while service is not available: " + event);
         }

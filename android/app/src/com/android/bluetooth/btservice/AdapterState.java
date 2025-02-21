@@ -17,12 +17,12 @@
 package com.android.bluetooth.btservice;
 
 import android.bluetooth.BluetoothAdapter;
-import com.android.bluetooth.flags.Flags;
 import android.os.Looper;
 import android.os.Message;
 import android.os.SystemProperties;
 import android.util.Log;
 
+import com.android.bluetooth.flags.Flags;
 import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
 
@@ -91,7 +91,7 @@ final class AdapterState extends StateMachine {
         start();
     }
 
-    private String messageString(int message) {
+    private static String messageString(int message) {
         switch (message) {
             case BLE_TURN_ON:
                 return "BLE_TURN_ON";

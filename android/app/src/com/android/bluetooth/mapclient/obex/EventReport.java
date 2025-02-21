@@ -128,7 +128,7 @@ public class EventReport {
         return ev;
     }
 
-    private Type parseType(String type) throws IllegalArgumentException {
+    private static Type parseType(String type) throws IllegalArgumentException {
         for (Type t : Type.values()) {
             if (t.toString().equals(type)) {
                 return t;
@@ -138,7 +138,7 @@ public class EventReport {
         throw new IllegalArgumentException("Invalid value for type: " + type);
     }
 
-    private Bmessage.Type parseMsgType(String msgType) throws IllegalArgumentException {
+    private static Bmessage.Type parseMsgType(String msgType) throws IllegalArgumentException {
         for (Bmessage.Type t : Bmessage.Type.values()) {
             if (t.name().equals(msgType)) {
                 return t;

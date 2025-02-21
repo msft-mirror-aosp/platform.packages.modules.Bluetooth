@@ -636,7 +636,7 @@ public final class BluetoothLeScanner {
         return false;
     }
 
-    private boolean isSettingsAndFilterComboAllowed(
+    private static boolean isSettingsAndFilterComboAllowed(
             ScanSettings settings, List<ScanFilter> filterList) {
         final int callbackType = settings.getCallbackType();
         // If onlost/onfound is requested, a non-empty filter is expected
