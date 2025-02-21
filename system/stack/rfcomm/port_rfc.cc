@@ -40,6 +40,7 @@
 #include "osi/include/mutex.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_uuid16.h"
+#include "stack/include/rfc_metrics.h"
 #include "stack/include/stack_metrics_logging.h"
 #include "stack/l2cap/l2c_int.h"
 #include "stack/rfcomm/port_int.h"
@@ -1051,6 +1052,7 @@ void port_rfc_closed(tPORT* p_port, uint8_t res) {
 
   rfc_set_state(RFC_STATE_CLOSED, p_port);
   p_port->rfc.sm_cb.close_reason = static_cast<tPORT_RESULT>(res);
+  port_collect_attempt_metrics(p_port);
   log::info(
           "RFCOMM connection closed, port_handle={}, state={}, reason={}[{}], "
           "UUID=0x{:x}, bd_addr={}, is_server={}",

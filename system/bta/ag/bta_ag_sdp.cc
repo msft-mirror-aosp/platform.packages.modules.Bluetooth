@@ -32,6 +32,7 @@
 
 #include "bta/ag/bta_ag_int.h"
 #include "bta/include/bta_hfp_api.h"
+#include "bta/include/bta_rfcomm_metrics.h"
 #include "bta/include/bta_rfcomm_scn.h"
 #include "bta_ag_api.h"
 #include "bta_api.h"
@@ -540,6 +541,8 @@ void bta_ag_do_disc(tBTA_AG_SCB* p_scb, tBTA_SERVICE_MASK service) {
       return;
     } else {
       log::error("failed to start SDP discovery for {}", p_scb->peer_addr);
+      bta_collect_rfc_metrics_after_sdp_fail(tBTA_JV_STATUS::FAILURE, p_scb->peer_addr, 0,
+                                             BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT, false, 0);
     }
   } else {
     log::error("failed to init SDP discovery database for {}", p_scb->peer_addr);
