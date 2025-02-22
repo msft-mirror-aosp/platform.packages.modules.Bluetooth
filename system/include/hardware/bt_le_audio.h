@@ -78,6 +78,42 @@ enum class GroupStreamStatus {
   DESTROYED,
 };
 
+inline std::ostream& operator<<(std::ostream& os, const GroupStreamStatus& state) {
+  switch (state) {
+    case GroupStreamStatus::IDLE:
+      os << "IDLE";
+      break;
+    case GroupStreamStatus::STREAMING:
+      os << "STREAMING";
+      break;
+    case GroupStreamStatus::RELEASING:
+      os << "RELEASING";
+      break;
+    case GroupStreamStatus::RELEASING_AUTONOMOUS:
+      os << "RELEASING_AUTONOMOUS";
+      break;
+    case GroupStreamStatus::SUSPENDING:
+      os << "SUSPENDING";
+      break;
+    case GroupStreamStatus::SUSPENDED:
+      os << "SUSPENDED";
+      break;
+    case GroupStreamStatus::CONFIGURED_AUTONOMOUS:
+      os << "CONFIGURED_AUTONOMOUS";
+      break;
+    case GroupStreamStatus::CONFIGURED_BY_USER:
+      os << "CONFIGURED_BY_USER";
+      break;
+    case GroupStreamStatus::DESTROYED:
+      os << "DESTROYED";
+      break;
+    default:
+      os << "UNKNOWN";
+      break;
+  }
+  return os;
+}
+
 enum class GroupNodeStatus {
   ADDED = 1,
   REMOVED,

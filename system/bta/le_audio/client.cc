@@ -6066,7 +6066,8 @@ public:
     log::info(
             "status: {},  group_id: {}, audio_sender_state {}, audio_receiver_state {}, "
             "is_active_group_operation {}",
-            static_cast<int>(status), group_id, bluetooth::common::ToString(audio_sender_state_),
+            bluetooth::common::ToString(status), group_id,
+            bluetooth::common::ToString(audio_sender_state_),
             bluetooth::common::ToString(audio_receiver_state_), is_active_group_operation);
     LeAudioDeviceGroup* group = aseGroups_.FindById(group_id);
 
