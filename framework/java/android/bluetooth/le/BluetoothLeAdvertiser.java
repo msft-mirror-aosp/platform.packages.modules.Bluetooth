@@ -281,7 +281,7 @@ public final class BluetoothLeAdvertiser {
      *     three bytes will be added for flags.
      * @param scanResponse Scan response associated with the advertisement data. Size must not
      *     exceed {@link BluetoothAdapter#getLeMaximumAdvertisingDataLength}.
-     * @param periodicParameters periodic advertisng parameters. If null, periodic advertising will
+     * @param periodicParameters periodic advertising parameters. If null, periodic advertising will
      *     not be started.
      * @param periodicData Periodic advertising data. Size must not exceed {@link
      *     BluetoothAdapter#getLeMaximumAdvertisingDataLength}.
@@ -331,7 +331,7 @@ public final class BluetoothLeAdvertiser {
      *     three bytes will be added for flags.
      * @param scanResponse Scan response associated with the advertisement data. Size must not
      *     exceed {@link BluetoothAdapter#getLeMaximumAdvertisingDataLength}.
-     * @param periodicParameters periodic advertisng parameters. If null, periodic advertising will
+     * @param periodicParameters periodic advertising parameters. If null, periodic advertising will
      *     not be started.
      * @param periodicData Periodic advertising data. Size must not exceed {@link
      *     BluetoothAdapter#getLeMaximumAdvertisingDataLength}.
@@ -383,7 +383,7 @@ public final class BluetoothLeAdvertiser {
      *     three bytes will be added for flags.
      * @param scanResponse Scan response associated with the advertisement data. Size must not
      *     exceed {@link BluetoothAdapter#getLeMaximumAdvertisingDataLength}.
-     * @param periodicParameters periodic advertisng parameters. If null, periodic advertising will
+     * @param periodicParameters periodic advertising parameters. If null, periodic advertising will
      *     not be started.
      * @param periodicData Periodic advertising data. Size must not exceed {@link
      *     BluetoothAdapter#getLeMaximumAdvertisingDataLength}.
@@ -440,7 +440,7 @@ public final class BluetoothLeAdvertiser {
      *     three bytes will be added for flags.
      * @param scanResponse Scan response associated with the advertisement data. Size must not
      *     exceed {@link BluetoothAdapter#getLeMaximumAdvertisingDataLength}
-     * @param periodicParameters Periodic advertisng parameters. If null, periodic advertising will
+     * @param periodicParameters Periodic advertising parameters. If null, periodic advertising will
      *     not be started.
      * @param periodicData Periodic advertising data. Size must not exceed {@link
      *     BluetoothAdapter#getLeMaximumAdvertisingDataLength}
@@ -507,7 +507,7 @@ public final class BluetoothLeAdvertiser {
      *     three bytes will be added for flags.
      * @param scanResponse Scan response associated with the advertisement data. Size must not
      *     exceed {@link BluetoothAdapter#getLeMaximumAdvertisingDataLength}
-     * @param periodicParameters Periodic advertisng parameters. If null, periodic advertising will
+     * @param periodicParameters Periodic advertising parameters. If null, periodic advertising will
      *     not be started.
      * @param periodicData Periodic advertising data. Size must not exceed {@link
      *     BluetoothAdapter#getLeMaximumAdvertisingDataLength}

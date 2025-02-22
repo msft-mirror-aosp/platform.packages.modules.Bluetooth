@@ -572,7 +572,7 @@ public class BluetoothMapIMProviderTest {
 
         Mockito.clearInvocations(resolver);
         String accountId = "32608910";
-        expectedUri = BluetoothMapContract.buildAccountUriwithId(AUTHORITY, accountId);
+        expectedUri = BluetoothMapContract.buildAccountUriWithId(AUTHORITY, accountId);
         mProvider.onAccountChanged(accountId);
         verify(resolver).notifyChange(expectedUri, null);
     }

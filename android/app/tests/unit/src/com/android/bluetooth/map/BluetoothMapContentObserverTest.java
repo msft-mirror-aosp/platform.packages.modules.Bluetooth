@@ -259,7 +259,7 @@ public class BluetoothMapContentObserverTest {
         mObserver.sendEvent(event);
         verify(mClient, never()).sendEvent(any(), anyInt());
 
-        event.eventType = BluetoothMapContentObserver.EVENT_TYPE_DELEVERY_SUCCESS;
+        event.eventType = BluetoothMapContentObserver.EVENT_TYPE_DELIVERY_SUCCESS;
         mObserver.sendEvent(event);
         verify(mClient, never()).sendEvent(any(), anyInt());
 

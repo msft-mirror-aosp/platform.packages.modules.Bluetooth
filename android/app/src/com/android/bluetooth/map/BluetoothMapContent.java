@@ -358,7 +358,7 @@ public class BluetoothMapContent {
             mMessageColReception =
                     c.getColumnIndex(BluetoothMapContract.MessageColumns.RECEPTION_STATE);
             mMessageColDelivery =
-                    c.getColumnIndex(BluetoothMapContract.MessageColumns.DEVILERY_STATE);
+                    c.getColumnIndex(BluetoothMapContract.MessageColumns.DELIVERY_STATE);
             mMessageColThreadId = c.getColumnIndex(BluetoothMapContract.MessageColumns.THREAD_ID);
         }
 
