@@ -4395,8 +4395,7 @@ public:
     if (!remote_contexts.sink.any() && !remote_contexts.source.any()) {
       log::warn("Requested context type not available on the remote side");
 
-      if (com::android::bluetooth::flags::leaudio_no_context_validate_streaming_request() &&
-          source_monitor_mode_) {
+      if (source_monitor_mode_) {
         notifyAudioLocalSource(UnicastMonitorModeStatus::STREAMING_REQUESTED_NO_CONTEXT_VALIDATE);
 
         return false;

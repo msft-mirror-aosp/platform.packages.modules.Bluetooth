@@ -293,9 +293,7 @@ bool LeAudioTransport::IsRequestCompletedAfterUpdate(
 }
 
 StartRequestState LeAudioTransport::GetStartRequestState(void) {
-  if (com::android::bluetooth::flags::leaudio_start_request_state_mutex_check()) {
-    std::lock_guard<std::mutex> guard(start_request_state_mutex_);
-  }
+  std::lock_guard<std::mutex> guard(start_request_state_mutex_);
   return start_request_state_;
 }
 void LeAudioTransport::ClearStartRequestState(void) {

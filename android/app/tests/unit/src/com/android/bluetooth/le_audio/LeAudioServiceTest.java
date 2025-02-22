@@ -3061,8 +3061,6 @@ public class LeAudioServiceTest {
     /** Test setting allowed contexts for active group */
     @Test
     public void testSetAllowedContextsForActiveGroup() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_LEAUDIO_GETTING_ACTIVE_STATE_SUPPORT);
-        mSetFlagsRule.enableFlags(Flags.FLAG_LEAUDIO_ALLOWED_CONTEXT_MASK);
         int groupId = 1;
         /* AUDIO_DIRECTION_OUTPUT_BIT = 0x01 */
         int direction = 1;
