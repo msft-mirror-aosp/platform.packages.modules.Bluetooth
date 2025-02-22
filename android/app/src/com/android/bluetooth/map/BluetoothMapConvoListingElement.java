@@ -39,7 +39,7 @@ import java.util.Objects;
 // Next tag value for ContentProfileErrorReportUtils.report(): 2
 public class BluetoothMapConvoListingElement
         implements Comparable<BluetoothMapConvoListingElement> {
-    private static final String TAG = "BluetoothMapConvoListingElement";
+    private static final String TAG = BluetoothMapConvoListingElement.class.getSimpleName();
 
     public static final String XML_TAG_CONVERSATION = "conversation";
     private static final String XML_ATT_LAST_ACTIVITY = "last_activity";

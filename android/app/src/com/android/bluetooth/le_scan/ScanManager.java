@@ -72,7 +72,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 /** Class that handles Bluetooth LE scan related operations. */
 public class ScanManager {
-    private static final String TAG = GattServiceConfig.TAG_PREFIX + "ScanManager";
+    private static final String TAG =
+            GattServiceConfig.TAG_PREFIX + ScanManager.class.getSimpleName();
 
     /** Scan params corresponding to regular scan setting */
     @VisibleForTesting static final int SCAN_MODE_LOW_POWER_WINDOW_MS = 140;

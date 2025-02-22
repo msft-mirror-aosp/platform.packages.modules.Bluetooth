@@ -65,7 +65,8 @@ import java.util.stream.Collectors;
  * The active device manager is responsible to handle a Room database for Bluetooth persistent data.
  */
 public class DatabaseManager {
-    private static final String TAG = "BluetoothDatabase";
+    private static final String TAG =
+            Utils.TAG_PREFIX_BLUETOOTH + DatabaseManager.class.getSimpleName();
 
     private final AdapterService mAdapterService;
     private HandlerThread mHandlerThread = null;

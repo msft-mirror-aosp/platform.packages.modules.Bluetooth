@@ -71,7 +71,7 @@ import java.util.UUID;
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class BluetoothInCallServiceTest {
-    private static final String TAG = "BluetoothInCallServiceTest";
+    private static final String TAG = BluetoothInCallServiceTest.class.getSimpleName();
 
     private static final int TEST_DTMF_TONE = 0;
     private static final String TEST_ACCOUNT_ADDRESS = "//foo.com/";

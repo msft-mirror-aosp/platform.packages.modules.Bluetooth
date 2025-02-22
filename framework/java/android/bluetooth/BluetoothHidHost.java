@@ -53,7 +53,7 @@ import java.util.List;
  */
 @SystemApi
 public final class BluetoothHidHost implements BluetoothProfile {
-    private static final String TAG = "BluetoothHidHost";
+    private static final String TAG = BluetoothHidHost.class.getSimpleName();
 
     private static final boolean DBG = true;
     private static final boolean VDBG = false;

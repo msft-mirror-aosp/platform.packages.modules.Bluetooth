@@ -36,7 +36,7 @@ import java.util.function.Supplier;
 
 /** @hide */
 public final class BluetoothUtils {
-    private static final String TAG = "BluetoothUtils";
+    private static final String TAG = BluetoothUtils.class.getSimpleName();
 
     /** This utility class cannot be instantiated */
     private BluetoothUtils() {}

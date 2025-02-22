@@ -209,7 +209,8 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class AdapterService extends Service {
-    private static final String TAG = "BluetoothAdapterService";
+    private static final String TAG =
+            Utils.TAG_PREFIX_BLUETOOTH + AdapterService.class.getSimpleName();
 
     private static final int MESSAGE_PROFILE_SERVICE_STATE_CHANGED = 1;
     private static final int MESSAGE_PROFILE_SERVICE_REGISTERED = 2;

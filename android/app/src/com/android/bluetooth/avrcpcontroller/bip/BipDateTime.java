@@ -41,7 +41,8 @@ import java.util.regex.Pattern;
  * <p>Example date-time values: 20000101T000000Z 20000101T235959Z 20000101T000000
  */
 public class BipDateTime {
-    private static final String TAG = "avrcpcontroller.BipDateTime";
+    private static final String TAG =
+            AvrcpControllerUtils.TAG_PREFIX_AVRCP_CONTROLLER + BipDateTime.class.getSimpleName();
 
     private Date mDate = null;
     private boolean mIsUtc = false;

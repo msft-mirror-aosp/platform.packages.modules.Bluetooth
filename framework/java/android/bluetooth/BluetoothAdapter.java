@@ -138,7 +138,7 @@ import java.util.function.Consumer;
  * @see BluetoothServerSocket
  */
 public final class BluetoothAdapter {
-    private static final String TAG = "BluetoothAdapter";
+    private static final String TAG = BluetoothAdapter.class.getSimpleName();
 
     private static final String DESCRIPTOR = "android.bluetooth.BluetoothAdapter";
     private static final boolean DBG = true;

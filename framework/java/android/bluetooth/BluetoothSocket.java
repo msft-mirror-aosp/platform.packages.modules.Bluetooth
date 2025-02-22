@@ -94,7 +94,7 @@ import java.util.UUID;
  * @see java.io.OutputStream
  */
 public final class BluetoothSocket implements Closeable {
-    private static final String TAG = "BluetoothSocket";
+    private static final String TAG = BluetoothSocket.class.getSimpleName();
 
     private static final boolean DBG = Log.isLoggable(TAG, Log.DEBUG);
     private static final boolean VDBG = Log.isLoggable(TAG, Log.VERBOSE);

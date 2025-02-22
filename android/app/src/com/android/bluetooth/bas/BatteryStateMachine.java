@@ -224,7 +224,8 @@ public class BatteryStateMachine extends StateMachine {
 
     @VisibleForTesting
     class Disconnected extends State {
-        private static final String TAG = "BASM_Disconnected";
+        private static final String TAG =
+                BatteryStateMachine.TAG + "." + Disconnected.class.getSimpleName();
 
         @Override
         public void enter() {
@@ -279,7 +280,8 @@ public class BatteryStateMachine extends StateMachine {
 
     @VisibleForTesting
     class Connecting extends State {
-        private static final String TAG = "BASM_Connecting";
+        private static final String TAG =
+                BatteryStateMachine.TAG + "." + Connecting.class.getSimpleName();
 
         @Override
         public void enter() {
@@ -328,7 +330,8 @@ public class BatteryStateMachine extends StateMachine {
 
     @VisibleForTesting
     class Disconnecting extends State {
-        private static final String TAG = "BASM_Disconnecting";
+        private static final String TAG =
+                BatteryStateMachine.TAG + "." + Disconnecting.class.getSimpleName();
 
         @Override
         public void enter() {
@@ -388,7 +391,8 @@ public class BatteryStateMachine extends StateMachine {
 
     @VisibleForTesting
     class Connected extends State {
-        private static final String TAG = "BASM_Connected";
+        private static final String TAG =
+                BatteryStateMachine.TAG + "." + Connected.class.getSimpleName();
 
         @Override
         public void enter() {

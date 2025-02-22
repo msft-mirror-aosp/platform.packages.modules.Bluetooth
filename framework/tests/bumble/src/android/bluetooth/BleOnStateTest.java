@@ -61,7 +61,7 @@ import java.util.concurrent.TimeUnit;
 
 @RunWith(AndroidJUnit4.class)
 public class BleOnStateTest {
-    private static final String TAG = "BleOnTest";
+    private static final String TAG = BleOnStateTest.class.getSimpleName();
 
     private static final int TIMEOUT_ADVERTISING_MS = 1000;
     private static final int TIMEOUT_SCANNING_MS = 2000;

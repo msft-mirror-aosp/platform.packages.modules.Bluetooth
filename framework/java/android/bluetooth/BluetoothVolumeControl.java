@@ -64,7 +64,7 @@ import java.util.function.Consumer;
  */
 @SystemApi
 public final class BluetoothVolumeControl implements BluetoothProfile, AutoCloseable {
-    private static final String TAG = "BluetoothVolumeControl";
+    private static final String TAG = BluetoothVolumeControl.class.getSimpleName();
 
     private CloseGuard mCloseGuard;
 

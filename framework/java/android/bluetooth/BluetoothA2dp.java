@@ -56,7 +56,7 @@ import java.util.List;
  * with its appropriate permission.
  */
 public final class BluetoothA2dp implements BluetoothProfile {
-    private static final String TAG = "BluetoothA2dp";
+    private static final String TAG = BluetoothA2dp.class.getSimpleName();
 
     private static final boolean DBG = true;
     private static final boolean VDBG = false;

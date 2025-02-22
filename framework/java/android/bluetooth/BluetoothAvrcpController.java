@@ -44,7 +44,7 @@ import java.util.List;
  * @hide
  */
 public final class BluetoothAvrcpController implements BluetoothProfile {
-    private static final String TAG = "BluetoothAvrcpController";
+    private static final String TAG = BluetoothAvrcpController.class.getSimpleName();
 
     private static final boolean DBG = false;
     private static final boolean VDBG = false;

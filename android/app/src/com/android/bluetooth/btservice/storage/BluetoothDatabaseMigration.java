@@ -31,7 +31,7 @@ import java.util.List;
 
 /** Class for regrouping the migration that occur when going mainline */
 public final class BluetoothDatabaseMigration {
-    private static final String TAG = "BluetoothDatabaseMigration";
+    private static final String TAG = BluetoothDatabaseMigration.class.getSimpleName();
 
     public static boolean run(Context ctx, Cursor cursor) {
         boolean result = true;

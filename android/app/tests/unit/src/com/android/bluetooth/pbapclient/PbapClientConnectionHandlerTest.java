@@ -48,7 +48,7 @@ import org.mockito.Mock;
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class PbapClientConnectionHandlerTest {
-    private static final String TAG = "ConnHandlerTest";
+    private static final String TAG = PbapClientConnectionHandlerTest.class.getSimpleName();
 
     @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 

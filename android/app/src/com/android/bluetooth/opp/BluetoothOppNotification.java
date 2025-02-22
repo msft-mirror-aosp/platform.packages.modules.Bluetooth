@@ -62,7 +62,7 @@ import java.util.HashMap;
  * ongoing transfer, incoming transfer need confirm and complete (successful or failed) transfer.
  */
 class BluetoothOppNotification {
-    private static final String TAG = "BluetoothOppNotification";
+    private static final String TAG = BluetoothOppNotification.class.getSimpleName();
 
     static final String STATUS = "(" + BluetoothShare.STATUS + " == '192'" + ")";
 

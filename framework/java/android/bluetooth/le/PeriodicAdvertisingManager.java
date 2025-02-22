@@ -48,7 +48,7 @@ import java.util.IdentityHashMap;
  * @hide
  */
 public final class PeriodicAdvertisingManager {
-    private static final String TAG = "PeriodicAdvertisingManager";
+    private static final String TAG = PeriodicAdvertisingManager.class.getSimpleName();
 
     private static final int SKIP_MIN = 0;
     private static final int SKIP_MAX = 499;

@@ -61,7 +61,7 @@ import java.io.StringWriter;
 import java.util.Scanner;
 
 final class LeAudioStateMachine extends StateMachine {
-    private static final String TAG = "LeAudioStateMachine";
+    private static final String TAG = LeAudioStateMachine.class.getSimpleName();
 
     static final int CONNECT = 1;
     static final int DISCONNECT = 2;

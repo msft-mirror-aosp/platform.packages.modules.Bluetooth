@@ -32,7 +32,7 @@ import com.android.internal.annotations.VisibleForTesting;
 import java.util.List;
 
 final class DataMigration {
-    private static final String TAG = "DataMigration";
+    private static final String TAG = DataMigration.class.getSimpleName();
 
     private DataMigration() {}
 

@@ -59,7 +59,7 @@ import java.util.ArrayList;
  */
 
 public class BluetoothOppBatch {
-    private static final String TAG = "BtOppBatch";
+    private static final String TAG = BluetoothOppBatch.class.getSimpleName();
 
     public int mId;
     public int mStatus;

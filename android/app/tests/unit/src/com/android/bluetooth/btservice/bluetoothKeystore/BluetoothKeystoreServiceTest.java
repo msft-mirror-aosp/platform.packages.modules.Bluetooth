@@ -44,7 +44,7 @@ import java.util.Map;
 
 @RunWith(JUnit4.class)
 public final class BluetoothKeystoreServiceTest {
-    private static final String TAG = "BluetoothKeystoreServiceTest";
+    private static final String TAG = BluetoothKeystoreServiceTest.class.getSimpleName();
 
     private BluetoothKeystoreService mBluetoothKeystoreService;
 

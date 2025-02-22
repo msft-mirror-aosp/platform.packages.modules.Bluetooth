@@ -44,7 +44,7 @@ import java.util.concurrent.Executor;
  * Call them from the HeadsetPhoneStateMachine message handler only.
  */
 public class HeadsetPhoneState {
-    private static final String TAG = "HeadsetPhoneState";
+    private static final String TAG = HeadsetPhoneState.class.getSimpleName();
 
     private final HeadsetService mHeadsetService;
     private final TelephonyManager mTelephonyManager;

@@ -48,7 +48,7 @@ import java.util.List;
  */
 @SystemApi
 public final class BluetoothMap implements BluetoothProfile, AutoCloseable {
-    private static final String TAG = "BluetoothMap";
+    private static final String TAG = BluetoothMap.class.getSimpleName();
 
     private static final boolean DBG = true;
     private static final boolean VDBG = false;

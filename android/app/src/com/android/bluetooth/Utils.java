@@ -98,7 +98,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 public final class Utils {
-    private static final String TAG = "BluetoothUtils";
+    public static final String TAG_PREFIX_BLUETOOTH = "Bluetooth";
+    private static final String TAG = TAG_PREFIX_BLUETOOTH + Utils.class.getSimpleName();
 
     private static final int MICROS_PER_UNIT = 625;
     private static final String PTS_TEST_MODE_PROPERTY = "persist.bluetooth.pts";

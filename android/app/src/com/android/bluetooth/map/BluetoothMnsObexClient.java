@@ -47,7 +47,7 @@ import java.io.OutputStream;
  */
 // Next tag value for ContentProfileErrorReportUtils.report(): 16
 public class BluetoothMnsObexClient {
-    private static final String TAG = "BluetoothMnsObexClient";
+    private static final String TAG = BluetoothMnsObexClient.class.getSimpleName();
 
     private ObexTransport mTransport;
     public Handler mHandler = null;
