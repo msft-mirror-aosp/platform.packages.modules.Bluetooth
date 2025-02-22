@@ -22,12 +22,10 @@ import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static android.bluetooth.IBluetoothLeAudio.LE_AUDIO_GROUP_ID_INVALID;
 
 import static com.android.bluetooth.bass_client.BassConstants.INVALID_BROADCAST_ID;
-import static com.android.bluetooth.flags.Flags.leaudioAllowedContextMask;
 import static com.android.bluetooth.flags.Flags.leaudioBigDependsOnAudioState;
 import static com.android.bluetooth.flags.Flags.leaudioBroadcastApiManagePrimaryGroup;
 import static com.android.bluetooth.flags.Flags.leaudioBroadcastAssistantPeripheralEntrustment;
 import static com.android.bluetooth.flags.Flags.leaudioMonitorUnicastSourceWhenManagedByBroadcastDelegator;
-import static com.android.bluetooth.flags.Flags.leaudioUseAudioModeListener;
 import static com.android.bluetooth.flags.Flags.leaudioUseAudioRecordingListener;
 import static com.android.modules.utils.build.SdkLevel.isAtLeastU;
 
@@ -288,9 +286,7 @@ public class LeAudioService extends ProfileService {
         mLeAudioCodecConfig = new LeAudioCodecConfig(this);
         mNativeInterface.init(mLeAudioCodecConfig.getCodecConfigOffloading());
 
-        if (leaudioUseAudioModeListener()) {
-            mAudioManager.addOnModeChangedListener(getMainExecutor(), mAudioModeChangeListener);
-        }
+        mAudioManager.addOnModeChangedListener(getMainExecutor(), mAudioModeChangeListener);
 
         if (leaudioUseAudioRecordingListener()) {
             mAudioManager.registerAudioRecordingCallback(mAudioRecordingCallback, null);
@@ -657,9 +653,7 @@ public class LeAudioService extends ProfileService {
         }
 
         mQueuedInCallValue = Optional.empty();
-        if (leaudioUseAudioModeListener()) {
-            mAudioManager.removeOnModeChangedListener(mAudioModeChangeListener);
-        }
+        mAudioManager.removeOnModeChangedListener(mAudioModeChangeListener);
 
         if (leaudioUseAudioRecordingListener()) {
             mAudioManager.unregisterAudioRecordingCallback(mAudioRecordingCallback);
@@ -2572,16 +2566,14 @@ public class LeAudioService extends ProfileService {
             return false;
         }
 
-        if (Flags.leaudioGettingActiveStateSupport()) {
-            mGroupReadLock.lock();
-            try {
-                LeAudioGroupDescriptor descriptor = mGroupDescriptorsView.get(groupId);
-                if (descriptor != null) {
-                    descriptor.setActiveState(ACTIVE_STATE_GETTING_ACTIVE);
-                }
-            } finally {
-                mGroupReadLock.unlock();
+        mGroupReadLock.lock();
+        try {
+            LeAudioGroupDescriptor descriptor = mGroupDescriptorsView.get(groupId);
+            if (descriptor != null) {
+                descriptor.setActiveState(ACTIVE_STATE_GETTING_ACTIVE);
             }
+        } finally {
+            mGroupReadLock.unlock();
         }
 
         mNativeInterface.groupSetActive(groupId);
@@ -3243,13 +3235,6 @@ public class LeAudioService extends ProfileService {
             return;
         }
 
-        if (!leaudioUseAudioModeListener()) {
-            if (mQueuedInCallValue.isPresent()) {
-                mNativeInterface.setInCall(mQueuedInCallValue.get());
-                mQueuedInCallValue = Optional.empty();
-            }
-        }
-
         BluetoothDevice unicastDevice =
                 getLeadDeviceForTheGroup(mUnicastGroupIdDeactivatedForBroadcastTransition);
         if (unicastDevice == null) {
@@ -3715,51 +3700,43 @@ public class LeAudioService extends ProfileService {
                     }
                 case LeAudioStackEvent.GROUP_STATUS_INACTIVE:
                     {
-                        if (Flags.leaudioGettingActiveStateSupport()) {
-                            LeAudioGroupDescriptor descriptor = getGroupDescriptor(groupId);
-                            if (descriptor == null) {
-                                Log.e(
-                                        TAG,
-                                        "deviceDisconnected: no descriptors for group: " + groupId);
-                                return;
-                            }
+                        LeAudioGroupDescriptor descriptor = getGroupDescriptor(groupId);
+                        if (descriptor == null) {
+                            Log.e(
+                                    TAG,
+                                    "deviceDisconnected: no descriptors for group: " + groupId);
+                            return;
+                        }
 
-                            if (descriptor.isActive()) {
-                                handleGroupTransitToInactive(groupId);
-                            }
-
-                            descriptor.setActiveState(ACTIVE_STATE_INACTIVE);
-
-                            /* In case if group is inactivated due to switch to other */
-                            Integer gettingActiveGroupId = getFirstGroupIdInGettingActiveState();
-                            if (gettingActiveGroupId != LE_AUDIO_GROUP_ID_INVALID) {
-                                if (leaudioAllowedContextMask()) {
-                                    /* Context were modified, apply mask to activating group */
-                                    if (descriptor.areAllowedContextsModified()) {
-                                        setGroupAllowedContextMask(
-                                                gettingActiveGroupId,
-                                                descriptor.getAllowedSinkContexts(),
-                                                descriptor.getAllowedSourceContexts());
-                                        setGroupAllowedContextMask(
-                                                groupId,
-                                                BluetoothLeAudio.CONTEXTS_ALL,
-                                                BluetoothLeAudio.CONTEXTS_ALL);
-                                    }
-                                }
-                                break;
-                            }
-
-                            if (leaudioAllowedContextMask()) {
-                                /* Clear allowed context mask if there is no switch of group */
-                                if (descriptor.areAllowedContextsModified()) {
-                                    setGroupAllowedContextMask(
-                                            groupId,
-                                            BluetoothLeAudio.CONTEXTS_ALL,
-                                            BluetoothLeAudio.CONTEXTS_ALL);
-                                }
-                            }
-                        } else {
+                        if (descriptor.isActive()) {
                             handleGroupTransitToInactive(groupId);
+                        }
+
+                        descriptor.setActiveState(ACTIVE_STATE_INACTIVE);
+
+                        /* In case if group is inactivated due to switch to other */
+                        Integer gettingActiveGroupId = getFirstGroupIdInGettingActiveState();
+                        if (gettingActiveGroupId != LE_AUDIO_GROUP_ID_INVALID) {
+                            /* Context were modified, apply mask to activating group */
+                            if (descriptor.areAllowedContextsModified()) {
+                                setGroupAllowedContextMask(
+                                        gettingActiveGroupId,
+                                        descriptor.getAllowedSinkContexts(),
+                                        descriptor.getAllowedSourceContexts());
+                                setGroupAllowedContextMask(
+                                        groupId,
+                                        BluetoothLeAudio.CONTEXTS_ALL,
+                                        BluetoothLeAudio.CONTEXTS_ALL);
+                            }
+                            break;
+                        }
+
+                        /* Clear allowed context mask if there is no switch of group */
+                        if (descriptor.areAllowedContextsModified()) {
+                            setGroupAllowedContextMask(
+                                    groupId,
+                                    BluetoothLeAudio.CONTEXTS_ALL,
+                                    BluetoothLeAudio.CONTEXTS_ALL);
                         }
 
                         if (isBroadcastAllowedToBeActivateInCurrentAudioMode()) {
@@ -3767,9 +3744,6 @@ public class LeAudioService extends ProfileService {
                             if (mBroadcastIdDeactivatedForUnicastTransition.isPresent()) {
                                 if (!Flags.leaudioBroadcastPrimaryGroupSelection()) {
                                     updateFallbackUnicastGroupIdForBroadcast(groupId);
-                                }
-                                if (!leaudioUseAudioModeListener()) {
-                                    mQueuedInCallValue = Optional.empty();
                                 }
                                 startBroadcast(mBroadcastIdDeactivatedForUnicastTransition.get());
                                 mBroadcastIdDeactivatedForUnicastTransition = Optional.empty();
@@ -4418,29 +4392,7 @@ public class LeAudioService extends ProfileService {
             return;
         }
 
-        if (!leaudioUseAudioModeListener()) {
-            /* For setting inCall mode */
-            if (inCall && !areBroadcastsAllStopped()) {
-                mQueuedInCallValue = Optional.of(true);
-
-                /* Request activation of unicast group */
-                handleUnicastStreamStatusChange(
-                        LeAudioStackEvent.DIRECTION_SINK,
-                        LeAudioStackEvent.STATUS_LOCAL_STREAM_REQUESTED);
-                return;
-            }
-        }
-
         mNativeInterface.setInCall(inCall);
-
-        if (!leaudioUseAudioModeListener()) {
-            /* For clearing inCall mode */
-            if (!inCall && mBroadcastIdDeactivatedForUnicastTransition.isPresent()) {
-                handleUnicastStreamStatusChange(
-                        LeAudioStackEvent.DIRECTION_SINK,
-                        LeAudioStackEvent.STATUS_LOCAL_STREAM_SUSPENDED);
-            }
-        }
     }
 
     /**
