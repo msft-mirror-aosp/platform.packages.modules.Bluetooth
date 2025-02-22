@@ -309,6 +309,10 @@ void LogMetricRfcommConnectionAtClose(const RawAddress& address,
                                       int32_t open_duration_ms, int32_t uid,
                                       android::bluetooth::BtaStatus sdp_status, bool is_server,
                                       bool sdp_initiated, int32_t sdp_duration_ms);
+/*Log LE Connection Rejected Event
+ * @param address Address of the device
+ */
+void LogMetricLeConnectionRejected(hci::Address address);
 
 bool CountCounterMetrics(int32_t key, int64_t count);
 

@@ -247,6 +247,14 @@ struct log_le_connection_completion {
 };
 extern struct log_le_connection_completion log_le_connection_completion;
 
+// Name: log_le_connection_rejected
+struct log_le_connection_rejected {
+  std::function<void(bluetooth::hci::Address)> body{[](bluetooth::hci::Address /* address */) {}};
+  void operator()(bluetooth::hci::Address address) { body(address); }
+};
+
+extern struct log_le_connection_rejected log_le_connection_rejected;
+
 }  // namespace stack_metrics_logging
 }  // namespace mock
 }  // namespace test
