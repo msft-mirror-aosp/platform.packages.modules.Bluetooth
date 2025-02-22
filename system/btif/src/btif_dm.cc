@@ -2376,6 +2376,11 @@ void btif_dm_cancel_discovery(void) {
 
 bool btif_dm_pairing_is_busy() { return pairing_cb.state != BT_BOND_STATE_NONE; }
 
+bool btif_dm_is_pairing(const RawAddress& bdaddr) {
+  return btif_dm_pairing_is_busy() &&
+         (pairing_cb.bd_addr == bdaddr || pairing_cb.static_bdaddr == bdaddr);
+}
+
 /*******************************************************************************
  *
  * Function         btif_dm_create_bond
