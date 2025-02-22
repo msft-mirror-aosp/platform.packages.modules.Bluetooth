@@ -964,7 +964,7 @@ void btif_hh_remove_device(const tAclLinkSpec& link_spec) {
     // Notify service of disconnection to avoid state mismatch
     do_in_jni_thread(
             base::Bind([](tAclLinkSpec ls) { BTHH_STATE_UPDATE(ls, BTHH_CONN_STATE_DISCONNECTED); },
-                       link_spec));
+                       p_dev->link_spec));
 
     if (btif_hh_cb.device_num > 0) {
       btif_hh_cb.device_num--;
