@@ -99,9 +99,6 @@ static_assert(BTA_HH_INCLUDED,
               "  Host interface device profile is always enabled in the bluetooth stack"
               "*** Conditional Compilation Directive error");
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using bluetooth::common::MessageLoopThread;
 using bluetooth::log::error;
 using bluetooth::log::fatal;

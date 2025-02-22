@@ -18,6 +18,8 @@
 
 #define LOG_TAG "bt_btif_sock_rfcomm"
 
+#include "btif_sock_rfc.h"
+
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 #include <sys/ioctl.h>
@@ -28,6 +30,7 @@
 #include <mutex>
 
 #include "bta/include/bta_jv_api.h"
+#include "bta/include/bta_jv_co.h"
 #include "bta/include/bta_rfcomm_metrics.h"
 #include "bta/include/bta_rfcomm_scn.h"
 #include "btif/include/btif_metrics_logging.h"
@@ -50,9 +53,6 @@
 #include "stack/include/port_api.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using bluetooth::Uuid;
 using namespace bluetooth;

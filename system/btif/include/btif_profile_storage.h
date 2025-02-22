@@ -26,9 +26,21 @@
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
-/*******************************************************************************
- *  Functions
- ******************************************************************************/
+struct HearingDevice;
+
+void btif_storage_add_hearing_aid(const HearingDevice& dev_info);
+
+void btif_storage_add_leaudio_has_device(const RawAddress& address,
+                                         std::vector<uint8_t> presets_bin, uint8_t features,
+                                         uint8_t active_preset);
+bool btif_storage_get_leaudio_has_presets(const RawAddress& address,
+                                          std::vector<uint8_t>& presets_bin,
+                                          uint8_t& active_preset);
+void btif_storage_set_leaudio_has_presets(const RawAddress& address,
+                                          std::vector<uint8_t> presets_bin);
+void btif_storage_set_leaudio_has_active_preset(const RawAddress& address, uint8_t active_preset);
+bool btif_storage_get_leaudio_has_features(const RawAddress& address, uint8_t& features);
+void btif_storage_set_leaudio_has_features(const RawAddress& address, uint8_t features);
 
 /*******************************************************************************
  *

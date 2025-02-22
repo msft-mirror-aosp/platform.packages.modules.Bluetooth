@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+#include "btif_le_audio.h"
+
 #include <bluetooth/log.h>
 #include <hardware/bt_le_audio.h>
 
@@ -28,9 +30,6 @@
 #include "btif_profile_storage.h"
 #include "stack/include/main_thread.h"
 #include "types/raw_address.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using base::Bind;
 using base::Unretained;

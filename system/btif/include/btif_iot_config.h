@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- *  Copyright 2009-2013 Broadcom Corporation
+ *  Copyright 2014 Google, Inc.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -16,20 +16,8 @@
  *
  ******************************************************************************/
 
-/*****************************************************************************
- *
- *  Name:          btif_gatt.h
- *
- *  Description:
- *
- *****************************************************************************/
-
 #pragma once
 
-#include "include/hardware/bt_gatt.h"
+#include "bta/include/bta_sec_api.h"
 
-extern const btgatt_client_interface_t btgattClientInterface;
-extern const btgatt_server_interface_t btgattServerInterface;
-
-BleScannerInterface* get_ble_scanner_instance();
-const btgatt_interface_t* btif_gatt_get_interface();
+void btif_iot_update_remote_info(tBTA_DM_AUTH_CMPL* p_auth_cmpl, bool is_ble, bool is_ssp);

@@ -54,9 +54,6 @@
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using base::Bind;
 using bluetooth::Uuid;
 using bluetooth::csis::CsisClient;
@@ -109,6 +106,7 @@ static void btif_storage_hid_device_info(std::string bdstr, uint16_t attr_mask, 
     btif_config_set_bin(bdstr, BTIF_STORAGE_KEY_HID_DESCRIPTOR, dsc_list, dl_len);
   }
 }
+
 static void btif_storage_hogp_device_info(std::string bdstr, uint16_t attr_mask, uint8_t sub_class,
                                           uint8_t app_id, uint16_t vendor_id, uint16_t product_id,
                                           uint16_t version, uint8_t ctry_code, uint16_t dl_len,
@@ -124,6 +122,7 @@ static void btif_storage_hogp_device_info(std::string bdstr, uint16_t attr_mask,
     btif_config_set_bin(bdstr, BTIF_STORAGE_KEY_HOGP_DESCRIPTOR, dsc_list, dl_len);
   }
 }
+
 /*******************************************************************************
  *
  * Function         btif_storage_add_hid_device_info
