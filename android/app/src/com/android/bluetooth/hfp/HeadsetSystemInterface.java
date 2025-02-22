@@ -274,7 +274,7 @@ class HeadsetSystemInterface {
     }
 
     /**
-     * Ask the Telecomm service to list current list of calls through CLCC response {@link
+     * Ask the Telecom service to list current list of calls through CLCC response {@link
      * BluetoothHeadset#clccResponse(int, int, int, int, boolean, String, int)}
      */
     @VisibleForTesting

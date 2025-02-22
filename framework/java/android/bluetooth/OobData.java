@@ -302,7 +302,7 @@ public final class OobData implements Parcelable {
          *     A 1.8 for a detailed description.
          * @return {@link OobData#Builder}
          * @throws IllegalArgumentException if the leTemporaryKey is an invalid format.
-         * @throws NullinterException if leTemporaryKey is null.
+         * @throws NullPointerException if leTemporaryKey is null.
          * @hide
          */
         @NonNull
