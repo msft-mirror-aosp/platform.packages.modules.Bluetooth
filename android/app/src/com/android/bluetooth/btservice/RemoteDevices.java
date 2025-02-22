@@ -70,7 +70,8 @@ import java.util.function.Predicate;
 
 /** Remote device manager. This class is currently mostly used for HF and AG remote devices. */
 public class RemoteDevices {
-    private static final String TAG = "BluetoothRemoteDevices";
+    private static final String TAG =
+            Utils.TAG_PREFIX_BLUETOOTH + RemoteDevices.class.getSimpleName();
 
     // Maximum number of device properties to remember
     private static final int MAX_DEVICE_QUEUE_SIZE = 200;

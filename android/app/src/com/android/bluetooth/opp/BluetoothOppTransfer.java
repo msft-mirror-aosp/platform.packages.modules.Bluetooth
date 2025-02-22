@@ -73,7 +73,7 @@ import java.io.IOException;
 // Next tag value for ContentProfileErrorReportUtils.report(): 24
 @SuppressLint("AndroidFrameworkRequiresPermission")
 public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatchListener {
-    private static final String TAG = "BtOppTransfer";
+    private static final String TAG = BluetoothOppTransfer.class.getSimpleName();
 
     @VisibleForTesting static final int TRANSPORT_ERROR = 10;
 

@@ -81,7 +81,7 @@ import java.util.concurrent.TimeUnit;
 
 @RunWith(TestParameterInjector.class)
 public class PairingTest {
-    private static final String TAG = "PairingTest";
+    private static final String TAG = PairingTest.class.getSimpleName();
 
     private static final Duration BOND_INTENT_TIMEOUT = Duration.ofSeconds(10);
     private static final int TEST_DELAY_MS = 1000;

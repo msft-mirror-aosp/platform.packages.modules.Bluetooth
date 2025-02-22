@@ -73,7 +73,7 @@ import java.util.Arrays;
 // Next tag value for ContentProfileErrorReportUtils.report(): 15
 public class BluetoothOppObexServerSession extends ServerRequestHandler
         implements BluetoothOppObexSession {
-    private static final String TAG = "BtOppObexServer";
+    private static final String TAG = BluetoothOppObexServerSession.class.getSimpleName();
 
     private final Context mContext;
     private final ObexTransport mTransport;

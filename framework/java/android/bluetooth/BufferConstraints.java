@@ -34,7 +34,7 @@ import java.util.Map;
  */
 @SystemApi
 public final class BufferConstraints implements Parcelable {
-    private static final String TAG = "BufferConstraints";
+    private static final String TAG = BufferConstraints.class.getSimpleName();
 
     public static final int BUFFER_CODEC_MAX_NUM = 32;
 

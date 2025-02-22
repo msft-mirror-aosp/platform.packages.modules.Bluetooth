@@ -92,7 +92,7 @@ import java.util.UUID;
  * @see BluetoothSocket
  */
 public final class BluetoothDevice implements Parcelable, Attributable {
-    private static final String TAG = "BluetoothDevice";
+    private static final String TAG = BluetoothDevice.class.getSimpleName();
 
     private static final boolean DBG = false;
 

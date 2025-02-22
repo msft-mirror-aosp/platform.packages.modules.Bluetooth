@@ -39,7 +39,7 @@ import java.util.Scanner;
 
 /** CSIP Set Coordinator role device state machine */
 public class CsipSetCoordinatorStateMachine extends StateMachine {
-    private static final String TAG = "CsipSetCoordinatorStateMachine";
+    private static final String TAG = CsipSetCoordinatorStateMachine.class.getSimpleName();
 
     static final int CONNECT = 1;
     static final int DISCONNECT = 2;

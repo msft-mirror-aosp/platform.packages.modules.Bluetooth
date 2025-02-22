@@ -62,7 +62,7 @@ import java.util.Collections;
 import java.util.List;
 
 public class SapService extends ProfileService implements AdapterService.BluetoothStateCallback {
-    private static final String TAG = "SapService";
+    private static final String TAG = SapService.class.getSimpleName();
 
     private static final String SDP_SAP_SERVICE_NAME = "SIM Access";
     private static final int SDP_SAP_VERSION = 0x0102;

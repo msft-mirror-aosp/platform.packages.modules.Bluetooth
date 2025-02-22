@@ -30,7 +30,7 @@ import java.util.UUID;
 
 /** CSIP Set Coordinator role native interface */
 public class CsipSetCoordinatorNativeInterface {
-    private static final String TAG = "CsipSetCoordinatorNativeInterface";
+    private static final String TAG = CsipSetCoordinatorNativeInterface.class.getSimpleName();
 
     private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
 

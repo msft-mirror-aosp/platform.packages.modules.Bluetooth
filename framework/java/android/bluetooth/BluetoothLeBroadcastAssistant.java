@@ -81,7 +81,7 @@ import java.util.concurrent.Executor;
  */
 @SystemApi
 public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, AutoCloseable {
-    private static final String TAG = "BluetoothLeBroadcastAssistant";
+    private static final String TAG = BluetoothLeBroadcastAssistant.class.getSimpleName();
 
     private static final boolean DBG = true;
     private final Map<Callback, Executor> mCallbackExecutorMap = new HashMap<>();

@@ -33,7 +33,7 @@ import com.android.internal.annotations.VisibleForTesting;
 
 /** LeAudio Native Interface to/from JNI. */
 public class LeAudioBroadcasterNativeInterface {
-    private static final String TAG = "LeAudioBroadcasterNativeInterface";
+    private static final String TAG = LeAudioBroadcasterNativeInterface.class.getSimpleName();
 
     private BluetoothAdapter mAdapter;
 

@@ -46,7 +46,7 @@ import java.util.concurrent.Executor;
  *     allows advancing time.
  */
 public class TestLooper {
-    private static final String TAG = "TestLooper";
+    private static final String TAG = TestLooper.class.getSimpleName();
 
     protected final Looper mLooper;
 

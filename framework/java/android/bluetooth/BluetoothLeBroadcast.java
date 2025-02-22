@@ -56,7 +56,7 @@ import java.util.concurrent.Executor;
  */
 @SystemApi
 public final class BluetoothLeBroadcast implements AutoCloseable, BluetoothProfile {
-    private static final String TAG = "BluetoothLeBroadcast";
+    private static final String TAG = BluetoothLeBroadcast.class.getSimpleName();
 
     private static final boolean DBG = true;
     private static final boolean VDBG = false;

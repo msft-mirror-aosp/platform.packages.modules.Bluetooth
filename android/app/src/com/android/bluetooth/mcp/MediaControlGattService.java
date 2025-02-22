@@ -73,7 +73,7 @@ import java.util.UUID;
  * <p>Implemented according to Media Control Service v1.0 specification.
  */
 public class MediaControlGattService implements MediaControlGattServiceInterface {
-    private static final String TAG = "MediaControlGattService";
+    private static final String TAG = MediaControlGattService.class.getSimpleName();
 
     /* MCS assigned UUIDs */
     public static final UUID UUID_PLAYER_NAME =
