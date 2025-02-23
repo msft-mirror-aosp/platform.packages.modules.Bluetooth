@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.btservice.storage;
 
+import static java.util.Objects.requireNonNull;
+
 import android.bluetooth.BluetoothA2dp;
 import android.bluetooth.BluetoothA2dp.OptionalCodecsPreferenceStatus;
 import android.bluetooth.BluetoothA2dp.OptionalCodecsSupportStatus;
@@ -55,7 +57,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -106,7 +107,7 @@ public class DatabaseManager {
 
     /** Constructor of the DatabaseManager */
     public DatabaseManager(AdapterService service) {
-        mAdapterService = Objects.requireNonNull(service, "Adapter service cannot be null");
+        mAdapterService = requireNonNull(service);
         mMetadataChangedLog = EvictingQueue.create(METADATA_CHANGED_LOG_MAX_SIZE);
     }
 
@@ -924,8 +925,8 @@ public class DatabaseManager {
      */
     public int setPreferredAudioProfiles(
             List<BluetoothDevice> groupDevices, Bundle modeToProfileBundle) {
-        Objects.requireNonNull(groupDevices, "groupDevices must not be null");
-        Objects.requireNonNull(modeToProfileBundle, "modeToProfileBundle must not be null");
+        requireNonNull(groupDevices);
+        requireNonNull(modeToProfileBundle);
         if (groupDevices.isEmpty()) {
             throw new IllegalArgumentException("groupDevices cannot be empty");
         }

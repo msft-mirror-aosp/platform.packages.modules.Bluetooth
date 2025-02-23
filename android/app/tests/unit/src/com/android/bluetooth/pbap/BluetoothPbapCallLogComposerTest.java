@@ -16,6 +16,7 @@
 
 package com.android.bluetooth.pbap;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.pbap.BluetoothPbapCallLogComposer.FAILURE_REASON_FAILED_TO_GET_DATABASE_INFO;
 import static com.android.bluetooth.pbap.BluetoothPbapCallLogComposer.FAILURE_REASON_NOT_INITIALIZED;
 import static com.android.bluetooth.pbap.BluetoothPbapCallLogComposer.FAILURE_REASON_NO_ENTRY;
@@ -47,8 +48,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Spy;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 @SmallTest
 @RunWith(AndroidJUnit4.class)
@@ -66,7 +65,7 @@ public class BluetoothPbapCallLogComposerTest {
 
     @Spy BluetoothMethodProxy mPbapCallProxy = BluetoothMethodProxy.getInstance();
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock Cursor mMockCursor;
 

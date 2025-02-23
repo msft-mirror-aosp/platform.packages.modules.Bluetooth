@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.a2dp;
 
+import static java.util.Objects.requireNonNull;
+
 import android.bluetooth.BluetoothCodecConfig;
 import android.bluetooth.BluetoothCodecConfig.CodecPriority;
 import android.bluetooth.BluetoothCodecStatus;
@@ -83,7 +85,7 @@ class A2dpCodecConfig {
             BluetoothDevice device,
             BluetoothCodecStatus codecStatus,
             BluetoothCodecConfig newCodecConfig) {
-        Objects.requireNonNull(codecStatus);
+        requireNonNull(codecStatus);
 
         // Check whether the codecConfig is selectable for this Bluetooth device.
         List<BluetoothCodecConfig> selectableCodecs = codecStatus.getCodecsSelectableCapabilities();

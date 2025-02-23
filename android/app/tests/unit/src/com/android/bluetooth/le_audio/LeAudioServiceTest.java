@@ -30,6 +30,7 @@ import static android.bluetooth.IBluetoothLeAudio.LE_AUDIO_GROUP_ID_INVALID;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 import static com.android.bluetooth.TestUtils.mockGetSystemService;
 
@@ -109,8 +110,6 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.Spy;
 import org.mockito.hamcrest.MockitoHamcrest;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -121,7 +120,7 @@ import java.util.Objects;
 @RunWith(AndroidJUnit4.class)
 public class LeAudioServiceTest {
     @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private AdapterService mAdapterService;
     @Mock private GattService mGattService;
@@ -274,12 +273,10 @@ public class LeAudioServiceTest {
             return;
         }
 
-
         mBondedDevices.clear();
-        mService.stop();
+        mService.cleanup();
         assertThat(LeAudioService.getLeAudioService()).isNull();
     }
-
 
     /** Test getting LeAudio Service: getLeAudioService() */
     @Test
@@ -312,10 +309,9 @@ public class LeAudioServiceTest {
     public void testStopLeAudioService() {
         // Prepare: connect
         connectDevice(mLeftDevice);
-        mService.stop();
+        mService.cleanup();
     }
 
-    /** Test get/set priority for BluetoothDevice */
     @Test
     public void testGetSetPriority() {
         when(mDatabaseManager.getProfileConnectionPolicy(mLeftDevice, BluetoothProfile.LE_AUDIO))

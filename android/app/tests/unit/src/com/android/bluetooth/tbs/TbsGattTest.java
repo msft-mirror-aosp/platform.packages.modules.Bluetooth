@@ -17,6 +17,7 @@
 
 package com.android.bluetooth.tbs;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -46,8 +47,6 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -60,7 +59,7 @@ import java.util.UUID;
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class TbsGattTest {
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
     @Rule public final ServiceTestRule mServiceRule = new ServiceTestRule();
 
     @Mock private AdapterService mAdapterService;
@@ -843,6 +842,74 @@ public class TbsGattTest {
                 mFirstDevice, 1, 0, characteristic);
         // Verify the higher layer callback call
         verify(mCallback).isInbandRingtoneEnabled(eq(mFirstDevice));
+    }
+
+    @Test
+    public void testCharacteristic_longReadAuthorized() {
+        prepareDefaultService();
+
+        /* Twenty three octects long friendly name */
+        String title = "01234567890123456789012";
+        BluetoothGattCharacteristic characteristic =
+                getCharacteristic(TbsGatt.UUID_CALL_FRIENDLY_NAME);
+        characteristic.setValue(title);
+
+        doReturn(BluetoothDevice.ACCESS_ALLOWED)
+                .when(mService)
+                .getDeviceAuthorization(any(BluetoothDevice.class));
+
+        int offset = 0;
+        mTbsGatt.mGattServerCallback.onCharacteristicReadRequest(
+                mFirstDevice, 1, offset, characteristic);
+
+        verify(mGattServer)
+                .sendResponse(
+                        eq(mFirstDevice),
+                        eq(1),
+                        eq(BluetoothGatt.GATT_SUCCESS),
+                        eq(offset),
+                        eq(title.getBytes()));
+
+        offset = characteristic.getValue().length;
+        mTbsGatt.mGattServerCallback.onCharacteristicReadRequest(
+                mFirstDevice, 2, offset, characteristic);
+
+        byte[] empty = new byte[] {};
+        verify(mGattServer)
+                .sendResponse(
+                        eq(mFirstDevice),
+                        eq(2),
+                        eq(BluetoothGatt.GATT_SUCCESS),
+                        eq(offset),
+                        eq(empty));
+    }
+
+    @Test
+    public void testCharacteristic_longReadOutsideLenAuthorized() {
+        prepareDefaultService();
+
+        /* Twenty three octects long friendly name */
+        String title = "01234567890123456789012";
+        BluetoothGattCharacteristic characteristic =
+                getCharacteristic(TbsGatt.UUID_CALL_FRIENDLY_NAME);
+        characteristic.setValue(title);
+
+        doReturn(BluetoothDevice.ACCESS_ALLOWED)
+                .when(mService)
+                .getDeviceAuthorization(any(BluetoothDevice.class));
+
+        int offset = characteristic.getValue().length + 1;
+        mTbsGatt.mGattServerCallback.onCharacteristicReadRequest(
+                mFirstDevice, 2, offset, characteristic);
+
+        byte[] empty = new byte[] {};
+        verify(mGattServer)
+                .sendResponse(
+                        eq(mFirstDevice),
+                        eq(2),
+                        eq(BluetoothGatt.GATT_INVALID_OFFSET),
+                        eq(offset),
+                        eq(empty));
     }
 
     @Test

@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Objects;
 
 /** Helper class identifying a client that has requested LE scan results. */
-public class ScanClient {
+class ScanClient {
     public int scannerId;
     public ScanSettings settings;
     public int scanModeApp;
@@ -50,15 +50,15 @@ public class ScanClient {
     private static final ScanSettings DEFAULT_SCAN_SETTINGS =
             new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build();
 
-    public ScanClient(int scannerId) {
+    ScanClient(int scannerId) {
         this(scannerId, DEFAULT_SCAN_SETTINGS, null);
     }
 
-    public ScanClient(int scannerId, ScanSettings settings, List<ScanFilter> filters) {
+    ScanClient(int scannerId, ScanSettings settings, List<ScanFilter> filters) {
         this(scannerId, settings, filters, Binder.getCallingUid());
     }
 
-    public ScanClient(int scannerId, ScanSettings settings, List<ScanFilter> filters, int appUid) {
+    ScanClient(int scannerId, ScanSettings settings, List<ScanFilter> filters, int appUid) {
         this.scannerId = scannerId;
         this.settings = settings;
         this.scanModeApp = settings.getScanMode();

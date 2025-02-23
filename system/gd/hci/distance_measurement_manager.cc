@@ -2175,7 +2175,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
             }
             log::verbose("step_data: {}", tone_data_view.ToString());
             procedure_data.measured_freq_offset.push_back(tone_data_view.measured_freq_offset_);
-            if (is_hal_v2()) {
+            if (is_hal_v2() && local_subevent_data) {
               local_subevent_data->step_data_.emplace_back(step_channel, mode,
                                                            hal::Mode0Data(tone_data_view));
             }
@@ -2188,7 +2188,7 @@ struct DistanceMeasurementManager::impl : bluetooth::hal::RangingHalCallback {
               continue;
             }
             log::verbose("step_data: {}", tone_data_view.ToString());
-            if (is_hal_v2()) {
+            if (is_hal_v2() && local_subevent_data) {
               local_subevent_data->step_data_.emplace_back(step_channel, mode,
                                                            hal::Mode0Data(tone_data_view));
             }

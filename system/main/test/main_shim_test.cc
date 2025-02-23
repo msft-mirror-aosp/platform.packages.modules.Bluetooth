@@ -614,12 +614,6 @@ TEST_F(MainShimTest, DISABLED_LeShimAclConnection_local_disconnect) {
   hci::AddressWithType remote_address(hci::Address{{0x01, 0x02, 0x03, 0x04, 0x05, 0x6}},
                                       hci::AddressType::RANDOM_DEVICE_ADDRESS);
 
-  // Allow LE connections to be accepted
-  std::promise<bool> promise;
-  auto future = promise.get_future();
-  acl->AcceptLeConnectionFrom(remote_address, true, std::move(promise));
-  ASSERT_TRUE(future.get());
-
   // Simulate LE connection successful
   uint16_t handle = 0x1234;
   auto connection = std::make_unique<MockLeAclConnection>(

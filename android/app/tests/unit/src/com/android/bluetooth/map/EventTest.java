@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.map;
 
+import static com.android.bluetooth.TestUtils.mockGetSystemService;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.mock;
@@ -72,17 +74,14 @@ public class EventTest {
                 new BluetoothMapContentObserverTest.ExceptionTestProvider(mockContext);
         mockResolver.addProvider("sms", mockProvider);
 
-        TelephonyManager mockTelephony = mock(TelephonyManager.class);
         UserManager mockUserService = mock(UserManager.class);
         BluetoothMapMasInstance mockMas = mock(BluetoothMapMasInstance.class);
 
         // Functions that get called when BluetoothMapContentObserver is created
         when(mockUserService.isUserUnlocked()).thenReturn(true);
         when(mockContext.getContentResolver()).thenReturn(mockResolver);
-        when(mockContext.getSystemService(Context.TELEPHONY_SERVICE)).thenReturn(mockTelephony);
-        when(mockContext.getSystemServiceName(TelephonyManager.class))
-                .thenReturn(Context.TELEPHONY_SERVICE);
-        when(mockContext.getSystemService(Context.USER_SERVICE)).thenReturn(mockUserService);
+        mockGetSystemService(mockContext, Context.TELEPHONY_SERVICE, TelephonyManager.class);
+        mockGetSystemService(mockContext, Context.USER_SERVICE, UserManager.class, mockUserService);
         mObserver = new BluetoothMapContentObserver(mockContext, null, mockMas, null, true);
         mEvent = mObserver.new Event(TEST_EVENT_TYPE, TEST_HANDLE, TEST_FOLDER, TEST_TYPE);
     }

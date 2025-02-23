@@ -73,47 +73,32 @@ import java.util.Arrays;
 // Next tag value for ContentProfileErrorReportUtils.report(): 15
 public class BluetoothOppObexServerSession extends ServerRequestHandler
         implements BluetoothOppObexSession {
-
     private static final String TAG = "BtOppObexServer";
 
-    @VisibleForTesting public ObexTransport mTransport;
-
-    @VisibleForTesting public Context mContext;
-
-    @VisibleForTesting public Handler mCallback = null;
-
-    /* status when server is blocking for user/auto confirmation */
-    @VisibleForTesting public boolean mServerBlocking = true;
-
-    /* the current transfer info */
-    @VisibleForTesting public BluetoothOppShareInfo mInfo;
-
-    /* info id when we insert the record */
-    private int mLocalShareInfoId;
-
-    @VisibleForTesting public int mAccepted = BluetoothShare.USER_CONFIRMATION_PENDING;
-
-    private boolean mInterrupted = false;
-
-    @VisibleForTesting public ServerSession mSession;
+    private final Context mContext;
+    private final ObexTransport mTransport;
+    private final WakeLock mPartialWakeLock;
+    private final BluetoothOppService mBluetoothOppService;
 
     private long mTimestamp;
-
-    @VisibleForTesting BluetoothOppReceiveFileInfo mFileInfo;
-
-    private WakeLock mPartialWakeLock;
-
-    @VisibleForTesting boolean mTimeoutMsgSent = false;
-
-    @VisibleForTesting public BluetoothOppService mBluetoothOppService;
-
+    private boolean mInterrupted;
+    private int mLocalShareInfoId; // info id when we insert the record
     private int mNumFilesAttemptedToReceive;
+    @VisibleForTesting boolean mTimeoutMsgSent;
+    @VisibleForTesting public ServerSession mSession;
+    @VisibleForTesting BluetoothOppReceiveFileInfo mFileInfo;
+    @VisibleForTesting public int mAccepted = BluetoothShare.USER_CONFIRMATION_PENDING;
+    @VisibleForTesting public Handler mCallback = null;
+    @VisibleForTesting public BluetoothOppShareInfo mInfo; // the current transfer info
+    /* status when server is blocking for user/auto confirmation */
+    @VisibleForTesting public boolean mServerBlocking = true;
 
     public BluetoothOppObexServerSession(
             Context context, ObexTransport transport, BluetoothOppService service) {
         mContext = context;
         mTransport = transport;
         mBluetoothOppService = service;
+
         PowerManager pm = mContext.getSystemService(PowerManager.class);
         mPartialWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, TAG);
         mPartialWakeLock.setReferenceCounted(false);

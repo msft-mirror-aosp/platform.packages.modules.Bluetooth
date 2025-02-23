@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.pbap;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
@@ -45,8 +47,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Spy;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 import org.mockito.stubbing.Answer;
 
 import java.io.OutputStream;
@@ -59,10 +59,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class BluetoothPbapSimVcardManagerTest {
-
     private static final String TAG = BluetoothPbapSimVcardManagerTest.class.getSimpleName();
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Spy BluetoothMethodProxy mPbapMethodProxy = BluetoothMethodProxy.getInstance();
 

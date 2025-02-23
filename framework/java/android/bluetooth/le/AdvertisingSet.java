@@ -54,7 +54,7 @@ public final class AdvertisingSet {
             AttributionSource attributionSource) {
         mAdvertiserId = advertiserId;
         mAttributionSource = attributionSource;
-        mAdvertise = requireNonNull(advertise, "Bluetooth advertise cannot be null");
+        mAdvertise = requireNonNull(advertise);
     }
 
     /* package */ void setAdvertiserId(int advertiserId) {

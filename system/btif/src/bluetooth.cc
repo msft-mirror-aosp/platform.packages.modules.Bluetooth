@@ -178,8 +178,6 @@ bool is_local_device_atv = false;
 extern const btsock_interface_t* btif_sock_get_interface();
 /* gatt */
 extern const btgatt_interface_t* btif_gatt_get_interface();
-/* avrc target */
-extern const btrc_interface_t* btif_rc_get_interface();
 /* avrc controller */
 extern const btrc_ctrl_interface_t* btif_rc_ctrl_get_interface();
 /*SDP search client*/
@@ -984,10 +982,6 @@ static const void* get_profile_interface(const char* profile_id) {
 
   if (is_profile(profile_id, BT_PROFILE_GATT_ID)) {
     return btif_gatt_get_interface();
-  }
-
-  if (is_profile(profile_id, BT_PROFILE_AV_RC_ID)) {
-    return btif_rc_get_interface();
   }
 
   if (is_profile(profile_id, BT_PROFILE_AV_RC_CTRL_ID)) {

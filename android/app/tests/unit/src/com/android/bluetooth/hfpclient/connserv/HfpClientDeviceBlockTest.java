@@ -16,7 +16,9 @@
 
 package com.android.bluetooth.hfpclient;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
+import static com.android.bluetooth.TestUtils.mockGetSystemService;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -39,20 +41,17 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class HfpClientDeviceBlockTest {
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private HeadsetClientService mHeadsetClientService;
     @Mock private HfpClientConnectionService mConnServ;
     @Mock private HeadsetClientServiceInterface mMockServiceInterface;
     @Mock private Context mApplicationContext;
     @Mock private Resources mResources;
-    @Mock private TelecomManager mTelecomManager;
 
     private static final String TEST_NUMBER = "000-111-2222";
     private static final String KEY_SCO_STATE = "com.android.bluetooth.hfpclient.SCO_STATE";
@@ -75,9 +74,7 @@ public class HfpClientDeviceBlockTest {
         when(mConnServ.getApplicationContext()).thenReturn(mApplicationContext);
         when(mConnServ.getPackageName()).thenReturn(TEST_PACKAGE);
 
-        when(mConnServ.getSystemService(Context.TELECOM_SERVICE)).thenReturn(mTelecomManager);
-        when(mConnServ.getSystemServiceName(TelecomManager.class))
-                .thenReturn(Context.TELECOM_SERVICE);
+        mockGetSystemService(mConnServ, Context.TELECOM_SERVICE, TelecomManager.class);
 
         when(mHeadsetClientService.isAvailable()).thenReturn(true);
         HeadsetClientService.setHeadsetClientService(mHeadsetClientService);

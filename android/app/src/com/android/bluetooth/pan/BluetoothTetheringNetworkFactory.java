@@ -41,8 +41,9 @@ import com.android.internal.annotations.GuardedBy;
  * calls it when a reverse tethered connection needs to be activated or deactivated.
  */
 public class BluetoothTetheringNetworkFactory extends NetworkFactory {
-    private static final String NETWORK_TYPE = "Bluetooth Tethering";
     private static final String TAG = "BluetoothTetheringNetworkFactory";
+
+    private static final String NETWORK_TYPE = "Bluetooth Tethering";
     private static final int NETWORK_SCORE = 69;
 
     private final NetworkCapabilities mNetworkCapabilities;

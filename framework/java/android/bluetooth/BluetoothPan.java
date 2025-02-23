@@ -22,6 +22,8 @@ import static android.Manifest.permission.TETHER_PRIVILEGED;
 import static android.annotation.SystemApi.Client.MODULE_LIBRARIES;
 import static android.bluetooth.BluetoothUtils.executeFromBinder;
 
+import static java.util.Objects.requireNonNull;
+
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -47,7 +49,6 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.Executor;
 
 /**
@@ -63,6 +64,7 @@ import java.util.concurrent.Executor;
 @SystemApi
 public final class BluetoothPan implements BluetoothProfile {
     private static final String TAG = "BluetoothPan";
+
     private static final boolean DBG = true;
     private static final boolean VDBG = false;
 
@@ -541,8 +543,8 @@ public final class BluetoothPan implements BluetoothProfile {
     @Nullable
     public TetheredInterfaceRequest requestTetheredInterface(
             @NonNull final Executor executor, @NonNull final TetheredInterfaceCallback callback) {
-        Objects.requireNonNull(callback, "Callback must be non-null");
-        Objects.requireNonNull(executor, "Executor must be non-null");
+        requireNonNull(callback);
+        requireNonNull(executor);
         final IBluetoothPan service = getService();
         if (service == null) {
             Log.w(TAG, "Proxy not attached to service");

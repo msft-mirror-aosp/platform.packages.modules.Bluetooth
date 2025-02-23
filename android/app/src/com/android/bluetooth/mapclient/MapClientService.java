@@ -309,8 +309,8 @@ public class MapClientService extends ProfileService {
     }
 
     @Override
-    public synchronized void stop() {
-        Log.d(TAG, "stop()");
+    public synchronized void cleanup() {
+        Log.i(TAG, "Cleanup MapClient Service");
 
         mMnsServer.stop();
         for (MceStateMachine stateMachine : mMapInstanceMap.values()) {
@@ -323,13 +323,9 @@ public class MapClientService extends ProfileService {
 
         // Unregister Handler and stop all queued messages.
         mHandler.removeCallbacksAndMessages(null);
-    }
 
-    @Override
-    public void cleanup() {
-        Log.d(TAG, "cleanup");
         removeUncleanAccounts();
-        // TODO(b/72948646): should be moved to stop()
+
         setMapClientService(null);
     }
 

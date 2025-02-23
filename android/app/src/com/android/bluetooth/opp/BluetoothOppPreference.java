@@ -57,36 +57,22 @@ public class BluetoothOppPreference {
     /* Used when obtaining a reference to the singleton instance. */
     private static final Object INSTANCE_LOCK = new Object();
 
-    private boolean mInitialized;
-
-    private Context mContext;
-
-    private SharedPreferences mNamePreference;
-
-    private SharedPreferences mChannelPreference;
-
-    private HashMap<String, Integer> mChannels = new HashMap<String, Integer>();
-
-    private HashMap<String, String> mNames = new HashMap<String, String>();
+    private final Context mContext;
+    private final SharedPreferences mNamePreference;
+    private final SharedPreferences mChannelPreference;
+    private final HashMap<String, Integer> mChannels;
+    private final HashMap<String, String> mNames;
 
     public static BluetoothOppPreference getInstance(Context context) {
         synchronized (INSTANCE_LOCK) {
             if (sInstance == null) {
-                sInstance = new BluetoothOppPreference();
-            }
-            if (!sInstance.init(context)) {
-                return null;
+                sInstance = new BluetoothOppPreference(context);
             }
             return sInstance;
         }
     }
 
-    private boolean init(Context context) {
-        if (mInitialized) {
-            return true;
-        }
-        mInitialized = true;
-
+    private BluetoothOppPreference(Context context) {
         mContext = context;
 
         mNamePreference =
@@ -98,8 +84,6 @@ public class BluetoothOppPreference {
 
         mNames = (HashMap<String, String>) mNamePreference.getAll();
         mChannels = (HashMap<String, Integer>) mChannelPreference.getAll();
-
-        return true;
     }
 
     private String getChannelKey(BluetoothDevice remoteDevice, int uuid) {

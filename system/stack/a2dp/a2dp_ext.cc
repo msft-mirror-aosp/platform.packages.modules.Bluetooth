@@ -53,7 +53,11 @@ A2dpCodecConfigExt::A2dpCodecConfigExt(btav_a2dp_codec_index_t codec_index, bool
 
 tA2DP_STATUS A2dpCodecConfigExt::setCodecConfig(const uint8_t* p_peer_codec_info,
                                                 bool /* is_capability */,
-                                                uint8_t* /* p_result_codec_config */) {
+                                                uint8_t* p_result_codec_config) {
+  if (p_peer_codec_info == nullptr || p_result_codec_config == nullptr) {
+    return A2DP_FAIL;
+  }
+
   // Call get_a2dp_config to recompute best capabilities.
   // This method need to update codec_capability_, codec_config_,
   // and ota_codec_config_ using the local codec_user_config_, and input
@@ -73,6 +77,7 @@ tA2DP_STATUS A2dpCodecConfigExt::setCodecConfig(const uint8_t* p_peer_codec_info
   }
 
   memcpy(ota_codec_config_, result->codec_config, sizeof(ota_codec_config_));
+  memcpy(p_result_codec_config, result->codec_config, sizeof(ota_codec_config_));
   codec_config_ = result->codec_parameters;
   codec_capability_ = result->codec_parameters;
   vendor_specific_parameters_ = result->vendor_specific_parameters;

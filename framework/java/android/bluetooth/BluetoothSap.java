@@ -19,6 +19,8 @@ package android.bluetooth;
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 
+import static java.util.Objects.requireNonNull;
+
 import android.annotation.NonNull;
 import android.annotation.RequiresNoPermission;
 import android.annotation.RequiresPermission;
@@ -41,7 +43,6 @@ import android.util.Pair;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * This class provides the APIs to control the Bluetooth SIM Access Profile (SAP).
@@ -55,8 +56,8 @@ import java.util.Objects;
  */
 @SystemApi
 public final class BluetoothSap implements BluetoothProfile, AutoCloseable {
-
     private static final String TAG = "BluetoothSap";
+
     private static final boolean DBG = true;
     private static final boolean VDBG = false;
 
@@ -462,7 +463,7 @@ public final class BluetoothSap implements BluetoothProfile, AutoCloseable {
     public boolean setConnectionPolicy(
             @NonNull BluetoothDevice device, @ConnectionPolicy int connectionPolicy) {
         if (DBG) log("setConnectionPolicy(" + device + ", " + connectionPolicy + ")");
-        Objects.requireNonNull(device, "BluetoothDevice cannot be null");
+        requireNonNull(device);
         final IBluetoothSap service = getService();
         if (service == null) {
             Log.w(TAG, "Proxy not attached to service");
@@ -513,7 +514,7 @@ public final class BluetoothSap implements BluetoothProfile, AutoCloseable {
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public @ConnectionPolicy int getConnectionPolicy(@NonNull BluetoothDevice device) {
         if (VDBG) log("getConnectionPolicy(" + device + ")");
-        Objects.requireNonNull(device, "BluetoothDevice cannot be null");
+        requireNonNull(device);
         final IBluetoothSap service = getService();
         if (service == null) {
             Log.w(TAG, "Proxy not attached to service");

@@ -16,6 +16,7 @@
 
 package com.android.bluetooth.avrcp;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 import static com.android.bluetooth.avrcp.AvrcpVolumeManager.AVRCP_MAX_VOL;
 
@@ -45,13 +46,11 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class AvrcpVolumeManagerTest {
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
     @Rule public TestName testName = new TestName();
 
     @Mock private AvrcpNativeInterface mNativeInterface;

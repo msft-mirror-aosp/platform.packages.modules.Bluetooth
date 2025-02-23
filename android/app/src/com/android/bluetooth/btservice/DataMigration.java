@@ -32,9 +32,9 @@ import com.android.internal.annotations.VisibleForTesting;
 import java.util.List;
 
 final class DataMigration {
-    private DataMigration() {}
-
     private static final String TAG = "DataMigration";
+
+    private DataMigration() {}
 
     @VisibleForTesting static final String AUTHORITY = "bluetooth_legacy.provider";
 

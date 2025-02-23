@@ -1375,6 +1375,8 @@ private:
     auto ase_audio_channel_allocation = ase->codec_config.GetAudioChannelAllocation();
     params.audio_channel_allocation |= ase_audio_channel_allocation;
 
+    params.stream_config.bits_per_sample = ase->codec_config.GetBitsPerSample();
+
     auto address_with_type = leAudioDevice->GetAddressWithType();
     auto info = ::bluetooth::le_audio::stream_map_info(ase->cis_conn_hdl,
                                                        ase_audio_channel_allocation, true);

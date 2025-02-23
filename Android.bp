@@ -32,9 +32,16 @@ license {
 }
 
 filegroup {
-    name: "BluetoothTestConfigTemplate",
+    name: "BluetoothGTestConfigTemplate",
     srcs: [
-        "AndroidTestTemplate.xml",
+        "BluetoothGTestTemplate.xml",
+    ],
+}
+
+filegroup {
+    name: "BluetoothRustTestConfigTemplate",
+    srcs: [
+        "BluetoothRustTestTemplate.xml",
     ],
 }
 
@@ -70,14 +77,10 @@ cc_defaults {
         // Override global.go that demote the error to a warning
         "-Werror=format",
         "-Werror=reorder-init-list",
+        "-Wthread-safety",
     ],
     c_std: "c99",
     cpp_std: "c++20",
-    arch: {
-        riscv64: {
-            ldflags: ["-Wl,--no-relax"],
-        },
-    },
 }
 
 // List of tidy checks that are enabled for cc targets.
@@ -167,6 +170,7 @@ java_defaults {
             "-Xep:StringCaseLocaleUsage:ERROR",
             "-Xep:StringCharset:ERROR",
             "-Xep:SynchronizeOnNonFinalField:ERROR",
+            "-Xep:ThreadJoinLoop:ERROR",
             "-Xep:ToStringReturnsNull:ERROR",
             "-Xep:TruthConstantAsserts:ERROR",
             "-Xep:TruthIncompatibleType:ERROR",

@@ -83,8 +83,9 @@ public class BatteryService extends ProfileService {
     }
 
     @Override
-    public void stop() {
-        Log.d(TAG, "stop()");
+    public void cleanup() {
+        Log.i(TAG, "Cleanup Battery Service");
+
         setBatteryService(null);
 
         // Destroy state machines and stop handler thread
@@ -104,11 +105,6 @@ public class BatteryService extends ProfileService {
         }
 
         mHandler.removeCallbacksAndMessages(null);
-    }
-
-    @Override
-    public void cleanup() {
-        Log.d(TAG, "cleanup()");
     }
 
     /** Gets the BatteryService instance */

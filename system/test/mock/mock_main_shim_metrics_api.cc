@@ -58,6 +58,7 @@ struct LogMetricManufacturerInfo LogMetricManufacturerInfo;
 struct LogMetricLeConnectionStatus LogMetricLeConnectionStatus;
 struct LogMetricLeDeviceInAcceptList LogMetricLeDeviceInAcceptList;
 struct LogMetricLeConnectionLifecycle LogMetricLeConnectionLifecycle;
+struct LogMetricLeConnectionCompletion LogMetricLeConnectionCompletion;
 
 }  // namespace main_shim_metrics_api
 }  // namespace mock
@@ -206,5 +207,12 @@ void bluetooth::shim::LogMetricLeConnectionLifecycle(bluetooth::hci::Address add
                                                      bool is_connect, bool is_direct) {
   inc_func_call_count(__func__);
   test::mock::main_shim_metrics_api::LogMetricLeConnectionLifecycle(address, is_connect, is_direct);
+}
+void bluetooth::shim::LogMetricLeConnectionCompletion(bluetooth::hci::Address address,
+                                                      bluetooth::hci::ErrorCode reason,
+                                                      bool is_locally_initiated) {
+  inc_func_call_count(__func__);
+  test::mock::main_shim_metrics_api::LogMetricLeConnectionCompletion(address, reason,
+                                                                     is_locally_initiated);
 }
 // END mockcify generation

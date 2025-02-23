@@ -123,7 +123,7 @@ public class AvrcpTargetService extends ProfileService {
         mAudioManager = requireNonNull(audioManager);
         mNativeInterface = requireNonNull(nativeInterface);
 
-        mMediaPlayerList = new MediaPlayerList(looper, this);
+        mMediaPlayerList = new MediaPlayerList(looper, adapterService);
 
         IntentFilter userFilter = new IntentFilter();
         userFilter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
@@ -256,11 +256,11 @@ public class AvrcpTargetService extends ProfileService {
     }
 
     @Override
-    public void stop() {
-        Log.i(TAG, "Stopping the AVRCP Target Service");
+    public void cleanup() {
+        Log.i(TAG, "Cleanup AVRCP Target Service");
 
         if (sInstance == null) {
-            Log.w(TAG, "stop() called before start()");
+            Log.w(TAG, "cleanup() called before initialization");
             return;
         }
 

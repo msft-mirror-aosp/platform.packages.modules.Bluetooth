@@ -93,6 +93,7 @@ import java.util.UUID;
  */
 public final class BluetoothDevice implements Parcelable, Attributable {
     private static final String TAG = "BluetoothDevice";
+
     private static final boolean DBG = false;
 
     /**
@@ -895,7 +896,6 @@ public final class BluetoothDevice implements Parcelable, Attributable {
      *
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_SUPPORT_EXCLUSIVE_MANAGER)
     @SystemApi
     public static final int METADATA_EXCLUSIVE_MANAGER = 29;
 

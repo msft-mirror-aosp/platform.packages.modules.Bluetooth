@@ -119,19 +119,6 @@ protected:
   void TearDown() override {}
 };
 
-TEST_F(BtifRcTest, get_element_attr_rsp) {
-  btif_rc_cb.rc_multi_cb[0].rc_addr = kDeviceAddress;
-  btif_rc_cb.rc_multi_cb[0].rc_connected = true;
-  btif_rc_cb.rc_multi_cb[0].rc_pdu_info[IDX_GET_ELEMENT_ATTR_RSP].is_rsp_pending = true;
-  btif_rc_cb.rc_multi_cb[0].rc_state = BTRC_CONNECTION_STATE_CONNECTED;
-
-  btrc_element_attr_val_t p_attrs[BTRC_MAX_ELEM_ATTR_SIZE];
-  uint8_t num_attr = BTRC_MAX_ELEM_ATTR_SIZE + 1;
-
-  ASSERT_EQ(get_element_attr_rsp(kDeviceAddress, num_attr, p_attrs), BT_STATUS_SUCCESS);
-  ASSERT_EQ(1, get_func_call_count("AVRC_BldResponse"));
-}
-
 TEST_F(BtifRcTest, btif_rc_get_addr_by_handle) {
   RawAddress bd_addr;
 
@@ -426,7 +413,6 @@ TEST_F(BtifTrackChangeCBTest, handle_get_metadata_attr_response) {
   btif_rc_cb.rc_multi_cb[0].rc_cover_art_psm = 0;
   btif_rc_cb.rc_multi_cb[0].rc_state = BTRC_CONNECTION_STATE_CONNECTED;
   btif_rc_cb.rc_multi_cb[0].rc_addr = kDeviceAddress;
-  btif_rc_cb.rc_multi_cb[0].rc_pending_play = 0;
   btif_rc_cb.rc_multi_cb[0].rc_volume = 0;
   btif_rc_cb.rc_multi_cb[0].rc_vol_label = 0;
   btif_rc_cb.rc_multi_cb[0].rc_supported_event_list = nullptr;

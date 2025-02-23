@@ -16,6 +16,9 @@
 
 package com.android.bluetooth.audio_util;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+import static com.android.bluetooth.TestUtils.mockGetSystemService;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.*;
@@ -40,8 +43,6 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.util.ArrayList;
 
@@ -52,7 +53,7 @@ public class MediaPlayerListTest {
 
     private @Captor ArgumentCaptor<MediaPlayerWrapper.Callback> mPlayerWrapperCb;
     private @Captor ArgumentCaptor<MediaData> mMediaUpdateData;
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     private @Mock Context mMockContext;
     private @Mock MediaPlayerList.MediaUpdateCallback mMediaUpdateCallback;
@@ -73,11 +74,6 @@ public class MediaPlayerListTest {
             Looper.prepare();
         }
 
-        AudioManager mockAudioManager = mock(AudioManager.class);
-        when(mMockContext.getSystemService(Context.AUDIO_SERVICE)).thenReturn(mockAudioManager);
-        when(mMockContext.getSystemServiceName(AudioManager.class))
-                .thenReturn(Context.AUDIO_SERVICE);
-
         // MediaSessionManager is final and Bluetooth can't use extended Mockito to mock it. Thus,
         // using this as is risks leaking device state into the tests. To avoid this, the injected
         // controller and player below in the factory pattern will essentially replace each found
@@ -87,10 +83,12 @@ public class MediaPlayerListTest {
                         .getTargetContext()
                         .getSystemService(MediaSessionManager.class);
         PackageManager mockPackageManager = mock(PackageManager.class);
-        when(mMockContext.getSystemService(Context.MEDIA_SESSION_SERVICE))
-                .thenReturn(mMediaSessionManager);
-        when(mMockContext.getSystemServiceName(MediaSessionManager.class))
-                .thenReturn(Context.MEDIA_SESSION_SERVICE);
+        mockGetSystemService(
+                mMockContext,
+                Context.MEDIA_SESSION_SERVICE,
+                MediaSessionManager.class,
+                mMediaSessionManager);
+        mockGetSystemService(mMockContext, Context.AUDIO_SERVICE, AudioManager.class);
 
         when(mMockContext.registerReceiver(any(), any())).thenReturn(null);
         when(mMockContext.getApplicationContext()).thenReturn(mMockContext);

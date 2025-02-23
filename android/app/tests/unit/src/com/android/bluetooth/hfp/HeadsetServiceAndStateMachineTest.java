@@ -20,6 +20,7 @@ import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasData;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -76,8 +77,6 @@ import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.hamcrest.MockitoHamcrest;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -87,9 +86,11 @@ import java.util.Set;
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class HeadsetServiceAndStateMachineTest {
+    private static final String TAG = HeadsetServiceAndStateMachineTest.class.getSimpleName();
+
     @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Spy private HeadsetObjectsFactory mObjectsFactory = HeadsetObjectsFactory.getInstance();
 
@@ -106,7 +107,6 @@ public class HeadsetServiceAndStateMachineTest {
     @Mock private RemoteDevices mRemoteDevices;
     @Mock private SystemProperties.MockableSystemProperties mProperties;
 
-    private static final String TAG = HeadsetServiceAndStateMachineTest.class.getSimpleName();
     private static final int MAX_HEADSET_CONNECTIONS = 5;
     private static final ParcelUuid[] FAKE_HEADSET_UUID = {BluetoothUuid.HFP};
     private static final String TEST_PHONE_NUMBER = "1234567890";
@@ -200,7 +200,7 @@ public class HeadsetServiceAndStateMachineTest {
     public void tearDown() {
         SystemProperties.mProperties = null;
         mTestLooper.dispatchAll();
-        mHeadsetService.stop();
+        mHeadsetService.cleanup();
         mHeadsetService = HeadsetService.getHeadsetService();
         assertThat(mHeadsetService).isNull();
         // Clear classes that is spied on and has static life time

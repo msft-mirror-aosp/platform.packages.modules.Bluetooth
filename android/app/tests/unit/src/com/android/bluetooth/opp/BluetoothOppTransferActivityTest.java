@@ -16,6 +16,7 @@
 
 package com.android.bluetooth.opp;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.opp.BluetoothOppTestUtils.CursorMockData;
 import static com.android.bluetooth.opp.BluetoothOppTransferActivity.DIALOG_RECEIVE_COMPLETE_FAIL;
 import static com.android.bluetooth.opp.BluetoothOppTransferActivity.DIALOG_RECEIVE_COMPLETE_SUCCESS;
@@ -50,8 +51,6 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.Spy;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -59,7 +58,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 @RunWith(AndroidJUnit4.class)
 public class BluetoothOppTransferActivityTest {
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock Cursor mCursor;
     @Spy BluetoothMethodProxy mBluetoothMethodProxy;

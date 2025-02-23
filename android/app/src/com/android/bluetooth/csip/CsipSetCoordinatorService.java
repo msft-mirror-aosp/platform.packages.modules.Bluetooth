@@ -151,10 +151,11 @@ public class CsipSetCoordinatorService extends ProfileService {
     }
 
     @Override
-    public void stop() {
-        Log.d(TAG, "stop()");
+    public void cleanup() {
+        Log.i(TAG, "Cleanup CSIP Set Coordinator Service");
+
         if (sCsipSetCoordinatorService == null) {
-            Log.w(TAG, "stop() called before start()");
+            Log.w(TAG, "cleanup() called before initialization");
             return;
         }
 
@@ -193,11 +194,6 @@ public class CsipSetCoordinatorService extends ProfileService {
         mGroupIdToUuidMap.clear();
 
         mLocks.clear();
-    }
-
-    @Override
-    public void cleanup() {
-        Log.d(TAG, "cleanup()");
     }
 
     /**

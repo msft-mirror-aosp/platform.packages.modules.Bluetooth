@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.btservice;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -52,8 +54,6 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Spy;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
@@ -71,7 +71,7 @@ public class ProfileServiceTest {
     private AdapterService mAdapterService =
             new AdapterService(InstrumentationRegistry.getInstrumentation().getTargetContext());
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private DatabaseManager mDatabaseManager;
     @Mock private TelephonyManager mMockTelephonyManager;

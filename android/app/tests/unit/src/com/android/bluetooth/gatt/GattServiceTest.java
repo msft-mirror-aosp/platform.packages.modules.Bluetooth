@@ -16,6 +16,7 @@
 
 package com.android.bluetooth.gatt;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -63,8 +64,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -78,7 +77,7 @@ import java.util.UUID;
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class GattServiceTest {
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
     @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     @Mock private ContextMap<IBluetoothGattCallback> mClientMap;
@@ -166,7 +165,7 @@ public class GattServiceTest {
 
     @After
     public void tearDown() throws Exception {
-        mService.stop();
+        mService.cleanup();
         AdvertiseManagerNativeInterface.setInstance(null);
 
         GattObjectsFactory.setInstanceForTesting(null);
@@ -176,7 +175,7 @@ public class GattServiceTest {
     @Test
     public void testServiceUpAndDown() throws Exception {
         for (int i = 0; i < TIMES_UP_AND_DOWN; i++) {
-            mService.stop();
+            mService.cleanup();
             mService = new GattService(mAdapterService);
         }
     }

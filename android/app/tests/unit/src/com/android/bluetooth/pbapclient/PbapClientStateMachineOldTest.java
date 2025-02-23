@@ -15,14 +15,15 @@
  */
 package com.android.bluetooth.pbapclient;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
+import static com.android.bluetooth.TestUtils.mockGetSystemService;
 
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import android.app.BroadcastOptions;
 import android.bluetooth.BluetoothDevice;
@@ -45,19 +46,17 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class PbapClientStateMachineOldTest {
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    private static final String TAG = "PbapClientStateMachineOldTest";
+
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private PbapClientService mMockPbapClientService;
-    @Mock private UserManager mMockUserManager;
     @Mock private PbapClientConnectionHandler mMockHandler;
 
-    private static final String TAG = "PbapClientStateMachineOldTest";
     private static final int DISCONNECT_TIMEOUT = 5000;
 
     private final BluetoothDevice mDevice = getTestDevice(40);
@@ -67,10 +66,8 @@ public class PbapClientStateMachineOldTest {
 
     @Before
     public void setUp() throws Exception {
-        when(mMockPbapClientService.getSystemServiceName(UserManager.class))
-                .thenReturn(Context.USER_SERVICE);
-        when(mMockPbapClientService.getSystemService(UserManager.class))
-                .thenReturn(mMockUserManager);
+        mockGetSystemService(mMockPbapClientService, Context.USER_SERVICE, UserManager.class);
+
         mPbapClientStateMachine =
                 new PbapClientStateMachineOld(mMockPbapClientService, mDevice, mMockHandler);
         mPbapClientStateMachine.start();

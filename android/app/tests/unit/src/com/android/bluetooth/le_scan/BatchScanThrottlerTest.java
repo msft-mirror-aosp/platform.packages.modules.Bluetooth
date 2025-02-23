@@ -18,6 +18,7 @@ package com.android.bluetooth.le_scan;
 
 import static android.bluetooth.le.ScanSettings.SCAN_MODE_BALANCED;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.le_scan.ScanController.DEFAULT_REPORT_DELAY_FLOOR;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -37,8 +38,6 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.time.Duration;
 import java.util.Collections;
@@ -51,7 +50,7 @@ import java.util.stream.LongStream;
 @RunWith(TestParameterInjector.class)
 public class BatchScanThrottlerTest {
     @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     private FakeTimeProvider mTimeProvider;
 

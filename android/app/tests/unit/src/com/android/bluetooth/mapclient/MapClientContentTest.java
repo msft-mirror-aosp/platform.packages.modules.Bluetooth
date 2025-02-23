@@ -16,7 +16,9 @@
 
 package com.android.bluetooth.mapclient;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
+import static com.android.bluetooth.TestUtils.mockGetSystemService;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -58,8 +60,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -68,8 +68,8 @@ import java.util.Map;
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class MapClientContentTest {
-
     private static final String TAG = "MapClientContentTest";
+
     private static final int READ = 1;
 
     private final BluetoothDevice mDevice = getTestDevice(68);
@@ -86,7 +86,7 @@ public class MapClientContentTest {
 
     private MapClientContent mMapClientContent;
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private Context mMockContext;
     @Mock private MapClientContent.Callbacks mCallbacks;
@@ -112,10 +112,11 @@ public class MapClientContentTest {
         mMockContentResolver.addProvider("mms-sms", mMockThreadContentProvider);
 
         when(mMockContext.getContentResolver()).thenReturn(mMockContentResolver);
-        when(mMockContext.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE))
-                .thenReturn(mMockSubscriptionManager);
-        when(mMockContext.getSystemServiceName(SubscriptionManager.class))
-                .thenReturn(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
+        mockGetSystemService(
+                mMockContext,
+                Context.TELEPHONY_SUBSCRIPTION_SERVICE,
+                SubscriptionManager.class,
+                mMockSubscriptionManager);
 
         when(mMockSubscriptionManager.getActiveSubscriptionInfoList())
                 .thenReturn(Arrays.asList(mMockSubscription));

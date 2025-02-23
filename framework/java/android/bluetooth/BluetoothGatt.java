@@ -58,6 +58,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
  */
 public final class BluetoothGatt implements BluetoothProfile {
     private static final String TAG = "BluetoothGatt";
+
     private static final boolean DBG = true;
     private static final boolean VDBG = false;
 

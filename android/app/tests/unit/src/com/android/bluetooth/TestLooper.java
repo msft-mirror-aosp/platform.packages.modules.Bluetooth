@@ -27,6 +27,8 @@ import android.util.Log;
 
 import com.android.modules.utils.HandlerExecutor;
 
+import com.google.common.util.concurrent.Uninterruptibles;
+
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -44,6 +46,8 @@ import java.util.concurrent.Executor;
  *     allows advancing time.
  */
 public class TestLooper {
+    private static final String TAG = "TestLooper";
+
     protected final Looper mLooper;
 
     private static final Constructor<Looper> LOOPER_CONSTRUCTOR;
@@ -52,7 +56,6 @@ public class TestLooper {
     private static final Field MESSAGE_NEXT_FIELD;
     private static final Field MESSAGE_WHEN_FIELD;
     private static final Method MESSAGE_MARK_IN_USE_METHOD;
-    private static final String TAG = "TestLooper";
 
     private final Clock mClock;
 
@@ -298,11 +301,7 @@ public class TestLooper {
             if (mAutoDispatchThread.isAlive()) {
                 mAutoDispatchThread.interrupt();
             }
-            try {
-                mAutoDispatchThread.join();
-            } catch (InterruptedException e) {
-                // Catch exception from join.
-            }
+            Uninterruptibles.joinUninterruptibly(mAutoDispatchThread);
 
             RuntimeException e = mAutoDispatchThread.getException();
             mAutoDispatchThread = null;

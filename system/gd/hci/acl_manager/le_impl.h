@@ -1110,6 +1110,9 @@ public:
     } else {
       remove_device_from_accept_list(address_with_type);
     }
+    // Temporary mapping the error code to PAGE_TIMEOUT
+    log_le_connection_completion(address_with_type.GetAddress(), ErrorCode::PAGE_TIMEOUT,
+                                 true /* is locally initiated */);
     le_client_handler_->Post(common::BindOnce(
             &LeConnectionCallbacks::OnLeConnectFail, common::Unretained(le_client_callbacks_),
             address_with_type, ErrorCode::CONNECTION_ACCEPT_TIMEOUT));
