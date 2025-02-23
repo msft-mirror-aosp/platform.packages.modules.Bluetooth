@@ -16,6 +16,8 @@
  *
  ******************************************************************************/
 
+#define LOG_TAG "bluetooth-asha"
+
 #include <base/files/file_util.h>
 #include <bluetooth/log.h>
 #include <stdio.h>
