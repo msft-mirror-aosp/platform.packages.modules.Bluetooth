@@ -1004,12 +1004,10 @@ void btif_hh_remove_device(const tAclLinkSpec& link_spec) {
   btif_hh_device_t* p_dev;
   while ((p_dev = btif_hh_find_dev_by_link_spec(link_spec)) != nullptr) {
     announce_vup = true;
-    // Notify upper layers of disconnection to avoid getting states out of sync
-    do_in_jni_thread(base::Bind(
-            [](tAclLinkSpec link_spec) {
-              BTHH_STATE_UPDATE(link_spec, BTHH_CONN_STATE_DISCONNECTED);
-            },
-            link_spec));
+    // Notify service of disconnection to avoid state mismatch
+    do_in_jni_thread(
+            base::Bind([](tAclLinkSpec ls) { BTHH_STATE_UPDATE(ls, BTHH_CONN_STATE_DISCONNECTED); },
+                       link_spec));
 
     if (btif_hh_cb.device_num > 0) {
       btif_hh_cb.device_num--;
@@ -1029,15 +1027,78 @@ void btif_hh_remove_device(const tAclLinkSpec& link_spec) {
     }
   }
 
+  // Remove pending connection if address matches
+  if (com::android::bluetooth::flags::vup_for_pending_connection()) {
+    size_t pending_connections = btif_hh_cb.new_connection_requests.remove_if(
+            [link_spec](auto ls) { return ls.addrt.bda == link_spec.addrt.bda; });
+    if (pending_connections > 0) {
+      announce_vup = true;
+    }
+  }
+
   if (!announce_vup) {
+    log::info("Device {} not found", link_spec);
     return;
   }
+
   do_in_jni_thread(base::Bind(
-          [](tAclLinkSpec link_spec) {
-            HAL_CBACK(bt_hh_callbacks, virtual_unplug_cb, &link_spec.addrt.bda,
-                      link_spec.addrt.type, link_spec.transport, BTHH_OK);
+          [](tAclLinkSpec ls) {
+            HAL_CBACK(bt_hh_callbacks, virtual_unplug_cb, &ls.addrt.bda, ls.addrt.type,
+                      ls.transport, BTHH_OK);
           },
           link_spec));
+}
+
+/*******************************************************************************
+ **
+ ** Function         btif_hh_remove_pending_connection
+ **
+ ** Description      Remove first time pending connection requests.
+ **
+ ** Returns          void
+ ******************************************************************************/
+static void btif_hh_remove_pending_connection(const tAclLinkSpec& link_spec) {
+  if (!com::android::bluetooth::flags::vup_for_pending_connection()) {
+    bool pending_connection = false;
+    for (auto ls : btif_hh_cb.new_connection_requests) {
+      if (ls.addrt.bda == link_spec.addrt.bda) {
+        pending_connection = true;
+        break;
+      }
+    }
+
+    if (pending_connection) {
+      btif_hh_cb.new_connection_requests.remove_if(
+              [link_spec](auto ls) { return ls.addrt.bda == link_spec.addrt.bda; });
+
+      // Notify service of disconnection to avoid state mismatch
+      do_in_jni_thread(base::Bind(
+              [](tAclLinkSpec ls) { BTHH_STATE_UPDATE(ls, BTHH_CONN_STATE_DISCONNECTED); },
+              link_spec));
+    }
+    return;
+  }
+
+  size_t pending_connections = btif_hh_cb.new_connection_requests.remove_if([link_spec](auto ls) {
+    if (ls.addrt.bda == link_spec.addrt.bda) {
+      // Notify service of disconnection to avoid state mismatch
+      do_in_jni_thread(base::Bind(
+              [](tAclLinkSpec ls) { BTHH_STATE_UPDATE(ls, BTHH_CONN_STATE_DISCONNECTED); }, ls));
+
+      return true;
+    }
+    return false;
+  });
+
+  if (pending_connections > 0) {
+    log::verbose("Removed pending connections to {}", link_spec);
+    do_in_jni_thread(base::Bind(
+            [](tAclLinkSpec ls) {
+              HAL_CBACK(bt_hh_callbacks, virtual_unplug_cb, &ls.addrt.bda, ls.addrt.type,
+                        ls.transport, BTHH_OK);
+            },
+            link_spec));
+  }
 }
 
 /*******************************************************************************
@@ -1050,7 +1111,6 @@ void btif_hh_remove_device(const tAclLinkSpec& link_spec) {
  * Returns          void
  *
  ******************************************************************************/
-
 bt_status_t btif_hh_virtual_unplug(const tAclLinkSpec& link_spec) {
   BTHH_LOG_LINK(link_spec);
 
@@ -1074,36 +1134,17 @@ bt_status_t btif_hh_virtual_unplug(const tAclLinkSpec& link_spec) {
   // Remove the connecting or added device
   if (btif_hh_find_dev_by_link_spec(link_spec) != nullptr ||
       btif_hh_find_added_dev(link_spec) != nullptr) {
-    // Remove pending connection if address matches
-    btif_hh_cb.new_connection_requests.remove_if(
-            [link_spec](auto ls) { return ls.addrt.bda == link_spec.addrt.bda; });
-
+    if (!com::android::bluetooth::flags::vup_for_pending_connection()) {
+      // Remove pending connection if address matches
+      btif_hh_cb.new_connection_requests.remove_if(
+              [link_spec](auto ls) { return ls.addrt.bda == link_spec.addrt.bda; });
+    }
     btif_hh_remove_device(link_spec);
     BTA_DmRemoveDevice(link_spec.addrt.bda);
     return BT_STATUS_SUCCESS;
   }
 
-  // Abort outgoing initial connection attempt
-  bool pending_connection = false;
-  for (auto ls : btif_hh_cb.new_connection_requests) {
-    if (ls.addrt.bda == link_spec.addrt.bda) {
-      pending_connection = true;
-      break;
-    }
-  }
-
-  if (pending_connection) {
-    btif_hh_cb.new_connection_requests.remove_if(
-            [link_spec](auto ls) { return ls.addrt.bda == link_spec.addrt.bda; });
-
-    /* need to notify up-layer device is disconnected to avoid
-     * state out of sync with up-layer */
-    do_in_jni_thread(base::Bind(
-            [](tAclLinkSpec link_spec) {
-              BTHH_STATE_UPDATE(link_spec, BTHH_CONN_STATE_DISCONNECTED);
-            },
-            link_spec));
-  }
+  btif_hh_remove_pending_connection(link_spec);
   return BT_STATUS_DEVICE_NOT_FOUND;
 }
 
