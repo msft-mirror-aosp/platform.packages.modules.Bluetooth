@@ -115,7 +115,7 @@ public class AvrcpControllerStateMachineTest {
         doReturn(mBrowseTree).when(mAvrcpControllerService).getBrowseTree();
 
         mockGetSystemService(
-                mAvrcpControllerService, Context.AUDIO_SERVICE, AudioManager.class, mAudioManager);
+                mAdapterService, Context.AUDIO_SERVICE, AudioManager.class, mAudioManager);
         doReturn(mCoverArtManager).when(mAvrcpControllerService).getCoverArtManager();
         if (Looper.myLooper() == null) {
             Looper.prepare();

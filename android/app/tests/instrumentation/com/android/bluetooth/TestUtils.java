@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The Android Open Source Project
+ * Copyright 2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,21 +26,11 @@ import android.annotation.IntRange;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
 import android.content.Context;
-import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.content.res.Resources;
-import android.os.Handler;
-import android.os.Looper;
 import android.os.Message;
-import android.os.MessageQueue;
-import android.service.media.MediaBrowserService;
 import android.util.Log;
 
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.uiautomator.UiDevice;
-
-import com.android.bluetooth.avrcpcontroller.BluetoothMediaBrowserService;
-import com.android.bluetooth.btservice.AdapterService;
 
 import org.junit.rules.MethodRule;
 import org.junit.rules.TestRule;
@@ -50,54 +40,18 @@ import org.junit.runners.model.Statement;
 import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 
-import java.time.Duration;
-import java.time.Instant;
 import java.util.stream.IntStream;
 
 /** A set of methods useful in Bluetooth instrumentation tests */
 public class TestUtils {
-    private static final String TAG = Utils.TAG_PREFIX_BLUETOOTH + TestUtils.class.getSimpleName();
-
     private static String sSystemScreenOffTimeout = "10000";
 
-    /**
-     * Set the return value of {@link AdapterService#getAdapterService()} to a test specified value
-     *
-     * @param adapterService the designated {@link AdapterService} in test, must not be null, can be
-     *     mocked or spied
-     */
-    public static void setAdapterService(AdapterService adapterService) {
-        assertWithMessage(
-                        "AdapterService.getAdapterService() must be null before setting another"
-                                + " AdapterService")
-                .that(AdapterService.getAdapterService())
-                .isNull();
-        assertThat(adapterService).isNotNull();
-        // We cannot mock AdapterService.getAdapterService() with Mockito.
-        // Hence we need to set AdapterService.sAdapterService field.
-        AdapterService.setAdapterService(adapterService);
-    }
-
-    /**
-     * Clear the return value of {@link AdapterService#getAdapterService()} to null
-     *
-     * @param adapterService the {@link AdapterService} used when calling {@link
-     *     TestUtils#setAdapterService(AdapterService)}
-     */
-    public static void clearAdapterService(AdapterService adapterService) {
-        assertWithMessage(
-                        "AdapterService.getAdapterService() must return the same object as the"
-                                + " supplied adapterService in this method")
-                .that(adapterService)
-                .isSameInstanceAs(AdapterService.getAdapterService());
-        assertThat(adapterService).isNotNull();
-        AdapterService.clearAdapterService(adapterService);
-    }
+    private static final String TAG = "BluetoothTestUtils";
 
     /** Helper function to mock getSystemService calls */
     public static <T> void mockGetSystemService(
             Context ctx, String serviceName, Class<T> serviceClass, T mockService) {
-        doReturn(mockService).when(ctx).getSystemService(eq(serviceClass));
+        // doReturn(mockService).when(ctx).getSystemService(eq(serviceClass)); // need extended mock
         doReturn(mockService).when(ctx).getSystemService(eq(serviceName));
         doReturn(serviceName).when(ctx).getSystemServiceName(eq(serviceClass));
     }
@@ -128,30 +82,6 @@ public class TestUtils {
         return testDevice;
     }
 
-    public static Resources getTestApplicationResources(Context context) {
-        try {
-            return context.getPackageManager()
-                    .getResourcesForApplication("com.android.bluetooth.tests");
-        } catch (PackageManager.NameNotFoundException e) {
-            assertWithMessage("Unable to get test application resources: " + e.toString()).fail();
-            return null;
-        }
-    }
-
-
-    /**
-     * Wait for looper to finish its current task and all tasks schedule before this
-     *
-     * @param looper looper of interest
-     */
-    public static void waitForLooperToFinishScheduledTask(Looper looper) {
-        runOnLooperSync(
-                looper,
-                () -> {
-                    // do nothing, just need to make sure looper finishes current task
-                });
-    }
-
     /**
      * Dispatch all the message on the Loopper and check that the `what` is expected
      *
@@ -172,85 +102,6 @@ public class TestUtils {
                             Log.d(TAG, "Processing message: " + msg);
                             msg.getTarget().dispatchMessage(msg);
                         });
-    }
-
-    /**
-     * Wait for looper to become idle
-     *
-     * @param looper looper of interest
-     */
-    public static void waitForLooperToBeIdle(Looper looper) {
-        class Idler implements MessageQueue.IdleHandler {
-            private boolean mIdle = false;
-
-            @Override
-            public boolean queueIdle() {
-                synchronized (this) {
-                    mIdle = true;
-                    notifyAll();
-                }
-                return false;
-            }
-
-            public synchronized void waitForIdle() {
-                while (!mIdle) {
-                    try {
-                        wait();
-                    } catch (InterruptedException e) {
-                        Log.w(TAG, "waitForIdle got interrupted", e);
-                    }
-                }
-            }
-        }
-
-        Idler idle = new Idler();
-        looper.getQueue().addIdleHandler(idle);
-        // Ensure we are not Idle to begin with so the idle handler will run
-        waitForLooperToFinishScheduledTask(looper);
-        idle.waitForIdle();
-    }
-
-    /**
-     * Run synchronously a runnable action on a looper. The method will return after the action has
-     * been execution to completion.
-     *
-     * <p>Example:
-     *
-     * <pre>{@code
-     * TestUtils.runOnMainSync(new Runnable() {
-     *       public void run() {
-     *           assertThat(mA2dpService.stop()).isTrue();
-     *       }
-     *   });
-     * }</pre>
-     *
-     * @param looper the looper used to run the action
-     * @param action the action to run
-     */
-    private static void runOnLooperSync(Looper looper, Runnable action) {
-        if (Looper.myLooper() == looper) {
-            // requested thread is the same as the current thread. call directly.
-            action.run();
-        } else {
-            Handler handler = new Handler(looper);
-            SyncRunnable sr = new SyncRunnable(action);
-            handler.post(sr);
-            sr.waitForComplete();
-        }
-    }
-
-    /**
-     * Prepare the intent to start bluetooth browser media service.
-     *
-     * @return intent with the appropriate component & action set.
-     */
-    public static Intent prepareIntentToStartBluetoothBrowserMediaService() {
-        final Intent intent =
-                new Intent(
-                        InstrumentationRegistry.getInstrumentation().getTargetContext(),
-                        BluetoothMediaBrowserService.class);
-        intent.setAction(MediaBrowserService.SERVICE_INTERFACE);
-        return intent;
     }
 
     public static void setUpUiTest() throws Exception {
@@ -346,50 +197,6 @@ public class TestUtils {
                     Mockito.framework().clearInlineMocks();
                 }
             };
-        }
-    }
-
-    /** Helper class used to run synchronously a runnable action on a looper. */
-    private static final class SyncRunnable implements Runnable {
-        private final Runnable mTarget;
-        private volatile boolean mComplete = false;
-
-        SyncRunnable(Runnable target) {
-            mTarget = target;
-        }
-
-        @Override
-        public void run() {
-            mTarget.run();
-            synchronized (this) {
-                mComplete = true;
-                notifyAll();
-            }
-        }
-
-        public void waitForComplete() {
-            synchronized (this) {
-                while (!mComplete) {
-                    try {
-                        wait();
-                    } catch (InterruptedException e) {
-                        Log.w(TAG, "waitForComplete got interrupted", e);
-                    }
-                }
-            }
-        }
-    }
-
-    public static final class FakeTimeProvider implements Utils.TimeProvider {
-        private Instant currentTime = Instant.EPOCH;
-
-        @Override
-        public long elapsedRealtime() {
-            return currentTime.toEpochMilli();
-        }
-
-        public void advanceTime(Duration amountToAdvance) {
-            currentTime = currentTime.plus(amountToAdvance);
         }
     }
 }

@@ -22,6 +22,8 @@ import static com.android.bluetooth.TestUtils.mockGetSystemService;
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 
@@ -67,6 +69,9 @@ public class PbapClientStateMachineOldTest {
     @Before
     public void setUp() throws Exception {
         mockGetSystemService(mMockPbapClientService, Context.USER_SERVICE, UserManager.class);
+
+        doCallRealMethod().when(mMockHandler).obtainMessage(anyInt(), any());
+        doCallRealMethod().when(mMockHandler).obtainMessage(anyInt());
 
         mPbapClientStateMachine =
                 new PbapClientStateMachineOld(mMockPbapClientService, mDevice, mMockHandler);

@@ -82,7 +82,6 @@ public class RemoteDevicesTest {
                 mBluetoothManager);
 
         mRemoteDevices = new RemoteDevices(mAdapterService, mHandlerThread.getLooper());
-        verify(mAdapterService).getSystemService(Context.BLUETOOTH_SERVICE);
         verify(mAdapterService).getSystemService(BluetoothManager.class);
     }
 
