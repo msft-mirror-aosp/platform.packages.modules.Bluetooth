@@ -35,9 +35,6 @@
 
 #define TEST_BT com::android::bluetooth::flags
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using namespace bluetooth::hci::iso_manager;
 
 using bluetooth::hci::IsoManager;
@@ -49,6 +46,7 @@ using testing::SaveArg;
 using testing::Test;
 
 // Disables most likely false-positives from base::SplitString()
+extern "C" const char* __asan_default_options();
 extern "C" const char* __asan_default_options() { return "detect_container_overflow=0"; }
 
 void btsnd_hcic_ble_rand(base::Callback<void(BT_OCTET8)> /*cb*/) {}

@@ -48,9 +48,6 @@
 #include "le_audio_utils.h"
 #include "stack/include/bt_types.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 namespace bluetooth::le_audio {
 using types::acs_ac_record;
 using types::LeAudioContextType;
@@ -260,7 +257,7 @@ const std::map<uint32_t, uint8_t> LeAudioCoreCodecConfig::data_interval_map = {
          codec_spec_conf::kLeAudioCodecFrameDur10000us},
 };
 
-std::string CapabilityTypeToStr(const uint8_t& type) {
+static std::string CapabilityTypeToStr(const uint8_t& type) {
   switch (type) {
     case codec_spec_caps::kLeAudioLtvTypeSupportedSamplingFrequencies:
       return "Supported Sampling Frequencies";
@@ -277,7 +274,7 @@ std::string CapabilityTypeToStr(const uint8_t& type) {
   }
 }
 
-std::string CapabilityValueToStr(const uint8_t& type, const std::vector<uint8_t>& value) {
+static std::string CapabilityValueToStr(const uint8_t& type, const std::vector<uint8_t>& value) {
   std::string string = "";
 
   switch (type) {

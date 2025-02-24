@@ -38,11 +38,6 @@
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
-void btif_storage_add_volume_control(const RawAddress& /*addr*/, bool /*auto_conn*/) {}
-
 struct alarm_t {
   alarm_callback_t cb = nullptr;
   void* data = nullptr;
@@ -75,7 +70,7 @@ using testing::SaveArg;
 using testing::SetArgPointee;
 using testing::WithArg;
 
-RawAddress GetTestAddress(int index) {
+static RawAddress GetTestAddress(int index) {
   EXPECT_LT(index, UINT8_MAX);
   RawAddress result = {{0xC0, 0xDE, 0xC0, 0xDE, 0x00, static_cast<uint8_t>(index)}};
   return result;

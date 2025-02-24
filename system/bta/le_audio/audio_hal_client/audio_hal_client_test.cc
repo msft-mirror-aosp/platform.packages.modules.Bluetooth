@@ -30,9 +30,7 @@
 #include "common/message_loop_thread.h"
 #include "hardware/bluetooth.h"
 #include "osi/include/wakelock.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+#include "stack/include/main_thread.h"
 
 using ::testing::_;
 using ::testing::Assign;
@@ -64,9 +62,6 @@ bt_status_t do_in_main_thread(base::OnceClosure task) {
   return BT_STATUS_SUCCESS;
 }
 
-static base::MessageLoop* message_loop_;
-base::MessageLoop* get_main_message_loop() { return message_loop_; }
-
 static void init_message_loop_thread() {
   message_loop_thread.StartUp();
   if (!message_loop_thread.IsRunning()) {
@@ -76,17 +71,9 @@ static void init_message_loop_thread() {
   if (!message_loop_thread.EnableRealTimeScheduling()) {
     log::error("Unable to set real time scheduling");
   }
-
-  message_loop_ = message_loop_thread.message_loop();
-  if (message_loop_ == nullptr) {
-    FAIL() << "unable to get message loop.";
-  }
 }
 
-static void cleanup_message_loop_thread() {
-  message_loop_ = nullptr;
-  message_loop_thread.ShutDown();
-}
+static void cleanup_message_loop_thread() { message_loop_thread.ShutDown(); }
 
 using bluetooth::audio::le_audio::LeAudioClientInterface;
 

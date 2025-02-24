@@ -57,9 +57,6 @@
 #include "stack/include/btm_client_interface.h"
 #include "types/bt_transport.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 namespace bluetooth::le_audio {
 
 using bluetooth::le_audio::types::ase;
@@ -1520,9 +1517,9 @@ void LeAudioDeviceGroup::CigConfiguration::UnassignCis(LeAudioDevice* leAudioDev
   }
 }
 
-bool CheckIfStrategySupported(types::LeAudioConfigurationStrategy strategy,
-                              const types::AseConfiguration& conf, uint8_t direction,
-                              const LeAudioDevice& device) {
+static bool CheckIfStrategySupported(types::LeAudioConfigurationStrategy strategy,
+                                     const types::AseConfiguration& conf, uint8_t direction,
+                                     const LeAudioDevice& device) {
   /* Check direction and if audio location allows to create more cises to a
    * single device.
    */

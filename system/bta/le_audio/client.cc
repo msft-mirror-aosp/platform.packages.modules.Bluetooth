@@ -104,9 +104,6 @@
 #include <hardware/audio.h>
 #endif  // TARGET_FLOSS
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using base::Closure;
 using bluetooth::Uuid;
 using bluetooth::common::ToString;
@@ -172,7 +169,7 @@ enum class AudioState {
   RELEASING,
 };
 
-std::ostream& operator<<(std::ostream& os, const AudioReconfigurationResult& state) {
+static std::ostream& operator<<(std::ostream& os, const AudioReconfigurationResult& state) {
   switch (state) {
     case AudioReconfigurationResult::RECONFIGURATION_NEEDED:
       os << "RECONFIGURATION_NEEDED";
@@ -190,7 +187,7 @@ std::ostream& operator<<(std::ostream& os, const AudioReconfigurationResult& sta
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const AudioState& audio_state) {
+static std::ostream& operator<<(std::ostream& os, const AudioState& audio_state) {
   switch (audio_state) {
     case AudioState::IDLE:
       os << "IDLE";
