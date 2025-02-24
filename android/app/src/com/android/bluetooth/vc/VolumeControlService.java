@@ -31,7 +31,6 @@ import static android.bluetooth.IBluetoothCsipSetCoordinator.CSIS_GROUP_ID_INVAL
 import static android.bluetooth.IBluetoothLeAudio.LE_AUDIO_GROUP_ID_INVALID;
 import static android.bluetooth.IBluetoothVolumeControl.VOLUME_CONTROL_UNKNOWN_VOLUME;
 
-import static com.android.bluetooth.flags.Flags.leaudioBroadcastVolumeControlPrimaryGroupOnly;
 import static com.android.bluetooth.flags.Flags.vcpDeviceVolumeApiImprovements;
 
 import static java.util.Objects.requireNonNull;
@@ -935,13 +934,6 @@ public class VolumeControlService extends ProfileService {
         if (leAudioService != null) {
             int currentlyActiveGroupId = leAudioService.getActiveGroupId();
             if (currentlyActiveGroupId == GROUP_ID_INVALID || groupId != currentlyActiveGroupId) {
-                if (!leaudioBroadcastVolumeControlPrimaryGroupOnly()) {
-                    Log.i(
-                            TAG,
-                            "Skip updating to audio system if not updating volume for current"
-                                    + " active group");
-                    return;
-                }
                 BassClientService bassClientService = mFactory.getBassClientService();
                 if (bassClientService == null
                         || bassClientService.getSyncedBroadcastSinks().stream()
