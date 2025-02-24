@@ -1535,7 +1535,7 @@ protected:
     mock_iso_manager_ = MockIsoManager::GetInstance();
     ON_CALL(*mock_iso_manager_, RegisterCigCallbacks(_)).WillByDefault(SaveArg<0>(&cig_callbacks_));
 
-    ON_CALL(mock_btm_interface_, IsLinkKeyKnown(_, _)).WillByDefault(DoAll(Return(true)));
+    ON_CALL(mock_btm_interface_, IsDeviceBonded(_, _)).WillByDefault(DoAll(Return(true)));
 
     // Required since we call OnAudioDataReady()
     const auto codec_location = ::bluetooth::le_audio::types::CodecLocation::HOST;
@@ -1779,7 +1779,7 @@ protected:
     ON_CALL(mock_btm_interface_, BTM_IsEncrypted(address, _))
             .WillByDefault(DoAll(Return(isEncrypted)));
 
-    ON_CALL(mock_btm_interface_, IsLinkKeyKnown(address, _)).WillByDefault(DoAll(Return(true)));
+    ON_CALL(mock_btm_interface_, IsDeviceBonded(address, _)).WillByDefault(DoAll(Return(true)));
 
     EXPECT_CALL(mock_gatt_interface_, Open(gatt_if, address, BTM_BLE_DIRECT_CONNECTION, _))
             .Times(1);
@@ -5797,7 +5797,7 @@ TEST_F(UnicastTest, ConnectAfterRemove) {
           LeAudioClient::Get(), test_address0));
   SyncOnMainLoop();
 
-  ON_CALL(mock_btm_interface_, IsLinkKeyKnown(_, _)).WillByDefault(DoAll(Return(false)));
+  ON_CALL(mock_btm_interface_, IsDeviceBonded(_, _)).WillByDefault(DoAll(Return(false)));
 
   do_in_main_thread(base::BindOnce(&LeAudioClient::Connect, base::Unretained(LeAudioClient::Get()),
                                    test_address0));

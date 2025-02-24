@@ -407,8 +407,8 @@ bool BTM_IsLinkKeyAuthed(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
   return btm_sec_cb.IsLinkKeyAuthenticated(bd_addr, transport);
 }
 
-bool BTM_IsLinkKeyKnown(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
-  return btm_sec_cb.IsLinkKeyKnown(bd_addr, transport);
+bool BTM_IsBonded(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
+  return btm_sec_cb.IsDeviceBonded(bd_addr, transport);
 }
 
 bool BTM_IsAuthenticated(const RawAddress& bd_addr, tBT_TRANSPORT transport) {

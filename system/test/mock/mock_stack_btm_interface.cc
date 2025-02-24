@@ -140,7 +140,7 @@ struct btm_client_interface_t default_btm_client_interface = {
                 .BTM_SecIsLeSecurityPending = [](const RawAddress& /* bd_addr */) -> bool {
                   return false;
                 },
-                .BTM_IsLinkKeyKnown = [](const RawAddress& /* bd_addr */,
+                .BTM_IsBonded = [](const RawAddress& /* bd_addr */,
                                          tBT_TRANSPORT /* transport */) -> bool { return false; },
                 .BTM_SetSecurityLevel = [](bool /* is_originator */, const char* /*p_name */,
                                            uint8_t /* service_id */, uint16_t /* sec_level */,

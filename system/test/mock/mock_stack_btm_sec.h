@@ -111,10 +111,10 @@ struct BTM_IsLinkKeyAuthed {
 };
 extern struct BTM_IsLinkKeyAuthed BTM_IsLinkKeyAuthed;
 
-// Name: BTM_IsLinkKeyKnown
+// Name: BTM_IsBonded
 // Params: const RawAddress& bd_addr, tBT_TRANSPORT transport
 // Return: bool
-struct BTM_IsLinkKeyKnown {
+struct BTM_IsBonded {
   static bool return_value;
   std::function<bool(const RawAddress& bd_addr, tBT_TRANSPORT transport)> body{
           [](const RawAddress& /* bd_addr */, tBT_TRANSPORT /* transport */) {
@@ -124,7 +124,7 @@ struct BTM_IsLinkKeyKnown {
     return body(bd_addr, transport);
   }
 };
-extern struct BTM_IsLinkKeyKnown BTM_IsLinkKeyKnown;
+extern struct BTM_IsBonded BTM_IsBonded;
 
 // Name: BTM_PINCodeReply
 // Params: const RawAddress& bd_addr, tBTM_STATUS res, uint8_t pin_len, uint8_t*

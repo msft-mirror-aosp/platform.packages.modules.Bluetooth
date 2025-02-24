@@ -46,7 +46,7 @@ struct BTM_ConfirmReqReply BTM_ConfirmReqReply;
 struct BTM_IsAuthenticated BTM_IsAuthenticated;
 struct BTM_IsEncrypted BTM_IsEncrypted;
 struct BTM_IsLinkKeyAuthed BTM_IsLinkKeyAuthed;
-struct BTM_IsLinkKeyKnown BTM_IsLinkKeyKnown;
+struct BTM_IsBonded BTM_IsBonded;
 struct BTM_PINCodeReply BTM_PINCodeReply;
 struct BTM_PasskeyReqReply BTM_PasskeyReqReply;
 struct BTM_PeerSupportsSecureConnections BTM_PeerSupportsSecureConnections;
@@ -111,7 +111,7 @@ bool BTM_CanReadDiscoverableCharacteristics::return_value = false;
 bool BTM_IsAuthenticated::return_value = false;
 bool BTM_IsEncrypted::return_value = false;
 bool BTM_IsLinkKeyAuthed::return_value = false;
-bool BTM_IsLinkKeyKnown::return_value = false;
+bool BTM_IsBonded::return_value = false;
 bool BTM_PeerSupportsSecureConnections::return_value = false;
 tBTM_STATUS BTM_SecBond::return_value = tBTM_STATUS::BTM_SUCCESS;
 tBTM_STATUS BTM_SecBondCancel::return_value = tBTM_STATUS::BTM_SUCCESS;
@@ -155,9 +155,9 @@ bool BTM_IsLinkKeyAuthed(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
   inc_func_call_count(__func__);
   return test::mock::stack_btm_sec::BTM_IsLinkKeyAuthed(bd_addr, transport);
 }
-bool BTM_IsLinkKeyKnown(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
+bool BTM_IsBonded(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
   inc_func_call_count(__func__);
-  return test::mock::stack_btm_sec::BTM_IsLinkKeyKnown(bd_addr, transport);
+  return test::mock::stack_btm_sec::BTM_IsBonded(bd_addr, transport);
 }
 void BTM_PINCodeReply(const RawAddress& bd_addr, tBTM_STATUS res, uint8_t pin_len, uint8_t* p_pin) {
   inc_func_call_count(__func__);
