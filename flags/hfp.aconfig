@@ -138,3 +138,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "enable_battery_level_update_only_through_hf_indicator"
+    namespace: "bluetooth"
+    description: "Flag to ignore vendor specific battery level update when HF indicator support is enabled."
+    bug: "385870861"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
