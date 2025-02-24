@@ -366,6 +366,8 @@ extern tBTA_GATTC_CB bta_gattc_cb;
 /*****************************************************************************
  *  Function prototypes
  ****************************************************************************/
+void bta_gatt_client_dump(int fd);
+
 bool bta_gattc_hdl_event(const BT_HDR_RIGID* p_msg);
 bool bta_gattc_sm_execute(tBTA_GATTC_CLCB* p_clcb, uint16_t event, const tBTA_GATTC_DATA* p_data);
 
