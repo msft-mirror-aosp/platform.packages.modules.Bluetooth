@@ -25,7 +25,6 @@ import static android.bluetooth.IBluetoothLeAudio.LE_AUDIO_GROUP_ID_INVALID;
 import static com.android.bluetooth.flags.Flags.leaudioBassScanWithInternalScanController;
 import static com.android.bluetooth.flags.Flags.leaudioBigDependsOnAudioState;
 import static com.android.bluetooth.flags.Flags.leaudioBroadcastApiGetLocalMetadata;
-import static com.android.bluetooth.flags.Flags.leaudioBroadcastAssistantPeripheralEntrustment;
 import static com.android.bluetooth.flags.Flags.leaudioBroadcastPreventResumeInterruption;
 import static com.android.bluetooth.flags.Flags.leaudioBroadcastResyncHelper;
 import static com.android.bluetooth.flags.Flags.leaudioMonitorUnicastSourceWhenManagedByBroadcastDelegator;
@@ -84,12 +83,10 @@ import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 
 import java.time.Duration;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -176,7 +173,6 @@ public class BassClientService extends ProfileService {
     private final Map<BluetoothDevice, Pair<Integer, Integer>> mSinksWaitingForPast =
             new HashMap<>();
     private final Map<Integer, PauseType> mPausedBroadcastIds = new HashMap<>();
-    private final Deque<AddSourceData> mPendingAddSources = new ArrayDeque<>();
     private final Map<Integer, HashSet<BluetoothDevice>> mLocalBroadcastReceivers =
             new ConcurrentHashMap<>();
     private final BassScanCallbackWrapper mBassScanCallback = new BassScanCallbackWrapper();
@@ -3162,42 +3158,33 @@ public class BassClientService extends ProfileService {
             return;
         }
 
-        if (leaudioBroadcastAssistantPeripheralEntrustment()) {
-            if (isLocalBroadcast(sourceMetadata)) {
-                LeAudioService leAudioService = mServiceFactory.getLeAudioService();
-                if (leaudioBigDependsOnAudioState()) {
-                    if (leAudioService == null
-                            || !(leAudioService.isPaused(sourceMetadata.getBroadcastId())
-                                    || leAudioService.isPlaying(sourceMetadata.getBroadcastId()))) {
-                        Log.w(TAG, "addSource: Local source can't be add");
+        if (isLocalBroadcast(sourceMetadata)) {
+            LeAudioService leAudioService = mServiceFactory.getLeAudioService();
+            if (leaudioBigDependsOnAudioState()) {
+                if (leAudioService == null
+                        || !(leAudioService.isPaused(sourceMetadata.getBroadcastId())
+                                || leAudioService.isPlaying(sourceMetadata.getBroadcastId()))) {
+                    Log.w(TAG, "addSource: Local source can't be add");
 
-                        mCallbacks.notifySourceAddFailed(
-                                sink,
-                                sourceMetadata,
-                                BluetoothStatusCodes.ERROR_LOCAL_NOT_ENOUGH_RESOURCES);
+                    mCallbacks.notifySourceAddFailed(
+                            sink,
+                            sourceMetadata,
+                            BluetoothStatusCodes.ERROR_LOCAL_NOT_ENOUGH_RESOURCES);
 
-                        return;
-                    }
-                } else {
-                    if (leAudioService == null
-                            || !leAudioService.isPlaying(sourceMetadata.getBroadcastId())) {
-                        Log.w(TAG, "addSource: Local source can't be add");
-
-                        mCallbacks.notifySourceAddFailed(
-                                sink,
-                                sourceMetadata,
-                                BluetoothStatusCodes.ERROR_LOCAL_NOT_ENOUGH_RESOURCES);
-
-                        return;
-                    }
+                    return;
                 }
-            }
-        } else {
-            if (!isAllowedToAddSource()) {
-                Log.d(TAG, "Add source to pending list");
-                mPendingAddSources.push(new AddSourceData(sink, sourceMetadata, isGroupOp));
+            } else {
+                if (leAudioService == null
+                        || !leAudioService.isPlaying(sourceMetadata.getBroadcastId())) {
+                    Log.w(TAG, "addSource: Local source can't be add");
 
-                return;
+                    mCallbacks.notifySourceAddFailed(
+                            sink,
+                            sourceMetadata,
+                            BluetoothStatusCodes.ERROR_LOCAL_NOT_ENOUGH_RESOURCES);
+
+                    return;
+                }
             }
         }
 
@@ -3728,13 +3715,12 @@ public class BassClientService extends ProfileService {
     }
 
     /**
-     * Stops or suspends source receivers for the given broadcast ID
+     * Suspends source receivers for the given broadcast ID
      *
      * @param broadcastId The broadcast ID for which the receivers should be stopped or suspended
-     * @param store Determines whether the operation is a suspension (true) or a stop (false)
      */
-    private void stopOrSuspendSourceReceivers(int broadcastId, boolean store) {
-        log("stopSourceReceivers broadcastId: " + broadcastId + ", store: " + store);
+    private void suspendSourceReceivers(int broadcastId) {
+        log("stopSourceReceivers broadcastId: " + broadcastId);
 
         Map<BluetoothDevice, Integer> sourcesToRemove = new HashMap<>();
         HashSet<Integer> broadcastIdsToStopMonitoring = new HashSet<>();
@@ -3754,10 +3740,8 @@ public class BassClientService extends ProfileService {
                         continue;
                     }
 
-                    if (store) {
-                        sEventLogger.logd(TAG, "Add broadcast sink to paused cache: " + device);
-                        mPausedBroadcastSinks.add(device);
-                    }
+                    sEventLogger.logd(TAG, "Add broadcast sink to paused cache: " + device);
+                    mPausedBroadcastSinks.add(device);
 
                     sourcesToRemove.put(device, receiveState.getSourceId());
                 }
@@ -3779,12 +3763,8 @@ public class BassClientService extends ProfileService {
                         sourcesToRemove.put(device, receiveState.getSourceId());
                     }
 
-                    if (store) {
-                        sEventLogger.logd(TAG, "Add broadcast sink to paused cache: " + device);
-                        mPausedBroadcastSinks.add(device);
-                    } else {
-                        mPausedBroadcastSinks.remove(device);
-                    }
+                    sEventLogger.logd(TAG, "Add broadcast sink to paused cache: " + device);
+                    mPausedBroadcastSinks.add(device);
                 }
             }
         }
@@ -3803,25 +3783,6 @@ public class BassClientService extends ProfileService {
                 cancelPendingSourceOperations(broadcastId);
             }
         }
-    }
-
-    private boolean isAllowedToAddSource() {
-        /* Check if should wait for status update */
-        if (mUnicastSourceStreamStatus.isEmpty()) {
-            /* Assistant was not active, inform about activation */
-            if (!mIsAssistantActive) {
-                mIsAssistantActive = true;
-
-                LeAudioService leAudioService = mServiceFactory.getLeAudioService();
-                if (leAudioService != null) {
-                    leAudioService.activeBroadcastAssistantNotification(true);
-                }
-            }
-
-            return false;
-        }
-
-        return mUnicastSourceStreamStatus.get() == STATUS_LOCAL_STREAM_SUSPENDED;
     }
 
     /** Return true if there is any non primary device receiving broadcast */
@@ -4127,25 +4088,23 @@ public class BassClientService extends ProfileService {
     }
 
     /** Request receivers to suspend broadcast sources synchronization */
-    public void suspendReceiversSourceSynchronization(int broadcastId) {
+    @VisibleForTesting
+    void suspendReceiversSourceSynchronization(int broadcastId) {
         sEventLogger.logd(TAG, "Suspend receivers source synchronization: " + broadcastId);
-        stopOrSuspendSourceReceivers(broadcastId, /* store */ true);
+        suspendSourceReceivers(broadcastId);
     }
 
     /** Request all receivers to suspend broadcast sources synchronization */
-    public void suspendAllReceiversSourceSynchronization() {
+    @VisibleForTesting
+    void suspendAllReceiversSourceSynchronization() {
         sEventLogger.logd(TAG, "Suspend all receivers source synchronization");
-        stopOrSuspendSourceReceivers(BassConstants.INVALID_BROADCAST_ID, /* store */ true);
+        suspendSourceReceivers(BassConstants.INVALID_BROADCAST_ID);
     }
 
     /** Request receivers to stop broadcast sources synchronization and remove them */
     public void stopReceiversSourceSynchronization(int broadcastId) {
         sEventLogger.logd(TAG, "Stop receivers source synchronization: " + broadcastId);
-        if (leaudioBroadcastAssistantPeripheralEntrustment()) {
-            stopSourceReceivers(broadcastId);
-        } else {
-            stopOrSuspendSourceReceivers(broadcastId, /* store */ false);
-        }
+        stopSourceReceivers(broadcastId);
     }
 
     /** Request receivers to resume broadcast source synchronization */
@@ -4161,8 +4120,7 @@ public class BassClientService extends ProfileService {
 
             for (BluetoothLeBroadcastMetadata metadata : entry.values()) {
 
-                if (leaudioBroadcastAssistantPeripheralEntrustment()
-                        || leaudioBroadcastResyncHelper()) {
+                if (leaudioBroadcastResyncHelper()) {
                     if (metadata == null) {
                         Log.w(
                                 TAG,
@@ -4271,17 +4229,13 @@ public class BassClientService extends ProfileService {
             if ((leaudioMonitorUnicastSourceWhenManagedByBroadcastDelegator()
                             && hasPrimaryDeviceManagedExternalBroadcast())
                     || (!leaudioMonitorUnicastSourceWhenManagedByBroadcastDelegator()
-                            && areReceiversReceivingOnlyExternalBroadcast(getConnectedDevices()))) {
-                if (leaudioBroadcastAssistantPeripheralEntrustment()) {
-                    cacheSuspendingSources(BassConstants.INVALID_BROADCAST_ID);
-                    List<Pair<BluetoothLeBroadcastReceiveState, BluetoothDevice>> sourcesToStop =
-                            getReceiveStateDevicePairs(BassConstants.INVALID_BROADCAST_ID);
-                    for (Pair<BluetoothLeBroadcastReceiveState, BluetoothDevice> pair :
-                            sourcesToStop) {
-                        stopBigMonitoring(pair.first.getBroadcastId(), /* hostInitiated */ true);
-                    }
-                } else {
-                    suspendAllReceiversSourceSynchronization();
+                        && areReceiversReceivingOnlyExternalBroadcast(getConnectedDevices()))) {
+                cacheSuspendingSources(BassConstants.INVALID_BROADCAST_ID);
+                List<Pair<BluetoothLeBroadcastReceiveState, BluetoothDevice>> sourcesToStop =
+                        getReceiveStateDevicePairs(BassConstants.INVALID_BROADCAST_ID);
+                for (Pair<BluetoothLeBroadcastReceiveState, BluetoothDevice> pair :
+                        sourcesToStop) {
+                    stopBigMonitoring(pair.first.getBroadcastId(), /* hostInitiated */ true);
                 }
             }
             if (!leaudioMonitorUnicastSourceWhenManagedByBroadcastDelegator()) {
@@ -4297,18 +4251,6 @@ public class BassClientService extends ProfileService {
             /* Resume paused receivers if there are some */
             if (!mPausedBroadcastSinks.isEmpty()) {
                 resumeReceiversSourceSynchronization();
-            }
-
-            if (!leaudioBroadcastAssistantPeripheralEntrustment()) {
-                /* Add pending sources if there are some */
-                while (!mPendingAddSources.isEmpty()) {
-                    AddSourceData addSourceData = mPendingAddSources.pop();
-
-                    addSource(
-                            addSourceData.mSink,
-                            addSourceData.mSourceMetadata,
-                            addSourceData.mIsGroupOp);
-                }
             }
         } else if (status == STATUS_LOCAL_STREAM_STREAMING) {
             Log.d(TAG, "Ignore STREAMING source status");
