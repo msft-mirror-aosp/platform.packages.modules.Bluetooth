@@ -1034,7 +1034,7 @@ public final class Utils {
         if (!sIsInstrumentationTestModeCacheSet) {
             try {
                 sInstrumentationTestModeCache =
-                        Class.forName("com.android.bluetooth.FileSystemWriteTest") != null;
+                        Class.forName("com.android.bluetooth.TestUtils") != null;
             } catch (ClassNotFoundException exception) {
                 sInstrumentationTestModeCache = false;
             }

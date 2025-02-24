@@ -2,8 +2,8 @@ package {
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
-android_test {
-    name: "BluetoothJavaUnitTests",
+java_defaults {
+    name: "BluetoothInstrumentationTestsDefaults",
     defaults: [
         "bluetooth_errorprone_rules",
     ],
@@ -26,7 +26,6 @@ android_test {
     ],
 
     static_libs: [
-        "BluetoothLib",
         "PlatformProperties",
         "TestParameterInjector",
         "android.media.audio-aconfig-exported-java",
@@ -44,24 +43,20 @@ android_test {
         "framework-bluetooth-pre-jarjar",
         "gson",
         "mmslib",
-        "mockito-target-extended",
+        "mockito-target",
         "modules-utils-handlerexecutor",
         "platform-parametric-runner-lib",
         "platform-test-annotations",
         "truth",
     ],
 
-    // these are needed for Extended Mockito
-    jni_libs: [
-        "libdexmakerjvmtiagent",
-        "libstaticjvmtiagent",
-    ],
-
     jarjar_rules: ":bluetooth-jarjar-rules",
-    asset_dirs: ["src/com/android/bluetooth/btservice/storage/schemas"],
 
     // Include all test java files.
-    srcs: ["src/**/*.java"],
+    srcs: [
+        "**/*.java",
+        ":bluetooth_test_looper",
+    ],
     jacoco: {
         include_filter: ["android.bluetooth.*"],
         exclude_filter: [],
@@ -73,11 +68,18 @@ android_test {
         "mts-bluetooth",
         "mts-bt",
     ],
+
+    instrumentation_for: "Bluetooth",
 }
 
-// TODO delete this filegroup to replace by a shadow looper
-filegroup {
-    name: "bluetooth_test_looper",
-    srcs: ["src/com/android/bluetooth/TestLooper.java"],
-    visibility: ["//packages/modules/Bluetooth/android/app/tests:__subpackages__"],
+android_test {
+    name: "BluetoothInstrumentationTests",
+    defaults: ["BluetoothInstrumentationTestsDefaults"],
+}
+
+android_test {
+    name: "GoogleBluetoothInstrumentationTests",
+    defaults: ["BluetoothInstrumentationTestsDefaults"],
+    test_config: "GoogleAndroidTest.xml",
+    instrumentation_target_package: "com.google.android.bluetooth",
 }

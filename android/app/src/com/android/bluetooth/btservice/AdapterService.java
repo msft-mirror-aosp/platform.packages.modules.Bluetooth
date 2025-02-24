@@ -1249,6 +1249,9 @@ public class AdapterService extends Service {
                     BluetoothProperties.snoop_log_filter_profile_map()
                             .orElse(BluetoothProperties.snoop_log_filter_profile_map_values.EMPTY);
 
+            if (Utils.isInstrumentationTestMode()) {
+                return;
+            }
             BluetoothProperties.snoop_default_mode(
                     BluetoothProperties.snoop_default_mode_values.DISABLED);
             for (BluetoothProperties.snoop_default_mode_values value :

@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.avrcp;
 
+import static android.Manifest.permission.MEDIA_CONTENT_CONTROL;
+
 import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.mockGetSystemService;
 
@@ -82,6 +84,9 @@ public class AvrcpTargetServiceTest {
 
     @Before
     public void setUp() throws Exception {
+        InstrumentationRegistry.getInstrumentation()
+                .getUiAutomation()
+                .adoptShellPermissionIdentity(MEDIA_CONTENT_CONTROL);
         mLooper = new TestLooper();
         mLooper.startAutoDispatch();
 
@@ -109,6 +114,9 @@ public class AvrcpTargetServiceTest {
     @After
     public void tearDown() throws Exception {
         mLooper.stopAutoDispatchAndIgnoreExceptions();
+        InstrumentationRegistry.getInstrumentation()
+                .getUiAutomation()
+                .dropShellPermissionIdentity();
     }
 
     @Test

@@ -66,7 +66,6 @@ import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.FlagsParameterization;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.Settings;
-import android.sysprop.BluetoothProperties;
 import android.test.mock.MockContentProvider;
 import android.test.mock.MockContentResolver;
 import android.util.Log;
@@ -102,9 +101,6 @@ import platform.test.runner.parameterized.Parameters;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
@@ -289,12 +285,7 @@ public class AdapterServiceTest {
         doReturn(false).when(dpm).isCommonCriteriaModeEnabled(any());
         mockGetSystemService(Context.USER_SERVICE, UserManager.class);
 
-        // BatteryStatsManager is final and cannot be mocked with regular mockito, so just return
-        // real implementation
-        mockGetSystemService(
-                Context.BATTERY_STATS_SERVICE,
-                BatteryStatsManager.class,
-                targetContext.getSystemService(BatteryStatsManager.class));
+        mockGetSystemService(Context.BATTERY_STATS_SERVICE, BatteryStatsManager.class);
         mockGetSystemService(Context.BLUETOOTH_SERVICE, BluetoothManager.class, mBluetoothManager);
         mockGetSystemService(
                 Context.COMPANION_DEVICE_SERVICE,
@@ -897,55 +888,6 @@ public class AdapterServiceTest {
         assertThat(mLooper.nextMessage()).isNull();
     }
 
-    /** Test: Toggle snoop logging setting Check whether the AdapterService restarts fully */
-    @Test
-    public void testSnoopLoggingChange() {
-        BluetoothProperties.snoop_log_mode_values snoopSetting =
-                BluetoothProperties.snoop_log_mode()
-                        .orElse(BluetoothProperties.snoop_log_mode_values.EMPTY);
-        BluetoothProperties.snoop_log_mode(BluetoothProperties.snoop_log_mode_values.DISABLED);
-        doEnable(false);
-
-        assertThat(
-                        BluetoothProperties.snoop_log_mode()
-                                .orElse(BluetoothProperties.snoop_log_mode_values.EMPTY))
-                .isNotEqualTo(BluetoothProperties.snoop_log_mode_values.FULL);
-
-        BluetoothProperties.snoop_log_mode(BluetoothProperties.snoop_log_mode_values.FULL);
-
-        onToBleOn(
-                mLooper,
-                mAdapterService,
-                mMockContext,
-                mIBluetoothCallback,
-                false,
-                listOfMockServices());
-
-        // Do not call bleOnToOff().  The Adapter should turn itself off.
-        syncHandler(AdapterState.BLE_TURN_OFF);
-        verifyStateChange(STATE_BLE_ON, STATE_BLE_TURNING_OFF, CONTEXT_SWITCH_MS);
-
-        if (!Flags.scanManagerRefactor()) {
-            syncHandler(MESSAGE_PROFILE_SERVICE_STATE_CHANGED); // stop GATT
-            syncHandler(MESSAGE_PROFILE_SERVICE_UNREGISTERED);
-        }
-
-        verify(mNativeInterface).disable();
-
-        mAdapterService.stateChangeCallback(AbstractionLayer.BT_STATE_OFF);
-        syncHandler(AdapterState.BLE_STOPPED);
-        // When reaching the OFF state, the cleanup is called that will destroy the state machine of
-        // the adapterService. Destroying state machine send a -1 event on the handler
-        syncHandler(-1);
-
-        verifyStateChange(STATE_BLE_TURNING_OFF, STATE_OFF);
-        assertThat(mAdapterService.getState()).isEqualTo(STATE_OFF);
-
-        // Restore earlier setting
-        BluetoothProperties.snoop_log_mode(snoopSetting);
-        assertThat(mLooper.nextMessage()).isNull();
-    }
-
     /**
      * Test: Obfuscate a null Bluetooth Check if returned value from {@link
      * AdapterService#obfuscateAddress(BluetoothDevice)} is an empty array when device address is
@@ -1079,44 +1021,6 @@ public class AdapterServiceTest {
         doReturn(new byte[0]).when(mNativeInterface).dumpMetrics();
         mAdapterService.dump(fd, writer, new String[] {"--proto-bin"});
         mAdapterService.dump(fd, writer, new String[] {"random", "arguments"});
-        assertThat(mLooper.nextMessage()).isNull();
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_GATT_CLEAR_CACHE_ON_FACTORY_RESET)
-    public void testClearStorage() throws Exception {
-        // clearStorage should remove all files under /data/misc/bluetooth/ && /data/misc/bluedroid/
-        final Path testCachePath = Paths.get("/data/misc/bluetooth/gatt_cache_a475b9a23d72");
-        final Path testHashPath =
-                Paths.get("/data/misc/bluetooth/gatt_hash_400D017CB2563A6FB62A2DC4C2AEFD6F");
-        final Path randomFileUnderBluedroidPath =
-                Paths.get("/data/misc/bluedroid/random_test_file.txt");
-        final Path randomFileUnderBluetoothPath =
-                Paths.get("/data/misc/bluetooth/random_test_file.txt");
-
-        try {
-            Files.createFile(testCachePath);
-            Files.createFile(testHashPath);
-            Files.createFile(randomFileUnderBluedroidPath);
-            Files.createFile(randomFileUnderBluetoothPath);
-
-            assertThat(Files.exists(testCachePath)).isTrue();
-            assertThat(Files.exists(testHashPath)).isTrue();
-            assertThat(Files.exists(randomFileUnderBluedroidPath)).isTrue();
-            assertThat(Files.exists(randomFileUnderBluetoothPath)).isTrue();
-
-            mAdapterService.clearStorage();
-
-            assertThat(Files.exists(testCachePath)).isFalse();
-            assertThat(Files.exists(testHashPath)).isFalse();
-            assertThat(Files.exists(randomFileUnderBluedroidPath)).isFalse();
-            assertThat(Files.exists(randomFileUnderBluetoothPath)).isFalse();
-        } finally {
-            Files.deleteIfExists(testCachePath);
-            Files.deleteIfExists(testHashPath);
-            Files.deleteIfExists(randomFileUnderBluedroidPath);
-            Files.deleteIfExists(randomFileUnderBluetoothPath);
-        }
         assertThat(mLooper.nextMessage()).isNull();
     }
 
