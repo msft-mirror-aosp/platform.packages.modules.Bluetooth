@@ -30,3 +30,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "indicate_rfcomm_connection_complete_after_msc"
+    namespace: "bluetooth"
+    description: "Indicate RFCOMM connection complete after sending Modem Status Command"
+    bug: "393594567"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
