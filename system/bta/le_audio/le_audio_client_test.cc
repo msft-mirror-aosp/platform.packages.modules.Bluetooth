@@ -1291,6 +1291,18 @@ protected:
               }
 
               group->SetState(types::AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING);
+              // Set streaming metadata
+              for (LeAudioDevice* device = group->GetFirstActiveDevice(); device != nullptr;
+                   device = group->GetNextActiveDevice(device)) {
+                for (auto& ase : device->ases_) {
+                  if (!ase.active) {
+                    continue;
+                  }
+                  group->SetStreamingMetadataContexts(metadata_context_types.get(ase.direction),
+                                                      ase.direction);
+                }
+              }
+
               do_in_main_thread(base::BindOnce(
                       [](int group_id, bluetooth::le_audio::LeAudioGroupStateMachine::Callbacks*
                                                state_machine_callbacks) {
@@ -1313,6 +1325,7 @@ protected:
 
       // Inject the state
       group->SetTargetState(types::AseState::BTA_LE_AUDIO_ASE_STATE_QOS_CONFIGURED);
+      group->ClearStreamingMetadataContexts();
       group->SetState(group->GetTargetState());
       state_machine_callbacks_->StatusReportCb(group->group_id_, GroupStreamStatus::SUSPENDED);
     });
@@ -1483,6 +1496,7 @@ protected:
                   stream_conf->stream_params.source.stream_config.stream_map.end());
         }
 
+        group->ClearStreamingMetadataContexts();
         for (auto& ase : device->ases_) {
           group->cig.UnassignCis(device, ase.cis_conn_hdl);
 
@@ -9380,6 +9394,67 @@ TEST_F(UnicastTest, TwoEarbuds2ndLateConnect) {
   LocalAudioSourceResume();
 
   TestAudioDataTransfer(group_id, cis_count_out, cis_count_in, 1920);
+}
+
+TEST_F(UnicastTest, TestStreamingContextTypeBehaviour) {
+  uint8_t group_size = 2;
+  int group_id = 2;
+  int conn_id_1 = 1;
+  int conn_id_2 = 2;
+
+  /* Scenario
+   * 1. Connect Set of devices with all the context types available
+   * 2. Create stream for Media
+   * 3. Remote devices removes all the Available Contexts but UNSPECIFIED
+   * 4. Verify GetAvailableContexts() returns accepted MEDIA and UNSPECIFIED
+   */
+
+  // Report working CSIS
+  ON_CALL(mock_csis_client_module_, IsCsisClientRunning()).WillByDefault(Return(true));
+
+  ON_CALL(mock_csis_client_module_, GetDesiredSize(group_id))
+          .WillByDefault(Invoke([&](int /*group_id*/) { return group_size; }));
+
+  const RawAddress test_address0 = GetTestAddress(0);
+  const RawAddress test_address1 = GetTestAddress(1);
+
+  // First earbud connects
+  ConnectCsisDevice(test_address0, conn_id_1, codec_spec_conf::kLeAudioLocationFrontLeft,
+                    codec_spec_conf::kLeAudioLocationFrontLeft, group_size, group_id, 1 /* rank*/);
+
+  // Second earbud connects
+  ConnectCsisDevice(test_address1, conn_id_2, codec_spec_conf::kLeAudioLocationFrontRight,
+                    codec_spec_conf::kLeAudioLocationFrontRight, group_size, group_id, 2 /* rank*/,
+                    true /*connect_through_csis*/);
+
+  // Start streaming
+  EXPECT_CALL(*mock_le_audio_source_hal_client_, Start(_, _, _)).Times(1);
+  EXPECT_CALL(*mock_le_audio_sink_hal_client_, Start(_, _, _)).Times(1);
+  LeAudioClient::Get()->GroupSetActive(group_id);
+  SyncOnMainLoop();
+
+  EXPECT_CALL(mock_state_machine_, StartStream(_, _, _, _)).Times(1);
+  StartStreaming(AUDIO_USAGE_MEDIA, AUDIO_CONTENT_TYPE_MUSIC, group_id);
+  SyncOnMainLoop();
+  Mock::VerifyAndClearExpectations(&mock_state_machine_);
+
+  auto group = streaming_groups.at(group_id);
+
+  /* Simulate available context type being cleared */
+  InjectAvailableContextTypes(test_address0, conn_id_1,
+                              types::AudioContexts(LeAudioContextType::UNSPECIFIED),
+                              types::AudioContexts(LeAudioContextType::UNSPECIFIED));
+  InjectAvailableContextTypes(test_address1, conn_id_2,
+                              types::AudioContexts(LeAudioContextType::UNSPECIFIED),
+                              types::AudioContexts(LeAudioContextType::UNSPECIFIED));
+
+  auto remote_sink_contexts =
+          group->GetAvailableContexts(bluetooth::le_audio::types::kLeAudioDirectionSink);
+  auto remote_source_contexts =
+          group->GetAvailableContexts(bluetooth::le_audio::types::kLeAudioDirectionSource);
+  ASSERT_EQ(remote_sink_contexts,
+            types::AudioContexts(LeAudioContextType::MEDIA | LeAudioContextType::UNSPECIFIED));
+  ASSERT_EQ(remote_source_contexts, types::AudioContexts(LeAudioContextType::UNSPECIFIED));
 }
 
 TEST_F(UnicastTest, LateStreamConnectBasedOnContextType) {

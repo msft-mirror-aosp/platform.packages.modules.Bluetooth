@@ -815,13 +815,6 @@ uint16_t LeAudioDeviceGroup::GetRemoteDelay(uint8_t direction) const {
   return remote_delay_ms;
 }
 
-bool LeAudioDeviceGroup::UpdateAudioContextAvailability(void) {
-  log::debug("{}", group_id_);
-  auto old_contexts = GetAvailableContexts();
-  SetAvailableContexts(GetLatestAvailableContexts());
-  return old_contexts != GetAvailableContexts();
-}
-
 CodecManager::UnicastConfigurationRequirements
 LeAudioDeviceGroup::GetAudioSetConfigurationRequirements(types::LeAudioContextType ctx_type) const {
   auto new_req = CodecManager::UnicastConfigurationRequirements{
