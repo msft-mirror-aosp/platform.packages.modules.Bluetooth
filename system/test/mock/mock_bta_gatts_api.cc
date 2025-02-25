@@ -65,9 +65,4 @@ void BTA_GATTS_SendRsp(uint16_t /* conn_id */, uint32_t /* trans_id */, tGATT_ST
   inc_func_call_count(__func__);
 }
 void BTA_GATTS_StopService(uint16_t /* service_id */) { inc_func_call_count(__func__); }
-void bta_gatts_add_service_impl(tGATT_IF /* server_if */,
-                                std::vector<btgatt_db_element_t> /* service */,
-                                BTA_GATTS_AddServiceCb /* cb */) {
-  inc_func_call_count(__func__);
-}
 void BTA_GATTS_InitBonded(void) { inc_func_call_count(__func__); }

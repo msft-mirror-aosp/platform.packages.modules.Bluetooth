@@ -32,9 +32,6 @@
 #include "le_audio_types.h"
 #include "stack/include/bt_types.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using bluetooth::le_audio::types::hdl_pair;
 
 namespace bluetooth::le_audio {
@@ -68,8 +65,8 @@ static constexpr size_t LEAUDIO_STORAGE_HANDLES_ENTRIES_SZ =
         sizeof(uint16_t) /*ccc handle*/ + sizeof(uint16_t) /*available context type handle*/ +
         sizeof(uint16_t) /*ccc handle*/ + sizeof(uint16_t) /* tmas handle */;
 
-bool serializePacs(const bluetooth::le_audio::types::PublishedAudioCapabilities& pacs,
-                   std::vector<uint8_t>& out) {
+static bool serializePacs(const bluetooth::le_audio::types::PublishedAudioCapabilities& pacs,
+                          std::vector<uint8_t>& out) {
   auto num_of_pacs = pacs.size();
   if (num_of_pacs == 0 || (num_of_pacs > std::numeric_limits<uint8_t>::max())) {
     log::warn("No pacs available");
@@ -162,8 +159,9 @@ bool SerializeSourcePacs(const bluetooth::le_audio::LeAudioDevice* leAudioDevice
   return serializePacs(leAudioDevice->src_pacs_, out);
 }
 
-bool deserializePacs(LeAudioDevice* leAudioDevice, types::PublishedAudioCapabilities& pacs_db,
-                     const std::vector<uint8_t>& in) {
+static bool deserializePacs(LeAudioDevice* leAudioDevice,
+                            types::PublishedAudioCapabilities& pacs_db,
+                            const std::vector<uint8_t>& in) {
   if (in.size() < LEAUDIO_STORAGE_HEADER_WITH_ENTRIES_SZ + LEAUDIO_PACS_ENTRY_SZ) {
     log::warn("There is not single PACS stored");
     return false;
