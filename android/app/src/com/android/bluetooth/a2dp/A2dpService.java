@@ -1166,9 +1166,14 @@ public class A2dpService extends ProfileService {
         if (bondState != BluetoothDevice.BOND_NONE) {
             return;
         }
+        if (mFactory.getAvrcpTargetService() != null) {
+            Log.d(TAG, "bondStateChanged: going for removeStoredVolumeForDevice");
+            mFactory.getAvrcpTargetService().removeStoredVolumeForDevice(device);
+        }
         synchronized (mStateMachines) {
             A2dpStateMachine sm = mStateMachines.get(device);
             if (sm == null) {
+                Log.d(TAG, "bondStateChanged: SM is null, return ");
                 return;
             }
 
@@ -1177,11 +1182,9 @@ public class A2dpService extends ProfileService {
             // native stack would get ignored. So the state machine must be removed right away.
             if (!Flags.a2dpCleanupOnRemoveDevice()
                     && sm.getConnectionState() != BluetoothProfile.STATE_DISCONNECTED) {
+                Log.d(TAG, "bondStateChanged: not in STATE_DISCONNECTED, return ");
                 return;
             }
-        }
-        if (mFactory.getAvrcpTargetService() != null) {
-            mFactory.getAvrcpTargetService().removeStoredVolumeForDevice(device);
         }
         removeStateMachine(device);
     }
