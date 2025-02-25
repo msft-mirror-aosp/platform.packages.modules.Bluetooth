@@ -316,5 +316,43 @@ void LogMetricLeConnectionRejected(hci::Address address);
 
 bool CountCounterMetrics(int32_t key, int64_t count);
 
+/**
+ * Logs the AG version in a HFP session
+ * @param address of a device
+ * @param version AG HFP version
+ */
+void LogMetricHfpAgVersion(hci::Address address, uint16_t version);
+
+/**
+ * Logs the HF version in a HFP session
+ * @param address of a device
+ * @param version HF HFP Version
+ */
+void LogMetricHfpHfVersion(hci::Address address, uint16_t version);
+
+/**
+ * Logs a RFCOMM channel failure in a HFP session
+ * @param address of a device
+ */
+void LogMetricHfpRfcommChannelFail(hci::Address address);
+
+/**
+ * Logs a RFCOMM collision failure in a HFP session
+ * @param address of a device
+ */
+void LogMetricHfpRfcommCollisionFail(hci::Address address);
+
+/**
+ * Logs a RFCOMM AG open failure in a HFP session
+ * @param address of a device
+ */
+void LogMetricHfpRfcommAgOpenFail(hci::Address address);
+
+/**
+ * Logs a SLC failure in a HFP Session
+ * @param address of a device
+ */
+void LogMetricHfpSlcFail(hci::Address address);
+
 }  // namespace shim
 }  // namespace bluetooth

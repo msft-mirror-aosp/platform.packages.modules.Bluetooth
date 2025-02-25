@@ -255,6 +255,50 @@ struct log_le_connection_rejected {
 
 extern struct log_le_connection_rejected log_le_connection_rejected;
 
+// Name: log_hfp_ag_version
+struct log_hfp_ag_version {
+  std::function<void(bluetooth::hci::Address, uint16_t)> body{
+          [](bluetooth::hci::Address /* address */, uint16_t /* version */) {}};
+  void operator()(bluetooth::hci::Address address, uint16_t version) { body(address, version); }
+};
+extern struct log_hfp_ag_version log_hfp_ag_version;
+
+// Name: log_hfp_hf_version
+struct log_hfp_hf_version {
+  std::function<void(bluetooth::hci::Address, uint16_t)> body{
+          [](bluetooth::hci::Address /* address */, uint16_t /* version */) {}};
+  void operator()(bluetooth::hci::Address address, uint16_t version) { body(address, version); }
+};
+extern struct log_hfp_hf_version log_hfp_hf_version;
+
+// Name: log_hfp_rfcomm_channel_fail
+struct log_hfp_rfcomm_channel_fail {
+  std::function<void(bluetooth::hci::Address)> body{[](bluetooth::hci::Address /* address */) {}};
+  void operator()(bluetooth::hci::Address address) { body(address); }
+};
+extern struct log_hfp_rfcomm_channel_fail log_hfp_rfcomm_channel_fail;
+
+// Name: log_hfp_rfcomm_collision_fail
+struct log_hfp_rfcomm_collision_fail {
+  std::function<void(bluetooth::hci::Address)> body{[](bluetooth::hci::Address /* address */) {}};
+  void operator()(bluetooth::hci::Address address) { body(address); }
+};
+extern struct log_hfp_rfcomm_collision_fail log_hfp_rfcomm_collision_fail;
+
+// Name: log_hfp_rfcomm_ag_open_fail
+struct log_hfp_rfcomm_ag_open_fail {
+  std::function<void(bluetooth::hci::Address)> body{[](bluetooth::hci::Address /* address */) {}};
+  void operator()(bluetooth::hci::Address address) { body(address); }
+};
+extern struct log_hfp_rfcomm_ag_open_fail log_hfp_rfcomm_ag_open_fail;
+
+// Name: log_hfp_slc_fail
+struct log_hfp_slc_fail {
+  std::function<void(bluetooth::hci::Address)> body{[](bluetooth::hci::Address /* address */) {}};
+  void operator()(bluetooth::hci::Address address) { body(address); }
+};
+extern struct log_hfp_slc_fail log_hfp_slc_fail;
+
 }  // namespace stack_metrics_logging
 }  // namespace mock
 }  // namespace test

@@ -413,6 +413,67 @@ struct LogMetricLeConnectionRejected {
   void operator()(bluetooth::hci::Address address) { body(address); }
 };
 extern struct LogMetricLeConnectionRejected LogMetricLeConnectionRejected;
+
+// Name: LogMetricHfpAgVersion
+// Params: bluetooth::hci::Address, uint16_t version
+// Returns: void
+struct LogMetricHfpAgVersion {
+  std::function<void(bluetooth::hci::Address address, uint16_t version)> body{
+          [](bluetooth::hci::Address /* address */, uint16_t /* version */) {}};
+  void operator()(bluetooth::hci::Address address, uint16_t version) { body(address, version); }
+};
+extern struct LogMetricHfpAgVersion LogMetricHfpAgVersion;
+
+// Name: LogMetricHfpHfVersion
+// Params: bluetooth::hci::Address, uint16_t version
+// Returns: void
+struct LogMetricHfpHfVersion {
+  std::function<void(bluetooth::hci::Address address, uint16_t version)> body{
+          [](bluetooth::hci::Address /* address */, uint16_t /* version */) {}};
+  void operator()(bluetooth::hci::Address address, uint16_t version) { body(address, version); }
+};
+extern struct LogMetricHfpHfVersion LogMetricHfpHfVersion;
+
+// Name: LogMetricHfpRfcommChannelFail
+// Params: bluetooth::hci::Address
+// Returns: void
+struct LogMetricHfpRfcommChannelFail {
+  std::function<void(bluetooth::hci::Address address)> body{
+          [](bluetooth::hci::Address /* address */) {}};
+  void operator()(bluetooth::hci::Address address) { body(address); }
+};
+extern struct LogMetricHfpRfcommChannelFail LogMetricHfpRfcommChannelFail;
+
+// Name: LogMetricHfpRfcommCollisionFail
+// Params: bluetooth::hci::Address
+// Returns: void
+struct LogMetricHfpRfcommCollisionFail {
+  std::function<void(bluetooth::hci::Address address)> body{
+          [](bluetooth::hci::Address /* address */) {}};
+  void operator()(bluetooth::hci::Address address) { body(address); }
+};
+extern struct LogMetricHfpRfcommCollisionFail LogMetricHfpRfcommCollisionFail;
+
+// Name: LogMetricHfpRfcommAgOpenFail
+// Params: bluetooth::hci::Address
+// Returns: void
+struct LogMetricHfpRfcommAgOpenFail {
+  std::function<void(bluetooth::hci::Address address)> body{
+          [](bluetooth::hci::Address /* address */) {}};
+  void operator()(bluetooth::hci::Address address) { body(address); }
+};
+extern struct LogMetricHfpRfcommAgOpenFail LogMetricHfpRfcommAgOpenFail;
+
+// Name: LogMetricHfpSlcFail
+// Params: bluetooth::hci::Address
+// Returns: void
+struct LogMetricHfpSlcFail {
+  std::function<void(bluetooth::hci::Address address)> body{
+          [](bluetooth::hci::Address /* address */) {}};
+  void operator()(bluetooth::hci::Address address) { body(address); }
+};
+extern struct LogMetricHfpSlcFail LogMetricHfpSlcFail;
+
 }  // namespace main_shim_metrics_api
 }  // namespace mock
 }  // namespace test
