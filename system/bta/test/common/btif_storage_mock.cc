@@ -19,8 +19,8 @@
 
 #include <bluetooth/log.h>
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+#include "btif/include/btif_profile_storage.h"
+#include "btif/include/btif_storage.h"
 
 using namespace bluetooth;
 
