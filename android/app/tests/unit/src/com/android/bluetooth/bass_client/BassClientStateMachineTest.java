@@ -104,6 +104,7 @@ import com.android.bluetooth.btservice.MetricsLogger;
 import com.android.bluetooth.flags.Flags;
 
 import com.google.common.primitives.Bytes;
+import com.google.common.util.concurrent.Uninterruptibles;
 
 import org.hamcrest.Matcher;
 import org.hamcrest.core.AllOf;
@@ -213,6 +214,7 @@ public class BassClientStateMachineTest {
         MetricsLogger.setInstanceForTesting(null);
         mBassClientStateMachine.doQuit();
         mHandlerThread.quit();
+        Uninterruptibles.joinUninterruptibly(mHandlerThread);
         TestUtils.clearAdapterService(mAdapterService);
     }
 
