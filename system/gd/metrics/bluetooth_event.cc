@@ -20,9 +20,6 @@
 #include "main/shim/helpers.h"
 #include "os/metrics.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 namespace bluetooth {
 namespace metrics {
 
@@ -169,7 +166,7 @@ State MapErrorCodeToState(ErrorCode reason) {
   }
 }
 
-State MapHCIStatusToState(tHCI_STATUS status) {
+static State MapHCIStatusToState(tHCI_STATUS status) {
   switch (status) {
     case tHCI_STATUS::HCI_SUCCESS:
       return State::SUCCESS;
@@ -260,7 +257,7 @@ State MapHCIStatusToState(tHCI_STATUS status) {
   }
 }
 
-State MapSmpStatusCodeToState(tSMP_STATUS status) {
+static State MapSmpStatusCodeToState(tSMP_STATUS status) {
   switch (status) {
     case tSMP_STATUS::SMP_SUCCESS:
       return State::SUCCESS;
