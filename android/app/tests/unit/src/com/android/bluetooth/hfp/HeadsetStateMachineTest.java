@@ -69,6 +69,8 @@ import com.android.bluetooth.btservice.SilenceDeviceManager;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
 import com.android.bluetooth.flags.Flags;
 
+import com.google.common.util.concurrent.Uninterruptibles;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -176,6 +178,7 @@ public class HeadsetStateMachineTest {
     public void tearDown() throws Exception {
         HeadsetObjectsFactory.getInstance().destroyStateMachine(mHeadsetStateMachine);
         mHandlerThread.quit();
+        Uninterruptibles.joinUninterruptibly(mHandlerThread);
         InstrumentationRegistry.getInstrumentation()
                 .getUiAutomation()
                 .dropShellPermissionIdentity();

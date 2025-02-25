@@ -68,6 +68,8 @@ import com.android.internal.util.IState;
 import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
 
+import com.google.common.util.concurrent.Uninterruptibles;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -116,20 +118,24 @@ class PbapClientStateMachineOld extends StateMachine {
     private PbapClientConnectionHandler mConnectionHandler;
     private HandlerThread mHandlerThread = null;
     private UserManager mUserManager = null;
+    private final HandlerThread mSmHandlerThread;
 
     // mMostRecentState maintains previous state for broadcasting transitions.
     private int mMostRecentState = BluetoothProfile.STATE_DISCONNECTED;
 
-    PbapClientStateMachineOld(PbapClientService svc, BluetoothDevice device) {
-        this(svc, device, null);
+    PbapClientStateMachineOld(
+            PbapClientService svc, BluetoothDevice device, HandlerThread handlerThread) {
+        this(svc, device, null, handlerThread);
     }
 
     @VisibleForTesting
     PbapClientStateMachineOld(
             PbapClientService svc,
             BluetoothDevice device,
-            PbapClientConnectionHandler connectionHandler) {
-        super(TAG);
+            PbapClientConnectionHandler connectionHandler,
+            HandlerThread handlerThread) {
+        super(TAG, handlerThread.getLooper());
+        mSmHandlerThread = handlerThread;
 
         if (Flags.pbapClientStorageRefactor()) {
             Log.w(TAG, "This object is no longer used in this configuration");
@@ -436,8 +442,11 @@ class PbapClientStateMachineOld extends StateMachine {
         HandlerThread handlerThread = mHandlerThread;
         if (handlerThread != null) {
             handlerThread.quitSafely();
+            Uninterruptibles.joinUninterruptibly(handlerThread);
             mHandlerThread = null;
         }
+        mSmHandlerThread.quitSafely();
+        Uninterruptibles.joinUninterruptibly(mSmHandlerThread);
         quitNow();
     }
 
@@ -496,7 +505,7 @@ class PbapClientStateMachineOld extends StateMachine {
          * Disconnected is the only state where device can change, and to prevent the race
          * condition of reporting a valid device while disconnected fix the report here.  Note that
          * Synchronization of the state and device is not possible with current state machine
-         * desingn since the actual Transition happens sometime after the transitionTo method.
+         * design since the actual Transition happens sometime after the transitionTo method.
          */
         if (getCurrentState() instanceof Disconnected) {
             return null;
