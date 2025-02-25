@@ -221,7 +221,7 @@ android_library {
         "bluetooth_flags_java_lib",
         "error_prone_annotations",
         "framework-annotations-lib",
-        "framework-bluetooth-pre-jarjar",
+        "framework-bluetooth.impl",
         "framework-configinfrastructure.stubs.module_lib",
         "framework-connectivity-t.stubs.module_lib",
         "framework-connectivity.stubs.module_lib",
@@ -341,7 +341,7 @@ android_app {
         enabled: true,
         shrink: true,
         optimize: false,
-        // ignore_warnings: false, // TODO: b/191783947 -- re-activate error
+        ignore_warnings: false,
         proguard_flags_files: ["proguard.flags"],
     },
 
