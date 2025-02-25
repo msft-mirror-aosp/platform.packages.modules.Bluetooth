@@ -197,6 +197,7 @@ public class PanService extends ProfileService {
             }
         }
         mPanDevices.clear();
+        mHandler.removeCallbacksAndMessages(null);
     }
 
     private final Handler mHandler =
