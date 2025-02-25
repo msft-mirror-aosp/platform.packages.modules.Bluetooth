@@ -30,9 +30,6 @@
 #include "osi/include/fixed_queue.h"
 #include "osi/include/thread.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using ::benchmark::State;
 using bluetooth::common::MessageLoopThread;
 
@@ -41,7 +38,7 @@ using bluetooth::common::MessageLoopThread;
 static std::atomic<int> g_counter = 0;
 static std::unique_ptr<std::promise<void>> g_counter_promise = nullptr;
 
-void pthread_callback_batch(void* context) {
+static void pthread_callback_batch(void* context) {
   auto queue = static_cast<fixed_queue_t*>(context);
   bluetooth::log::assert_that(queue != nullptr, "assert failed: queue != nullptr");
   fixed_queue_dequeue(queue);
@@ -51,15 +48,15 @@ void pthread_callback_batch(void* context) {
   }
 }
 
-void callback_sequential(void* /* context */) { g_counter_promise->set_value(); }
+static void callback_sequential(void* /* context */) { g_counter_promise->set_value(); }
 
-void callback_sequential_queue(fixed_queue_t* queue, void* /* context */) {
+static void callback_sequential_queue(fixed_queue_t* queue, void* /* context */) {
   bluetooth::log::assert_that(queue != nullptr, "assert failed: queue != nullptr");
   fixed_queue_dequeue(queue);
   g_counter_promise->set_value();
 }
 
-void callback_batch(fixed_queue_t* queue, void* /* data */) {
+static void callback_batch(fixed_queue_t* queue, void* /* data */) {
   bluetooth::log::assert_that(queue != nullptr, "assert failed: queue != nullptr");
   fixed_queue_dequeue(queue);
   g_counter++;
