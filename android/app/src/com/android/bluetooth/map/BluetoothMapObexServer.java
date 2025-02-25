@@ -221,7 +221,7 @@ public class BluetoothMapObexServer extends ServerRequestHandler {
     }
 
     /** Add base (Inbox/Outbox/Sent/Deleted) */
-    private void addBaseFolders(BluetoothMapFolderElement root) {
+    private static void addBaseFolders(BluetoothMapFolderElement root) {
         root.addFolder(BluetoothMapContract.FOLDER_NAME_INBOX); // root/telecom/msg/inbox
         root.addFolder(BluetoothMapContract.FOLDER_NAME_OUTBOX);
         root.addFolder(BluetoothMapContract.FOLDER_NAME_SENT);
@@ -229,7 +229,7 @@ public class BluetoothMapObexServer extends ServerRequestHandler {
     }
 
     /** Add SMS / MMS Base folders */
-    private void addSmsMmsFolders(BluetoothMapFolderElement root) {
+    private static void addSmsMmsFolders(BluetoothMapFolderElement root) {
         root.addSmsMmsFolder(BluetoothMapContract.FOLDER_NAME_INBOX); // root/telecom/msg/inbox
         root.addSmsMmsFolder(BluetoothMapContract.FOLDER_NAME_OUTBOX);
         root.addSmsMmsFolder(BluetoothMapContract.FOLDER_NAME_SENT);
@@ -237,7 +237,7 @@ public class BluetoothMapObexServer extends ServerRequestHandler {
         root.addSmsMmsFolder(BluetoothMapContract.FOLDER_NAME_DRAFT);
     }
 
-    private void addImFolders(BluetoothMapFolderElement root) throws RemoteException {
+    private static void addImFolders(BluetoothMapFolderElement root) throws RemoteException {
         // Select all parent folders
         root.addImFolder(
                 BluetoothMapContract.FOLDER_NAME_INBOX,

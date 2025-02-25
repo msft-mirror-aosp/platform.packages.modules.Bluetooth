@@ -113,7 +113,7 @@ class VendorCommandResponseProcessor {
         return true;
     }
 
-    private String getVendorIdFromAtCommand(String atString) {
+    private static String getVendorIdFromAtCommand(String atString) {
         // Get event code
         int indexOfEqual = atString.indexOf('=');
         int indexOfColon = atString.indexOf(':');

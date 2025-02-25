@@ -775,14 +775,14 @@ public final class BluetoothHearingAid implements BluetoothProfile {
         return false;
     }
 
-    private void verifyDeviceNotNull(BluetoothDevice device, String methodName) {
+    private static void verifyDeviceNotNull(BluetoothDevice device, String methodName) {
         if (device == null) {
             Log.e(TAG, methodName + ": device param is null");
             throw new IllegalArgumentException("Device cannot be null");
         }
     }
 
-    private boolean isValidDevice(BluetoothDevice device) {
+    private static boolean isValidDevice(BluetoothDevice device) {
         if (device == null) return false;
 
         if (BluetoothAdapter.checkBluetoothAddress(device.getAddress())) return true;

@@ -59,7 +59,7 @@ public class HfpClientConnectionService extends ConnectionService {
     private static final Object INSTANCE_LOCK = new Object();
     private static HfpClientConnectionService sHfpClientConnectionService;
 
-    private void setInstance(HfpClientConnectionService instance) {
+    private static void setInstance(HfpClientConnectionService instance) {
         synchronized (INSTANCE_LOCK) {
             sHfpClientConnectionService = instance;
         }

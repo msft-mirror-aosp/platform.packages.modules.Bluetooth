@@ -1233,7 +1233,7 @@ public class BassClientServiceTest {
                 .isEqualTo(TEST_BROADCAST_ID);
     }
 
-    private byte[] getScanRecord(int broadcastId) {
+    private static byte[] getScanRecord(int broadcastId) {
         return new byte[] {
             0x02,
             0x01,
@@ -1318,7 +1318,7 @@ public class BassClientServiceTest {
         generateScanResult(scanResult);
     }
 
-    private byte[] getPAScanRecord() {
+    private static byte[] getPAScanRecord() {
         return new byte[] {
             (byte) 0x02,
             (byte) 0x01,
@@ -1442,7 +1442,7 @@ public class BassClientServiceTest {
         }
     }
 
-    private BluetoothLeBroadcastReceiveState injectRemoteSourceState(
+    private static BluetoothLeBroadcastReceiveState injectRemoteSourceState(
             BassClientStateMachine sm,
             BluetoothLeBroadcastMetadata meta,
             int sourceId,

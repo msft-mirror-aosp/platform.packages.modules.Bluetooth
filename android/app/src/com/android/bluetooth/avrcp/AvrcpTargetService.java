@@ -294,7 +294,7 @@ public class AvrcpTargetService extends ProfileService {
      * <p>This will be called by the native stack when a play event is received from a remote
      * device. See packages/modules/Bluetooth/system/profile/avrcp/device.cc.
      */
-    private void setA2dpActiveDevice(@NonNull BluetoothDevice device) {
+    private static void setA2dpActiveDevice(@NonNull BluetoothDevice device) {
         A2dpService service = A2dpService.getA2dpService();
         if (service == null) {
             Log.d(TAG, "setA2dpActiveDevice: A2dp service not found");

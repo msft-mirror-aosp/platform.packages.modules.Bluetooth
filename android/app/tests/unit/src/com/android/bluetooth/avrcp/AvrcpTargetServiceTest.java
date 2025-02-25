@@ -151,7 +151,7 @@ public class AvrcpTargetServiceTest {
         assertThat(AvrcpTargetService.isQueueUpdated(firstQueue, secondQueue)).isTrue();
     }
 
-    private Metadata createEmptyMetadata() {
+    private static Metadata createEmptyMetadata() {
         Metadata.Builder builder = new Metadata.Builder();
         return builder.useDefaults().build();
     }

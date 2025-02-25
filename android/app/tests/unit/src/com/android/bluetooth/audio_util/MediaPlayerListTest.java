@@ -131,7 +131,7 @@ public class MediaPlayerListTest {
                 .dropShellPermissionIdentity();
     }
 
-    private MediaData prepareMediaData(int playbackState) {
+    private static MediaData prepareMediaData(int playbackState) {
         PlaybackState.Builder builder = new PlaybackState.Builder();
         builder.setState(playbackState, 0, 1);
         ArrayList<Metadata> list = new ArrayList<Metadata>();

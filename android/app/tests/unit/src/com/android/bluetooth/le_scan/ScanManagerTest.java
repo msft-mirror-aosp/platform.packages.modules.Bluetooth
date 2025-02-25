@@ -362,7 +362,8 @@ public class ScanManagerTest {
                 mMockAppScanStats);
     }
 
-    private List<ScanFilter> createScanFilterList(boolean isFiltered, boolean isEmptyFilter) {
+    private static List<ScanFilter> createScanFilterList(
+            boolean isFiltered, boolean isEmptyFilter) {
         List<ScanFilter> scanFilterList = null;
         if (isFiltered) {
             scanFilterList = new ArrayList<>();
@@ -398,7 +399,7 @@ public class ScanManagerTest {
         return scanSettings;
     }
 
-    private ScanSettings createScanSettingsWithPhy(int scanMode, int phy) {
+    private static ScanSettings createScanSettingsWithPhy(int scanMode, int phy) {
         ScanSettings scanSettings;
         scanSettings = new ScanSettings.Builder().setScanMode(scanMode).setPhy(phy).build();
 
@@ -416,32 +417,32 @@ public class ScanManagerTest {
         return client;
     }
 
-    private Message createStartStopScanMessage(boolean isStartScan, Object obj) {
+    private static Message createStartStopScanMessage(boolean isStartScan, Object obj) {
         Message message = new Message();
         message.what = isStartScan ? ScanManager.MSG_START_BLE_SCAN : ScanManager.MSG_STOP_BLE_SCAN;
         message.obj = obj;
         return message;
     }
 
-    private Message createScreenOnOffMessage(boolean isScreenOn) {
+    private static Message createScreenOnOffMessage(boolean isScreenOn) {
         Message message = new Message();
         message.what = isScreenOn ? ScanManager.MSG_SCREEN_ON : ScanManager.MSG_SCREEN_OFF;
         message.obj = null;
         return message;
     }
 
-    private Message createLocationOnOffMessage(boolean isLocationOn) {
+    private static Message createLocationOnOffMessage(boolean isLocationOn) {
         Message message = new Message();
         message.what = isLocationOn ? ScanManager.MSG_RESUME_SCANS : ScanManager.MSG_SUSPEND_SCANS;
         message.obj = null;
         return message;
     }
 
-    private Message createImportanceMessage(boolean isForeground) {
+    private static Message createImportanceMessage(boolean isForeground) {
         return createImportanceMessage(isForeground, Binder.getCallingUid());
     }
 
-    private Message createImportanceMessage(boolean isForeground, int uid) {
+    private static Message createImportanceMessage(boolean isForeground, int uid) {
         final int importance =
                 isForeground
                         ? ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE
@@ -452,7 +453,7 @@ public class ScanManagerTest {
         return message;
     }
 
-    private Message createConnectingMessage(boolean isConnectingOn) {
+    private static Message createConnectingMessage(boolean isConnectingOn) {
         Message message = new Message();
         message.what =
                 isConnectingOn ? ScanManager.MSG_START_CONNECTING : ScanManager.MSG_STOP_CONNECTING;

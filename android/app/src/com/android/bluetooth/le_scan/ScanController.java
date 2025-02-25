@@ -316,7 +316,7 @@ public class ScanController {
         return true;
     }
 
-    private ScanResult getSanitizedExposureNotification(ScanResult result) {
+    private static ScanResult getSanitizedExposureNotification(ScanResult result) {
         ScanRecord record = result.getScanRecord();
         // Remove the flags part of the payload, if present
         if (record.getBytes().length > EXPOSURE_NOTIFICATION_FLAGS_LENGTH
@@ -605,12 +605,12 @@ public class ScanController {
     }
 
     // Check if a scan record matches a specific filters.
-    private boolean matchesFilters(ScanClient client, ScanResult scanResult) {
+    private static boolean matchesFilters(ScanClient client, ScanResult scanResult) {
         return matchesFilters(client, scanResult, null);
     }
 
     // Check if a scan record matches a specific filters or original address
-    private boolean matchesFilters(
+    private static boolean matchesFilters(
             ScanClient client, ScanResult scanResult, String originalAddress) {
         if (client.filters == null || client.filters.isEmpty()) {
             // TODO: Do we really wanna return true here?
@@ -943,7 +943,7 @@ public class ScanController {
     }
 
     // Reverse byte array.
-    private void reverse(byte[] address) {
+    private static void reverse(byte[] address) {
         int len = address.length;
         for (int i = 0; i < len / 2; ++i) {
             byte b = address[i];

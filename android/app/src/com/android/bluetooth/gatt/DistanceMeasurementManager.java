@@ -337,7 +337,7 @@ public class DistanceMeasurementManager {
         return BluetoothStatusCodes.SUCCESS;
     }
 
-    private void invokeStartFail(
+    private static void invokeStartFail(
             IDistanceMeasurementCallback callback, BluetoothDevice device, int reason) {
         try {
             callback.onStartFail(device, reason);
@@ -346,7 +346,7 @@ public class DistanceMeasurementManager {
         }
     }
 
-    private void invokeOnStopped(
+    private static void invokeOnStopped(
             IDistanceMeasurementCallback callback, BluetoothDevice device, int reason) {
         try {
             callback.onStopped(device, reason);
@@ -356,7 +356,7 @@ public class DistanceMeasurementManager {
     }
 
     /** Convert frequency into interval in ms */
-    private int getIntervalValue(int frequency, int method) {
+    private static int getIntervalValue(int frequency, int method) {
         switch (method) {
             case DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_AUTO:
             case DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_RSSI:

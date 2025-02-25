@@ -478,11 +478,11 @@ class MceStateMachine extends StateMachine {
         return false;
     }
 
-    private String getContactURIFromPhone(String number) {
+    private static String getContactURIFromPhone(String number) {
         return PhoneAccount.SCHEME_TEL + ":" + number;
     }
 
-    private String getContactURIFromEmail(String email) {
+    private static String getContactURIFromEmail(String email) {
         return SCHEME_MAILTO + "://" + email;
     }
 
@@ -1195,7 +1195,7 @@ class MceStateMachine extends StateMachine {
          * Retrieves the URIs of all the participants of a group conversation, besides the sender of
          * the message.
          */
-        private String[] getRecipientsUri(List<VCardEntry> recipients) {
+        private static String[] getRecipientsUri(List<VCardEntry> recipients) {
             Set<String> uris = new HashSet<>();
 
             for (VCardEntry recipient : recipients) {
@@ -1326,7 +1326,7 @@ class MceStateMachine extends StateMachine {
         sendMessage(MSG_NOTIFICATION, ev);
     }
 
-    private String getMessageName(int what) {
+    private static String getMessageName(int what) {
         switch (what) {
             case MSG_MAS_CONNECTED:
                 return "MSG_MAS_CONNECTED";

@@ -297,11 +297,11 @@ public class CallInfoTest {
                 makeQuickConnectionServiceComponentName(), id, Process.myUserHandle());
     }
 
-    private PhoneAccount.Builder makeQuickAccountBuilder(String id, int idx) {
+    private static PhoneAccount.Builder makeQuickAccountBuilder(String id, int idx) {
         return new PhoneAccount.Builder(makeQuickAccountHandle(id), "label" + idx);
     }
 
-    private PhoneAccount makeQuickAccount(String id, int idx) {
+    private static PhoneAccount makeQuickAccount(String id, int idx) {
         return makeQuickAccountBuilder(id, idx)
                 .setAddress(Uri.parse(TEST_ACCOUNT_ADDRESS + idx))
                 .setSubscriptionAddress(Uri.parse("tel:555-000" + idx))
@@ -310,7 +310,7 @@ public class CallInfoTest {
                 .build();
     }
 
-    private BluetoothCall getMockCall() {
+    private static BluetoothCall getMockCall() {
         return mock(BluetoothCall.class);
     }
 }
