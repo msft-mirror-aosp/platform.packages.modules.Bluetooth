@@ -1104,7 +1104,7 @@ bool LeAudioDeviceGroup::ReloadAudioDirections(void) {
   return true;
 }
 
-AudioContexts LeAudioDeviceGroup::GetAllSupportedBidirectionalContextTypes(void) {
+AudioContexts LeAudioDeviceGroup::GetAllSupportedBidirectionalContextTypes(void) const {
   auto result = GetSupportedContexts(types::kLeAudioDirectionSink) &
                 GetSupportedContexts(types::kLeAudioDirectionSource);
 
@@ -1114,7 +1114,7 @@ AudioContexts LeAudioDeviceGroup::GetAllSupportedBidirectionalContextTypes(void)
 }
 
 AudioContexts LeAudioDeviceGroup::GetAllSupportedSingleDirectionOnlyContextTypes(
-        uint8_t remote_direction) {
+        uint8_t remote_direction) const {
   AudioContexts result;
 
   /* Remote device present supported context types on the different directions.
@@ -1215,7 +1215,7 @@ types::LeAudioConfigurationStrategy LeAudioDeviceGroup::GetGroupSinkStrategy() c
   /* Update the strategy if not set yet or was invalidated */
   if (!strategy_) {
     /* Choose the group configuration strategy based on PAC records */
-    strategy_ = [this]() {
+    auto strategy_selector = [&, this](uint8_t direction) {
       int expected_group_size = Size();
 
       /* Simple strategy picker */
@@ -1234,8 +1234,7 @@ types::LeAudioConfigurationStrategy LeAudioDeviceGroup::GetGroupSinkStrategy() c
       auto device = GetFirstDevice();
       /* Note: Currently, the audio channel counts LTV is only mandatory for
        * LC3. */
-      auto channel_count_bitmap =
-              device->GetSupportedAudioChannelCounts(types::kLeAudioDirectionSink);
+      auto channel_count_bitmap = device->GetSupportedAudioChannelCounts(direction);
       log::debug("Supported channel counts for group {} (device {}) is {}", group_id_,
                  device->address_, channel_count_bitmap);
       if (channel_count_bitmap == 1) {
@@ -1243,7 +1242,12 @@ types::LeAudioConfigurationStrategy LeAudioDeviceGroup::GetGroupSinkStrategy() c
       }
 
       return types::LeAudioConfigurationStrategy::STEREO_ONE_CIS_PER_DEVICE;
-    }();
+    };
+    strategy_ = strategy_selector(types::kLeAudioDirectionSink);
+    if (strategy_ == types::LeAudioConfigurationStrategy::RFU) {
+      log::warn("Unable to find the proper remote sink strategy. Trying source direction instead");
+      strategy_ = strategy_selector(types::kLeAudioDirectionSource);
+    }
 
     log::info("Group strategy set to: {}", [](types::LeAudioConfigurationStrategy strategy) {
       switch (strategy) {
@@ -1270,6 +1274,94 @@ int LeAudioDeviceGroup::GetAseCount(uint8_t direction) const {
   return result;
 }
 
+/* Calculate the total number of sink, source and bidirectional CISes required by the CIG,
+ * for the given configuration audio context.
+ */
+void LeAudioDeviceGroup::CigConfiguration::GetCisCount(LeAudioContextType context_type,
+                                                       uint8_t& out_cis_count_bidir,
+                                                       uint8_t& out_cis_count_unidir_sink,
+                                                       uint8_t& out_cis_count_unidir_source) const {
+  auto expected_device_cnt = group_->DesiredSize();
+  auto avail_group_ase_snk_cnt = group_->GetAseCount(types::kLeAudioDirectionSink);
+  auto avail_group_ase_src_count = group_->GetAseCount(types::kLeAudioDirectionSource);
+  auto strategy = group_->GetGroupSinkStrategy();
+
+  bool is_bidirectional = group_->GetAllSupportedBidirectionalContextTypes().test(context_type);
+  bool is_source_only = !is_bidirectional && group_->GetAllSupportedSingleDirectionOnlyContextTypes(
+                                                           types::kLeAudioDirectionSource)
+                                                     .test(context_type);
+  log::debug(
+          "{} {}, strategy {}, group avail sink ases: {}, "
+          "group avail source ases {} "
+          "expected_device_count {}",
+          bluetooth::common::ToString(context_type),
+          is_bidirectional ? "is bidirectional"
+                           : (is_source_only ? "is source only" : "is sink only"),
+          static_cast<int>(strategy), avail_group_ase_snk_cnt, avail_group_ase_src_count,
+          expected_device_cnt);
+
+  switch (strategy) {
+    case types::LeAudioConfigurationStrategy::MONO_ONE_CIS_PER_DEVICE:
+    /* This strategy is for the CSIS topology, e.g. two earbuds which are both
+     * connected with a Phone
+     */
+    case types::LeAudioConfigurationStrategy::STEREO_ONE_CIS_PER_DEVICE:
+      /* This strategy is for e.g. the banded headphones */
+      if (is_bidirectional) {
+        if ((avail_group_ase_snk_cnt > 0) && (avail_group_ase_src_count) > 0) {
+          /* Prepare CIG to enable all microphones */
+          out_cis_count_bidir = expected_device_cnt;
+        } else {
+          if (avail_group_ase_snk_cnt > 0) {
+            out_cis_count_unidir_sink = expected_device_cnt;
+          } else if (avail_group_ase_src_count > 0) {
+            out_cis_count_unidir_source = expected_device_cnt;
+          }
+        }
+      } else if (is_source_only) {
+        out_cis_count_unidir_source = expected_device_cnt;
+      } else {
+        out_cis_count_unidir_sink = expected_device_cnt;
+      }
+
+      break;
+    case types::LeAudioConfigurationStrategy::STEREO_TWO_CISES_PER_DEVICE:
+      /* This strategy is for the old TWS topology. e.g. one earbud connected to
+       * the Phone but each channel is carried in separate CIS
+       */
+      if (is_bidirectional) {
+        if ((avail_group_ase_snk_cnt > 0) && (avail_group_ase_src_count) > 0) {
+          /* Prepare CIG to enable all microphones per device */
+          out_cis_count_bidir = expected_device_cnt;
+          if (avail_group_ase_src_count > 1) {
+            out_cis_count_bidir++;
+          } else {
+            out_cis_count_unidir_sink = expected_device_cnt;
+          }
+        } else {
+          if (avail_group_ase_snk_cnt > 0) {
+            out_cis_count_unidir_sink = 2 * expected_device_cnt;
+          } else if (avail_group_ase_src_count > 0) {
+            out_cis_count_unidir_source = 2 * expected_device_cnt;
+          }
+        }
+      } else if (is_source_only) {
+        out_cis_count_unidir_source = 2 * expected_device_cnt;
+      } else {
+        out_cis_count_unidir_sink = 2 * expected_device_cnt;
+      }
+      break;
+    case types::LeAudioConfigurationStrategy::RFU:
+      log::error("Should not happen;");
+      break;
+  }
+
+  log::info(
+          "Required cis count: Bi-Directional: {}, Uni-Directional Sink: {}, "
+          "Uni-Directional Source: {}",
+          out_cis_count_bidir, out_cis_count_unidir_sink, out_cis_count_unidir_source);
+}
+
 void LeAudioDeviceGroup::CigConfiguration::GenerateCisIds(LeAudioContextType context_type) {
   log::info("Group {}, group_id: {}, context_type: {}", std::format_ptr(group_), group_->group_id_,
             bluetooth::common::ToString(context_type));
@@ -1282,23 +1374,7 @@ void LeAudioDeviceGroup::CigConfiguration::GenerateCisIds(LeAudioContextType con
   uint8_t cis_count_bidir = 0;
   uint8_t cis_count_unidir_sink = 0;
   uint8_t cis_count_unidir_source = 0;
-  int group_size = group_->DesiredSize();
-
-  uint8_t expected_remote_directions;
-  if (group_->GetAllSupportedBidirectionalContextTypes().test(context_type)) {
-    expected_remote_directions = types::kLeAudioDirectionBoth;
-  } else if (group_->GetAllSupportedSingleDirectionOnlyContextTypes(types::kLeAudioDirectionSource)
-                     .test(context_type)) {
-    expected_remote_directions = types::kLeAudioDirectionSource;
-  } else {
-    expected_remote_directions = types::kLeAudioDirectionSink;
-  }
-
-  types::get_cis_count(context_type, expected_remote_directions, group_size,
-                       group_->GetGroupSinkStrategy(),
-                       group_->GetAseCount(types::kLeAudioDirectionSink),
-                       group_->GetAseCount(types::kLeAudioDirectionSource), cis_count_bidir,
-                       cis_count_unidir_sink, cis_count_unidir_source);
+  GetCisCount(context_type, cis_count_bidir, cis_count_unidir_sink, cis_count_unidir_source);
 
   uint8_t idx = 0;
   while (cis_count_bidir > 0) {
