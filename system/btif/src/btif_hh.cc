@@ -88,6 +88,9 @@ static int btif_hh_keylockstates = 0;  // The current key state of each key
 
 #define BTIF_TIMEOUT_VUP_MS (3 * 1000)
 
+#define BTIF_HH_INCOMING_CONNECTION_DURING_BONDING_TIMEOUT_MS (4 * 1000)
+#define BTIF_HH_UNEXPECTED_INCOMING_CONNECTION_TIMEOUT_MS (1 * 1000)
+
 /* HH request events */
 typedef enum {
   BTIF_HH_CONNECT_REQ_EVT = 0,
@@ -454,6 +457,30 @@ static void btif_hh_start_vup_timer(const tAclLinkSpec& link_spec) {
   alarm_set_on_mloop(p_dev->vup_timer, BTIF_TIMEOUT_VUP_MS, btif_hh_timer_timeout, p_dev);
 }
 
+static void btif_hh_incoming_connection_timeout(void* data) {
+  uint8_t handle = reinterpret_cast<size_t>(data) & 0xFF;
+  tBTA_HH_CONN& conn = btif_hh_cb.pending_incoming_connection;
+  if (conn.link_spec.addrt.bda.IsEmpty()) {
+    log::warn("Unknown incoming connection timeout, handle: {}", handle);
+    return;
+  }
+
+  if (conn.handle != handle) {
+    log::error("Pending connection ({}) handle: {} does not match {}", conn.link_spec, conn.handle,
+               handle);
+  }
+  log::warn("Reject unexpected incoming HID Connection, device: {}", conn.link_spec);
+  log_counter_metrics_btif(
+          android::bluetooth::CodePathCounterKeyEnum::HIDH_COUNT_INCOMING_CONNECTION_REJECTED, 1);
+
+  btif_hh_device_t* p_dev = btif_hh_find_dev_by_link_spec(conn.link_spec);
+  if (p_dev != nullptr) {
+    p_dev->dev_status = BTHH_CONN_STATE_DISCONNECTED;
+  }
+  BTA_HhRemoveDev(conn.handle);
+  btif_hh_cb.pending_incoming_connection = {};
+}
+
 static bthh_connection_state_t hh_get_state_on_disconnect(tAclLinkSpec& link_spec) {
   btif_hh_added_device_t* added_dev = btif_hh_find_added_dev(link_spec);
   if (added_dev != nullptr) {
@@ -576,18 +603,34 @@ static void hh_open_handler(tBTA_HH_CONN& conn) {
 
   if (dev_status != BTHH_CONN_STATE_ACCEPTING && dev_status != BTHH_CONN_STATE_CONNECTING) {
     if (com::android::bluetooth::flags::early_incoming_hid_connection() &&
-        btif_dm_is_pairing(conn.link_spec.addrt.bda) &&
-        conn.link_spec.transport == BT_TRANSPORT_BR_EDR && conn.status == BTA_HH_OK) {
-      // Remote device is trying to connect while bonding is in progress. We should wait for locally
-      // initiated connect request to plumb the remote device to UHID.
-      log::warn("Awaiting local connect request to plumb the incoming connection {}, handle: {}",
+        conn.status == BTA_HH_OK && conn.link_spec.transport == BT_TRANSPORT_BR_EDR) {
+      uint64_t delay = 0;
+      if (btif_dm_is_pairing(conn.link_spec.addrt.bda)) {
+        // Remote device is trying to connect while bonding is in progress. We should wait for
+        // locally initiated connect request to plumb the remote device to UHID.
+        log::warn(
+                "Incoming HID connection during bonding, wait for local connect request {}, "
+                "handle: {}",
                 conn.link_spec, conn.handle);
+        delay = BTIF_HH_INCOMING_CONNECTION_DURING_BONDING_TIMEOUT_MS;
+      } else {
+        // Unexpected incoming connection, wait for a while before rejecting.
+        log::warn(
+                "Unexpected incoming HID connection, wait for local connect request {}, handle: {}",
+                conn.link_spec, conn.handle);
+        delay = BTIF_HH_UNEXPECTED_INCOMING_CONNECTION_TIMEOUT_MS;
+      }
+
       if (!btif_hh_cb.pending_incoming_connection.link_spec.addrt.bda.IsEmpty()) {
         log::error("Replacing existing pending connection {}",
                    btif_hh_cb.pending_incoming_connection.link_spec);
         BTA_HhRemoveDev(btif_hh_cb.pending_incoming_connection.handle);
       }
       btif_hh_cb.pending_incoming_connection = conn;
+      alarm_cancel(btif_hh_cb.incoming_connection_timer);
+      alarm_set_on_mloop(btif_hh_cb.incoming_connection_timer, delay,
+                         btif_hh_incoming_connection_timeout, reinterpret_cast<void*>(conn.handle));
+
       return;
     }
 
@@ -666,7 +709,8 @@ static void hh_close_handler(tBTA_HH_CBDATA& dev_status) {
         !btif_hh_cb.pending_incoming_connection.link_spec.addrt.bda.IsEmpty()) {
       log::warn("Pending incoming connection {} closed, handle: {} ",
                 btif_hh_cb.pending_incoming_connection.link_spec, dev_status.handle);
-      BTA_HhRemoveDev(dev_status.handle);
+      BTA_HhRemoveDev(btif_hh_cb.pending_incoming_connection.handle);
+      alarm_cancel(btif_hh_cb.incoming_connection_timer);
       btif_hh_cb.pending_incoming_connection = {};
       return;
     }
@@ -945,6 +989,7 @@ void btif_hh_disconnected(const RawAddress& addr, tBT_TRANSPORT transport) {
               btif_hh_cb.pending_incoming_connection.link_spec,
               btif_hh_cb.pending_incoming_connection.handle);
     BTA_HhRemoveDev(btif_hh_cb.pending_incoming_connection.handle);
+    alarm_cancel(btif_hh_cb.incoming_connection_timer);
     btif_hh_cb.pending_incoming_connection = {};
   }
 
@@ -980,6 +1025,7 @@ void btif_hh_remove_device(const tAclLinkSpec& link_spec) {
               btif_hh_cb.pending_incoming_connection.link_spec,
               btif_hh_cb.pending_incoming_connection.handle);
     BTA_HhRemoveDev(btif_hh_cb.pending_incoming_connection.handle);
+    alarm_cancel(btif_hh_cb.incoming_connection_timer);
     btif_hh_cb.pending_incoming_connection = {};
   }
 
@@ -1210,8 +1256,10 @@ bt_status_t btif_hh_connect(const tAclLinkSpec& link_spec) {
   if (com::android::bluetooth::flags::early_incoming_hid_connection() &&
       btif_hh_cb.pending_incoming_connection.link_spec == link_spec) {
     log::info("Resume pending incoming connection {}", link_spec);
-    hh_open_handler(btif_hh_cb.pending_incoming_connection);
+    tBTA_HH_CONN conn = btif_hh_cb.pending_incoming_connection;
+    alarm_cancel(btif_hh_cb.incoming_connection_timer);
     btif_hh_cb.pending_incoming_connection = {};
+    hh_open_handler(conn);
     return BT_STATUS_SUCCESS;
   }
 
@@ -1573,6 +1621,8 @@ static bt_status_t init(bthh_callbacks_t* callbacks) {
   for (i = 0; i < BTIF_HH_MAX_HID; i++) {
     btif_hh_cb.devices[i].dev_status = BTHH_CONN_STATE_UNKNOWN;
   }
+  btif_hh_cb.incoming_connection_timer = alarm_new("btif_hh.incoming_connection_timer");
+
   /* Invoke the enable service API to the core to set the appropriate service_id
    */
   btif_enable_service(BTA_HID_SERVICE_ID);
@@ -2179,6 +2229,9 @@ static void cleanup(void) {
     btif_hh_cb.service_dereg_active = FALSE;
     btif_disable_service(BTA_HID_SERVICE_ID);
   }
+  alarm_free(btif_hh_cb.incoming_connection_timer);
+  btif_hh_cb.incoming_connection_timer = nullptr;
+  btif_hh_cb.pending_incoming_connection = {};
   btif_hh_cb.new_connection_requests.clear();
   for (i = 0; i < BTIF_HH_MAX_HID; i++) {
     p_dev = &btif_hh_cb.devices[i];
