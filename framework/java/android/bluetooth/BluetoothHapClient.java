@@ -1085,7 +1085,7 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
                 s -> s.setPresetNameForGroup(groupId, presetIndex, name, mAttributionSource));
     }
 
-    private boolean isValidDevice(BluetoothDevice device) {
+    private static boolean isValidDevice(BluetoothDevice device) {
         if (device == null) return false;
 
         if (BluetoothAdapter.checkBluetoothAddress(device.getAddress())) return true;

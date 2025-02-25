@@ -1125,6 +1125,7 @@ public final class BluetoothA2dp implements BluetoothProfile {
         return false;
     }
 
+    @SuppressWarnings("MethodCanBeStatic")
     private void verifyDeviceNotNull(BluetoothDevice device, String methodName) {
         if (device == null) {
             Log.e(TAG, methodName + ": device param is null");
@@ -1132,7 +1133,7 @@ public final class BluetoothA2dp implements BluetoothProfile {
         }
     }
 
-    private boolean isValidDevice(BluetoothDevice device) {
+    private static boolean isValidDevice(BluetoothDevice device) {
         if (device == null) return false;
 
         if (BluetoothAdapter.checkBluetoothAddress(device.getAddress())) return true;

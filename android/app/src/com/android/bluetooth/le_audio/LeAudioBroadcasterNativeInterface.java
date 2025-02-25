@@ -67,7 +67,7 @@ public class LeAudioBroadcasterNativeInterface {
         }
     }
 
-    private void sendMessageToService(LeAudioStackEvent event) {
+    private static void sendMessageToService(LeAudioStackEvent event) {
         LeAudioService service = LeAudioService.getLeAudioService();
         if (service != null) {
             service.messageFromNative(event);

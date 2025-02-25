@@ -1019,7 +1019,7 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
         }
     }
 
-    private String getBrEdrAddress(BluetoothDevice device) {
+    private static String getBrEdrAddress(BluetoothDevice device) {
         if (Flags.identityAddressNullIfNotKnown()) {
             return Utils.getBrEdrAddress(device);
         }

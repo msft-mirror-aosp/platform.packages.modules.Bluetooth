@@ -780,7 +780,7 @@ public final class BluetoothLeAdvertiser {
         return size;
     }
 
-    private int byteLength(byte[] array) {
+    private static int byteLength(byte[] array) {
         return array == null ? 0 : array.length;
     }
 
@@ -896,7 +896,7 @@ public final class BluetoothLeAdvertiser {
     }
 
     @SuppressLint("AndroidFrameworkBluetoothPermission")
-    private void postStartSetFailure(
+    private static void postStartSetFailure(
             Handler handler, final AdvertisingSetCallback callback, final int error) {
         handler.post(
                 new Runnable() {

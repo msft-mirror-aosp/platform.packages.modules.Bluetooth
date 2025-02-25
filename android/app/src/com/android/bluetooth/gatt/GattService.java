@@ -2982,11 +2982,11 @@ public class GattService extends ProfileService {
      * Private functions
      *************************************************************************/
 
-    private boolean isHidSrvcUuid(final UUID uuid) {
+    private static boolean isHidSrvcUuid(final UUID uuid) {
         return HID_SERVICE_UUID.equals(uuid);
     }
 
-    private boolean isHidCharUuid(final UUID uuid) {
+    private static boolean isHidCharUuid(final UUID uuid) {
         for (UUID hidUuid : HID_UUIDS) {
             if (hidUuid.equals(uuid)) {
                 return true;
@@ -2995,15 +2995,15 @@ public class GattService extends ProfileService {
         return false;
     }
 
-    private boolean isAndroidTvRemoteSrvcUuid(final UUID uuid) {
+    private static boolean isAndroidTvRemoteSrvcUuid(final UUID uuid) {
         return ANDROID_TV_REMOTE_SERVICE_UUID.equals(uuid);
     }
 
-    private boolean isFidoSrvcUuid(final UUID uuid) {
+    private static boolean isFidoSrvcUuid(final UUID uuid) {
         return FIDO_SERVICE_UUID.equals(uuid);
     }
 
-    private boolean isLeAudioSrvcUuid(final UUID uuid) {
+    private static boolean isLeAudioSrvcUuid(final UUID uuid) {
         for (UUID leAudioUuid : LE_AUDIO_SERVICE_UUIDS) {
             if (leAudioUuid.equals(uuid)) {
                 return true;
@@ -3012,11 +3012,11 @@ public class GattService extends ProfileService {
         return false;
     }
 
-    private boolean isAndroidHeadtrackerSrvcUuid(final UUID uuid) {
+    private static boolean isAndroidHeadtrackerSrvcUuid(final UUID uuid) {
         return HidHostService.ANDROID_HEADTRACKER_UUID.getUuid().equals(uuid);
     }
 
-    private boolean isRestrictedSrvcUuid(final UUID uuid) {
+    private static boolean isRestrictedSrvcUuid(final UUID uuid) {
         return isFidoSrvcUuid(uuid)
                 || isAndroidTvRemoteSrvcUuid(uuid)
                 || isLeAudioSrvcUuid(uuid)

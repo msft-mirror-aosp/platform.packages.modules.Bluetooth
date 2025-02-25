@@ -522,7 +522,7 @@ public class BluetoothMnsObexClient {
                     BluetoothProtoEnums.BLUETOOTH_MNS_OBEX_CLIENT,
                     BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
                     12);
-            handleSendException(e.toString());
+            Log.e(TAG, "Error when sending event", e);
             error = true;
         } catch (IndexOutOfBoundsException e) {
             ContentProfileErrorReportUtils.report(
@@ -530,7 +530,7 @@ public class BluetoothMnsObexClient {
                     BluetoothProtoEnums.BLUETOOTH_MNS_OBEX_CLIENT,
                     BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
                     13);
-            handleSendException(e.toString());
+            Log.e(TAG, "Error when sending event", e);
             error = true;
         } finally {
             try {
@@ -569,10 +569,6 @@ public class BluetoothMnsObexClient {
         }
 
         return responseCode;
-    }
-
-    private void handleSendException(String exception) {
-        Log.e(TAG, "Error when sending event: " + exception);
     }
 
     private void notifyUpdateWakeLock() {

@@ -278,7 +278,7 @@ public class BipImageProperties {
         }
     }
 
-    private boolean isThumbnailFormat(BipImageFormat format) {
+    private static boolean isThumbnailFormat(BipImageFormat format) {
         if (format == null) return false;
 
         BipEncoding encoding = format.getEncoding();

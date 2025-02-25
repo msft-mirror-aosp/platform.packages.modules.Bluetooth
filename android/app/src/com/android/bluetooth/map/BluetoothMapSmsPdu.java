@@ -381,7 +381,7 @@ public class BluetoothMapSmsPdu {
         }
 
         @SuppressWarnings("JavaUtilDate") // TODO: b/365629730 -- prefer Instant or LocalDate
-        private void gsmWriteDate(ByteArrayOutputStream header, long time) {
+        private static void gsmWriteDate(ByteArrayOutputStream header, long time) {
             SimpleDateFormat format = new SimpleDateFormat("yyMMddHHmmss");
             Date date = new Date(time);
             String timeStr = format.format(date); // Format to YYMMDDTHHMMSS UTC time

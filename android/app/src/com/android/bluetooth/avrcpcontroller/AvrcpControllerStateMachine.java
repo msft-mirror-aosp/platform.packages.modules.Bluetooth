@@ -802,7 +802,7 @@ class AvrcpControllerStateMachine extends StateMachine {
             }
         }
 
-        private boolean isHoldableKey(int cmd) {
+        private static boolean isHoldableKey(int cmd) {
             return (cmd == AvrcpControllerService.PASS_THRU_CMD_ID_REWIND)
                     || (cmd == AvrcpControllerService.PASS_THRU_CMD_ID_FF);
         }
@@ -1051,7 +1051,7 @@ class AvrcpControllerStateMachine extends StateMachine {
          * @return true: a new folder in the same scope a new player while fetching contents of a
          *     folder false: other cases, specifically Now Playing while fetching a folder
          */
-        private boolean shouldAbort(int currentScope, int fetchScope) {
+        private static boolean shouldAbort(int currentScope, int fetchScope) {
             if ((currentScope == fetchScope)
                     || (currentScope == AvrcpControllerService.BROWSE_SCOPE_VFS
                             && fetchScope == AvrcpControllerService.BROWSE_SCOPE_PLAYER_LIST)) {
@@ -1276,7 +1276,7 @@ class AvrcpControllerStateMachine extends StateMachine {
         }
     }
 
-    private int getFocusState() {
+    private static int getFocusState() {
         int focusState = AudioManager.ERROR;
         A2dpSinkService a2dpSinkService = A2dpSinkService.getA2dpSinkService();
         if (a2dpSinkService != null) {

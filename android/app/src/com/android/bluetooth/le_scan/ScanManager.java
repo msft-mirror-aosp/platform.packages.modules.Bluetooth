@@ -463,12 +463,12 @@ public class ScanManager {
             return !mScanNative.isOpportunisticScanClient(client) && !isFiltered;
         }
 
-        private boolean requiresLocationOn(ScanClient client) {
+        private static boolean requiresLocationOn(ScanClient client) {
             boolean isFiltered = isFilteredScan(client);
             return !client.hasDisavowedLocation && !isFiltered;
         }
 
-        private boolean isFilteredScan(ScanClient client) {
+        private static boolean isFilteredScan(ScanClient client) {
             if ((client.filters == null) || client.filters.isEmpty()) {
                 return false;
             }
@@ -522,7 +522,7 @@ public class ScanManager {
             mScanNative.flushBatchResults(client.scannerId);
         }
 
-        private boolean isBatchClient(ScanClient client) {
+        private static boolean isBatchClient(ScanClient client) {
             if (client == null || client.settings == null) {
                 return false;
             }
@@ -791,7 +791,7 @@ public class ScanManager {
             return false;
         }
 
-        private boolean upgradeScanModeByOneLevel(ScanClient client) {
+        private static boolean upgradeScanModeByOneLevel(ScanClient client) {
             switch (client.scanModeApp) {
                 case ScanSettings.SCAN_MODE_LOW_POWER:
                     return client.updateScanMode(ScanSettings.SCAN_MODE_BALANCED);
@@ -1288,40 +1288,40 @@ public class ScanManager {
             }
         }
 
-        private boolean isExemptFromScanTimeout(ScanClient client) {
+        private static boolean isExemptFromScanTimeout(ScanClient client) {
             return isOpportunisticScanClient(client) || isFirstMatchScanClient(client);
         }
 
-        private boolean isExemptFromAutoBatchScanUpdate(ScanClient client) {
+        private static boolean isExemptFromAutoBatchScanUpdate(ScanClient client) {
             return isOpportunisticScanClient(client) || !isAllMatchesAutoBatchScanClient(client);
         }
 
-        private boolean isAutoBatchScanClientEnabled(ScanClient client) {
+        private static boolean isAutoBatchScanClientEnabled(ScanClient client) {
             return client.stats != null && client.stats.isAutoBatchScan(client.scannerId);
         }
 
-        private boolean isAllMatchesAutoBatchScanClient(ScanClient client) {
+        private static boolean isAllMatchesAutoBatchScanClient(ScanClient client) {
             return client.settings.getCallbackType()
                     == ScanSettings.CALLBACK_TYPE_ALL_MATCHES_AUTO_BATCH;
         }
 
-        private boolean isOpportunisticScanClient(ScanClient client) {
+        private static boolean isOpportunisticScanClient(ScanClient client) {
             return client.settings.getScanMode() == ScanSettings.SCAN_MODE_OPPORTUNISTIC;
         }
 
-        private boolean isTimeoutScanClient(ScanClient client) {
+        private static boolean isTimeoutScanClient(ScanClient client) {
             return (client.stats != null) && client.stats.isScanTimeout(client.scannerId);
         }
 
-        private boolean isDowngradedScanClient(ScanClient client) {
+        private static boolean isDowngradedScanClient(ScanClient client) {
             return (client.stats != null) && client.stats.isScanDowngraded(client.scannerId);
         }
 
-        private boolean isForceDowngradedScanClient(ScanClient client) {
+        private static boolean isForceDowngradedScanClient(ScanClient client) {
             return isTimeoutScanClient(client) || isDowngradedScanClient(client);
         }
 
-        private boolean isFirstMatchScanClient(ScanClient client) {
+        private static boolean isFirstMatchScanClient(ScanClient client) {
             return (client.settings.getCallbackType() & ScanSettings.CALLBACK_TYPE_FIRST_MATCH)
                     != 0;
         }
@@ -1368,7 +1368,7 @@ public class ScanManager {
             setBatchAlarm();
         }
 
-        private int getFullScanStoragePercent(int resultType) {
+        private static int getFullScanStoragePercent(int resultType) {
             switch (resultType) {
                 case SCAN_RESULT_TYPE_FULL:
                     return 100;
@@ -1753,7 +1753,7 @@ public class ScanManager {
         }
 
         /** Return batch scan result type value defined in bt stack. */
-        private int getResultType(BatchScanParams params) {
+        private static int getResultType(BatchScanParams params) {
             if (params.mFullScanScannerId != -1 && params.mTruncatedScanScannerId != -1) {
                 return SCAN_RESULT_TYPE_BOTH;
             }
@@ -1843,7 +1843,7 @@ public class ScanManager {
         }
 
         // Get delivery mode based on scan settings.
-        private int getDeliveryMode(ScanClient client) {
+        private static int getDeliveryMode(ScanClient client) {
             if (client == null) {
                 return DELIVERY_MODE_IMMEDIATE;
             }
@@ -1951,7 +1951,7 @@ public class ScanManager {
             return phy;
         }
 
-        private int getOnFoundOnLostTimeoutMillis(ScanSettings settings, boolean onFound) {
+        private static int getOnFoundOnLostTimeoutMillis(ScanSettings settings, boolean onFound) {
             int factor;
             int timeout = ONLOST_ONFOUND_BASE_TIMEOUT_MS;
 
@@ -1966,7 +1966,7 @@ public class ScanManager {
             return (timeout * factor);
         }
 
-        private int getOnFoundOnLostSightings(ScanSettings settings) {
+        private static int getOnFoundOnLostSightings(ScanSettings settings) {
             if (settings == null) {
                 return ONFOUND_SIGHTINGS_AGGRESSIVE;
             }

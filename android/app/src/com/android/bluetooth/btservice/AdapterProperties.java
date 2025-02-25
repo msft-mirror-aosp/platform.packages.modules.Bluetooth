@@ -667,9 +667,7 @@ class AdapterProperties {
         }
     }
 
-
-
-    private boolean validateProfileConnectionState(int state) {
+    private static boolean validateProfileConnectionState(int state) {
         return (state == BluetoothProfile.STATE_DISCONNECTED
                 || state == BluetoothProfile.STATE_CONNECTING
                 || state == BluetoothProfile.STATE_CONNECTED
@@ -1159,7 +1157,7 @@ class AdapterProperties {
         writer.println(sb.toString());
     }
 
-    private String dumpDeviceType(int deviceType) {
+    private static String dumpDeviceType(int deviceType) {
         switch (deviceType) {
             case BluetoothDevice.DEVICE_TYPE_UNKNOWN:
                 return " ???? ";
@@ -1174,7 +1172,7 @@ class AdapterProperties {
         }
     }
 
-    private String dumpConnectionState(int state) {
+    private static String dumpConnectionState(int state) {
         switch (state) {
             case BluetoothAdapter.STATE_DISCONNECTED:
                 return "STATE_DISCONNECTED";

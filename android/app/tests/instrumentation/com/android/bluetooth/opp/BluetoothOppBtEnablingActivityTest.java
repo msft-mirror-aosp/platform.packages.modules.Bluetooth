@@ -159,8 +159,8 @@ public class BluetoothOppBtEnablingActivityTest {
         assertThat(finishCalled.get()).isTrue();
     }
 
-    private void assertActivityState(ActivityScenario activityScenario, Lifecycle.State state)
-            throws Exception {
+    private static void assertActivityState(
+            ActivityScenario activityScenario, Lifecycle.State state) throws Exception {
         // TODO: Change this into an event driven systems
         Thread.sleep(3_000);
         assertThat(activityScenario.getState()).isEqualTo(state);
