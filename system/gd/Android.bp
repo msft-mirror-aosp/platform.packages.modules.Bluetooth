@@ -535,6 +535,7 @@ cc_defaults {
     cflags: [
         "-DFUZZ_TARGET",
         "-DUSE_FAKE_TIMERS",
+        "-Wno-missing-prototypes",
     ],
     target: {
         android: {
