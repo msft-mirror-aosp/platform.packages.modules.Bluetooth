@@ -287,6 +287,11 @@ bool LeAudioDevice::ConfigureAses(const types::AudioSetConfiguration* audio_set_
                                   AudioLocations& group_audio_locations_memo,
                                   const AudioContexts& metadata_context_types,
                                   const std::vector<uint8_t>& ccid_lists, bool reuse_cis_id) {
+  if (num_of_devices == 0) {
+    log::error("No devices available for configuration.");
+    return false;
+  }
+
   auto direction_str = (direction == types::kLeAudioDirectionSink ? "Sink" : "Source");
   /* First try to use the already configured ASE */
   auto ase = GetFirstActiveAseByDirection(direction);
@@ -302,9 +307,12 @@ bool LeAudioDevice::ConfigureAses(const types::AudioSetConfiguration* audio_set_
     return false;
   }
 
-  auto audio_locations =
-          (direction == types::kLeAudioDirectionSink) ? snk_audio_locations_ : src_audio_locations_;
+  if (!audio_locations_.get(direction)) {
+    log::error("{}, unable to find a {} audio allocation", address_, direction_str);
+    return false;
+  }
 
+  auto const& audio_locations = audio_locations_.get(direction)->value;
   auto const& group_ase_configs = audio_set_conf->confs.get(direction);
   std::vector<types::AseConfiguration> ase_configs;
   std::copy_if(group_ase_configs.cbegin(), group_ase_configs.cend(),
@@ -1043,8 +1051,12 @@ static std::string locationToString(uint32_t location) {
 void LeAudioDevice::Dump(std::stringstream& stream) {
   uint16_t acl_handle =
           get_btm_client_interface().peer.BTM_GetHCIConnHandle(address_, BT_TRANSPORT_LE);
-  std::string snk_location = locationToString(snk_audio_locations_.to_ulong());
-  std::string src_location = locationToString(src_audio_locations_.to_ulong());
+  std::string snk_location = audio_locations_.sink
+                                     ? locationToString(audio_locations_.sink->value.to_ulong())
+                                     : "None";
+  std::string src_location = audio_locations_.source
+                                     ? locationToString(audio_locations_.source->value.to_ulong())
+                                     : "None";
 
   stream << "      ● Device address: " << address_.ToRedactedStringForLogging() << ", "
          << connection_state_

@@ -57,10 +57,15 @@ void btif_storage_leaudio_update_handles_bin(const RawAddress& addr) {
   btif_storage_interface->LeAudioUpdateHandles(addr);
 }
 
-void btif_storage_set_leaudio_audio_location(const RawAddress& addr, uint32_t sink_location,
-                                             uint32_t source_location) {
+void btif_storage_set_leaudio_sink_audio_location(const RawAddress& addr, uint32_t sink_location) {
   log::assert_that(btif_storage_interface != nullptr, "Mock storage module not set!");
-  btif_storage_interface->SetLeAudioLocations(addr, sink_location, source_location);
+  btif_storage_interface->SetLeAudioSinkLocations(addr, sink_location);
+}
+
+void btif_storage_set_leaudio_source_audio_location(const RawAddress& addr,
+                                                    uint32_t source_location) {
+  log::assert_that(btif_storage_interface != nullptr, "Mock storage module not set!");
+  btif_storage_interface->SetLeAudioSourceLocations(addr, source_location);
 }
 
 void btif_storage_set_leaudio_supported_context_types(const RawAddress& addr,

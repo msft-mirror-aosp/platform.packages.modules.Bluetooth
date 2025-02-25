@@ -94,8 +94,7 @@ public:
   bool notify_streaming_when_cises_are_ready_;
 
   uint8_t audio_directions_;
-  types::AudioLocations snk_audio_locations_;
-  types::AudioLocations src_audio_locations_;
+  types::BidirectionalPair<std::optional<types::AudioLocations>> audio_locations_;
 
   /* Whether LE Audio is preferred for OUTPUT_ONLY and DUPLEX cases */
   bool is_output_preference_le_audio;

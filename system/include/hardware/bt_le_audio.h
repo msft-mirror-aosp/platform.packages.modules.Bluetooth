@@ -20,6 +20,7 @@
 #include <bluetooth/log.h>
 
 #include <array>
+#include <bitset>
 #include <map>
 #include <optional>
 #include <ostream>
@@ -355,11 +356,13 @@ public:
   virtual void OnGroupNodeStatus(const RawAddress& bd_addr, int group_id,
                                  GroupNodeStatus node_status) = 0;
   /* Callback for newly recognized or reconfigured existing le audio group */
-  virtual void OnAudioConf(uint8_t direction, int group_id, uint32_t snk_audio_location,
-                           uint32_t src_audio_location, uint16_t avail_cont) = 0;
+  virtual void OnAudioConf(uint8_t direction, int group_id,
+                           std::optional<std::bitset<32>> snk_audio_location,
+                           std::optional<std::bitset<32>> src_audio_location,
+                           uint16_t avail_cont) = 0;
   /* Callback for sink audio location recognized */
   virtual void OnSinkAudioLocationAvailable(const RawAddress& address,
-                                            uint32_t snk_audio_locations) = 0;
+                                            std::optional<std::bitset<32>> snk_audio_location) = 0;
   /* Callback with local codec capabilities */
   virtual void OnAudioLocalCodecCapabilities(
           std::vector<btle_audio_codec_config_t> local_input_capa_codec_conf,
