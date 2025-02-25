@@ -2874,7 +2874,7 @@ class HeadsetStateMachine extends StateMachine {
         }
     }
 
-    private void logHfpSessionMetric(BluetoothDevice device, int state) {
+    private static void logHfpSessionMetric(BluetoothDevice device, int state) {
         MetricsLogger.getInstance()
                 .logBluetoothEvent(
                         device,
