@@ -34,9 +34,6 @@
 #include "os/system_properties.h"
 #include "os/utils.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 namespace testing {
 
 using bluetooth::hal::SnoopLoggerCommon;
@@ -368,7 +365,7 @@ TEST_F(SnoopLoggerModuleTest, snoop_log_persists) {
   ASSERT_TRUE(std::filesystem::exists(temp_snooz_log_));
 }
 
-void sync_handler(bluetooth::os::Handler* handler) {
+static void sync_handler(bluetooth::os::Handler* handler) {
   std::promise<void> promise;
   auto future = promise.get_future();
   handler->Post(bluetooth::common::BindOnce(&std::promise<void>::set_value,
