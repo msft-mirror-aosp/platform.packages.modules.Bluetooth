@@ -121,13 +121,12 @@ bt_status_t do_in_main_thread(base::OnceClosure task) {
 
   // Wrap the task with task counter so we could later know if there are
   // any callbacks scheduled and we should wait before performing some actions
-  if (!message_loop_thread.DoInThread(
-              FROM_HERE, base::BindOnce(
-                                 [](base::OnceClosure task, std::atomic<int>& num_async_tasks) {
-                                   std::move(task).Run();
-                                   num_async_tasks--;
-                                 },
-                                 std::move(task), std::ref(num_async_tasks)))) {
+  if (!message_loop_thread.DoInThread(base::BindOnce(
+              [](base::OnceClosure task, std::atomic<int>& num_async_tasks) {
+                std::move(task).Run();
+                num_async_tasks--;
+              },
+              std::move(task), std::ref(num_async_tasks)))) {
     bluetooth::log::error("failed to post task to task runner!");
     return BT_STATUS_FAIL;
   }

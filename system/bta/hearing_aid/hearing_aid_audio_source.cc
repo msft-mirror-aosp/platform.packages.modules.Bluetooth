@@ -141,7 +141,7 @@ void start_audio_ticks() {
   }
 
   wakelock_acquire();
-  audio_timer.SchedulePeriodic(get_main_thread()->GetWeakPtr(), FROM_HERE,
+  audio_timer.SchedulePeriodic(get_main_thread()->GetWeakPtr(),
                                base::BindRepeating(&send_audio_data),
                                std::chrono::milliseconds(data_interval_ms));
   log::info("running with data interval: {}", data_interval_ms);

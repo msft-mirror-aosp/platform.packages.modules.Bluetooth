@@ -329,8 +329,7 @@ protected:
     std::future<void> set_up_future = set_up_promise_->get_future();
     message_loop_thread_ = new MessageLoopThread("BM_MessageLooopThread thread");
     message_loop_thread_->StartUp();
-    message_loop_thread_->DoInThread(FROM_HERE,
-                                     base::BindOnce(&std::promise<void>::set_value,
+    message_loop_thread_->DoInThread(base::BindOnce(&std::promise<void>::set_value,
                                                     base::Unretained(set_up_promise_.get())));
     set_up_future.wait();
   }
@@ -352,8 +351,7 @@ BENCHMARK_F(BM_MessageLooopThread, batch_enque_dequeue)(State& state) {
     std::future<void> counter_future = g_counter_promise->get_future();
     for (int i = 0; i < NUM_MESSAGES_TO_SEND; i++) {
       fixed_queue_enqueue(bt_msg_queue_, (void*)&g_counter);
-      message_loop_thread_->DoInThread(FROM_HERE,
-                                       base::BindOnce(&callback_batch, bt_msg_queue_, nullptr));
+      message_loop_thread_->DoInThread(base::BindOnce(&callback_batch, bt_msg_queue_, nullptr));
     }
     counter_future.wait();
   }
@@ -364,7 +362,7 @@ BENCHMARK_F(BM_MessageLooopThread, sequential_execution)(State& state) {
     for (int i = 0; i < NUM_MESSAGES_TO_SEND; i++) {
       g_counter_promise = std::make_unique<std::promise<void>>();
       std::future<void> counter_future = g_counter_promise->get_future();
-      message_loop_thread_->DoInThread(FROM_HERE, base::BindOnce(&callback_sequential, nullptr));
+      message_loop_thread_->DoInThread(base::BindOnce(&callback_sequential, nullptr));
       counter_future.wait();
     }
   }
