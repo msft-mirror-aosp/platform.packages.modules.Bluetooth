@@ -1371,6 +1371,11 @@ public:
         // Preemptively remove conversational context for reconfiguration speed up
         in_call_metadata_context_types_.sink.unset(LeAudioContextType::CONVERSATIONAL);
         in_call_metadata_context_types_.source.unset(LeAudioContextType::CONVERSATIONAL);
+        if (in_call_metadata_context_types_.sink.none() &&
+            in_call_metadata_context_types_.source.none()) {
+          log::debug("No metadata, set default Media");
+          in_call_metadata_context_types_.source.set(LeAudioContextType::MEDIA);
+        }
         local_metadata_context_types_ = in_call_metadata_context_types_;
         log::debug("restored local_metadata_context_types_ sink: {}  source: {}",
                    local_metadata_context_types_.sink.to_string(),
@@ -6071,7 +6076,8 @@ public:
     log::info(
             "status: {},  group_id: {}, audio_sender_state {}, audio_receiver_state {}, "
             "is_active_group_operation {}",
-            static_cast<int>(status), group_id, bluetooth::common::ToString(audio_sender_state_),
+            bluetooth::common::ToString(status), group_id,
+            bluetooth::common::ToString(audio_sender_state_),
             bluetooth::common::ToString(audio_receiver_state_), is_active_group_operation);
     LeAudioDeviceGroup* group = aseGroups_.FindById(group_id);
 
