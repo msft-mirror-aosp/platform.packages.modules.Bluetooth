@@ -75,6 +75,9 @@ using namespace bluetooth;
   ((uint16_t)(HCI_INP_CODING_LINEAR | HCI_INP_DATA_FMT_2S_COMPLEMENT | HCI_INP_SAMPLE_SIZE_16BIT | \
               HCI_AIR_CODING_FORMAT_TRANSPNT))
 
+static void updateCodecParametersFromProviderInfo(tBTA_AG_UUID_CODEC esco_codec,
+                                                  enh_esco_params_t& params);
+
 static bool sco_allowed = true;
 static bool hfp_software_datapath_enabled = false;
 static RawAddress active_device_addr = {};
@@ -148,9 +151,6 @@ static int codec_uuid_to_sample_rate(tBTA_AG_UUID_CODEC codec) {
 bool bta_ag_sco_is_active_device(const RawAddress& bd_addr) {
   return !active_device_addr.IsEmpty() && active_device_addr == bd_addr;
 }
-
-void updateCodecParametersFromProviderInfo(tBTA_AG_UUID_CODEC esco_codec,
-                                           enh_esco_params_t& params);
 
 /*******************************************************************************
  *
@@ -601,8 +601,8 @@ void bta_ag_create_sco(tBTA_AG_SCB* p_scb, bool is_orig) {
   log::debug("AFTER {}", p_scb->ToString());
 }
 
-void updateCodecParametersFromProviderInfo(tBTA_AG_UUID_CODEC esco_codec,
-                                           enh_esco_params_t& params) {
+static void updateCodecParametersFromProviderInfo(tBTA_AG_UUID_CODEC esco_codec,
+                                                  enh_esco_params_t& params) {
   if (bta_ag_is_sco_managed_by_audio() && !sco_config_map.empty()) {
     auto sco_config_it = sco_config_map.find(esco_codec);
     if (sco_config_it == sco_config_map.end()) {

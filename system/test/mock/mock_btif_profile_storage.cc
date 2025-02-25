@@ -25,10 +25,9 @@
 
 #include <cstdint>
 
+#include "btif/include/btif_profile_storage.h"
+#include "btif/include/btif_storage.h"
 #include "test/common/mock_functions.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 // Original usings
 using bluetooth::Uuid;

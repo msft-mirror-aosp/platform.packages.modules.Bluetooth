@@ -29,14 +29,12 @@
 #include <frameworks/proto_logging/stats/enums/bluetooth/enums.pb.h>
 #include <frameworks/proto_logging/stats/enums/bluetooth/hci/enums.pb.h>
 
+#include "stack/include/stack_metrics_logging.h"
 #include "test/common/mock_functions.h"
 #include "types/raw_address.h"
 
 // Mocked compile conditionals, if any
 // Mocked internal structures, if any
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 namespace test {
 namespace mock {
@@ -56,13 +54,6 @@ struct log_le_connection_status log_le_connection_status;
 struct log_le_device_in_accept_list log_le_device_in_accept_list;
 struct log_le_connection_lifecycle log_le_connection_lifecycle;
 struct log_le_connection_completion log_le_connection_completion;
-struct log_le_connection_rejected log_le_connection_rejected;
-struct log_hfp_ag_version log_hfp_ag_version;
-struct log_hfp_hf_version log_hfp_hf_version;
-struct log_hfp_rfcomm_channel_fail log_hfp_rfcomm_channel_fail;
-struct log_hfp_rfcomm_collision_fail log_hfp_rfcomm_collision_fail;
-struct log_hfp_rfcomm_ag_open_fail log_hfp_rfcomm_ag_open_fail;
-struct log_hfp_slc_fail log_hfp_slc_fail;
 
 }  // namespace stack_metrics_logging
 }  // namespace mock
@@ -103,16 +94,6 @@ void log_sdp_attribute(const RawAddress& address, uint16_t protocol_uuid, uint16
   inc_func_call_count(__func__);
   test::mock::stack_metrics_logging::log_sdp_attribute(address, protocol_uuid, attribute_id,
                                                        attribute_size, attribute_value);
-}
-void log_manufacturer_info(const RawAddress& address,
-                           android::bluetooth::DeviceInfoSrcEnum source_type,
-                           const std::string& source_name, const std::string& manufacturer,
-                           const std::string& model, const std::string& hardware_version,
-                           const std::string& software_version) {
-  inc_func_call_count(__func__);
-  test::mock::stack_metrics_logging::log_manufacturer_info(address, source_type, source_name,
-                                                           manufacturer, model, hardware_version,
-                                                           software_version);
 }
 void log_manufacturer_info(const RawAddress& address,
                            android::bluetooth::AddressTypeEnum address_type,
@@ -166,40 +147,5 @@ void log_le_connection_completion(bluetooth::hci::Address address, bluetooth::hc
   inc_func_call_count(__func__);
   test::mock::stack_metrics_logging::log_le_connection_completion(address, reason,
                                                                   is_locally_initiated);
-}
-
-void log_le_connection_rejected(bluetooth::hci::Address address) {
-  inc_func_call_count(__func__);
-  test::mock::stack_metrics_logging::log_le_connection_rejected(address);
-}
-
-void log_hfp_ag_version(bluetooth::hci::Address address, uint16_t version) {
-  inc_func_call_count(__func__);
-  test::mock::stack_metrics_logging::log_hfp_ag_version(address, version);
-}
-
-void log_hfp_hf_version(bluetooth::hci::Address address, uint16_t version) {
-  inc_func_call_count(__func__);
-  test::mock::stack_metrics_logging::log_hfp_hf_version(address, version);
-}
-
-void log_hfp_rfcomm_channel_fail(bluetooth::hci::Address address) {
-  inc_func_call_count(__func__);
-  test::mock::stack_metrics_logging::log_hfp_rfcomm_channel_fail(address);
-}
-
-void log_hfp_rfcomm_collision_fail(bluetooth::hci::Address address) {
-  inc_func_call_count(__func__);
-  test::mock::stack_metrics_logging::log_hfp_rfcomm_collision_fail(address);
-}
-
-void log_hfp_rfcomm_ag_open_fail(bluetooth::hci::Address address) {
-  inc_func_call_count(__func__);
-  test::mock::stack_metrics_logging::log_hfp_rfcomm_ag_open_fail(address);
-}
-
-void log_hfp_slc_fail(bluetooth::hci::Address address) {
-  inc_func_call_count(__func__);
-  test::mock::stack_metrics_logging::log_hfp_slc_fail(address);
 }
 // END mockcify generation

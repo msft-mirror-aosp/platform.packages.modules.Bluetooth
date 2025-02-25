@@ -53,6 +53,7 @@
 #include "bta/include/bta_le_audio_broadcaster_api.h"
 #include "bta/include/bta_vc_api.h"
 #include "btif/avrcp/avrcp_service.h"
+#include "btif/include/bluetooth.h"
 #include "btif/include/btif_a2dp.h"
 #include "btif/include/btif_a2dp_source.h"
 #include "btif/include/btif_api.h"
@@ -132,9 +133,6 @@
 #include "types/ble_address_with_type.h"
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using bluetooth::csis::CsisClientInterface;
 using bluetooth::has::HasClientInterface;
@@ -408,7 +406,7 @@ static void set_adapter_index(int adapter) { global_hci_adapter = adapter; }
 int GetAdapterIndex() { return global_hci_adapter; }
 #else
 int GetAdapterIndex() { return 0; }  // Unsupported outside of FLOSS
-#endif
+#endif  // TARGET_FLOSS
 
 static int init(bt_callbacks_t* callbacks, bool start_restricted, bool is_common_criteria_mode,
                 int config_compare_result, bool is_atv) {
@@ -556,7 +554,7 @@ static int set_adapter_property(const bt_property_t* property) {
   return BT_STATUS_SUCCESS;
 }
 
-int get_remote_device_properties(RawAddress* remote_addr) {
+static int get_remote_device_properties(RawAddress* remote_addr) {
   if (!btif_is_enabled()) {
     return BT_STATUS_NOT_READY;
   }
@@ -565,7 +563,7 @@ int get_remote_device_properties(RawAddress* remote_addr) {
   return BT_STATUS_SUCCESS;
 }
 
-int get_remote_device_property(RawAddress* remote_addr, bt_property_type_t type) {
+static int get_remote_device_property(RawAddress* remote_addr, bt_property_type_t type) {
   if (!btif_is_enabled()) {
     return BT_STATUS_NOT_READY;
   }
@@ -574,7 +572,7 @@ int get_remote_device_property(RawAddress* remote_addr, bt_property_type_t type)
   return BT_STATUS_SUCCESS;
 }
 
-int set_remote_device_property(RawAddress* remote_addr, const bt_property_t* property) {
+static int set_remote_device_property(RawAddress* remote_addr, const bt_property_t* property) {
   if (!btif_is_enabled()) {
     return BT_STATUS_NOT_READY;
   }
@@ -588,7 +586,7 @@ int set_remote_device_property(RawAddress* remote_addr, const bt_property_t* pro
   return BT_STATUS_SUCCESS;
 }
 
-int get_remote_services(RawAddress* remote_addr, int transport) {
+static int get_remote_services(RawAddress* remote_addr, int transport) {
   if (!interface_ready()) {
     return BT_STATUS_NOT_READY;
   }
@@ -998,7 +996,7 @@ static const void* get_profile_interface(const char* profile_id) {
   return NULL;
 }
 
-int dut_mode_configure(uint8_t enable) {
+static int dut_mode_configure(uint8_t enable) {
   if (!interface_ready()) {
     return BT_STATUS_NOT_READY;
   }
@@ -1010,7 +1008,7 @@ int dut_mode_configure(uint8_t enable) {
   return BT_STATUS_SUCCESS;
 }
 
-int dut_mode_send(uint16_t opcode, uint8_t* buf, uint8_t len) {
+static int dut_mode_send(uint16_t opcode, uint8_t* buf, uint8_t len) {
   if (!interface_ready()) {
     return BT_STATUS_NOT_READY;
   }
@@ -1030,7 +1028,7 @@ int dut_mode_send(uint16_t opcode, uint8_t* buf, uint8_t len) {
   return BT_STATUS_SUCCESS;
 }
 
-int le_test_mode(uint16_t opcode, uint8_t* buf, uint8_t len) {
+static int le_test_mode(uint16_t opcode, uint8_t* buf, uint8_t len) {
   if (!interface_ready()) {
     return BT_STATUS_NOT_READY;
   }
@@ -1285,7 +1283,7 @@ EXPORT_SYMBOL bt_interface_t bluetoothInterface = {
 
 // callback reporting helpers
 
-bt_property_t* property_deep_copy_array(int num_properties, bt_property_t* properties) {
+static bt_property_t* property_deep_copy_array(int num_properties, bt_property_t* properties) {
   bt_property_t* copy = nullptr;
   if (num_properties > 0) {
     size_t content_len = 0;
@@ -1544,5 +1542,4 @@ void invoke_encryption_change_cb(bt_encryption_change_evt encryption_change) {
 
 namespace bluetooth::testing {
 void set_hal_cbacks(bt_callbacks_t* callbacks) { ::set_hal_cbacks(callbacks); }
-
 }  // namespace bluetooth::testing

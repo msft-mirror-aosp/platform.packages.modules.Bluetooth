@@ -29,6 +29,7 @@
 #include "le_audio/gmap_server.h"
 #include "le_audio/le_audio_types.h"
 #include "le_audio_set_configuration_provider.h"
+#include "osi/include/properties.h"
 #include "test/mock/mock_legacy_hci_interface.h"
 #include "test/mock/mock_main_shim_entry.h"
 
@@ -45,8 +46,6 @@ using bluetooth::le_audio::types::AudioSetConfiguration;
 using bluetooth::le_audio::types::CodecLocation;
 using bluetooth::le_audio::types::kLeAudioDirectionSink;
 using bluetooth::le_audio::types::kLeAudioDirectionSource;
-
-void osi_property_set_bool(const char* key, bool value);
 
 static const std::vector<AudioSetConfiguration> offload_capabilities_none(0);
 

@@ -58,8 +58,6 @@ using ::testing::Test;
 
 extern struct fake_osi_alarm_set_on_mloop fake_osi_alarm_set_on_mloop_;
 
-void osi_property_set_bool(const char* key, bool value);
-
 constexpr uint8_t media_ccid = 0xC0;
 constexpr auto media_context = LeAudioContextType::MEDIA;
 

@@ -1422,6 +1422,7 @@ cc_test {
         "libprotobuf-cpp-lite",
     ],
     static_libs: [
+        "bluetooth_flags_c_lib",
         "libFraunhoferAAC",
         "libbase",
         "libbluetooth-types",

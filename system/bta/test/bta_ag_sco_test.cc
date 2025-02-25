@@ -39,7 +39,7 @@ class BtaAgScoParameterSelectionTest
 protected:
   void SetUp() override {
     test::mock::device_esco_parameters::esco_parameters_for_codec.body =
-            [this](esco_codec_t codec) {
+            [this](esco_codec_t codec, bool /* offload */) {
               this->codec = codec;
               return enh_esco_params_t{};
             };
