@@ -650,8 +650,8 @@ static void hh_open_handler(tBTA_HH_CONN& conn) {
   if (!com::android::bluetooth::flags::dont_send_hid_set_idle()) {
     // Send set_idle if the peer_device is a keyboard
     // TODO (b/307923455): clean this, set idle is deprecated in HID spec v1.1.1
-    if (check_cod_hid_major(conn.link_spec.addrt.bda, COD_HID_KEYBOARD) ||
-        check_cod_hid_major(conn.link_spec.addrt.bda, COD_HID_COMBO)) {
+    if (btif_check_cod_hid_major(conn.link_spec.addrt.bda, COD_HID_KEYBOARD) ||
+        btif_check_cod_hid_major(conn.link_spec.addrt.bda, COD_HID_COMBO)) {
       BTA_HhSetIdle(conn.handle, 0);
     }
   }
@@ -888,7 +888,7 @@ static void hh_vc_unplug_handler(tBTA_HH_CBDATA& dev_status) {
 
   // Remove the HID device
   btif_hh_remove_device(p_dev->link_spec);
-  if (p_dev->local_vup || check_cod_hid(p_dev->link_spec.addrt.bda)) {
+  if (p_dev->local_vup || btif_check_cod_hid(p_dev->link_spec.addrt.bda)) {
     // Remove the bond if locally initiated or remote device has major class HID
     p_dev->local_vup = false;
     BTA_DmRemoveDevice(p_dev->link_spec.addrt.bda);
