@@ -165,41 +165,6 @@ cc_library_shared {
     min_sdk_version: "Tiramisu",
 }
 
-cc_library {
-    name: "libbluetooth-core",
-    defaults: ["fluoride_defaults"],
-    header_libs: [
-        "jni_headers",
-        "libbluetooth_headers",
-    ],
-    static_libs: [
-        "lib-bt-packets",
-        "lib-bt-packets-base",
-        "libbt-bta-core",
-        "libbt-common",
-        "libbt-hci",
-        "libbt-stack-core",
-        "libbtcore",
-        "libbtdevice",
-        "libbte",
-        "libbtif-core",
-        "libosi",
-
-        "libbluetooth-types",
-    ],
-    cflags: [
-        // we export all classes, so change default visibility,
-        // instead of having EXPORT_SYMBOL on each class
-        "-fvisibility=default",
-    ],
-    sanitize: {
-        scs: true,
-    },
-    apex_available: ["com.android.bt"],
-    host_supported: true,
-    min_sdk_version: "Tiramisu",
-}
-
 android_library {
     name: "BluetoothLib",
     defaults: ["bluetooth_framework_errorprone_rules"],
