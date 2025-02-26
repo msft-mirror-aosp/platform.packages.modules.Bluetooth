@@ -3344,6 +3344,10 @@ void btm_sec_encrypt_change(uint16_t handle, tHCI_STATUS status, uint8_t encr_en
     if (status == HCI_ERR_KEY_MISSING) {
       log::info("Remote key missing - will report");
       bta_dm_remote_key_missing(p_dev_rec->ble.pseudo_addr);
+      if (com::android::bluetooth::flags::sec_disconnect_on_le_key_missing()) {
+        btm_sec_send_hci_disconnect(p_dev_rec, HCI_ERR_HOST_REJECT_SECURITY,
+                                    p_dev_rec->ble_hci_handle, "encryption_change:key_missing");
+      }
       return;
     }
 
@@ -3509,6 +3513,13 @@ void btm_sec_encryption_change_evt(uint16_t handle, tHCI_STATUS status, uint8_t 
     return;
   }
 
+  if (com::android::bluetooth::flags::disconnect_on_encryption_failure()) {
+    if (status != HCI_SUCCESS && encr_enable == 0) {
+      log::error("Encryption failure {}, disconnecting {}", status, handle);
+      btm_sec_disconnect(handle, HCI_ERR_AUTH_FAILURE,
+                         "stack::btu::btu_hcif::encryption_change_evt Encryption Failure");
+    }
+  }
   btm_acl_encrypt_change(handle, static_cast<tHCI_STATUS>(status), encr_enable);
   btm_sec_encrypt_change(handle, static_cast<tHCI_STATUS>(status), encr_enable, 0);
 }
