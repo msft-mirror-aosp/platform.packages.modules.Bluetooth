@@ -121,6 +121,7 @@ java_defaults {
         javacflags: [
             "-Xep:AlmostJavadoc:ERROR",
             "-Xep:AlreadyChecked:ERROR",
+            "-Xep:ArrayRecordComponent:ERROR",
             "-Xep:BadImport:ERROR",
             "-Xep:CatchAndPrintStackTrace:ERROR",
             "-Xep:CatchFail:ERROR",
