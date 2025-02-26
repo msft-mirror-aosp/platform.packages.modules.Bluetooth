@@ -235,8 +235,10 @@ public:
                                  (jint)group_id, (jint)node_status);
   }
 
-  void OnAudioConf(uint8_t direction, int group_id, uint32_t sink_audio_location,
-                   uint32_t source_audio_location, uint16_t avail_cont) override {
+  void OnAudioConf(uint8_t direction, int group_id,
+                   std::optional<std::bitset<32>> sink_audio_location,
+                   std::optional<std::bitset<32>> source_audio_location,
+                   uint16_t avail_cont) override {
     log::info("");
 
     std::shared_lock<std::shared_timed_mutex> lock(callbacks_mutex);
@@ -245,13 +247,15 @@ public:
       return;
     }
 
+    jint jni_sink_audio_location = sink_audio_location ? sink_audio_location->to_ulong() : -1;
+    jint jni_source_audio_location = source_audio_location ? source_audio_location->to_ulong() : -1;
     sCallbackEnv->CallVoidMethod(mCallbacksObj, method_onAudioConf, (jint)direction, (jint)group_id,
-                                 (jint)sink_audio_location, (jint)source_audio_location,
+                                 jni_sink_audio_location, jni_source_audio_location,
                                  (jint)avail_cont);
   }
 
   void OnSinkAudioLocationAvailable(const RawAddress& bd_addr,
-                                    uint32_t sink_audio_location) override {
+                                    std::optional<std::bitset<32>> sink_audio_location) override {
     log::info("");
 
     std::shared_lock<std::shared_timed_mutex> lock(callbacks_mutex);
@@ -268,8 +272,9 @@ public:
     }
 
     sCallbackEnv->SetByteArrayRegion(addr.get(), 0, sizeof(RawAddress), (jbyte*)&bd_addr);
+    jint jni_sink_audio_location = sink_audio_location ? sink_audio_location->to_ulong() : -1;
     sCallbackEnv->CallVoidMethod(mCallbacksObj, method_onSinkAudioLocationAvailable, addr.get(),
-                                 (jint)sink_audio_location);
+                                 jni_sink_audio_location);
   }
 
   void OnAudioLocalCodecCapabilities(

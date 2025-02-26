@@ -839,6 +839,12 @@ LeAudioDeviceGroup::GetAudioSetConfigurationRequirements(types::LeAudioContextTy
     BidirectionalPair<bool> has_location = {false, false};
 
     for (auto direction : {types::kLeAudioDirectionSink, types::kLeAudioDirectionSource}) {
+      if (!device->audio_locations_.get(direction)) {
+        log::debug("Device {} has no audio allocation for direction: {}", device->address_,
+                   (int)direction);
+        continue;
+      }
+
       // Do not put any requirements on the Source if Sink only scenario is used
       // Note: With the RINGTONE we should already prepare for a call.
       if ((direction == types::kLeAudioDirectionSource) &&
@@ -870,10 +876,8 @@ LeAudioDeviceGroup::GetAudioSetConfigurationRequirements(types::LeAudioContextTy
         }
       }
 
-      auto& dev_locations = (direction == types::kLeAudioDirectionSink)
-                                    ? device->snk_audio_locations_
-                                    : device->src_audio_locations_;
-      if (dev_locations.none()) {
+      auto const& dev_locations = device->audio_locations_.get(direction);
+      if (dev_locations == std::nullopt) {
         log::warn("Device {} has no specified locations for direction: {}", device->address_,
                   (int)direction);
       }
@@ -888,8 +892,9 @@ LeAudioDeviceGroup::GetAudioSetConfigurationRequirements(types::LeAudioContextTy
       }
 
       // Pass the audio channel allocation requirement according to TMAP
-      auto locations = dev_locations.to_ulong() & (codec_spec_conf::kLeAudioLocationFrontLeft |
-                                                   codec_spec_conf::kLeAudioLocationFrontRight);
+      auto locations =
+              dev_locations->value.to_ulong() & (codec_spec_conf::kLeAudioLocationFrontLeft |
+                                                 codec_spec_conf::kLeAudioLocationFrontRight);
       CodecManager::UnicastConfigurationRequirements::DeviceDirectionRequirements config_req;
       config_req.params.Add(codec_spec_conf::kLeAudioLtvTypeAudioChannelAllocation,
                             (uint32_t)locations);
@@ -1056,27 +1061,29 @@ types::BidirectionalPair<AudioContexts> LeAudioDeviceGroup::GetLatestAvailableCo
 }
 
 bool LeAudioDeviceGroup::ReloadAudioLocations(void) {
-  AudioLocations updated_snk_audio_locations_ = codec_spec_conf::kLeAudioLocationMonoAudio;
-  AudioLocations updated_src_audio_locations_ = codec_spec_conf::kLeAudioLocationMonoAudio;
+  types::BidirectionalPair<std::optional<AudioLocations>> updated_audio_locations = {
+          .sink = std::nullopt, .source = std::nullopt};
 
-  for (const auto& device : leAudioDevices_) {
-    if (device.expired() ||
-        (device.lock().get()->GetConnectionState() != DeviceConnectState::CONNECTED)) {
-      continue;
+  for (const auto& device_locked : leAudioDevices_) {
+    auto device = device_locked.lock();
+    if (device && device->GetConnectionState() == DeviceConnectState::CONNECTED) {
+      if (device->audio_locations_.sink) {
+        updated_audio_locations.sink =
+                updated_audio_locations.sink.value_or(0) | device->audio_locations_.sink->value;
+      }
+      if (device->audio_locations_.source) {
+        updated_audio_locations.source =
+                updated_audio_locations.source.value_or(0) | device->audio_locations_.source->value;
+      }
     }
-    updated_snk_audio_locations_ |= device.lock().get()->snk_audio_locations_;
-    updated_src_audio_locations_ |= device.lock().get()->src_audio_locations_;
   }
 
   /* Nothing has changed */
-  if ((updated_snk_audio_locations_ == snk_audio_locations_) &&
-      (updated_src_audio_locations_ == src_audio_locations_)) {
+  if (updated_audio_locations == audio_locations_) {
     return false;
   }
 
-  snk_audio_locations_ = updated_snk_audio_locations_;
-  src_audio_locations_ = updated_src_audio_locations_;
-
+  audio_locations_ = updated_audio_locations;
   return true;
 }
 
@@ -1215,16 +1222,23 @@ types::LeAudioConfigurationStrategy LeAudioDeviceGroup::GetGroupSinkStrategy() c
     auto strategy_selector = [&, this](uint8_t direction) {
       int expected_group_size = Size();
 
+      if (!audio_locations_.get(direction)) {
+        log::error("No audio locations for direction: {} available in the group", +direction);
+        return types::LeAudioConfigurationStrategy::RFU;
+      }
+
       /* Simple strategy picker */
       log::debug("Group {} size {}", group_id_, expected_group_size);
       if (expected_group_size > 1) {
         return types::LeAudioConfigurationStrategy::MONO_ONE_CIS_PER_DEVICE;
       }
 
-      log::debug("audio location 0x{:04x}", snk_audio_locations_.to_ulong());
-      if (!(snk_audio_locations_.to_ulong() & codec_spec_conf::kLeAudioLocationAnyLeft) ||
-          !(snk_audio_locations_.to_ulong() & codec_spec_conf::kLeAudioLocationAnyRight) ||
-          snk_audio_locations_.none()) {
+      /* Check supported audio locations */
+      auto const& locations = audio_locations_.get(direction).value();
+
+      log::verbose("audio location 0x{:04x}", locations.to_ulong());
+      if (!(locations.to_ulong() & codec_spec_conf::kLeAudioLocationAnyLeft) ||
+          !(locations.to_ulong() & codec_spec_conf::kLeAudioLocationAnyRight) || locations.none()) {
         return types::LeAudioConfigurationStrategy::MONO_ONE_CIS_PER_DEVICE;
       }
 
@@ -1596,14 +1610,23 @@ void LeAudioDeviceGroup::CigConfiguration::UnassignCis(LeAudioDevice* leAudioDev
 static bool CheckIfStrategySupported(types::LeAudioConfigurationStrategy strategy,
                                      const types::AseConfiguration& conf, uint8_t direction,
                                      const LeAudioDevice& device) {
+  if (strategy == types::LeAudioConfigurationStrategy::RFU) {
+    log::error("Device {}: No valid strategy for direction: {}", device.address_, +direction);
+    return false;
+  }
+
+  if (!device.audio_locations_.get(direction)) {
+    log::error("Device {}: No valid audio locations for direction: {}", device.address_,
+               +direction);
+    return false;
+  }
+
   /* Check direction and if audio location allows to create more cises to a
    * single device.
    */
-  types::AudioLocations audio_locations = (direction == types::kLeAudioDirectionSink)
-                                                  ? device.snk_audio_locations_
-                                                  : device.src_audio_locations_;
-
-  log::debug("strategy: {}, locations: {}", (int)strategy, audio_locations.to_ulong());
+  auto const& audio_locations = device.audio_locations_.get(direction)->value;
+  log::debug("Device {}: strategy: {}, locations: {}", device.address_, (int)strategy,
+             audio_locations.to_ulong());
 
   switch (strategy) {
     case types::LeAudioConfigurationStrategy::MONO_ONE_CIS_PER_DEVICE:
@@ -2267,10 +2290,8 @@ bool LeAudioDeviceGroup::Configure(
         types::BidirectionalPair<std::vector<uint8_t>> ccid_lists) {
   auto conf = GetConfiguration(context_type);
   if (!conf) {
-    log::error(
-            ", requested context type: {} , is in mismatch with cached available "
-            "contexts",
-            bluetooth::common::ToString(context_type));
+    log::error("Requested context type: {} , is in mismatch with cached available contexts",
+               bluetooth::common::ToString(context_type));
     return false;
   }
 

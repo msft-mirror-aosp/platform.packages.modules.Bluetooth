@@ -71,14 +71,16 @@ class LeAudioClientInterfaceImpl : public LeAudioClientInterface, public LeAudio
                           group_id, node_status));
   }
 
-  void OnAudioConf(uint8_t direction, int group_id, uint32_t snk_audio_location,
-                   uint32_t src_audio_location, uint16_t avail_cont) override {
+  void OnAudioConf(uint8_t direction, int group_id,
+                   std::optional<std::bitset<32>> snk_audio_location,
+                   std::optional<std::bitset<32>> src_audio_location,
+                   uint16_t avail_cont) override {
     do_in_jni_thread(Bind(&LeAudioClientCallbacks::OnAudioConf, Unretained(callbacks), direction,
                           group_id, snk_audio_location, src_audio_location, avail_cont));
   }
 
   void OnSinkAudioLocationAvailable(const RawAddress& address,
-                                    uint32_t snk_audio_location) override {
+                                    std::optional<std::bitset<32>> snk_audio_location) override {
     do_in_jni_thread(Bind(&LeAudioClientCallbacks::OnSinkAudioLocationAvailable,
                           Unretained(callbacks), address, snk_audio_location));
   }
