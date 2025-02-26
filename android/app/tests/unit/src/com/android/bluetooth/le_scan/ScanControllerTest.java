@@ -59,6 +59,7 @@ import com.android.bluetooth.btservice.CompanionManager;
 import com.android.bluetooth.gatt.GattNativeInterface;
 import com.android.bluetooth.gatt.GattObjectsFactory;
 
+import com.google.protobuf.ByteString;
 import com.google.testing.junit.testparameterinjector.TestParameter;
 import com.google.testing.junit.testparameterinjector.TestParameterInjector;
 
@@ -426,10 +427,10 @@ public class ScanControllerTest {
     @Test
     public void onTrackAdvFoundLost() throws Exception {
         int scannerId = 1;
-        int advPktLen = 1;
-        byte[] advPkt = new byte[] {0x02};
-        int scanRspLen = 3;
-        byte[] scanRsp = new byte[] {0x04};
+        int advPacketLen = 1;
+        byte[] advPacket = new byte[] {0x02};
+        int scanResponseLen = 3;
+        byte[] scanResponse = new byte[] {0x04};
         int filtIndex = 5;
 
         int advState = ScanController.ADVT_STATE_ONFOUND;
@@ -461,10 +462,10 @@ public class ScanControllerTest {
         AdvtFilterOnFoundOnLostInfo advtFilterOnFoundOnLostInfo =
                 new AdvtFilterOnFoundOnLostInfo(
                         scannerId,
-                        advPktLen,
-                        advPkt,
-                        scanRspLen,
-                        scanRsp,
+                        advPacketLen,
+                        ByteString.copyFrom(advPacket),
+                        scanResponseLen,
+                        ByteString.copyFrom(scanResponse),
                         filtIndex,
                         advState,
                         advInfoPresent,
