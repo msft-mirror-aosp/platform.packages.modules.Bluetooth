@@ -19,6 +19,7 @@ package android.bluetooth;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 import static android.bluetooth.BluetoothUtils.callServiceIfEnabled;
 
 import static java.util.Objects.requireNonNull;
@@ -661,7 +662,7 @@ public final class BluetoothHapClient implements BluetoothProfile, AutoCloseable
     @Override
     @BluetoothProfile.BtProfileState
     public int getConnectionState(@NonNull BluetoothDevice device) {
-        int defaultValue = BluetoothProfile.STATE_DISCONNECTED;
+        int defaultValue = STATE_DISCONNECTED;
         if (!isValidDevice(device)) {
             return defaultValue;
         }

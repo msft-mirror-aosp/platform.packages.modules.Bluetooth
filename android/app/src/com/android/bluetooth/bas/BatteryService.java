@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.bas;
 
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
+
 import static java.util.Objects.requireNonNull;
 
 import android.bluetooth.BluetoothDevice;
@@ -239,7 +241,7 @@ public class BatteryService extends ProfileService {
         }
 
         // Check if the device is disconnected - if unbonded, remove the state machine
-        if (toState == BluetoothProfile.STATE_DISCONNECTED) {
+        if (toState == STATE_DISCONNECTED) {
             int bondState = mAdapterService.getBondState(device);
             if (bondState == BluetoothDevice.BOND_NONE) {
                 Log.d(TAG, device + " is unbonded. Remove state machine");
@@ -259,7 +261,7 @@ public class BatteryService extends ProfileService {
         }
         synchronized (mStateMachines) {
             for (BluetoothDevice device : bondedDevices) {
-                int connectionState = BluetoothProfile.STATE_DISCONNECTED;
+                int connectionState = STATE_DISCONNECTED;
                 BatteryStateMachine sm = mStateMachines.get(device);
                 if (sm != null) {
                     connectionState = sm.getConnectionState();
@@ -296,7 +298,7 @@ public class BatteryService extends ProfileService {
         synchronized (mStateMachines) {
             BatteryStateMachine sm = mStateMachines.get(device);
             if (sm == null) {
-                return BluetoothProfile.STATE_DISCONNECTED;
+                return STATE_DISCONNECTED;
             }
             return sm.getConnectionState();
         }
@@ -370,7 +372,7 @@ public class BatteryService extends ProfileService {
             if (sm == null) {
                 return;
             }
-            if (sm.getConnectionState() != BluetoothProfile.STATE_DISCONNECTED) {
+            if (sm.getConnectionState() != STATE_DISCONNECTED) {
                 return;
             }
             removeStateMachine(device);

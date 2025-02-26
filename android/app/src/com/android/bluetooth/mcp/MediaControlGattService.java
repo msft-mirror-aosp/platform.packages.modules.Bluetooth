@@ -23,6 +23,8 @@ import static android.bluetooth.BluetoothGattCharacteristic.PROPERTY_NOTIFY;
 import static android.bluetooth.BluetoothGattCharacteristic.PROPERTY_READ;
 import static android.bluetooth.BluetoothGattCharacteristic.PROPERTY_WRITE;
 import static android.bluetooth.BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
 import static java.util.Objects.requireNonNull;
 
@@ -935,7 +937,7 @@ public class MediaControlGattService implements MediaControlGattServiceInterface
                         BluetoothDevice device, int status, int newState) {
                     super.onConnectionStateChange(device, status, newState);
                     Log.d(TAG, "BluetoothGattServerCallback: onConnectionStateChange");
-                    if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                    if (newState == STATE_DISCONNECTED) {
                         ClearUnauthorizedGattOperations(device);
                     }
                 }
@@ -1259,7 +1261,7 @@ public class MediaControlGattService implements MediaControlGattServiceInterface
 
         public boolean isDeviceConnected(BluetoothDevice device) {
             return mBluetoothManager.getConnectionState(device, BluetoothProfile.GATT_SERVER)
-                    == BluetoothProfile.STATE_CONNECTED;
+                    == STATE_CONNECTED;
         }
     }
 

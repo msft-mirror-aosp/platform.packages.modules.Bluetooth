@@ -18,6 +18,7 @@ package com.android.bluetooth.pbapclient;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
 import android.annotation.RequiresPermission;
 import android.bluetooth.BluetoothDevice;
@@ -119,7 +120,7 @@ class PbapClientBinder extends IBluetoothPbapClient.Stub implements IProfileServ
         Log.d(TAG, "getConnectionState(device=" + device + ")");
         PbapClientService service = getService(source);
         if (service == null) {
-            return BluetoothProfile.STATE_DISCONNECTED;
+            return STATE_DISCONNECTED;
         }
         return service.getConnectionState(device);
     }

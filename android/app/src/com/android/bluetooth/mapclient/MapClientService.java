@@ -18,6 +18,9 @@ package com.android.bluetooth.mapclient;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
 import static java.util.Objects.requireNonNull;
 import static java.util.Objects.requireNonNullElseGet;
@@ -168,8 +171,7 @@ public class MapClientService extends ProfileService {
 
         // statemachine already exists in the map.
         int state = getConnectionState(device);
-        if (state == BluetoothProfile.STATE_CONNECTED
-                || state == BluetoothProfile.STATE_CONNECTING) {
+        if (state == STATE_CONNECTED || state == STATE_CONNECTING) {
             Log.w(TAG, "Received connect request while already connecting/connected.");
             return true;
         }
@@ -206,8 +208,7 @@ public class MapClientService extends ProfileService {
             return false;
         }
         int connectionState = mapStateMachine.getState();
-        if (connectionState != BluetoothProfile.STATE_CONNECTED
-                && connectionState != BluetoothProfile.STATE_CONNECTING) {
+        if (connectionState != STATE_CONNECTED && connectionState != STATE_CONNECTING) {
             return false;
         }
         mapStateMachine.disconnect();
@@ -244,9 +245,7 @@ public class MapClientService extends ProfileService {
     public synchronized int getConnectionState(BluetoothDevice device) {
         MceStateMachine mapStateMachine = mMapInstanceMap.get(device);
         // a map state machine instance doesn't exist yet, create a new one if we can.
-        return (mapStateMachine == null)
-                ? BluetoothProfile.STATE_DISCONNECTED
-                : mapStateMachine.getState();
+        return (mapStateMachine == null) ? STATE_DISCONNECTED : mapStateMachine.getState();
     }
 
     /**
@@ -359,7 +358,7 @@ public class MapClientService extends ProfileService {
         while (iterator.hasNext()) {
             Map.Entry<BluetoothDevice, MceStateMachine> profileConnection =
                     (Map.Entry) iterator.next();
-            if (profileConnection.getValue().getState() == BluetoothProfile.STATE_DISCONNECTED) {
+            if (profileConnection.getValue().getState() == STATE_DISCONNECTED) {
                 iterator.remove();
             }
         }
@@ -518,7 +517,7 @@ public class MapClientService extends ProfileService {
 
             MapClientService service = getServiceAndEnforcePrivileged(source);
             if (service == null) {
-                return BluetoothProfile.STATE_DISCONNECTED;
+                return STATE_DISCONNECTED;
             }
 
             return service.getConnectionState(device);
@@ -591,7 +590,7 @@ public class MapClientService extends ProfileService {
             return;
         }
 
-        if (stateMachine.getState() == BluetoothProfile.STATE_CONNECTED) {
+        if (stateMachine.getState() == STATE_CONNECTED) {
             stateMachine.disconnect();
         }
     }

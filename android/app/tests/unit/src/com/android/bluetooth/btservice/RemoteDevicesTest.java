@@ -1,6 +1,9 @@
 package com.android.bluetooth.btservice;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTING;
 
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
@@ -275,7 +278,7 @@ public class RemoteDevicesTest {
         // Verify that resetting battery level changes it back to BluetoothDevice
         // .BATTERY_LEVEL_UNKNOWN
         mRemoteDevices.onHeadsetConnectionStateChanged(
-                mDevice, BluetoothProfile.STATE_DISCONNECTING, BluetoothProfile.STATE_DISCONNECTED);
+                mDevice, STATE_DISCONNECTING, STATE_DISCONNECTED);
         // Verify BATTERY_LEVEL_CHANGED intent is sent after first reset
         verify(mAdapterService, times(2))
                 .sendBroadcast(
@@ -324,7 +327,7 @@ public class RemoteDevicesTest {
 
         // Verify that battery level is not reset
         mRemoteDevices.onHeadsetConnectionStateChanged(
-                mDevice, BluetoothProfile.STATE_DISCONNECTING, BluetoothProfile.STATE_DISCONNECTED);
+                mDevice, STATE_DISCONNECTING, STATE_DISCONNECTED);
 
         assertThat(mRemoteDevices.getDeviceProperties(mDevice)).isNotNull();
         assertThat(mRemoteDevices.getDeviceProperties(mDevice).getBatteryLevel())
@@ -590,7 +593,7 @@ public class RemoteDevicesTest {
         // Verify that resetting battery level changes it back to BluetoothDevice
         // .BATTERY_LEVEL_UNKNOWN
         mRemoteDevices.onHeadsetClientConnectionStateChanged(
-                mDevice, BluetoothProfile.STATE_DISCONNECTING, BluetoothProfile.STATE_DISCONNECTED);
+                mDevice, STATE_DISCONNECTING, STATE_DISCONNECTED);
 
         // Verify BATTERY_LEVEL_CHANGED intent is sent after first reset
         verify(mAdapterService, times(2))
@@ -641,7 +644,7 @@ public class RemoteDevicesTest {
 
         // Verify that battery level is not reset.
         mRemoteDevices.onHeadsetClientConnectionStateChanged(
-                mDevice, BluetoothProfile.STATE_DISCONNECTING, BluetoothProfile.STATE_DISCONNECTED);
+                mDevice, STATE_DISCONNECTING, STATE_DISCONNECTED);
 
         assertThat(mRemoteDevices.getDeviceProperties(mDevice)).isNotNull();
         assertThat(mRemoteDevices.getDeviceProperties(mDevice).getBatteryLevel())
@@ -855,7 +858,7 @@ public class RemoteDevicesTest {
 
     private static BatteryService setBatteryServiceForTesting(BluetoothDevice device) {
         BatteryService newService = mock(BatteryService.class);
-        when(newService.getConnectionState(device)).thenReturn(BluetoothProfile.STATE_CONNECTED);
+        when(newService.getConnectionState(device)).thenReturn(STATE_CONNECTED);
         when(newService.isAvailable()).thenReturn(true);
 
         BatteryService oldService = BatteryService.getBatteryService();
