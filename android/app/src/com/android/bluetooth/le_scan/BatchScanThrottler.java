@@ -91,9 +91,9 @@ class BatchScanThrottler {
                         : UNFILTERED_DELAY_FLOOR_MS;
         long intervalMillis = Long.MAX_VALUE;
         for (ScanClient client : batchClients) {
-            if (client.settings.getReportDelayMillis() > 0) {
-                long clientIntervalMillis = client.settings.getReportDelayMillis();
-                if ((client.filters == null || client.filters.isEmpty())
+            if (client.mSettings.getReportDelayMillis() > 0) {
+                long clientIntervalMillis = client.mSettings.getReportDelayMillis();
+                if ((client.mFilters == null || client.mFilters.isEmpty())
                         && clientIntervalMillis < unfilteredFloor) {
                     clientIntervalMillis = unfilteredFloor;
                 }

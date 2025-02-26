@@ -192,7 +192,7 @@ public class ScanControllerTest {
                                 new ArgumentMatcher<ScanClient>() {
                                     @Override
                                     public boolean matches(ScanClient client) {
-                                        return mPiInfo.callingUid == client.appUid;
+                                        return mPiInfo.callingUid == client.mAppUid;
                                     }
                                 }));
     }
@@ -211,14 +211,13 @@ public class ScanControllerTest {
 
         Set<ScanClient> scanClientSet = new HashSet<>();
         ScanClient scanClient = new ScanClient(scannerId);
-        scanClient.associatedDevices = new ArrayList<>();
-        scanClient.scannerId = scannerId;
+        scanClient.mAssociatedDevices = new ArrayList<>();
         if (expectResults) {
-            scanClient.hasScanWithoutLocationPermission = true;
+            scanClient.mHasScanWithoutLocationPermission = true;
         }
         scanClientSet.add(scanClient);
         doReturn(scanClientSet).when(mScanManager).getFullBatchScanQueue();
-        doReturn(mApp).when(mScannerMap).getById(scanClient.scannerId);
+        doReturn(mApp).when(mScannerMap).getById(scanClient.mScannerId);
         IScannerCallback callback = mock(IScannerCallback.class);
         mApp.mCallback = callback;
 
@@ -246,14 +245,13 @@ public class ScanControllerTest {
 
         Set<ScanClient> scanClientSet = new HashSet<>();
         ScanClient scanClient = new ScanClient(scannerId);
-        scanClient.associatedDevices = new ArrayList<>();
+        scanClient.mAssociatedDevices = new ArrayList<>();
         if (expectResults) {
-            scanClient.associatedDevices.add("02:00:00:00:00:00");
+            scanClient.mAssociatedDevices.add("02:00:00:00:00:00");
         }
-        scanClient.scannerId = scannerId;
         scanClientSet.add(scanClient);
         doReturn(scanClientSet).when(mScanManager).getBatchScanQueue();
-        doReturn(mApp).when(mScannerMap).getById(scanClient.scannerId);
+        doReturn(mApp).when(mScannerMap).getById(scanClient.mScannerId);
         IScannerCallback callback = mock(IScannerCallback.class);
         mApp.mCallback = callback;
 
@@ -331,9 +329,8 @@ public class ScanControllerTest {
         byte[] advData = new byte[0];
 
         ScanClient scanClient = new ScanClient(scannerId);
-        scanClient.scannerId = scannerId;
-        scanClient.hasNetworkSettingsPermission = true;
-        scanClient.settings =
+        scanClient.mHasNetworkSettingsPermission = true;
+        scanClient.mSettings =
                 new ScanSettings.Builder()
                         .setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES)
                         .setLegacy(false)
@@ -344,13 +341,13 @@ public class ScanControllerTest {
 
         mApp.mCallback = callback;
         mApp.mAppScanStats = appScanStats;
-        scanClient.stats = appScanStats;
+        scanClient.mStats = appScanStats;
         Set<ScanClient> scanClientSet = Collections.singleton(scanClient);
 
         doReturn(address).when(mAdapterService).getIdentityAddress(anyString());
         doReturn(scanClientSet).when(mScanManager).getRegularScanQueue();
-        doReturn(mApp).when(mScannerMap).getById(scanClient.scannerId);
-        doReturn(appScanStats).when(mScannerMap).getAppScanStatsById(scanClient.scannerId);
+        doReturn(mApp).when(mScannerMap).getById(scanClient.mScannerId);
+        doReturn(appScanStats).when(mScannerMap).getAppScanStatsById(scanClient.mScannerId);
 
         // Simulate remote client crash
         doThrow(new RemoteException()).when(callback).onScanResult(any());
@@ -368,7 +365,7 @@ public class ScanControllerTest {
                 advData,
                 address);
 
-        assertThat(scanClient.appDied).isTrue();
+        assertThat(scanClient.mAppDied).isTrue();
         verify(appScanStats).recordScanStop(scannerId);
     }
 
@@ -442,8 +439,8 @@ public class ScanControllerTest {
         int timeStamp = 11;
 
         ScanClient scanClient = new ScanClient(scannerId);
-        scanClient.hasNetworkSettingsPermission = true;
-        scanClient.settings =
+        scanClient.mHasNetworkSettingsPermission = true;
+        scanClient.mSettings =
                 new ScanSettings.Builder()
                         .setCallbackType(ScanSettings.CALLBACK_TYPE_FIRST_MATCH)
                         .setLegacy(false)
