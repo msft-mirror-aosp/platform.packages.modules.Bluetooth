@@ -69,5 +69,6 @@
             class="com.android.tradefed.testtype.suite.module.MainlineTestModuleController">
         <option name="enable" value="true" />
         <option name="mainline-module-package-name" value="com.android.bt" />
+        <option name="mainline-module-package-name" value="com.google.android.bt" />
     </object>
 </configuration>
