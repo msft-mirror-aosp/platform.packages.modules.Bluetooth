@@ -1306,6 +1306,12 @@ class HeadsetStateMachine extends StateMachine {
                 // Reset audio disconnecting retry count. Either the disconnection was successful
                 // or the retry count reached MAX_RETRY_DISCONNECT_AUDIO.
                 mAudioDisconnectRetry = 0;
+            } else if (mPrevState == mAudioConnecting || mPrevState == mAudioOn) {
+                HeadsetService.logScoSessionMetric(
+                        mDevice,
+                        BluetoothStatsLog
+                                .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__STATE__SCO_LINK_LOSS,
+                        0);
             }
 
             broadcastStateTransitions();
@@ -1576,6 +1582,11 @@ class HeadsetStateMachine extends StateMachine {
                             mHeadsetService.getMainExecutor(), mAudioServerStateCallback);
 
             broadcastStateTransitions();
+            HeadsetService.logScoSessionMetric(
+                    mDevice,
+                    BluetoothStatsLog
+                            .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__STATE__SCO_AUDIO_CONNECTED,
+                    0);
         }
 
         @Override
