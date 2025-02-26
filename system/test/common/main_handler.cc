@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include "main_handler.h"
+
 #include <base/functional/bind.h>
 #include <base/functional/callback_forward.h>
 #include <base/location.h>
@@ -27,9 +29,6 @@
 #include "common/message_loop_thread.h"
 #include "common/postable_context.h"
 #include "include/hardware/bluetooth.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using bluetooth::common::MessageLoopThread;
 using BtMainClosure = std::function<void()>;

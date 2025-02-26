@@ -40,9 +40,6 @@
 #include "hardware/bt_le_audio.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using bluetooth::le_audio::BroadcastId;
 using bluetooth::le_audio::BroadcastState;
 using bluetooth::le_audio::btle_audio_bits_per_sample_index_t;
@@ -132,7 +129,7 @@ static std::shared_timed_mutex callbacks_mutex;
 
 static jclass class_LeAudioNativeInterface;
 
-jobject prepareCodecConfigObj(JNIEnv* env, btle_audio_codec_config_t codecConfig) {
+static jobject prepareCodecConfigObj(JNIEnv* env, btle_audio_codec_config_t codecConfig) {
   log::info(
           "ct: {}, codec_priority: {}, sample_rate: {}, bits_per_sample: {}, "
           "channel_count: {}, frame_duration: {}, octets_per_frame: {}",
@@ -149,8 +146,8 @@ jobject prepareCodecConfigObj(JNIEnv* env, btle_audio_codec_config_t codecConfig
   return codecConfigObj;
 }
 
-jobjectArray prepareArrayOfCodecConfigs(JNIEnv* env,
-                                        std::vector<btle_audio_codec_config_t> codecConfigs) {
+static jobjectArray prepareArrayOfCodecConfigs(
+        JNIEnv* env, std::vector<btle_audio_codec_config_t> codecConfigs) {
   jsize i = 0;
   jobjectArray CodecConfigArray = env->NewObjectArray(
           (jsize)codecConfigs.size(), android_bluetooth_BluetoothLeAudioCodecConfig.clazz, nullptr);
@@ -402,8 +399,8 @@ public:
 
 static LeAudioClientCallbacksImpl sLeAudioClientCallbacks;
 
-std::vector<btle_audio_codec_config_t> prepareCodecPreferences(JNIEnv* env, jobject /* object */,
-                                                               jobjectArray codecConfigArray) {
+static std::vector<btle_audio_codec_config_t> prepareCodecPreferences(
+        JNIEnv* env, jobject /* object */, jobjectArray codecConfigArray) {
   std::vector<btle_audio_codec_config_t> codec_preferences;
 
   int numConfigs = env->GetArrayLength(codecConfigArray);
@@ -763,7 +760,7 @@ static std::shared_timed_mutex sBroadcasterCallbacksMutex;
 
 #define VEC_UINT8_TO_UINT16(vec) (((vec).data()[1] << 8) + ((vec).data()[0]))
 
-size_t RawPacketSize(const std::map<uint8_t, std::vector<uint8_t>>& values) {
+static size_t RawPacketSize(const std::map<uint8_t, std::vector<uint8_t>>& values) {
   size_t bytes = 0;
   for (auto const& value : values) {
     bytes += (/* ltv_len + ltv_type */ 2 + value.second.size());
@@ -771,8 +768,8 @@ size_t RawPacketSize(const std::map<uint8_t, std::vector<uint8_t>>& values) {
   return bytes;
 }
 
-jbyteArray prepareRawLtvArray(JNIEnv* env,
-                              const std::map<uint8_t, std::vector<uint8_t>>& metadata) {
+static jbyteArray prepareRawLtvArray(JNIEnv* env,
+                                     const std::map<uint8_t, std::vector<uint8_t>>& metadata) {
   auto raw_meta_size = RawPacketSize(metadata);
 
   jbyteArray raw_metadata = env->NewByteArray(raw_meta_size);
@@ -839,7 +836,7 @@ static jint getOctetsPerFrameOrDefault(const std::map<uint8_t, std::vector<uint8
   return VEC_UINT8_TO_UINT16(vec);
 }
 
-jobject prepareLeAudioCodecConfigMetadataObject(
+static jobject prepareLeAudioCodecConfigMetadataObject(
         JNIEnv* env, const std::map<uint8_t, std::vector<uint8_t>>& metadata) {
   jlong audio_location = getAudioLocationOrDefault(metadata, -1);
   jint sampling_frequency = getSamplingFrequencyOrDefault(metadata, 0);
@@ -859,7 +856,7 @@ jobject prepareLeAudioCodecConfigMetadataObject(
   return obj;
 }
 
-jobject prepareLeBroadcastChannelObject(
+static jobject prepareLeBroadcastChannelObject(
         JNIEnv* env, const bluetooth::le_audio::BasicAudioAnnouncementBisConfig& bis_config) {
   ScopedLocalRef<jobject> meta_object(
           env, prepareLeAudioCodecConfigMetadataObject(env, bis_config.codec_specific_params));
@@ -875,7 +872,7 @@ jobject prepareLeBroadcastChannelObject(
   return obj;
 }
 
-jobject prepareLeAudioContentMetadataObject(
+static jobject prepareLeAudioContentMetadataObject(
         JNIEnv* env, const std::map<uint8_t, std::vector<uint8_t>>& metadata) {
   jstring program_info_str = nullptr;
   if (metadata.count(bluetooth::le_audio::kLeAudioMetadataTypeProgramInfo)) {
@@ -927,7 +924,7 @@ jobject prepareLeAudioContentMetadataObject(
   return obj;
 }
 
-jobject prepareLeBroadcastChannelListObject(
+static jobject prepareLeBroadcastChannelListObject(
         JNIEnv* env,
         const std::vector<bluetooth::le_audio::BasicAudioAnnouncementBisConfig>& bis_configs) {
   jobject array = env->NewObject(java_util_ArrayList.clazz, java_util_ArrayList.constructor);
@@ -948,7 +945,7 @@ jobject prepareLeBroadcastChannelListObject(
   return array;
 }
 
-jobject prepareLeBroadcastSubgroupObject(
+static jobject prepareLeBroadcastSubgroupObject(
         JNIEnv* env, const bluetooth::le_audio::BasicAudioAnnouncementSubgroup& subgroup) {
   // Serialize codec ID
   jlong jlong_codec_id = subgroup.codec_config.codec_id |
@@ -984,7 +981,7 @@ jobject prepareLeBroadcastSubgroupObject(
                         channel_list_obj.get());
 }
 
-jobject prepareLeBroadcastSubgroupListObject(
+static jobject prepareLeBroadcastSubgroupListObject(
         JNIEnv* env,
         const std::vector<bluetooth::le_audio::BasicAudioAnnouncementSubgroup>& subgroup_configs) {
   jobject array = env->NewObject(java_util_ArrayList.clazz, java_util_ArrayList.constructor);
@@ -1005,7 +1002,7 @@ jobject prepareLeBroadcastSubgroupListObject(
   return array;
 }
 
-jobject prepareBluetoothDeviceObject(JNIEnv* env, const RawAddress& addr, int addr_type) {
+static jobject prepareBluetoothDeviceObject(JNIEnv* env, const RawAddress& addr, int addr_type) {
   // The address string has to be uppercase or the BluetoothDevice constructor
   // will treat it as invalid.
   auto addr_str = addr.ToString();
@@ -1023,7 +1020,7 @@ jobject prepareBluetoothDeviceObject(JNIEnv* env, const RawAddress& addr, int ad
                         (jint)addr_type);
 }
 
-jobject prepareBluetoothLeBroadcastMetadataObject(
+static jobject prepareBluetoothLeBroadcastMetadataObject(
         JNIEnv* env, const bluetooth::le_audio::BroadcastMetadata& broadcast_metadata) {
   ScopedLocalRef<jobject> device_obj(
           env,
@@ -1318,7 +1315,7 @@ static void BroadcasterCleanupNative(JNIEnv* env, jobject /* object */) {
   }
 }
 
-std::vector<std::vector<uint8_t>> convertToDataVectors(JNIEnv* env, jobjectArray dataArray) {
+static std::vector<std::vector<uint8_t>> convertToDataVectors(JNIEnv* env, jobjectArray dataArray) {
   jsize arraySize = env->GetArrayLength(dataArray);
   std::vector<std::vector<uint8_t>> res(arraySize);
 

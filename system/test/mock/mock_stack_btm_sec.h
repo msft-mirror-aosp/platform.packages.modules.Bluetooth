@@ -345,10 +345,10 @@ extern struct btm_create_conn_cancel_complete btm_create_conn_cancel_complete;
 // Params: const RawAddress& bda
 // Return: DEV_CLASS
 struct btm_get_dev_class {
-  static const DEV_CLASS return_value;
-  std::function<const DEV_CLASS(const RawAddress& bda)> body{
+  static DEV_CLASS return_value;
+  std::function<DEV_CLASS(const RawAddress& bda)> body{
           [](const RawAddress& /* bda */) { return return_value; }};
-  const DEV_CLASS operator()(const RawAddress& bda) { return body(bda); }
+  DEV_CLASS operator()(const RawAddress& bda) { return body(bda); }
 };
 extern struct btm_get_dev_class btm_get_dev_class;
 
@@ -438,15 +438,6 @@ struct btm_sec_bond_by_transport {
   }
 };
 extern struct btm_sec_bond_by_transport btm_sec_bond_by_transport;
-
-// Name: btm_sec_check_pending_reqs
-// Params: void
-// Return: void
-struct btm_sec_check_pending_reqs {
-  std::function<void(void)> body{[](void) {}};
-  void operator()(void) { body(); }
-};
-extern struct btm_sec_check_pending_reqs btm_sec_check_pending_reqs;
 
 // Name: btm_sec_clear_ble_keys
 // Params: tBTM_SEC_DEV_REC* p_dev_rec

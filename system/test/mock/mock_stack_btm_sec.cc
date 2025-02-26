@@ -25,6 +25,8 @@
 #include <cstdint>
 #include <string>
 
+#include "stack/btm/btm_sec.h"
+#include "stack/include/btm_ble_sec_api.h"
 #include "stack/include/btm_sec_api_types.h"
 #include "stack/include/btm_status.h"
 #include "test/common/mock_functions.h"
@@ -33,9 +35,6 @@
 // Original usings
 
 // Mocked internal structures, if any
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 namespace test {
 namespace mock {
@@ -74,7 +73,6 @@ struct btm_rem_oob_req btm_rem_oob_req;
 struct btm_sec_abort_access_req btm_sec_abort_access_req;
 struct btm_sec_auth_complete btm_sec_auth_complete;
 struct btm_sec_bond_by_transport btm_sec_bond_by_transport;
-struct btm_sec_check_pending_reqs btm_sec_check_pending_reqs;
 struct btm_sec_clear_ble_keys btm_sec_clear_ble_keys;
 struct btm_sec_conn_req btm_sec_conn_req;
 struct btm_sec_connected btm_sec_connected;
@@ -124,7 +122,7 @@ bool BTM_SecIsLeSecurityPending::return_value = false;
 bool BTM_SecRegister::return_value = false;
 tBTM_STATUS BTM_SetEncryption::return_value = tBTM_STATUS::BTM_SUCCESS;
 bool BTM_SetSecurityLevel::return_value = false;
-const DEV_CLASS btm_get_dev_class::return_value = kDevClassEmpty;
+DEV_CLASS btm_get_dev_class::return_value = kDevClassEmpty;
 tBTM_STATUS btm_sec_bond_by_transport::return_value = tBTM_STATUS::BTM_SUCCESS;
 tBTM_STATUS btm_sec_disconnect::return_value = tBTM_STATUS::BTM_SUCCESS;
 bool btm_sec_is_a_bonded_dev::return_value = false;
@@ -238,7 +236,7 @@ void btm_create_conn_cancel_complete(uint8_t status, const RawAddress bd_addr) {
   inc_func_call_count(__func__);
   test::mock::stack_btm_sec::btm_create_conn_cancel_complete(status, bd_addr);
 }
-const DEV_CLASS btm_get_dev_class(const RawAddress& bda) {
+DEV_CLASS btm_get_dev_class(const RawAddress& bda) {
   inc_func_call_count(__func__);
   return test::mock::stack_btm_sec::btm_get_dev_class(bda);
 }
@@ -274,10 +272,6 @@ tBTM_STATUS btm_sec_bond_by_transport(const RawAddress& bd_addr, tBLE_ADDR_TYPE 
                                       tBT_TRANSPORT transport) {
   inc_func_call_count(__func__);
   return test::mock::stack_btm_sec::btm_sec_bond_by_transport(bd_addr, addr_type, transport);
-}
-void btm_sec_check_pending_reqs(void) {
-  inc_func_call_count(__func__);
-  test::mock::stack_btm_sec::btm_sec_check_pending_reqs();
 }
 void btm_sec_clear_ble_keys(tBTM_SEC_DEV_REC* p_dev_rec) {
   inc_func_call_count(__func__);
