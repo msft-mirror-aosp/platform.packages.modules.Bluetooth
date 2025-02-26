@@ -769,24 +769,6 @@ public class HeadsetService extends ProfileService {
         }
 
         @Override
-        public void phoneStateChanged(
-                int numActive,
-                int numHeld,
-                int callState,
-                String number,
-                int type,
-                String name,
-                AttributionSource source) {
-            HeadsetService service = getService(source);
-            if (service == null) {
-                return;
-            }
-
-            service.enforceCallingOrSelfPermission(MODIFY_PHONE_STATE, null);
-            service.phoneStateChanged(numActive, numHeld, callState, number, type, name, false);
-        }
-
-        @Override
         public boolean sendVendorSpecificResultCode(
                 BluetoothDevice device, String command, String arg, AttributionSource source) {
             HeadsetService service = getService(source);
@@ -844,7 +826,8 @@ public class HeadsetService extends ProfileService {
         return sHeadsetService;
     }
 
-    private static synchronized void setHeadsetService(HeadsetService instance) {
+    @VisibleForTesting
+    public static synchronized void setHeadsetService(HeadsetService instance) {
         logD("setHeadsetService(): set to: " + instance);
         sHeadsetService = instance;
     }
@@ -1955,8 +1938,7 @@ public class HeadsetService extends ProfileService {
         }
     }
 
-    @VisibleForTesting
-    void phoneStateChanged(
+    public void phoneStateChanged(
             int numActive,
             int numHeld,
             int callState,
