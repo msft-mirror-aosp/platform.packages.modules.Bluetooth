@@ -23,6 +23,8 @@ import static android.bluetooth.BluetoothAdapter.STATE_OFF;
 import static android.bluetooth.BluetoothAdapter.STATE_ON;
 import static android.bluetooth.BluetoothAdapter.STATE_TURNING_OFF;
 import static android.bluetooth.BluetoothAdapter.STATE_TURNING_ON;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
 import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
@@ -1053,7 +1055,7 @@ public class AdapterServiceTest {
     @EnableFlags(Flags.FLAG_ALLOW_GATT_CONNECT_FROM_THE_APPS_WITHOUT_MAKING_LEAUDIO_DEVICE_ACTIVE)
     public void testGattConnectionToLeAudioDevice_whenDeviceIsNotConnected_success() {
         int groupId = 1;
-        int getConnectionState_LeAudioService = BluetoothProfile.STATE_CONNECTED;
+        int getConnectionState_LeAudioService = STATE_CONNECTED;
         int getConnectionState_AdapterService =
                 BluetoothDevice.CONNECTION_STATE_ENCRYPTED_LE
                         | BluetoothDevice.CONNECTION_STATE_CONNECTED;
@@ -1075,7 +1077,7 @@ public class AdapterServiceTest {
     @EnableFlags(Flags.FLAG_ALLOW_GATT_CONNECT_FROM_THE_APPS_WITHOUT_MAKING_LEAUDIO_DEVICE_ACTIVE)
     public void testGattConnectionToLeAudioDevice_whenDeviceIsConnected_ignore() {
         int groupId = 1;
-        int getConnectionState_LeAudioService = BluetoothProfile.STATE_CONNECTED;
+        int getConnectionState_LeAudioService = STATE_CONNECTED;
         int getConnectionState_AdapterService =
                 BluetoothDevice.CONNECTION_STATE_ENCRYPTED_LE
                         | BluetoothDevice.CONNECTION_STATE_CONNECTED;
@@ -1097,7 +1099,7 @@ public class AdapterServiceTest {
     @EnableFlags(Flags.FLAG_ALLOW_GATT_CONNECT_FROM_THE_APPS_WITHOUT_MAKING_LEAUDIO_DEVICE_ACTIVE)
     public void testGattConnectionToLeAudioDevice_whenLeAudioIsNotAllowed_ignore() {
         int groupId = 1;
-        int getConnectionState_LeAudioService = BluetoothProfile.STATE_DISCONNECTED;
+        int getConnectionState_LeAudioService = STATE_DISCONNECTED;
         int getConnectionState_AdapterService =
                 BluetoothDevice.CONNECTION_STATE_ENCRYPTED_LE
                         | BluetoothDevice.CONNECTION_STATE_CONNECTED;
@@ -1124,7 +1126,7 @@ public class AdapterServiceTest {
         int groupId = 1;
         int clientIf = 1;
 
-        int getConnectionState_LeAudioService = BluetoothProfile.STATE_CONNECTED;
+        int getConnectionState_LeAudioService = STATE_CONNECTED;
         int getConnectionState_AdapterService =
                 BluetoothDevice.CONNECTION_STATE_ENCRYPTED_LE
                         | BluetoothDevice.CONNECTION_STATE_CONNECTED;
@@ -1152,7 +1154,7 @@ public class AdapterServiceTest {
         int groupId = 1;
         int clientIf = 1;
 
-        int getConnectionState_LeAudioService = BluetoothProfile.STATE_DISCONNECTED;
+        int getConnectionState_LeAudioService = STATE_DISCONNECTED;
         int getConnectionState_AdapterService = BluetoothDevice.CONNECTION_STATE_DISCONNECTED;
         InOrder order =
                 prepareLeAudioWithConnectedDevices(
@@ -1179,7 +1181,7 @@ public class AdapterServiceTest {
     public void testGattConnectionToLeAudioDevice_triggerDisconnecting() {
         int groupId = 1;
         int clientIf = 1;
-        int getConnectionState_LeAudioService = BluetoothProfile.STATE_CONNECTED;
+        int getConnectionState_LeAudioService = STATE_CONNECTED;
         int getConnectionState_AdapterService =
                 BluetoothDevice.CONNECTION_STATE_ENCRYPTED_LE
                         | BluetoothDevice.CONNECTION_STATE_CONNECTED;
@@ -1211,7 +1213,7 @@ public class AdapterServiceTest {
         int clientIf = 1;
         int clientIfTwo = 2;
 
-        int getConnectionState_LeAudioService = BluetoothProfile.STATE_CONNECTED;
+        int getConnectionState_LeAudioService = STATE_CONNECTED;
         int getConnectionState_AdapterService =
                 BluetoothDevice.CONNECTION_STATE_ENCRYPTED_LE
                         | BluetoothDevice.CONNECTION_STATE_CONNECTED;
@@ -1259,7 +1261,7 @@ public class AdapterServiceTest {
         int clientIf = 1;
         int clientIfTwo = 2;
 
-        int getConnectionState_LeAudioService = BluetoothProfile.STATE_CONNECTED;
+        int getConnectionState_LeAudioService = STATE_CONNECTED;
         int getConnectionState_AdapterService =
                 BluetoothDevice.CONNECTION_STATE_ENCRYPTED_LE
                         | BluetoothDevice.CONNECTION_STATE_CONNECTED;
@@ -1308,7 +1310,7 @@ public class AdapterServiceTest {
         int clientIf = 1;
         int clientIfTwo = 2;
 
-        int getConnectionState_LeAudioService = BluetoothProfile.STATE_CONNECTED;
+        int getConnectionState_LeAudioService = STATE_CONNECTED;
         int getConnectionState_AdapterService =
                 BluetoothDevice.CONNECTION_STATE_ENCRYPTED_LE
                         | BluetoothDevice.CONNECTION_STATE_CONNECTED;

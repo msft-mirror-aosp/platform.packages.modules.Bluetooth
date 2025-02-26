@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.btservice;
 
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.bluetooth.BluetoothAdapter;
@@ -180,7 +182,7 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
      */
     public void profileConnectionStateChanged(
             int profile, BluetoothDevice device, int fromState, int toState) {
-        if (toState == BluetoothProfile.STATE_CONNECTED) {
+        if (toState == STATE_CONNECTED) {
             switch (profile) {
                 case BluetoothProfile.A2DP:
                     mHandler.post(() -> handleA2dpConnected(device));
@@ -198,7 +200,7 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
                     mHandler.post(() -> handleHapConnected(device));
                     break;
             }
-        } else if (fromState == BluetoothProfile.STATE_CONNECTED) {
+        } else if (fromState == STATE_CONNECTED) {
             switch (profile) {
                 case BluetoothProfile.A2DP:
                     mHandler.post(() -> handleA2dpDisconnected(device));

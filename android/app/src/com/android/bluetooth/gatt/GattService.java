@@ -19,6 +19,8 @@ package com.android.bluetooth.gatt;
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
 import static com.android.bluetooth.Utils.callerIsSystemOrActiveOrManagedUser;
 import static com.android.bluetooth.Utils.checkCallerTargetSdk;
@@ -1472,7 +1474,7 @@ public class GattService extends ProfileService {
         BluetoothDevice[] bondedDevices = mAdapterService.getBondedDevices();
         for (BluetoothDevice device : bondedDevices) {
             if (getDeviceType(device) != AbstractionLayer.BT_DEVICE_TYPE_BREDR) {
-                deviceStates.put(device, BluetoothProfile.STATE_DISCONNECTED);
+                deviceStates.put(device, STATE_DISCONNECTED);
             }
         }
 
@@ -1485,7 +1487,7 @@ public class GattService extends ProfileService {
         for (String address : connectedDevices) {
             BluetoothDevice device = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(address);
             if (device != null) {
-                deviceStates.put(device, BluetoothProfile.STATE_CONNECTED);
+                deviceStates.put(device, STATE_CONNECTED);
             }
         }
 

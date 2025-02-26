@@ -19,6 +19,8 @@ package com.android.bluetooth.le_audio;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 import static android.bluetooth.IBluetoothLeAudio.LE_AUDIO_GROUP_ID_INVALID;
 
 import static com.android.bluetooth.bass_client.BassConstants.INVALID_BROADCAST_ID;
@@ -994,7 +996,7 @@ public class LeAudioService extends ProfileService {
                 if (!Utils.arrayContains(featureUuids, BluetoothUuid.LE_AUDIO)) {
                     continue;
                 }
-                int connectionState = BluetoothProfile.STATE_DISCONNECTED;
+                int connectionState = STATE_DISCONNECTED;
                 LeAudioDeviceDescriptor descriptor = getDeviceDescriptor(device);
                 if (descriptor == null) {
                     Log.e(
@@ -1056,12 +1058,12 @@ public class LeAudioService extends ProfileService {
         try {
             LeAudioDeviceDescriptor descriptor = getDeviceDescriptor(device);
             if (descriptor == null) {
-                return BluetoothProfile.STATE_DISCONNECTED;
+                return STATE_DISCONNECTED;
             }
 
             LeAudioStateMachine sm = descriptor.mStateMachine;
             if (sm == null) {
-                return BluetoothProfile.STATE_DISCONNECTED;
+                return STATE_DISCONNECTED;
             }
             return sm.getConnectionState();
         } finally {
@@ -1742,8 +1744,7 @@ public class LeAudioService extends ProfileService {
             }
 
             if (groupDescriptor.mCurrentLeadDevice != null
-                    && getConnectionState(groupDescriptor.mCurrentLeadDevice)
-                            == BluetoothProfile.STATE_CONNECTED) {
+                    && getConnectionState(groupDescriptor.mCurrentLeadDevice) == STATE_CONNECTED) {
                 return groupDescriptor.mCurrentLeadDevice;
             }
 
@@ -1753,7 +1754,7 @@ public class LeAudioService extends ProfileService {
                 }
 
                 LeAudioStateMachine sm = descriptor.mStateMachine;
-                if (sm == null || sm.getConnectionState() != BluetoothProfile.STATE_CONNECTED) {
+                if (sm == null || sm.getConnectionState() != STATE_CONNECTED) {
                     continue;
                 }
                 groupDescriptor.mCurrentLeadDevice = sm.getDevice();
@@ -2637,7 +2638,7 @@ public class LeAudioService extends ProfileService {
             Log.e(TAG, "device should not be null!");
             return removeActiveDevice(false);
         }
-        if (getConnectionState(device) != BluetoothProfile.STATE_CONNECTED) {
+        if (getConnectionState(device) != STATE_CONNECTED) {
             Log.e(
                     TAG,
                     "setActiveDevice("
@@ -4146,7 +4147,7 @@ public class LeAudioService extends ProfileService {
             if (sm == null) {
                 return;
             }
-            if (sm.getConnectionState() != BluetoothProfile.STATE_DISCONNECTED) {
+            if (sm.getConnectionState() != STATE_DISCONNECTED) {
                 Log.w(TAG, "Device is not disconnected yet.");
                 disconnect(device);
                 return;
@@ -5771,7 +5772,7 @@ public class LeAudioService extends ProfileService {
 
             LeAudioService service = getServiceAndEnforceConnect(source);
             if (service == null) {
-                return BluetoothProfile.STATE_DISCONNECTED;
+                return STATE_DISCONNECTED;
             }
 
             return service.getConnectionState(device);

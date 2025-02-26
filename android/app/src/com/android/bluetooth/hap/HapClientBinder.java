@@ -18,6 +18,7 @@ package com.android.bluetooth.hap;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
 import static java.util.Objects.requireNonNull;
 
@@ -102,7 +103,7 @@ class HapClientBinder extends IBluetoothHapClient.Stub
     public int getConnectionState(BluetoothDevice device, AttributionSource source) {
         HapClientService service = getService(source);
         if (service == null) {
-            return BluetoothProfile.STATE_DISCONNECTED;
+            return STATE_DISCONNECTED;
         }
 
         requireNonNull(device);

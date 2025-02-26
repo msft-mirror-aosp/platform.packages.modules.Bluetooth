@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.hid;
 
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+
 import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 
@@ -69,13 +71,12 @@ public class HidHostServiceBinderTest {
     public void getConnectedDevices_callsServiceMethod() {
         mBinder.getConnectedDevices(null);
 
-        verify(mService)
-                .getDevicesMatchingConnectionStates(new int[] {BluetoothProfile.STATE_CONNECTED});
+        verify(mService).getDevicesMatchingConnectionStates(new int[] {STATE_CONNECTED});
     }
 
     @Test
     public void getDevicesMatchingConnectionStates_callsServiceMethod() {
-        int[] states = new int[] {BluetoothProfile.STATE_CONNECTED};
+        int[] states = new int[] {STATE_CONNECTED};
         mBinder.getDevicesMatchingConnectionStates(states, null);
 
         verify(mService).getDevicesMatchingConnectionStates(states);

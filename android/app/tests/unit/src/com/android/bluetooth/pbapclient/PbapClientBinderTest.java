@@ -16,6 +16,9 @@
 
 package com.android.bluetooth.pbapclient;
 
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
+
 import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 
@@ -93,7 +96,7 @@ public class PbapClientBinderTest {
 
     @Test
     public void testGetDevicesMatchingConnectionStates() {
-        int[] states = new int[] {BluetoothProfile.STATE_CONNECTED};
+        int[] states = new int[] {STATE_CONNECTED};
         mPbapClientBinder.getDevicesMatchingConnectionStates(states, mAttributionSource);
         verify(mMockService).getDevicesMatchingConnectionStates(eq(states));
     }
@@ -148,7 +151,7 @@ public class PbapClientBinderTest {
     @Test
     public void testGetDevicesMatchingConnectionStates_afterCleanup_returnsEmptyList() {
         mPbapClientBinder.cleanup();
-        int[] states = new int[] {BluetoothProfile.STATE_CONNECTED};
+        int[] states = new int[] {STATE_CONNECTED};
         List<BluetoothDevice> devices =
                 mPbapClientBinder.getDevicesMatchingConnectionStates(states, mAttributionSource);
         verify(mMockService, never()).getDevicesMatchingConnectionStates(any(int[].class));
@@ -160,7 +163,7 @@ public class PbapClientBinderTest {
         mPbapClientBinder.cleanup();
         int state = mPbapClientBinder.getConnectionState(mTestDevice, mAttributionSource);
         verify(mMockService, never()).getConnectionState(any(BluetoothDevice.class));
-        assertThat(state).isEqualTo(BluetoothProfile.STATE_DISCONNECTED);
+        assertThat(state).isEqualTo(STATE_DISCONNECTED);
     }
 
     @Test
