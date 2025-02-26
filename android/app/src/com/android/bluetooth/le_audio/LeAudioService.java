@@ -2216,10 +2216,10 @@ public class LeAudioService extends ProfileService {
         if (device.equals(mActiveAudioInDevice) || device.equals(mActiveAudioOutDevice)) {
             mEventLogger.loge(
                     TAG,
-                    "[From AudioManager]: Audio manager autonomusly disactivated LeAudio device "
+                    "[From AudioManager]: Audio manager autonomusly disactivated LeAudio device."
+                            + " Probably restarting and device shall be re-added "
                             + mExposedActiveDevice);
-            mExposedActiveDevice = null;
-            setActiveDevice(null);
+
             return;
         }
 
