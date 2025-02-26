@@ -173,6 +173,7 @@ java_defaults {
             "-Xep:ReferenceEquality:ERROR",
             "-Xep:ReturnAtTheEndOfVoidFunction:ERROR",
             "-Xep:ReturnFromVoid:ERROR",
+            "-Xep:SelfAssertion:ERROR",
             "-Xep:StaticAssignmentInConstructor:ERROR",
             "-Xep:StaticGuardedByInstance:ERROR",
             "-Xep:StringCaseLocaleUsage:ERROR",

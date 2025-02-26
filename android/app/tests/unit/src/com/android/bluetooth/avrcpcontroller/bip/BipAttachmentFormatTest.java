@@ -22,6 +22,8 @@ import android.annotation.SuppressLint;
 
 import androidx.test.runner.AndroidJUnit4;
 
+import com.google.common.testing.EqualsTester;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -422,30 +424,17 @@ public class BipAttachmentFormatTest {
     }
 
     @Test
-    public void testEquals_withSameInstance() {
-        BipAttachmentFormat attachment =
-                new BipAttachmentFormat("text/plain", null, "thisisatextfile.txt", -1, null, null);
-
-        assertThat(attachment).isEqualTo(attachment);
-    }
-
-    @Test
-    @SuppressLint("TruthIncompatibleType") // That the point of this test
-    public void testEquals_withDifferentClass() {
-        BipAttachmentFormat attachment =
-                new BipAttachmentFormat("text/plain", null, "thisisatextfile.txt", -1, null, null);
-        String notAttachment = "notAttachment";
-
-        assertThat(attachment).isNotEqualTo(notAttachment);
-    }
-
-    @Test
-    public void testEquals_withSameInfo() {
+    public void testEquals() {
         BipAttachmentFormat attachment =
                 new BipAttachmentFormat("text/plain", null, "thisisatextfile.txt", -1, null, null);
         BipAttachmentFormat attachmentEqual =
                 new BipAttachmentFormat("text/plain", null, "thisisatextfile.txt", -1, null, null);
 
-        assertThat(attachment).isEqualTo(attachmentEqual);
+        String notAttachment = "notAttachment";
+
+        new EqualsTester()
+                .addEqualityGroup(attachment, attachment, attachmentEqual)
+                .addEqualityGroup(notAttachment)
+                .testEquals();
     }
 }
