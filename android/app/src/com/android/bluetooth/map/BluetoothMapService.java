@@ -17,6 +17,8 @@ package com.android.bluetooth.map;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
@@ -680,7 +682,7 @@ public class BluetoothMapService extends ProfileService {
                 device, BluetoothProfile.MAP, connectionPolicy)) {
             return false;
         }
-        if (connectionPolicy == BluetoothProfile.CONNECTION_POLICY_FORBIDDEN) {
+        if (connectionPolicy == CONNECTION_POLICY_FORBIDDEN) {
             disconnect(device);
         }
         return true;
@@ -1397,7 +1399,7 @@ public class BluetoothMapService extends ProfileService {
             try {
                 BluetoothMapService service = getService(source);
                 if (service == null) {
-                    return BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
+                    return CONNECTION_POLICY_UNKNOWN;
                 }
 
                 return service.getConnectionPolicy(device);

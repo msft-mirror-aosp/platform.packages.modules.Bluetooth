@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.hfp;
 
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
@@ -231,7 +233,7 @@ public class HeadsetServiceAndStateMachineTest {
     @Test
     public void testConnectFromApi() {
         BluetoothDevice device = getTestDevice(0);
-        doReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN)
+        doReturn(CONNECTION_POLICY_UNKNOWN)
                 .when(mDatabaseManager)
                 .getProfileConnectionPolicy(device, BluetoothProfile.HEADSET);
         mBondedDevices.add(device);
@@ -272,7 +274,7 @@ public class HeadsetServiceAndStateMachineTest {
     @Test
     public void testUnbondDevice_disconnectBeforeUnbond() {
         BluetoothDevice device = getTestDevice(0);
-        doReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN)
+        doReturn(CONNECTION_POLICY_UNKNOWN)
                 .when(mDatabaseManager)
                 .getProfileConnectionPolicy(device, BluetoothProfile.HEADSET);
         mBondedDevices.add(device);
@@ -316,7 +318,7 @@ public class HeadsetServiceAndStateMachineTest {
     @Test
     public void testUnbondDevice_disconnectAfterUnbond() {
         BluetoothDevice device = getTestDevice(0);
-        doReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN)
+        doReturn(CONNECTION_POLICY_UNKNOWN)
                 .when(mDatabaseManager)
                 .getProfileConnectionPolicy(device, BluetoothProfile.HEADSET);
         mBondedDevices.add(device);
@@ -1569,16 +1571,16 @@ public class HeadsetServiceAndStateMachineTest {
         verify(mNativeInterface).sendBsir(eq(device), eq(true));
 
         // this device is a HFP only device
-        doReturn(BluetoothProfile.CONNECTION_POLICY_ALLOWED)
+        doReturn(CONNECTION_POLICY_ALLOWED)
                 .when(mDatabaseManager)
                 .getProfileConnectionPolicy(device, BluetoothProfile.HEADSET);
-        doReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN)
+        doReturn(CONNECTION_POLICY_UNKNOWN)
                 .when(mDatabaseManager)
                 .getProfileConnectionPolicy(device, BluetoothProfile.A2DP);
-        doReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN)
+        doReturn(CONNECTION_POLICY_UNKNOWN)
                 .when(mDatabaseManager)
                 .getProfileConnectionPolicy(device, BluetoothProfile.HEARING_AID);
-        doReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN)
+        doReturn(CONNECTION_POLICY_UNKNOWN)
                 .when(mDatabaseManager)
                 .getProfileConnectionPolicy(device, BluetoothProfile.LE_AUDIO);
 
@@ -1777,7 +1779,7 @@ public class HeadsetServiceAndStateMachineTest {
     }
 
     private void connectTestDevice(BluetoothDevice device) {
-        doReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN)
+        doReturn(CONNECTION_POLICY_UNKNOWN)
                 .when(mDatabaseManager)
                 .getProfileConnectionPolicy(device, BluetoothProfile.HEADSET);
         doReturn(BluetoothDevice.BOND_BONDED).when(mAdapterService).getBondState(eq(device));

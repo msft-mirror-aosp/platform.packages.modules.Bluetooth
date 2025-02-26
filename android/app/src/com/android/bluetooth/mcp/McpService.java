@@ -18,9 +18,9 @@
 package com.android.bluetooth.mcp;
 
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
 
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothProfile;
 import android.bluetooth.IBluetoothMcpServiceManager;
 import android.content.AttributionSource;
 import android.content.Context;
@@ -180,8 +180,7 @@ public class McpService extends ProfileService {
             return BluetoothDevice.ACCESS_UNKNOWN;
         }
 
-        if (leAudioService.getConnectionPolicy(device)
-                > BluetoothProfile.CONNECTION_POLICY_FORBIDDEN) {
+        if (leAudioService.getConnectionPolicy(device) > CONNECTION_POLICY_FORBIDDEN) {
             Log.d(TAG, "MCS authorization allowed based on supported LeAudio service");
             setDeviceAuthorized(device, true);
             return BluetoothDevice.ACCESS_ALLOWED;

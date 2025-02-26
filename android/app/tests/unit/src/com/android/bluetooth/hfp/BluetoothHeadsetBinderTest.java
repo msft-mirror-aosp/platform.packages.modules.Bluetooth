@@ -16,6 +16,7 @@
 
 package com.android.bluetooth.hfp;
 
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 
 import static com.android.bluetooth.TestUtils.MockitoRule;
@@ -24,7 +25,6 @@ import static com.android.bluetooth.TestUtils.getTestDevice;
 import static org.mockito.Mockito.verify;
 
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothProfile;
 import android.content.AttributionSource;
 
 import org.junit.Before;
@@ -80,7 +80,7 @@ public class BluetoothHeadsetBinderTest {
 
     @Test
     public void setConnectionPolicy() {
-        int connectionPolicy = BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+        int connectionPolicy = CONNECTION_POLICY_ALLOWED;
         mBinder.setConnectionPolicy(mDevice, connectionPolicy, mAttributionSource);
         verify(mService).setConnectionPolicy(mDevice, connectionPolicy);
     }

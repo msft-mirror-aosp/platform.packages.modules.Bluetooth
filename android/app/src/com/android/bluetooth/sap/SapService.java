@@ -18,6 +18,9 @@ package com.android.bluetooth.sap;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
@@ -647,7 +650,7 @@ public class SapService extends ProfileService implements AdapterService.Bluetoo
         mAdapterService
                 .getDatabase()
                 .setProfileConnectionPolicy(device, BluetoothProfile.SAP, connectionPolicy);
-        if (connectionPolicy == BluetoothProfile.CONNECTION_POLICY_FORBIDDEN) {
+        if (connectionPolicy == CONNECTION_POLICY_FORBIDDEN) {
             disconnect(device);
         }
         return true;
@@ -822,9 +825,7 @@ public class SapService extends ProfileService implements AdapterService.Bluetoo
                                         BluetoothDevice.ACCESS_ALLOWED);
                         Log.v(TAG, "setSimAccessPermission(ACCESS_ALLOWED) result=" + result);
                     }
-                    boolean result =
-                            setConnectionPolicy(
-                                    mRemoteDevice, BluetoothProfile.CONNECTION_POLICY_ALLOWED);
+                    boolean result = setConnectionPolicy(mRemoteDevice, CONNECTION_POLICY_ALLOWED);
                     Log.d(TAG, "setConnectionPolicy ALLOWED, result = " + result);
 
                     try {
@@ -845,8 +846,7 @@ public class SapService extends ProfileService implements AdapterService.Bluetoo
                         Log.v(TAG, "setSimAccessPermission(ACCESS_REJECTED) result=" + result);
                     }
                     boolean result =
-                            setConnectionPolicy(
-                                    mRemoteDevice, BluetoothProfile.CONNECTION_POLICY_FORBIDDEN);
+                            setConnectionPolicy(mRemoteDevice, CONNECTION_POLICY_FORBIDDEN);
                     Log.d(TAG, "setConnectionPolicy FORBIDDEN, result = " + result);
                     // Ensure proper cleanup, and prepare for new connect.
                     mSessionStatusHandler.sendEmptyMessage(MSG_SERVERSESSION_CLOSE);
@@ -1024,7 +1024,7 @@ public class SapService extends ProfileService implements AdapterService.Bluetoo
         public int getConnectionPolicy(BluetoothDevice device, AttributionSource source) {
             SapService service = getService(source);
             if (service == null) {
-                return BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
+                return CONNECTION_POLICY_UNKNOWN;
             }
 
             return service.getConnectionPolicy(device);

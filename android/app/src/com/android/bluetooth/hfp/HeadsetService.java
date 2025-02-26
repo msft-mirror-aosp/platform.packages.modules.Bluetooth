@@ -19,6 +19,9 @@ package com.android.bluetooth.hfp;
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static android.Manifest.permission.MODIFY_PHONE_STATE;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
@@ -614,7 +617,7 @@ public class HeadsetService extends ProfileService {
         public int getConnectionPolicy(BluetoothDevice device, AttributionSource source) {
             HeadsetService service = getService(source);
             if (service == null) {
-                return BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
+                return CONNECTION_POLICY_UNKNOWN;
             }
 
             service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
@@ -847,7 +850,7 @@ public class HeadsetService extends ProfileService {
     }
 
     public boolean connect(BluetoothDevice device) {
-        if (getConnectionPolicy(device) == BluetoothProfile.CONNECTION_POLICY_FORBIDDEN) {
+        if (getConnectionPolicy(device) == CONNECTION_POLICY_FORBIDDEN) {
             Log.w(
                     TAG,
                     "connect: CONNECTION_POLICY_FORBIDDEN, device="
@@ -1027,9 +1030,9 @@ public class HeadsetService extends ProfileService {
                 device, BluetoothProfile.HEADSET, connectionPolicy)) {
             return false;
         }
-        if (connectionPolicy == BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
+        if (connectionPolicy == CONNECTION_POLICY_ALLOWED) {
             connect(device);
-        } else if (connectionPolicy == BluetoothProfile.CONNECTION_POLICY_FORBIDDEN) {
+        } else if (connectionPolicy == CONNECTION_POLICY_FORBIDDEN) {
             disconnect(device);
         }
         return true;
@@ -2264,10 +2267,10 @@ public class HeadsetService extends ProfileService {
                 mDatabaseManager.getProfileConnectionPolicy(device, BluetoothProfile.LE_AUDIO);
         int ashaPolicy =
                 mDatabaseManager.getProfileConnectionPolicy(device, BluetoothProfile.HEARING_AID);
-        return hfpPolicy == BluetoothProfile.CONNECTION_POLICY_ALLOWED
-                && a2dpPolicy != BluetoothProfile.CONNECTION_POLICY_ALLOWED
-                && leAudioPolicy != BluetoothProfile.CONNECTION_POLICY_ALLOWED
-                && ashaPolicy != BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+        return hfpPolicy == CONNECTION_POLICY_ALLOWED
+                && a2dpPolicy != CONNECTION_POLICY_ALLOWED
+                && leAudioPolicy != CONNECTION_POLICY_ALLOWED
+                && ashaPolicy != CONNECTION_POLICY_ALLOWED;
     }
 
     private boolean shouldCallAudioBeActive() {
@@ -2497,8 +2500,8 @@ public class HeadsetService extends ProfileService {
                 return false;
             }
         }
-        if (connectionPolicy != BluetoothProfile.CONNECTION_POLICY_UNKNOWN
-            && connectionPolicy != BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
+        if (connectionPolicy != CONNECTION_POLICY_UNKNOWN
+                && connectionPolicy != CONNECTION_POLICY_ALLOWED) {
             // Otherwise, reject the connection if connection policy is not valid.
             if (!isOutgoingRequest) {
                 A2dpService a2dpService = A2dpService.getA2dpService();
