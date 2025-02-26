@@ -1431,6 +1431,28 @@ public final class DatabaseManagerTest {
         }
     }
 
+    @Test
+    public void testDatabaseMigration_121_122() throws IOException {
+        // Create a database with version 121
+        SupportSQLiteDatabase db = testHelper.createDatabase(DB_NAME, 121);
+
+        // insert a device to the database
+        ContentValues device = contentValuesDevice_121();
+        assertThat(db.insert("metadata", SQLiteDatabase.CONFLICT_IGNORE, device)).isNotEqualTo(-1);
+
+        // Migrate database from 121 to 122
+        db.close();
+        db =
+                testHelper.runMigrationsAndValidate(
+                        DB_NAME, 122, true, MetadataDatabase.MIGRATION_121_122);
+        Cursor cursor = db.query("SELECT * FROM metadata");
+        assertHasColumn(cursor, "key_missing_count", true);
+        while (cursor.moveToNext()) {
+            // Check the new columns was added with default value
+            assertColumnIntData(cursor, "key_missing_count", 0);
+        }
+    }
+
     private ContentValues createContentValuesDeviceCommon() {
         ContentValues device = new ContentValues();
         device.put("address", mDevice.getAddress());
@@ -1612,6 +1634,12 @@ public final class DatabaseManagerTest {
     private ContentValues contentValuesDevice_120() {
         ContentValues device = contentValuesDevice_119();
         device.put("active_audio_device_policy", 0);
+        return device;
+    }
+
+    private ContentValues contentValuesDevice_121() {
+        ContentValues device = contentValuesDevice_120();
+        device.put("is_preferred_microphone_for_calls", 1);
         return device;
     }
 

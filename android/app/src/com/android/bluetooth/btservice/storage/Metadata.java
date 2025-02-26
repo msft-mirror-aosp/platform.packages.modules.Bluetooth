@@ -32,7 +32,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity(tableName = "metadata")
-
 public class Metadata {
     @PrimaryKey @NonNull private String address;
 
@@ -74,6 +73,9 @@ public class Metadata {
     /** This is used to indicate whether device's microphone prefer to use during calls */
     public boolean is_preferred_microphone_for_calls;
 
+    /** This is used to indicate the number of times the bond has been lost */
+    public int key_missing_count;
+
     Metadata(String address) {
         this(address, false, false);
     }
@@ -93,6 +95,7 @@ public class Metadata {
         preferred_duplex_profile = 0;
         active_audio_device_policy = BluetoothDevice.ACTIVE_AUDIO_DEVICE_POLICY_DEFAULT;
         is_preferred_microphone_for_calls = true;
+        key_missing_count = 0;
     }
 
     static final class Builder {
