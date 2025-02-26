@@ -35,7 +35,6 @@
 #include "osi/include/hash_map_utils.h"
 #include "osi/include/list.h"
 #include "osi/include/reactor.h"
-#include "osi/include/ringbuffer.h"
 #include "osi/include/socket.h"
 #include "osi/include/thread.h"
 #include "osi/include/wakelock.h"
@@ -551,32 +550,6 @@ int osi_socket_make_sockaddr_un(const char* name, int namespaceId, struct sockad
   inc_func_call_count(__func__);
   return 0;
 }
-
-size_t ringbuffer_available(const ringbuffer_t* rb) {
-  inc_func_call_count(__func__);
-  return 0;
-}
-size_t ringbuffer_delete(ringbuffer_t* rb, size_t length) {
-  inc_func_call_count(__func__);
-  return 0;
-}
-size_t ringbuffer_insert(ringbuffer_t* rb, const uint8_t* p, size_t length) {
-  inc_func_call_count(__func__);
-  return 0;
-}
-size_t ringbuffer_peek(const ringbuffer_t* rb, off_t offset, uint8_t* p, size_t length) {
-  inc_func_call_count(__func__);
-  return 0;
-}
-size_t ringbuffer_pop(ringbuffer_t* rb, uint8_t* p, size_t length) {
-  inc_func_call_count(__func__);
-  return 0;
-}
-size_t ringbuffer_size(const ringbuffer_t* rb) {
-  inc_func_call_count(__func__);
-  return 0;
-}
-void ringbuffer_free(ringbuffer_t* rb) { inc_func_call_count(__func__); }
 
 bool osi_property_get_bool(const char* key, bool default_value) {
   inc_func_call_count(__func__);
