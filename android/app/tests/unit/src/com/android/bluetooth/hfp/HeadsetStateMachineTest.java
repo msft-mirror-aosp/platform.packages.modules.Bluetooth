@@ -18,6 +18,7 @@ package com.android.bluetooth.hfp;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.READ_PRIVILEGED_PHONE_STATE;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
@@ -33,7 +34,6 @@ import static org.mockito.Mockito.*;
 
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothHeadset;
-import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothStatusCodes;
 import android.content.ContentResolver;
 import android.content.Intent;
@@ -156,7 +156,7 @@ public class HeadsetStateMachineTest {
                                 .getContext()
                                 .getPackageManager());
         when(mHeadsetService.getConnectionPolicy(any(BluetoothDevice.class)))
-                .thenReturn(BluetoothProfile.CONNECTION_POLICY_ALLOWED);
+                .thenReturn(CONNECTION_POLICY_ALLOWED);
         when(mHeadsetService.getForceScoAudio()).thenReturn(true);
         when(mHeadsetService.okToAcceptConnection(any(BluetoothDevice.class), anyBoolean()))
                 .thenReturn(true);

@@ -16,10 +16,7 @@
 
 package com.android.bluetooth.avrcpcontroller;
 
-import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
-import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
-import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTING;
 import static android.bluetooth.BluetoothProfile.getConnectionStateName;
 
 import static com.android.bluetooth.TestUtils.MockitoRule;

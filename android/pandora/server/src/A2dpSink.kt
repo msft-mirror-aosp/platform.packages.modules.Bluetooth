@@ -20,6 +20,7 @@ import android.bluetooth.BluetoothA2dpSink
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
+import android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN
 import android.bluetooth.BluetoothProfile.STATE_CONNECTED
 import android.bluetooth.BluetoothProfile.STATE_DISCONNECTED
 import android.content.Context
@@ -113,10 +114,7 @@ class A2dpSink(val context: Context) : A2DPImplBase(), Closeable {
                     .filter { it.getBluetoothDeviceExtra() == device }
                     .map { it.getIntExtra(BluetoothProfile.EXTRA_STATE, BluetoothAdapter.ERROR) }
 
-            bluetoothA2dpSink.setConnectionPolicy(
-                device,
-                BluetoothProfile.CONNECTION_POLICY_FORBIDDEN,
-            )
+            bluetoothA2dpSink.setConnectionPolicy(device, CONNECTION_POLICY_FORBIDDEN)
             a2dpConnectionStateChangedFlow.filter { it == STATE_DISCONNECTED }.first()
 
             CloseResponse.getDefaultInstance()

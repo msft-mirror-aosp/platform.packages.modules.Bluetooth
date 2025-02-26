@@ -19,6 +19,9 @@ package com.android.bluetooth.csip;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
@@ -233,7 +236,7 @@ public class CsipSetCoordinatorService extends ProfileService {
             return false;
         }
 
-        if (getConnectionPolicy(device) == BluetoothProfile.CONNECTION_POLICY_FORBIDDEN) {
+        if (getConnectionPolicy(device) == CONNECTION_POLICY_FORBIDDEN) {
             return false;
         }
         final ParcelUuid[] featureUuids = mAdapterService.getRemoteUuids(device);
@@ -308,8 +311,8 @@ public class CsipSetCoordinatorService extends ProfileService {
         if (bondState != BluetoothDevice.BOND_BONDED) {
             Log.w(TAG, "okToConnect: return false, bondState=" + bondState);
             return false;
-        } else if (connectionPolicy != BluetoothProfile.CONNECTION_POLICY_UNKNOWN
-                && connectionPolicy != BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
+        } else if (connectionPolicy != CONNECTION_POLICY_UNKNOWN
+                && connectionPolicy != CONNECTION_POLICY_ALLOWED) {
             // Otherwise, reject the connection if connectionPolicy is not valid.
             Log.w(TAG, "okToConnect: return false, connectionPolicy=" + connectionPolicy);
             return false;
@@ -427,9 +430,9 @@ public class CsipSetCoordinatorService extends ProfileService {
         Log.d(TAG, "Saved connectionPolicy " + device + " = " + connectionPolicy);
         mDatabaseManager.setProfileConnectionPolicy(
                 device, BluetoothProfile.CSIP_SET_COORDINATOR, connectionPolicy);
-        if (connectionPolicy == BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
+        if (connectionPolicy == CONNECTION_POLICY_ALLOWED) {
             connect(device);
-        } else if (connectionPolicy == BluetoothProfile.CONNECTION_POLICY_FORBIDDEN) {
+        } else if (connectionPolicy == CONNECTION_POLICY_FORBIDDEN) {
             disconnect(device);
         }
         return true;
@@ -676,14 +679,14 @@ public class CsipSetCoordinatorService extends ProfileService {
             }
             for (BluetoothDevice groupDevice : mGroupIdToConnectedDevices.get(groupId)) {
                 if (mLeAudioService.getConnectionPolicy(groupDevice)
-                        == BluetoothProfile.CONNECTION_POLICY_FORBIDDEN) {
+                        == CONNECTION_POLICY_FORBIDDEN) {
                     Log.i(
                             TAG,
                             "Setting CSIP connection policy to FORBIDDEN for device "
                                     + groupDevice
                                     + " after all group devices bonded because LEA "
                                     + "connection policy is FORBIDDEN");
-                    setConnectionPolicy(groupDevice, BluetoothProfile.CONNECTION_POLICY_FORBIDDEN);
+                    setConnectionPolicy(groupDevice, CONNECTION_POLICY_FORBIDDEN);
                 }
             }
         } else {
@@ -1082,7 +1085,7 @@ public class CsipSetCoordinatorService extends ProfileService {
 
             CsipSetCoordinatorService service = getService(source);
             if (service == null) {
-                return BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
+                return CONNECTION_POLICY_UNKNOWN;
             }
 
             return service.getConnectionPolicy(device);

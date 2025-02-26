@@ -18,6 +18,9 @@ package com.android.bluetooth.hid;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTING;
@@ -418,7 +421,7 @@ public class HidHostService extends ProfileService {
 
         /* If connections are allowed, ensure that the previous transport is disconnected and the
         new transport is connected */
-        if (getConnectionPolicy(device) == BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
+        if (getConnectionPolicy(device) == CONNECTION_POLICY_ALLOWED) {
             if (prevTransport != transport) {
                 Log.i(
                         TAG,
@@ -648,7 +651,7 @@ public class HidHostService extends ProfileService {
         int connectionPolicy = msg.arg1;
 
         boolean reconnectAllowed = true;
-        if (connectionPolicy != BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
+        if (connectionPolicy != CONNECTION_POLICY_ALLOWED) {
             reconnectAllowed = false;
         }
         nativeDisconnect(device, getTransport(device), reconnectAllowed);
@@ -659,7 +662,7 @@ public class HidHostService extends ProfileService {
         InputDevice inputDevice = getOrCreateInputDevice(device);
 
         int connectionPolicy = getConnectionPolicy(device);
-        if (connectionPolicy != BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
+        if (connectionPolicy != CONNECTION_POLICY_ALLOWED) {
             Log.e(
                     TAG,
                     "handleMessageConnect: Connection not allowed."
@@ -803,7 +806,7 @@ public class HidHostService extends ProfileService {
         public int getConnectionPolicy(BluetoothDevice device, AttributionSource source) {
             HidHostService service = getService(source);
             if (service == null) {
-                return BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
+                return CONNECTION_POLICY_UNKNOWN;
             }
             service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
             return service.getConnectionPolicy(device);
@@ -928,7 +931,7 @@ public class HidHostService extends ProfileService {
             Log.e(TAG, "Device " + device + " not disconnected. state=" + state);
             return false;
         }
-        if (getConnectionPolicy(device) == BluetoothProfile.CONNECTION_POLICY_FORBIDDEN) {
+        if (getConnectionPolicy(device) == CONNECTION_POLICY_FORBIDDEN) {
             Log.e(TAG, "Device " + device + " CONNECTION_POLICY_FORBIDDEN");
             return false;
         }
@@ -1012,10 +1015,10 @@ public class HidHostService extends ProfileService {
             return false;
         }
         Log.d(TAG, "Saved connectionPolicy=" + connectionPolicy + " for device=" + device);
-        if (connectionPolicy == BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
+        if (connectionPolicy == CONNECTION_POLICY_ALLOWED) {
             connect(device);
-        } else if (connectionPolicy == BluetoothProfile.CONNECTION_POLICY_FORBIDDEN) {
-            disconnect(device, BluetoothProfile.CONNECTION_POLICY_FORBIDDEN);
+        } else if (connectionPolicy == CONNECTION_POLICY_FORBIDDEN) {
+            disconnect(device, CONNECTION_POLICY_FORBIDDEN);
             MetricsLogger.getInstance()
                     .count(BluetoothProtoEnums.HIDH_COUNT_CONNECTION_POLICY_DISABLED, 1);
         }
@@ -1401,8 +1404,8 @@ public class HidHostService extends ProfileService {
                 return false;
             }
         }
-        if (connectionPolicy != BluetoothProfile.CONNECTION_POLICY_UNKNOWN
-                && connectionPolicy != BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
+        if (connectionPolicy != CONNECTION_POLICY_UNKNOWN
+                && connectionPolicy != CONNECTION_POLICY_ALLOWED) {
             // Otherwise, reject the connection if connectionPolicy is not valid.
             Log.w(
                     TAG,

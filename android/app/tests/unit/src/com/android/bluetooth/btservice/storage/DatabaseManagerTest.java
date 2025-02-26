@@ -16,6 +16,10 @@
 
 package com.android.bluetooth.btservice.storage;
 
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
+
 import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 
@@ -143,7 +147,7 @@ public final class DatabaseManagerTest {
 
         for (int id = 0; id < BluetoothProfile.MAX_PROFILE_ID; id++) {
             assertThat(mDatabaseManager.getProfileConnectionPolicy(mDevice, id))
-                    .isEqualTo(BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
+                    .isEqualTo(CONNECTION_POLICY_UNKNOWN);
         }
 
         assertThat(mDatabaseManager.getA2dpSupportsOptionalCodecs(mDevice))
@@ -168,41 +172,23 @@ public final class DatabaseManagerTest {
 
         // Cases of device not in database
         testSetGetProfileConnectionPolicyCase(
-                false,
-                BluetoothProfile.CONNECTION_POLICY_UNKNOWN,
-                BluetoothProfile.CONNECTION_POLICY_UNKNOWN,
-                true);
+                false, CONNECTION_POLICY_UNKNOWN, CONNECTION_POLICY_UNKNOWN, true);
         testSetGetProfileConnectionPolicyCase(
-                false,
-                BluetoothProfile.CONNECTION_POLICY_FORBIDDEN,
-                BluetoothProfile.CONNECTION_POLICY_FORBIDDEN,
-                true);
+                false, CONNECTION_POLICY_FORBIDDEN, CONNECTION_POLICY_FORBIDDEN, true);
         testSetGetProfileConnectionPolicyCase(
-                false,
-                BluetoothProfile.CONNECTION_POLICY_ALLOWED,
-                BluetoothProfile.CONNECTION_POLICY_ALLOWED,
-                true);
+                false, CONNECTION_POLICY_ALLOWED, CONNECTION_POLICY_ALLOWED, true);
         testSetGetProfileConnectionPolicyCase(
-                false, badConnectionPolicy, BluetoothProfile.CONNECTION_POLICY_UNKNOWN, false);
+                false, badConnectionPolicy, CONNECTION_POLICY_UNKNOWN, false);
 
         // Cases of device already in database
         testSetGetProfileConnectionPolicyCase(
-                true,
-                BluetoothProfile.CONNECTION_POLICY_UNKNOWN,
-                BluetoothProfile.CONNECTION_POLICY_UNKNOWN,
-                true);
+                true, CONNECTION_POLICY_UNKNOWN, CONNECTION_POLICY_UNKNOWN, true);
         testSetGetProfileConnectionPolicyCase(
-                true,
-                BluetoothProfile.CONNECTION_POLICY_FORBIDDEN,
-                BluetoothProfile.CONNECTION_POLICY_FORBIDDEN,
-                true);
+                true, CONNECTION_POLICY_FORBIDDEN, CONNECTION_POLICY_FORBIDDEN, true);
         testSetGetProfileConnectionPolicyCase(
-                true,
-                BluetoothProfile.CONNECTION_POLICY_ALLOWED,
-                BluetoothProfile.CONNECTION_POLICY_ALLOWED,
-                true);
+                true, CONNECTION_POLICY_ALLOWED, CONNECTION_POLICY_ALLOWED, true);
         testSetGetProfileConnectionPolicyCase(
-                true, badConnectionPolicy, BluetoothProfile.CONNECTION_POLICY_UNKNOWN, false);
+                true, badConnectionPolicy, CONNECTION_POLICY_UNKNOWN, false);
     }
 
     @Test
@@ -1713,8 +1699,8 @@ public final class DatabaseManagerTest {
 
         // Check number of metadata in the database
         if (!stored) {
-            if (connectionPolicy != BluetoothProfile.CONNECTION_POLICY_FORBIDDEN
-                    && connectionPolicy != BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
+            if (connectionPolicy != CONNECTION_POLICY_FORBIDDEN
+                    && connectionPolicy != CONNECTION_POLICY_ALLOWED) {
                 // Database won't be updated
                 assertThat(list).isEmpty();
                 return;

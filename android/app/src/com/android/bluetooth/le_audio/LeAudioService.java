@@ -19,6 +19,9 @@ package com.android.bluetooth.le_audio;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 import static android.bluetooth.IBluetoothLeAudio.LE_AUDIO_GROUP_ID_INVALID;
@@ -885,7 +888,7 @@ public class LeAudioService extends ProfileService {
     public boolean connect(BluetoothDevice device) {
         Log.d(TAG, "connect(): " + device);
 
-        if (getConnectionPolicy(device) == BluetoothProfile.CONNECTION_POLICY_FORBIDDEN) {
+        if (getConnectionPolicy(device) == CONNECTION_POLICY_FORBIDDEN) {
             Log.e(TAG, "Cannot connect to " + device + " : CONNECTION_POLICY_FORBIDDEN");
             return false;
         }
@@ -2826,25 +2829,22 @@ public class LeAudioService extends ProfileService {
             Log.d(TAG, "Disable LE_AUDIO for the device: " + activeGroupDevice);
             final ParcelUuid[] uuids = mAdapterService.getRemoteUuids(activeGroupDevice);
 
-            setConnectionPolicy(activeGroupDevice, BluetoothProfile.CONNECTION_POLICY_FORBIDDEN);
+            setConnectionPolicy(activeGroupDevice, CONNECTION_POLICY_FORBIDDEN);
             if (hsService != null && !isDualMode && Utils.arrayContains(uuids, BluetoothUuid.HFP)) {
                 Log.d(TAG, "Enable HFP for the device: " + activeGroupDevice);
-                hsService.setConnectionPolicy(
-                        activeGroupDevice, BluetoothProfile.CONNECTION_POLICY_ALLOWED);
+                hsService.setConnectionPolicy(activeGroupDevice, CONNECTION_POLICY_ALLOWED);
             }
             if (a2dpService != null
                     && !isDualMode
                     && (Utils.arrayContains(uuids, BluetoothUuid.A2DP_SINK)
                             || Utils.arrayContains(uuids, BluetoothUuid.ADV_AUDIO_DIST))) {
                 Log.d(TAG, "Enable A2DP for the device: " + activeGroupDevice);
-                a2dpService.setConnectionPolicy(
-                        activeGroupDevice, BluetoothProfile.CONNECTION_POLICY_ALLOWED);
+                a2dpService.setConnectionPolicy(activeGroupDevice, CONNECTION_POLICY_ALLOWED);
             }
             if (hearingAidService != null
                     && Utils.arrayContains(uuids, BluetoothUuid.HEARING_AID)) {
                 Log.d(TAG, "Enable ASHA for the device: " + activeGroupDevice);
-                hearingAidService.setConnectionPolicy(
-                        activeGroupDevice, BluetoothProfile.CONNECTION_POLICY_ALLOWED);
+                hearingAidService.setConnectionPolicy(activeGroupDevice, CONNECTION_POLICY_ALLOWED);
             }
         }
     }
@@ -4355,8 +4355,8 @@ public class LeAudioService extends ProfileService {
         if (bondState != BluetoothDevice.BOND_BONDED) {
             Log.w(TAG, "okToConnect: return false, bondState=" + bondState);
             return false;
-        } else if (connectionPolicy != BluetoothProfile.CONNECTION_POLICY_UNKNOWN
-                && connectionPolicy != BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
+        } else if (connectionPolicy != CONNECTION_POLICY_UNKNOWN
+                && connectionPolicy != CONNECTION_POLICY_ALLOWED) {
             // Otherwise, reject the connection if connectionPolicy is not valid.
             Log.w(TAG, "okToConnect: return false, connectionPolicy=" + connectionPolicy);
             return false;
@@ -4506,7 +4506,7 @@ public class LeAudioService extends ProfileService {
             return false;
         }
 
-        if (connectionPolicy == BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
+        if (connectionPolicy == CONNECTION_POLICY_ALLOWED) {
             setEnabledState(device, /* enabled= */ true);
             // Authorizes LEA GATT server services if already assigned to a group
             int groupId = getGroupId(device);
@@ -4514,7 +4514,7 @@ public class LeAudioService extends ProfileService {
                 setAuthorizationForRelatedProfiles(device, true);
             }
             connect(device);
-        } else if (connectionPolicy == BluetoothProfile.CONNECTION_POLICY_FORBIDDEN) {
+        } else if (connectionPolicy == CONNECTION_POLICY_FORBIDDEN) {
             setEnabledState(device, /* enabled= */ false);
             // Remove authorization for LEA GATT server services
             setAuthorizationForRelatedProfiles(device, false);
@@ -4880,11 +4880,10 @@ public class LeAudioService extends ProfileService {
             }
             for (BluetoothDevice device : mDeviceDescriptors.keySet()) {
                 int connection_policy = getConnectionPolicy(device);
-                if (connection_policy != BluetoothProfile.CONNECTION_POLICY_FORBIDDEN) {
+                if (connection_policy != CONNECTION_POLICY_FORBIDDEN) {
                     setAuthorizationForRelatedProfiles(device, true);
                 }
-                setEnabledState(
-                        device, connection_policy != BluetoothProfile.CONNECTION_POLICY_FORBIDDEN);
+                setEnabledState(device, connection_policy != CONNECTION_POLICY_FORBIDDEN);
             }
         } finally {
             mGroupReadLock.unlock();
@@ -5855,7 +5854,7 @@ public class LeAudioService extends ProfileService {
 
             LeAudioService service = getServiceAndEnforceConnect(source);
             if (service == null) {
-                return BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
+                return CONNECTION_POLICY_UNKNOWN;
             }
 
             service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);

@@ -16,6 +16,8 @@
 
 package android.bluetooth.pairing;
 
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
+
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
 
@@ -786,13 +788,9 @@ public class PairingTest {
                 .build();
 
         // Disable all profiles other than A2DP as profile connections take too long
-        assertThat(
-                        mHfpService.setConnectionPolicy(
-                                mBumbleDevice, BluetoothProfile.CONNECTION_POLICY_FORBIDDEN))
+        assertThat(mHfpService.setConnectionPolicy(mBumbleDevice, CONNECTION_POLICY_FORBIDDEN))
                 .isTrue();
-        assertThat(
-                        mHidService.setConnectionPolicy(
-                                mBumbleDevice, BluetoothProfile.CONNECTION_POLICY_FORBIDDEN))
+        assertThat(mHidService.setConnectionPolicy(mBumbleDevice, CONNECTION_POLICY_FORBIDDEN))
                 .isTrue();
 
         testStep_BondBredr(intentReceiver);

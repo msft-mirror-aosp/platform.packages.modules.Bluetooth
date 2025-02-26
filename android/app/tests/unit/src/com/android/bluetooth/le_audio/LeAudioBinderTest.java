@@ -16,6 +16,7 @@
 
 package com.android.bluetooth.le_audio;
 
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
 import static com.android.bluetooth.TestUtils.MockitoRule;
@@ -29,7 +30,6 @@ import android.bluetooth.BluetoothLeAudioCodecConfig;
 import android.bluetooth.BluetoothLeAudioContentMetadata;
 import android.bluetooth.BluetoothLeBroadcastSettings;
 import android.bluetooth.BluetoothLeBroadcastSubgroupSettings;
-import android.bluetooth.BluetoothProfile;
 import android.bluetooth.IBluetoothLeAudioCallback;
 import android.bluetooth.IBluetoothLeBroadcastCallback;
 import android.content.AttributionSource;
@@ -150,7 +150,7 @@ public class LeAudioBinderTest {
     @Test
     public void setConnectionPolicy() {
         BluetoothDevice device = getTestDevice(0);
-        int connectionPolicy = BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
+        int connectionPolicy = CONNECTION_POLICY_UNKNOWN;
         AttributionSource source = new AttributionSource.Builder(0).build();
 
         mBinder.setConnectionPolicy(device, connectionPolicy, source);

@@ -16,6 +16,8 @@
 package com.android.bluetooth.pan;
 
 import static android.bluetooth.BluetoothPan.PAN_ROLE_NONE;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
@@ -173,7 +175,7 @@ public class PanServiceTest {
 
     @Test
     public void setConnectionPolicy_whenDatabaseManagerRefuses_returnsFalse() {
-        int connectionPolicy = BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+        int connectionPolicy = CONNECTION_POLICY_ALLOWED;
         when(mDatabaseManager.setProfileConnectionPolicy(
                         mRemoteDevice, BluetoothProfile.PAN, connectionPolicy))
                 .thenReturn(false);
@@ -184,24 +186,15 @@ public class PanServiceTest {
     @Test
     public void setConnectionPolicy_returnsTrue() {
         when(mDatabaseManager.setProfileConnectionPolicy(
-                        mRemoteDevice,
-                        BluetoothProfile.PAN,
-                        BluetoothProfile.CONNECTION_POLICY_ALLOWED))
+                        mRemoteDevice, BluetoothProfile.PAN, CONNECTION_POLICY_ALLOWED))
                 .thenReturn(true);
-        assertThat(
-                        mService.setConnectionPolicy(
-                                mRemoteDevice, BluetoothProfile.CONNECTION_POLICY_ALLOWED))
-                .isTrue();
+        assertThat(mService.setConnectionPolicy(mRemoteDevice, CONNECTION_POLICY_ALLOWED)).isTrue();
         verify(mNativeInterface, timeout(TIMEOUT_MS)).connect(any());
 
         when(mDatabaseManager.setProfileConnectionPolicy(
-                        mRemoteDevice,
-                        BluetoothProfile.PAN,
-                        BluetoothProfile.CONNECTION_POLICY_FORBIDDEN))
+                        mRemoteDevice, BluetoothProfile.PAN, CONNECTION_POLICY_FORBIDDEN))
                 .thenReturn(true);
-        assertThat(
-                        mService.setConnectionPolicy(
-                                mRemoteDevice, BluetoothProfile.CONNECTION_POLICY_FORBIDDEN))
+        assertThat(mService.setConnectionPolicy(mRemoteDevice, CONNECTION_POLICY_FORBIDDEN))
                 .isTrue();
         verify(mNativeInterface, timeout(TIMEOUT_MS)).disconnect(any());
     }

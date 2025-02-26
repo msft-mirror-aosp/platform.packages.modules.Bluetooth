@@ -17,6 +17,7 @@
 package com.android.bluetooth.pbap;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
@@ -348,7 +349,7 @@ public class PbapStateMachine extends StateMachine {
             }
             broadcastStateTransitions();
             MetricsLogger.logProfileConnectionEvent(BluetoothMetricsProto.ProfileId.PBAP);
-            mService.setConnectionPolicy(mRemoteDevice, BluetoothProfile.CONNECTION_POLICY_ALLOWED);
+            mService.setConnectionPolicy(mRemoteDevice, CONNECTION_POLICY_ALLOWED);
         }
 
         @Override

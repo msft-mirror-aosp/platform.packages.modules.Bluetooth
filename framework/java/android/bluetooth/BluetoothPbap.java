@@ -18,6 +18,8 @@ package android.bluetooth;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
 import android.annotation.NonNull;
@@ -253,8 +255,8 @@ public class BluetoothPbap implements BluetoothProfile {
         try {
             final IBluetoothPbap service = getService();
             if (service != null && isEnabled() && isValidDevice(device)) {
-                if (connectionPolicy != BluetoothProfile.CONNECTION_POLICY_FORBIDDEN
-                        && connectionPolicy != BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
+                if (connectionPolicy != CONNECTION_POLICY_FORBIDDEN
+                        && connectionPolicy != CONNECTION_POLICY_ALLOWED) {
                     return false;
                 }
                 return service.setConnectionPolicy(device, connectionPolicy, mAttributionSource);

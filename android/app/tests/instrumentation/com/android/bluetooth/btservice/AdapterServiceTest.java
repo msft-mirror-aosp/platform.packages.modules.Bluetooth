@@ -23,6 +23,7 @@ import static android.bluetooth.BluetoothAdapter.STATE_OFF;
 import static android.bluetooth.BluetoothAdapter.STATE_ON;
 import static android.bluetooth.BluetoothAdapter.STATE_TURNING_OFF;
 import static android.bluetooth.BluetoothAdapter.STATE_TURNING_ON;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -202,9 +203,7 @@ public class AdapterServiceTest {
 
         doReturn(true).when(mMockLeAudioService).isAvailable();
         LeAudioService.setLeAudioService(mMockLeAudioService);
-        doReturn(BluetoothProfile.CONNECTION_POLICY_ALLOWED)
-                .when(mMockLeAudioService)
-                .getConnectionPolicy(any());
+        doReturn(CONNECTION_POLICY_ALLOWED).when(mMockLeAudioService).getConnectionPolicy(any());
 
         AdapterNativeInterface.setInstance(mNativeInterface);
         BluetoothKeystoreNativeInterface.setInstance(mKeystoreNativeInterface);

@@ -16,6 +16,7 @@
 
 package com.android.bluetooth.csip;
 
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 
 import static com.android.bluetooth.TestUtils.MockitoRule;
@@ -25,7 +26,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothProfile;
 import android.bluetooth.IBluetoothCsipSetCoordinatorLockCallback;
 import android.content.AttributionSource;
 import android.os.ParcelUuid;
@@ -71,7 +71,7 @@ public class BluetoothCsisBinderTest {
 
     @Test
     public void setConnectionPolicy() {
-        int connectionPolicy = BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+        int connectionPolicy = CONNECTION_POLICY_ALLOWED;
         mBinder.setConnectionPolicy(mDevice, connectionPolicy, mAttributionSource);
         verify(mService).setConnectionPolicy(mDevice, connectionPolicy);
     }
