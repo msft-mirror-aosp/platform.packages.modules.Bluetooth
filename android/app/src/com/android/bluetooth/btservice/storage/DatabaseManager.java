@@ -1588,4 +1588,48 @@ public class DatabaseManager {
             writer.println("    " + entry.getValue());
         }
     }
+
+    /**
+     * Update Key missing count.
+     *
+     * <p> It is used to update the key missing count when a bond loss is detected (increment the
+     * count) or a successful bond is detected (reset the count)
+     *
+     * @param isKeyMissingDetected true if the bond loss is detected, false if the bond is
+     *     successfully established.
+     */
+    public void updateKeyMissingCount(BluetoothDevice device, boolean isKeyMissingDetected) {
+        synchronized (mMetadataCache) {
+            String address = device.getAddress();
+
+            if (!mMetadataCache.containsKey(address)) {
+                Log.e(TAG, "device is not bonded");
+                return;
+            }
+
+            Metadata metadata = mMetadataCache.get(address);
+            if (isKeyMissingDetected) {
+                metadata.key_missing_count++;
+                Log.i(TAG, "Bond loss detected, count: " + metadata.key_missing_count);
+            } else {
+                metadata.key_missing_count = 0;
+                Log.i(TAG, "Successful bond detected, reset key missing count");
+            }
+            updateDatabase(metadata);
+        }
+    }
+
+    public int getKeyMissingCount(BluetoothDevice device) {
+        synchronized (mMetadataCache) {
+            String address = device.getAddress();
+
+            if (!mMetadataCache.containsKey(address)) {
+                Log.e(TAG, "device is not bonded");
+                return -1;
+            }
+
+            Metadata metadata = mMetadataCache.get(address);
+            return metadata.key_missing_count;
+        }
+    }
 }
