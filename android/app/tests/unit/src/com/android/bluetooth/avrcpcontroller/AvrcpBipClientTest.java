@@ -20,6 +20,7 @@ import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTING;
+import static android.bluetooth.BluetoothProfile.getConnectionStateName;
 
 import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
@@ -105,31 +106,12 @@ public class AvrcpBipClientTest {
     }
 
     @Test
-    public void getConnectionState() {
-        mClient.setConnectionState(STATE_DISCONNECTED);
-        assertThat(mClient.getStateName()).isEqualTo("Disconnected");
-
-        mClient.setConnectionState(STATE_CONNECTING);
-        assertThat(mClient.getStateName()).isEqualTo("Connecting");
-
-        mClient.setConnectionState(STATE_CONNECTED);
-        assertThat(mClient.getStateName()).isEqualTo("Connected");
-
-        mClient.setConnectionState(STATE_DISCONNECTING);
-        assertThat(mClient.getStateName()).isEqualTo("Disconnecting");
-
-        int invalidState = 4;
-        mClient.setConnectionState(invalidState);
-        assertThat(mClient.getStateName()).isEqualTo("Unknown");
-    }
-
-    @Test
     public void toString_returnsClientInfo() {
         String expected =
                 "<AvrcpBipClient"
                         + (" device=" + mDevice)
                         + (" psm=" + TEST_PSM)
-                        + (" state=" + mClient.getStateName())
+                        + (" state=" + getConnectionStateName(mClient.getState()))
                         + ">";
         assertThat(mClient.toString()).isEqualTo(expected);
     }

@@ -20,6 +20,7 @@ import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTING;
+import static android.bluetooth.BluetoothProfile.getConnectionStateName;
 
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothDevice;
@@ -427,28 +428,12 @@ public class AvrcpBipClient {
         }
     }
 
-    @VisibleForTesting
-    String getStateName() {
-        int state = getState();
-        switch (state) {
-            case STATE_DISCONNECTED:
-                return "Disconnected";
-            case STATE_CONNECTING:
-                return "Connecting";
-            case STATE_CONNECTED:
-                return "Connected";
-            case STATE_DISCONNECTING:
-                return "Disconnecting";
-        }
-        return "Unknown";
-    }
-
     @Override
     public String toString() {
         return "<AvrcpBipClient"
                 + (" device=" + mDevice)
                 + (" psm=" + mPsm)
-                + (" state=" + getStateName())
+                + (" state=" + getConnectionStateName(getState()))
                 + ">";
     }
 

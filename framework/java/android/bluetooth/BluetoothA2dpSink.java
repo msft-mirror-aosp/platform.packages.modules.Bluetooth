@@ -18,10 +18,7 @@ package android.bluetooth;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
-import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
-import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
-import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTING;
 
 import android.annotation.NonNull;
 import android.annotation.RequiresNoPermission;
@@ -423,32 +420,6 @@ public final class BluetoothA2dpSink implements BluetoothProfile {
             }
         }
         return false;
-    }
-
-    /**
-     * Helper for converting a state to a string.
-     *
-     * <p>For debug use only - strings are not internationalized.
-     *
-     * @hide
-     */
-    public static String stateToString(int state) {
-        switch (state) {
-            case STATE_DISCONNECTED:
-                return "disconnected";
-            case STATE_CONNECTING:
-                return "connecting";
-            case STATE_CONNECTED:
-                return "connected";
-            case STATE_DISCONNECTING:
-                return "disconnecting";
-            case BluetoothA2dp.STATE_PLAYING:
-                return "playing";
-            case BluetoothA2dp.STATE_NOT_PLAYING:
-                return "not playing";
-            default:
-                return "<unknown state " + state + ">";
-        }
     }
 
     private boolean isEnabled() {
