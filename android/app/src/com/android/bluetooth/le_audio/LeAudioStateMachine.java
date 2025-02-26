@@ -47,6 +47,7 @@ import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTING;
+import static android.bluetooth.BluetoothProfile.getConnectionStateName;
 
 import android.bluetooth.BluetoothDevice;
 import android.os.Looper;
@@ -557,9 +558,9 @@ final class LeAudioStateMachine extends StateMachine {
                 "Connection state "
                         + mDevice
                         + ": "
-                        + profileStateToString(prevState)
+                        + getConnectionStateName(prevState)
                         + "->"
-                        + profileStateToString(newState));
+                        + getConnectionStateName(newState));
         mService.notifyConnectionStateChanged(mDevice, newState, prevState);
     }
 
@@ -577,22 +578,6 @@ final class LeAudioStateMachine extends StateMachine {
                 break;
         }
         return Integer.toString(what);
-    }
-
-    private static String profileStateToString(int state) {
-        switch (state) {
-            case STATE_DISCONNECTED:
-                return "DISCONNECTED";
-            case STATE_CONNECTING:
-                return "CONNECTING";
-            case STATE_CONNECTED:
-                return "CONNECTED";
-            case STATE_DISCONNECTING:
-                return "DISCONNECTING";
-            default:
-                break;
-        }
-        return Integer.toString(state);
     }
 
     public void dump(StringBuilder sb) {
