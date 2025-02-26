@@ -22,6 +22,7 @@ import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTING;
+import static android.bluetooth.BluetoothProfile.getConnectionStateName;
 
 import android.bluetooth.BluetoothCsipSetCoordinator;
 import android.bluetooth.BluetoothDevice;
@@ -568,9 +569,9 @@ public class CsipSetCoordinatorStateMachine extends StateMachine {
                 "Connection state "
                         + mDevice
                         + ": "
-                        + profileStateToString(prevState)
+                        + getConnectionStateName(prevState)
                         + "->"
-                        + profileStateToString(newState));
+                        + getConnectionStateName(newState));
         mService.handleConnectionStateChanged(mDevice, prevState, newState);
 
         Intent intent =
@@ -598,22 +599,6 @@ public class CsipSetCoordinatorStateMachine extends StateMachine {
                 break;
         }
         return Integer.toString(what);
-    }
-
-    private static String profileStateToString(int state) {
-        switch (state) {
-            case STATE_DISCONNECTED:
-                return "DISCONNECTED";
-            case STATE_CONNECTING:
-                return "CONNECTING";
-            case STATE_CONNECTED:
-                return "CONNECTED";
-            case STATE_DISCONNECTING:
-                return "DISCONNECTING";
-            default:
-                break;
-        }
-        return Integer.toString(state);
     }
 
     /** Dump the state machine logs */
