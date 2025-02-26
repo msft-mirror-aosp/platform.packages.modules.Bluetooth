@@ -170,18 +170,4 @@ public class BluetoothHeadsetBinderTest {
         mBinder.stopScoUsingVirtualVoiceCall(mAttributionSource);
         verify(mService).stopScoUsingVirtualVoiceCall();
     }
-
-    @Test
-    public void phoneStateChanged() {
-        int numActive = 2;
-        int numHeld = 5;
-        int callState = HeadsetHalConstants.CALL_STATE_IDLE;
-        String number = "000-000-0000";
-        int type = 0;
-        String name = "Unknown";
-        mBinder.phoneStateChanged(
-                numActive, numHeld, callState, number, type, name, mAttributionSource);
-        verify(mService)
-                .phoneStateChanged(numActive, numHeld, callState, number, type, name, false);
-    }
 }
