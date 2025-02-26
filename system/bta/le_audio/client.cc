@@ -6909,12 +6909,22 @@ void LeAudioClient::Initialize(
                                             cm->GetLocalAudioOutputCodecCapa());
 
   if (GmapServer::IsGmapServerEnabled()) {
-    auto capabilities = cm->GetLocalAudioOutputCodecCapa();
     std::bitset<8> UGG_feature = GmapServer::GetUGGFeature();
-    for (auto& capa : capabilities) {
+
+    auto input_capabilities = cm->GetLocalAudioOutputCodecCapa();
+    for (auto& capa : input_capabilities) {
       if (capa.sample_rate == bluetooth::le_audio::LE_AUDIO_SAMPLE_RATE_INDEX_48000HZ) {
         UGG_feature |= static_cast<uint8_t>(
                 bluetooth::gmap::UGGFeatureBitMask::NinetySixKbpsSourceFeatureSupport);
+        break;
+      }
+    }
+
+    auto output_capabilities = cm->GetLocalAudioOutputCodecCapa();
+    for (auto& capa : output_capabilities) {
+      if (capa.channel_count > bluetooth::le_audio::LE_AUDIO_CHANNEL_COUNT_INDEX_1) {
+        UGG_feature |=
+                static_cast<uint8_t>(bluetooth::gmap::UGGFeatureBitMask::MultiplexFeatureSupport);
         break;
       }
     }

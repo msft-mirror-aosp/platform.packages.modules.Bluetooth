@@ -1059,7 +1059,7 @@ private:
   }
 
   void storeLocalCapa(
-          std::vector<::bluetooth::le_audio::types::AudioSetConfiguration>& adsp_capabilities,
+          const std::vector<::bluetooth::le_audio::types::AudioSetConfiguration>& adsp_capabilities,
           const std::vector<btle_audio_codec_config_t>& offload_preference_set) {
     log::debug("Print adsp_capabilities:");
 
@@ -1088,6 +1088,7 @@ private:
                           conf.codec.GetChannelCountPerIsoStream()),
                   .frame_duration = utils::translateToBtLeAudioCodecConfigFrameDuration(
                           conf.codec.GetDataIntervalUs()),
+                  .codec_frame_blocks_per_sdu = conf.codec.GetCodecFrameBlocksPerSdu(),
           };
 
           auto& capa_container = (direction == types::kLeAudioDirectionSink) ? codec_output_capa
@@ -1312,7 +1313,7 @@ CodecManager::GetLocalAudioOutputCodecCapa() {
 std::vector<bluetooth::le_audio::btle_audio_codec_config_t>
 CodecManager::GetLocalAudioInputCodecCapa() {
   if (pimpl_->IsRunning()) {
-    return pimpl_->codec_manager_impl_->GetLocalAudioOutputCodecCapa();
+    return pimpl_->codec_manager_impl_->GetLocalAudioInputCodecCapa();
   }
   std::vector<bluetooth::le_audio::btle_audio_codec_config_t> empty{};
   return empty;

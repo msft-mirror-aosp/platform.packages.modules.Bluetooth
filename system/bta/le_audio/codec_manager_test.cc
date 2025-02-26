@@ -726,6 +726,17 @@ TEST_F(CodecManagerTestAdsp, test_capabilities) {
             {.codec_type = bluetooth::le_audio::LE_AUDIO_CODEC_INDEX_SOURCE_LC3}};
     codec_manager->Start(offloading_preference);
 
+    auto output_capabilities = codec_manager->GetLocalAudioOutputCodecCapa();
+    bool is_multiplex_supported = false;
+    for (auto& capa : output_capabilities) {
+      if (capa.channel_count > bluetooth::le_audio::LE_AUDIO_CHANNEL_COUNT_INDEX_1) {
+        is_multiplex_supported = true;
+        break;
+      }
+    }
+
+    ASSERT_TRUE(is_multiplex_supported);
+
     size_t available_configs_size = 0;
     auto match_first_config =
             [&available_configs_size](

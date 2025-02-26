@@ -539,6 +539,8 @@ bool hal_ucast_capability_to_stack_format(const UnicastCapability& hal_capabilit
   auto sample_rate_hz = hal_lc3_capability.samplingFrequencyHz[0];
   auto frame_duration_us = hal_lc3_capability.frameDurationUs[0];
   auto octets_per_frame = hal_lc3_capability.octetsPerFrame[0];
+  auto codec_frame_blocks_per_sdu =
+          hal_lc3_capability.blocksPerSdu.size() ? hal_lc3_capability.blocksPerSdu[0] : 1;
   auto channel_count = hal_capability.channelCountPerDevice;
 
   if (sampling_freq_map.find(sample_rate_hz) == sampling_freq_map.end() ||
@@ -568,6 +570,9 @@ bool hal_ucast_capability_to_stack_format(const UnicastCapability& hal_capabilit
   stack_capability.params.Add(
           ::bluetooth::le_audio::codec_spec_conf::kLeAudioLtvTypeOctetsPerCodecFrame,
           octets_per_frame_map[octets_per_frame]);
+  stack_capability.params.Add(
+          ::bluetooth::le_audio::codec_spec_conf::kLeAudioLtvTypeCodecFrameBlocksPerSdu,
+          uint8_t(codec_frame_blocks_per_sdu));
   return true;
 }
 
