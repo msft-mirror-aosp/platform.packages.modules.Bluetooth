@@ -50,7 +50,7 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 
-/** Test cases for {@link PeriodicScanManagerTest}. */
+/** Test cases for {@link PeriodicScanManager}. */
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class PeriodicScanManagerTest {
