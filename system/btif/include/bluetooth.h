@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 The Android Open Source Project
+ * Copyright 2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,5 +16,8 @@
 
 #pragma once
 
-bool thread_scheduler_enable_real_time(pid_t pid);
-bool thread_scheduler_get_priority_range(int& min, int& max);
+int GetAdapterIndex();
+
+namespace bluetooth::testing {
+void set_hal_cbacks(bt_callbacks_t* callbacks);
+}  // namespace bluetooth::testing

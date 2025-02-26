@@ -29,6 +29,9 @@
 #include "packet/raw_builder.h"
 #include "types/raw_address.h"
 
+void DumpsysAcl(int fd);
+void DumpsysNeighbor(int fd);
+
 namespace bluetooth {
 namespace shim {
 

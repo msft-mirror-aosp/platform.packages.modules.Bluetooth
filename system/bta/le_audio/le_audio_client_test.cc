@@ -51,6 +51,7 @@
 #include "mock_csis_client.h"
 #include "mock_device_groups.h"
 #include "mock_state_machine.h"
+#include "osi/include/properties.h"
 #include "stack/include/btm_status.h"
 #include "stack/include/main_thread.h"
 #include "test/common/mock_functions.h"
@@ -102,8 +103,6 @@ constexpr bluetooth::le_audio::types::LeAudioContextType kLeAudioDefaultConfigur
 
 static constexpr char kNotifyUpperLayerAboutGroupBeingInIdleDuringCall[] =
         "persist.bluetooth.leaudio.notify.idle.during.call";
-
-void osi_property_set_bool(const char* key, bool value);
 
 // Disables most likely false-positives from base::SplitString()
 extern "C" const char* __asan_default_options();

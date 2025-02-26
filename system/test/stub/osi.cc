@@ -34,17 +34,19 @@
 #include "osi/include/future.h"
 #include "osi/include/hash_map_utils.h"
 #include "osi/include/list.h"
+#include "osi/include/mutex.h"
+#include "osi/include/properties.h"
 #include "osi/include/reactor.h"
 #include "osi/include/ringbuffer.h"
 #include "osi/include/socket.h"
+#include "osi/include/socket_utils/socket_local.h"
+#include "osi/include/socket_utils/sockets.h"
 #include "osi/include/thread.h"
 #include "osi/include/wakelock.h"
 #include "osi/src/compat.cc"  // For strlcpy
 #include "test/common/fake_osi.h"
 #include "test/common/mock_functions.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
 OsiObject::OsiObject(void* ptr) : ptr_(ptr) {}
@@ -508,10 +510,6 @@ list_node_t* list_next(const list_node_t* node) {
   return nullptr;
 }
 list_t* list_new(list_free_cb callback) {
-  inc_func_call_count(__func__);
-  return nullptr;
-}
-list_t* list_new_internal(list_free_cb callback, const allocator_t* zeroed_allocator) {
   inc_func_call_count(__func__);
   return nullptr;
 }
