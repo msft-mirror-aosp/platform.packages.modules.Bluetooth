@@ -20,6 +20,8 @@ import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static android.bluetooth.BluetoothDevice.ACCESS_ALLOWED;
 import static android.bluetooth.BluetoothDevice.ACCESS_REJECTED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
 import static java.util.Objects.requireNonNull;
@@ -676,7 +678,7 @@ public class BluetoothPbapService extends ProfileService implements IObexConnect
                 device, BluetoothProfile.PBAP, connectionPolicy)) {
             return false;
         }
-        if (connectionPolicy == BluetoothProfile.CONNECTION_POLICY_FORBIDDEN) {
+        if (connectionPolicy == CONNECTION_POLICY_FORBIDDEN) {
             disconnect(device);
         }
         return true;
@@ -907,7 +909,7 @@ public class BluetoothPbapService extends ProfileService implements IObexConnect
         Log.d(TAG, "getPhonebookAccessPermission() = " + permission);
 
         if (permission == ACCESS_ALLOWED) {
-            setConnectionPolicy(device, BluetoothProfile.CONNECTION_POLICY_ALLOWED);
+            setConnectionPolicy(device, CONNECTION_POLICY_ALLOWED);
             stateMachine.sendMessage(PbapStateMachine.AUTHORIZED);
         } else if (permission == ACCESS_REJECTED) {
             stateMachine.sendMessage(PbapStateMachine.REJECTED);

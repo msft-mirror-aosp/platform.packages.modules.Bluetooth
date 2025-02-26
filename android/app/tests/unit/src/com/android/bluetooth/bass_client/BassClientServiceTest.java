@@ -16,6 +16,9 @@
 
 package com.android.bluetooth.bass_client;
 
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
 import static android.bluetooth.BluetoothProfile.EXTRA_PREVIOUS_STATE;
 import static android.bluetooth.BluetoothProfile.EXTRA_STATE;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
@@ -355,9 +358,9 @@ public class BassClientServiceTest {
         mBassClientService.cleanup();
         when(mDatabaseManager.getProfileConnectionPolicy(
                         mCurrentDevice, BluetoothProfile.LE_AUDIO_BROADCAST_ASSISTANT))
-                .thenReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
+                .thenReturn(CONNECTION_POLICY_UNKNOWN);
         assertThat(mBassClientService.getConnectionPolicy(mCurrentDevice))
-                .isEqualTo(BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
+                .isEqualTo(CONNECTION_POLICY_UNKNOWN);
     }
 
     /**
@@ -369,7 +372,7 @@ public class BassClientServiceTest {
         when(mDatabaseManager.getProfileConnectionPolicy(
                         any(BluetoothDevice.class),
                         eq(BluetoothProfile.LE_AUDIO_BROADCAST_ASSISTANT)))
-                .thenReturn(BluetoothProfile.CONNECTION_POLICY_ALLOWED);
+                .thenReturn(CONNECTION_POLICY_ALLOWED);
 
         assertThat(mBassClientService.connect(mCurrentDevice)).isTrue();
         verify(mObjectsFactory)
@@ -386,7 +389,7 @@ public class BassClientServiceTest {
         when(mDatabaseManager.getProfileConnectionPolicy(
                         any(BluetoothDevice.class),
                         eq(BluetoothProfile.LE_AUDIO_BROADCAST_ASSISTANT)))
-                .thenReturn(BluetoothProfile.CONNECTION_POLICY_ALLOWED);
+                .thenReturn(CONNECTION_POLICY_ALLOWED);
         BluetoothDevice nullDevice = null;
 
         assertThat(mBassClientService.connect(nullDevice)).isFalse();
@@ -401,7 +404,7 @@ public class BassClientServiceTest {
         when(mDatabaseManager.getProfileConnectionPolicy(
                         any(BluetoothDevice.class),
                         eq(BluetoothProfile.LE_AUDIO_BROADCAST_ASSISTANT)))
-                .thenReturn(BluetoothProfile.CONNECTION_POLICY_FORBIDDEN);
+                .thenReturn(CONNECTION_POLICY_FORBIDDEN);
         assertThat(mCurrentDevice).isNotNull();
 
         assertThat(mBassClientService.connect(mCurrentDevice)).isFalse();
@@ -451,7 +454,7 @@ public class BassClientServiceTest {
         when(mDatabaseManager.getProfileConnectionPolicy(
                         any(BluetoothDevice.class),
                         eq(BluetoothProfile.LE_AUDIO_BROADCAST_ASSISTANT)))
-                .thenReturn(BluetoothProfile.CONNECTION_POLICY_ALLOWED);
+                .thenReturn(CONNECTION_POLICY_ALLOWED);
 
         // Mock the CSIP group
         List<BluetoothDevice> groupDevices = new ArrayList<>();

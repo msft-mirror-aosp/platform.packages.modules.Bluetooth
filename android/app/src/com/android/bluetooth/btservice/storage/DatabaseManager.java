@@ -16,6 +16,10 @@
 
 package com.android.bluetooth.btservice.storage;
 
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
+
 import static java.util.Objects.requireNonNull;
 
 import android.bluetooth.BluetoothA2dp;
@@ -363,9 +367,8 @@ public class DatabaseManager {
      *     BluetoothProfile#VOLUME_CONTROL}, {@link BluetoothProfile#CSIP_SET_COORDINATOR}, {@link
      *     BluetoothProfile#LE_AUDIO_BROADCAST_ASSISTANT},
      * @param newConnectionPolicy the connectionPolicy to set; one of {@link
-     *     BluetoothProfile.CONNECTION_POLICY_UNKNOWN}, {@link
-     *     BluetoothProfile.CONNECTION_POLICY_FORBIDDEN}, {@link
-     *     BluetoothProfile.CONNECTION_POLICY_ALLOWED}
+     *     CONNECTION_POLICY_UNKNOWN}, {@link CONNECTION_POLICY_FORBIDDEN}, {@link
+     *     CONNECTION_POLICY_ALLOWED}
      */
     public boolean setProfileConnectionPolicy(
             BluetoothDevice device, int profile, int newConnectionPolicy) {
@@ -374,9 +377,9 @@ public class DatabaseManager {
             return false;
         }
 
-        if (newConnectionPolicy != BluetoothProfile.CONNECTION_POLICY_UNKNOWN
-                && newConnectionPolicy != BluetoothProfile.CONNECTION_POLICY_FORBIDDEN
-                && newConnectionPolicy != BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
+        if (newConnectionPolicy != CONNECTION_POLICY_UNKNOWN
+                && newConnectionPolicy != CONNECTION_POLICY_FORBIDDEN
+                && newConnectionPolicy != CONNECTION_POLICY_ALLOWED) {
             Log.e(
                     TAG,
                     "setProfileConnectionPolicy: invalid connection policy " + newConnectionPolicy);
@@ -387,7 +390,7 @@ public class DatabaseManager {
 
         synchronized (mMetadataCache) {
             if (!mMetadataCache.containsKey(address)) {
-                if (newConnectionPolicy == BluetoothProfile.CONNECTION_POLICY_UNKNOWN) {
+                if (newConnectionPolicy == CONNECTION_POLICY_UNKNOWN) {
                     return true;
                 }
                 createMetadata(address, false);
@@ -434,14 +437,13 @@ public class DatabaseManager {
      *     BluetoothProfile#VOLUME_CONTROL}, {@link BluetoothProfile#CSIP_SET_COORDINATOR}, {@link
      *     BluetoothProfile#LE_AUDIO_BROADCAST_ASSISTANT},
      * @return the profile connection policy of the device; one of {@link
-     *     BluetoothProfile.CONNECTION_POLICY_UNKNOWN}, {@link
-     *     BluetoothProfile.CONNECTION_POLICY_FORBIDDEN}, {@link
-     *     BluetoothProfile.CONNECTION_POLICY_ALLOWED}
+     *     CONNECTION_POLICY_UNKNOWN}, {@link CONNECTION_POLICY_FORBIDDEN}, {@link
+     *     CONNECTION_POLICY_ALLOWED}
      */
     public int getProfileConnectionPolicy(BluetoothDevice device, int profile) {
         if (device == null) {
             Log.e(TAG, "getProfileConnectionPolicy: device is null");
-            return BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
+            return CONNECTION_POLICY_UNKNOWN;
         }
 
         String address = device.getAddress();
@@ -449,7 +451,7 @@ public class DatabaseManager {
         synchronized (mMetadataCache) {
             if (!mMetadataCache.containsKey(address)) {
                 Log.d(TAG, "getProfileConnectionPolicy: device=" + device + " is not in cache");
-                return BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
+                return CONNECTION_POLICY_UNKNOWN;
             }
 
             Metadata data = mMetadataCache.get(address);
@@ -1319,62 +1321,62 @@ public class DatabaseManager {
                     Settings.Global.getInt(
                             contentResolver,
                             getLegacyA2dpSinkPriorityKey(device.getAddress()),
-                            BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
+                            CONNECTION_POLICY_UNKNOWN);
             int a2dpSinkConnectionPolicy =
                     Settings.Global.getInt(
                             contentResolver,
                             getLegacyA2dpSrcPriorityKey(device.getAddress()),
-                            BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
+                            CONNECTION_POLICY_UNKNOWN);
             int hearingaidConnectionPolicy =
                     Settings.Global.getInt(
                             contentResolver,
                             getLegacyHearingAidPriorityKey(device.getAddress()),
-                            BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
+                            CONNECTION_POLICY_UNKNOWN);
             int headsetConnectionPolicy =
                     Settings.Global.getInt(
                             contentResolver,
                             getLegacyHeadsetPriorityKey(device.getAddress()),
-                            BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
+                            CONNECTION_POLICY_UNKNOWN);
             int headsetClientConnectionPolicy =
                     Settings.Global.getInt(
                             contentResolver,
                             getLegacyHeadsetPriorityKey(device.getAddress()),
-                            BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
+                            CONNECTION_POLICY_UNKNOWN);
             int hidHostConnectionPolicy =
                     Settings.Global.getInt(
                             contentResolver,
                             getLegacyHidHostPriorityKey(device.getAddress()),
-                            BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
+                            CONNECTION_POLICY_UNKNOWN);
             int mapConnectionPolicy =
                     Settings.Global.getInt(
                             contentResolver,
                             getLegacyMapPriorityKey(device.getAddress()),
-                            BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
+                            CONNECTION_POLICY_UNKNOWN);
             int mapClientConnectionPolicy =
                     Settings.Global.getInt(
                             contentResolver,
                             getLegacyMapClientPriorityKey(device.getAddress()),
-                            BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
+                            CONNECTION_POLICY_UNKNOWN);
             int panConnectionPolicy =
                     Settings.Global.getInt(
                             contentResolver,
                             getLegacyPanPriorityKey(device.getAddress()),
-                            BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
+                            CONNECTION_POLICY_UNKNOWN);
             int pbapConnectionPolicy =
                     Settings.Global.getInt(
                             contentResolver,
                             getLegacyPbapClientPriorityKey(device.getAddress()),
-                            BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
+                            CONNECTION_POLICY_UNKNOWN);
             int pbapClientConnectionPolicy =
                     Settings.Global.getInt(
                             contentResolver,
                             getLegacyPbapClientPriorityKey(device.getAddress()),
-                            BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
+                            CONNECTION_POLICY_UNKNOWN);
             int sapConnectionPolicy =
                     Settings.Global.getInt(
                             contentResolver,
                             getLegacySapPriorityKey(device.getAddress()),
-                            BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
+                            CONNECTION_POLICY_UNKNOWN);
             int a2dpSupportsOptionalCodec =
                     Settings.Global.getInt(
                             contentResolver,
@@ -1403,8 +1405,7 @@ public class DatabaseManager {
             data.setProfileConnectionPolicy(BluetoothProfile.SAP, sapConnectionPolicy);
             data.setProfileConnectionPolicy(
                     BluetoothProfile.HEARING_AID, hearingaidConnectionPolicy);
-            data.setProfileConnectionPolicy(
-                    BluetoothProfile.LE_AUDIO, BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
+            data.setProfileConnectionPolicy(BluetoothProfile.LE_AUDIO, CONNECTION_POLICY_UNKNOWN);
             data.a2dpSupportsOptionalCodecs = a2dpSupportsOptionalCodec;
             data.a2dpOptionalCodecsEnabled = a2dpOptionalCodecEnabled;
             mMetadataCache.put(address, data);

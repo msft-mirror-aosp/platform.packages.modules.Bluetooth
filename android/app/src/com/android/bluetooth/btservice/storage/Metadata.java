@@ -16,6 +16,9 @@
 
 package com.android.bluetooth.btservice.storage;
 
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
+
 import android.bluetooth.BluetoothA2dp;
 import android.bluetooth.BluetoothA2dp.OptionalCodecsPreferenceStatus;
 import android.bluetooth.BluetoothA2dp.OptionalCodecsSupportStatus;
@@ -141,9 +144,9 @@ public class Metadata {
 
     void setProfileConnectionPolicy(int profile, int connectionPolicy) {
         // We no longer support BluetoothProfile.PRIORITY_AUTO_CONNECT and are merging it into
-        // BluetoothProfile.CONNECTION_POLICY_ALLOWED
-        if (connectionPolicy > BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
-            connectionPolicy = BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+        // CONNECTION_POLICY_ALLOWED
+        if (connectionPolicy > CONNECTION_POLICY_ALLOWED) {
+            connectionPolicy = CONNECTION_POLICY_ALLOWED;
         }
 
         switch (profile) {
@@ -250,7 +253,7 @@ public class Metadata {
             case BluetoothProfile.BATTERY:
                 return profileConnectionPolicies.battery_connection_policy;
         }
-        return BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
+        return CONNECTION_POLICY_UNKNOWN;
     }
 
     void setCustomizedMeta(int key, byte[] value) {

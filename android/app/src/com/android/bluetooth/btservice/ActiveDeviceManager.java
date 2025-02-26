@@ -16,6 +16,7 @@
 
 package com.android.bluetooth.btservice;
 
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 
 import android.annotation.NonNull;
@@ -293,7 +294,7 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
                 }
                 // Activate A2DP if audio mode is normal or HFP is not supported or enabled.
                 if (mDbManager.getProfileConnectionPolicy(device, BluetoothProfile.HEADSET)
-                                != BluetoothProfile.CONNECTION_POLICY_ALLOWED
+                                != CONNECTION_POLICY_ALLOWED
                         || mAudioManager.getMode() == AudioManager.MODE_NORMAL) {
                     boolean a2dpMadeActive = setA2dpActiveDevice(device);
                     if (a2dpMadeActive && !Utils.isDualModeAudioEnabled()) {
@@ -363,7 +364,7 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
                 }
                 // Activate HFP if audio mode is not normal or A2DP is not supported or enabled.
                 if (mDbManager.getProfileConnectionPolicy(device, BluetoothProfile.A2DP)
-                                != BluetoothProfile.CONNECTION_POLICY_ALLOWED
+                                != CONNECTION_POLICY_ALLOWED
                         || mAudioManager.getMode() != AudioManager.MODE_NORMAL) {
                     if (Utils.isWatch(mAdapterService, device)) {
                         Log.i(TAG, "Do not set hfp active for watch device " + device);
@@ -684,7 +685,7 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
                 if (!Objects.equals(mHfpActiveDevice, device)
                         && mHfpConnectedDevices.contains(device)
                         && mDbManager.getProfileConnectionPolicy(device, BluetoothProfile.HEADSET)
-                                == BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
+                                == CONNECTION_POLICY_ALLOWED) {
                     mClassicDeviceToBeActivated = device;
                     setHfpActiveDevice(device);
                     mHandler.postDelayed(
@@ -755,7 +756,7 @@ public class ActiveDeviceManager implements AdapterService.BluetoothStateCallbac
                 if (!Objects.equals(mA2dpActiveDevice, device)
                         && mA2dpConnectedDevices.contains(device)
                         && mDbManager.getProfileConnectionPolicy(device, BluetoothProfile.A2DP)
-                                == BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
+                                == CONNECTION_POLICY_ALLOWED) {
                     mClassicDeviceToBeActivated = device;
                     setA2dpActiveDevice(device);
                     mHandler.postDelayed(

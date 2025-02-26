@@ -23,6 +23,8 @@ import static android.bluetooth.BluetoothAdapter.STATE_OFF;
 import static android.bluetooth.BluetoothAdapter.STATE_ON;
 import static android.bluetooth.BluetoothAdapter.STATE_TURNING_OFF;
 import static android.bluetooth.BluetoothAdapter.STATE_TURNING_ON;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
@@ -223,9 +225,7 @@ public class AdapterServiceTest {
 
         doReturn(true).when(mMockLeAudioService).isAvailable();
         LeAudioService.setLeAudioService(mMockLeAudioService);
-        doReturn(BluetoothProfile.CONNECTION_POLICY_ALLOWED)
-                .when(mMockLeAudioService)
-                .getConnectionPolicy(any());
+        doReturn(CONNECTION_POLICY_ALLOWED).when(mMockLeAudioService).getConnectionPolicy(any());
 
         AdapterNativeInterface.setInstance(mNativeInterface);
         BluetoothKeystoreNativeInterface.setInstance(mKeystoreNativeInterface);
@@ -1111,9 +1111,7 @@ public class AdapterServiceTest {
                         getConnectionState_LeAudioService,
                         getConnectionState_AdapterService);
 
-        doReturn(BluetoothProfile.CONNECTION_POLICY_FORBIDDEN)
-                .when(mMockLeAudioService)
-                .getConnectionPolicy(any());
+        doReturn(CONNECTION_POLICY_FORBIDDEN).when(mMockLeAudioService).getConnectionPolicy(any());
         mAdapterService.notifyDirectLeGattClientConnect(1, mDevice);
 
         order.verify(mMockLeAudioService, never()).setAutoActiveModeState(groupId, false);

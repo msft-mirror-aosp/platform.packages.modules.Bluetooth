@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.pbapclient;
 
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
@@ -31,7 +33,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothProfile;
 import android.content.AttributionSource;
 
 import androidx.test.filters.MediumTest;
@@ -109,7 +110,7 @@ public class PbapClientBinderTest {
 
     @Test
     public void testSetConnectionPolicy() {
-        int connectionPolicy = BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+        int connectionPolicy = CONNECTION_POLICY_ALLOWED;
         mPbapClientBinder.setConnectionPolicy(mTestDevice, connectionPolicy, mAttributionSource);
         verify(mMockService).setConnectionPolicy(eq(mTestDevice), eq(connectionPolicy));
     }
@@ -169,7 +170,7 @@ public class PbapClientBinderTest {
     @Test
     public void testSetConnectionPolicy_afterCleanup_returnsFalse() {
         mPbapClientBinder.cleanup();
-        int connectionPolicy = BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+        int connectionPolicy = CONNECTION_POLICY_ALLOWED;
         boolean result =
                 mPbapClientBinder.setConnectionPolicy(
                         mTestDevice, connectionPolicy, mAttributionSource);
@@ -182,6 +183,6 @@ public class PbapClientBinderTest {
         mPbapClientBinder.cleanup();
         int result = mPbapClientBinder.getConnectionPolicy(mTestDevice, mAttributionSource);
         verify(mMockService, never()).getConnectionPolicy(any(BluetoothDevice.class));
-        assertThat(result).isEqualTo(BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
+        assertThat(result).isEqualTo(CONNECTION_POLICY_UNKNOWN);
     }
 }

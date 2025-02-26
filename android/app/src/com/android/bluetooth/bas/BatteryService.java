@@ -16,6 +16,9 @@
 
 package com.android.bluetooth.bas;
 
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
 import static java.util.Objects.requireNonNull;
@@ -138,7 +141,7 @@ public class BatteryService extends ProfileService {
             return false;
         }
 
-        if (getConnectionPolicy(device) == BluetoothProfile.CONNECTION_POLICY_FORBIDDEN) {
+        if (getConnectionPolicy(device) == CONNECTION_POLICY_FORBIDDEN) {
             Log.w(TAG, "Cannot connect to " + device + " : policy forbidden");
             return false;
         }
@@ -166,7 +169,7 @@ public class BatteryService extends ProfileService {
      */
     public boolean connectIfPossible(BluetoothDevice device) {
         if (device == null
-                || getConnectionPolicy(device) == BluetoothProfile.CONNECTION_POLICY_FORBIDDEN
+                || getConnectionPolicy(device) == CONNECTION_POLICY_FORBIDDEN
                 || !Utils.arrayContains(
                         mAdapterService.getRemoteUuids(device), BluetoothUuid.BATTERY)) {
             return false;
@@ -217,8 +220,8 @@ public class BatteryService extends ProfileService {
         if (bondState != BluetoothDevice.BOND_BONDED) {
             Log.w(TAG, "canConnect: return false, bondState=" + bondState);
             return false;
-        } else if (connectionPolicy != BluetoothProfile.CONNECTION_POLICY_UNKNOWN
-                && connectionPolicy != BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
+        } else if (connectionPolicy != CONNECTION_POLICY_UNKNOWN
+                && connectionPolicy != CONNECTION_POLICY_ALLOWED) {
             // Otherwise, reject the connection if connectionPolicy is not valid.
             Log.w(TAG, "canConnect: return false, connectionPolicy=" + connectionPolicy);
             return false;
@@ -322,9 +325,9 @@ public class BatteryService extends ProfileService {
         Log.d(TAG, "Saved connectionPolicy " + device + " = " + connectionPolicy);
         mDatabaseManager.setProfileConnectionPolicy(
                 device, BluetoothProfile.BATTERY, connectionPolicy);
-        if (connectionPolicy == BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
+        if (connectionPolicy == CONNECTION_POLICY_ALLOWED) {
             connect(device);
-        } else if (connectionPolicy == BluetoothProfile.CONNECTION_POLICY_FORBIDDEN) {
+        } else if (connectionPolicy == CONNECTION_POLICY_FORBIDDEN) {
             disconnect(device);
         }
         return true;

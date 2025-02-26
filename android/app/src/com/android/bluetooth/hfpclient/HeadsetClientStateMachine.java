@@ -33,6 +33,8 @@ package com.android.bluetooth.hfpclient;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
@@ -2372,8 +2374,8 @@ public class HeadsetClientStateMachine extends StateMachine {
         // it is likely that our SDP has not completed and peer is initiating
         // the
         // connection. Allow this connection, provided the device is bonded
-        if ((BluetoothProfile.CONNECTION_POLICY_FORBIDDEN < connectionPolicy)
-                || ((BluetoothProfile.CONNECTION_POLICY_UNKNOWN == connectionPolicy)
+        if ((CONNECTION_POLICY_FORBIDDEN < connectionPolicy)
+                || ((CONNECTION_POLICY_UNKNOWN == connectionPolicy)
                         && (mAdapterService.getBondState(device) != BluetoothDevice.BOND_NONE))) {
             ret = true;
         }
