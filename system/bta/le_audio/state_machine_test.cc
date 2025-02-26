@@ -242,6 +242,8 @@ protected:
 
   /* Keep ASE in releasing state */
   bool stay_in_releasing_state_;
+  /* Do not response immediately on Release CTP for the devices in the list*/
+  std::vector<RawAddress> block_releasing_state_device_list_;
 
   /* Use for single test to simulate late ASE notifications */
   bool stop_inject_configured_ase_after_first_ase_configured_;
@@ -264,6 +266,7 @@ protected:
     do_not_send_cis_establish_event_ = false;
     do_not_send_cis_disconnected_event_ = false;
     stay_in_releasing_state_ = false;
+    block_releasing_state_device_list_.clear();
     stop_inject_configured_ase_after_first_ase_configured_ = false;
     cis_status_.clear();
 
@@ -1402,8 +1405,8 @@ protected:
       UINT8_TO_STREAM(p, reason);
     }
 
-    LeAudioGroupStateMachine::Get()->ProcessGattCtpNotification(group, notif_value.data(),
-                                                                notif_value.size());
+    LeAudioGroupStateMachine::Get()->ProcessGattCtpNotification(
+            group, leAudioDevice, notif_value.data(), notif_value.size());
   }
 
   void PrepareCtpNotificationError(LeAudioDeviceGroup* group, uint8_t opcode, uint8_t response_code,
@@ -1642,6 +1645,12 @@ protected:
                                        [ase_id](auto& ase) { return ase.id == ase_id; });
                 ASSERT_NE(it, device->ases_.end());
                 const auto ase = &(*it);
+
+                auto iter = std::find(block_releasing_state_device_list_.begin(),
+                                      block_releasing_state_device_list_.end(), device->address_);
+                if (iter != block_releasing_state_device_list_.end()) {
+                  continue;
+                }
 
                 InjectAseStateNotification(ase, device, group, ascs::kAseStateReleasing, nullptr);
 
@@ -2094,11 +2103,15 @@ TEST_F(StateMachineTest, testConfigureQosFailed) {
           group, client_parser::ascs::kCtpOpcodeQosConfiguration,
           client_parser::ascs::kCtpResponseCodeInvalidConfigurationParameterValue,
           client_parser::ascs::kCtpResponsePhy);
+
   PrepareReleaseHandler(group);
 
   auto* leAudioDevice = group->GetFirstDevice();
   auto expected_devices_written = 0;
   while (leAudioDevice) {
+    // We will inject state after manually for test porpuse
+    block_releasing_state_device_list_.push_back(leAudioDevice->address_);
+
     EXPECT_CALL(gatt_queue,
                 WriteCharacteristic(leAudioDevice->conn_id_, leAudioDevice->ctp_hdls_.val_hdl, _,
                                     GATT_WRITE_NO_RSP, _, _))
@@ -2123,9 +2136,13 @@ TEST_F(StateMachineTest, testConfigureQosFailed) {
           {.sink = types::AudioContexts(context_type),
            .source = types::AudioContexts(context_type)}));
 
+  InjectReleaseAndIdleStateForAGroup(group);
+
   // Check if group has transitioned to a proper state
   ASSERT_EQ(group->GetState(), types::AseState::BTA_LE_AUDIO_ASE_STATE_IDLE);
-  ASSERT_EQ(2, get_func_call_count("alarm_cancel"));
+
+  // During error only one cancel will happen when all devices will go down to IDLE
+  ASSERT_EQ(1, get_func_call_count("alarm_cancel"));
 
   testing::Mock::VerifyAndClearExpectations(mock_iso_manager_);
 }
@@ -2203,7 +2220,10 @@ TEST_F(StateMachineTest, testStreamCreationError) {
                               client_parser::ascs::kCtpResponseNoReason);
   PrepareReleaseHandler(group);
 
-  auto* leAudioDevice = group->GetFirstDevice();
+  auto leAudioDevice = group->GetFirstDevice();
+
+  /* To avoid the loop. Will Inject release later. */
+  block_releasing_state_device_list_.push_back(leAudioDevice->address_);
 
   /*
    * 1 - Configure ASE
@@ -2237,9 +2257,11 @@ TEST_F(StateMachineTest, testStreamCreationError) {
           {.sink = types::AudioContexts(context_type),
            .source = types::AudioContexts(context_type)}));
 
+  InjectReleaseAndIdleStateForAGroup(group);
+
   // Check if group has transitioned to a proper state
   ASSERT_EQ(group->GetState(), types::AseState::BTA_LE_AUDIO_ASE_STATE_IDLE);
-  ASSERT_EQ(2, get_func_call_count("alarm_cancel"));
+  ASSERT_EQ(1, get_func_call_count("alarm_cancel"));
 }
 
 TEST_F(StateMachineTest, testStreamSingle) {
@@ -2990,7 +3012,8 @@ TEST_F(StateMachineTest, remoteRejectsEnable) {
 
   InjectInitialIdleNotification(group);
 
-  auto* leAudioDevice = group->GetFirstDevice();
+  auto leAudioDevice = group->GetFirstDevice();
+  block_releasing_state_device_list_.push_back(leAudioDevice->address_);
 
   /* First device Control Point actions
    * Codec Config
@@ -3002,17 +3025,20 @@ TEST_F(StateMachineTest, remoteRejectsEnable) {
               WriteCharacteristic(leAudioDevice->conn_id_, leAudioDevice->ctp_hdls_.val_hdl, _,
                                   GATT_WRITE_NO_RSP, _, _))
           .Times(4);
+
   leAudioDevice = group->GetNextDevice(leAudioDevice);
+  block_releasing_state_device_list_.push_back(leAudioDevice->address_);
 
   /* Second device Control Point actions
    * Codec Config
    * QoS Config
+   * Enable
    * Release
    */
   EXPECT_CALL(gatt_queue,
               WriteCharacteristic(leAudioDevice->conn_id_, leAudioDevice->ctp_hdls_.val_hdl, _,
                                   GATT_WRITE_NO_RSP, _, _))
-          .Times(3);
+          .Times(4);
 
   // Start the configuration and stream Media content
   ASSERT_TRUE(LeAudioGroupStateMachine::Get()->StartStream(
@@ -3020,9 +3046,11 @@ TEST_F(StateMachineTest, remoteRejectsEnable) {
           {.sink = types::AudioContexts(context_type),
            .source = types::AudioContexts(context_type)}));
 
+  InjectReleaseAndIdleStateForAGroup(group);
+
   // Check if group has transitioned to a proper state
   ASSERT_EQ(group->GetState(), types::AseState::BTA_LE_AUDIO_ASE_STATE_IDLE);
-  ASSERT_EQ(2, get_func_call_count("alarm_cancel"));
+  ASSERT_EQ(1, get_func_call_count("alarm_cancel"));
 }
 
 TEST_F(StateMachineTest, testStreamMultiple) {
@@ -5753,7 +5781,7 @@ TEST_F(StateMachineTest, testReleaseStreamWithLateAttachToStream_CodecConfigStat
    * 3. Reconnect
    * 4. Trigger attach the stream
    * 6. StopStream while getting to Codec Configured State on attaching device
-   * 7. Check that Attaching device will also go to IDLE
+   * 7. Check that Attaching device will not get Release CMD
    */
 
   ContentControlIdKeeper::GetInstance()->SetCcid(media_context, media_ccid);
@@ -5831,11 +5859,12 @@ TEST_F(StateMachineTest, testReleaseStreamWithLateAttachToStream_CodecConfigStat
 
   /*
    * 1. Codec Configure for attaching device
-   * 2. Release for both devices
+   * 2. Release for streaming device only  as the attaching one is still not in Codec Configured
+   * state.
    */
   EXPECT_CALL(gatt_queue, WriteCharacteristic(lastDevice->conn_id_, lastDevice->ctp_hdls_.val_hdl,
                                               _, GATT_WRITE_NO_RSP, _, _))
-          .Times(2);
+          .Times(1);
 
   EXPECT_CALL(gatt_queue, WriteCharacteristic(firstDevice->conn_id_, firstDevice->ctp_hdls_.val_hdl,
                                               _, GATT_WRITE_NO_RSP, _, _))
@@ -9518,12 +9547,12 @@ TEST_F(StateMachineTest, testStopStreamBeforeCodecConfigureIsArrived) {
 
   /*
    * 1 - Configure ASE
-   * 2 - Release ASE
+   * 2 - Release ASE (we are not Release in such a case)
    */
   EXPECT_CALL(gatt_queue,
               WriteCharacteristic(leAudioDevice->conn_id_, leAudioDevice->ctp_hdls_.val_hdl, _,
                                   GATT_WRITE_NO_RSP, _, _))
-          .Times(2);
+          .Times(1);
 
   EXPECT_CALL(*mock_iso_manager_, CreateCig(_, _)).Times(0);
   EXPECT_CALL(*mock_iso_manager_, EstablishCis(_)).Times(0);
@@ -9534,9 +9563,11 @@ TEST_F(StateMachineTest, testStopStreamBeforeCodecConfigureIsArrived) {
 
   InjectInitialIdleNotification(group);
 
-  // Validate GroupStreamStatus
+  // Validate GroupStreamStatus and we should just received IDLE state as There is no Release CMD
+  // sent to the remote
   EXPECT_CALL(mock_callbacks_,
-              StatusReportCb(leaudio_group_id, bluetooth::le_audio::GroupStreamStatus::RELEASING));
+              StatusReportCb(leaudio_group_id, bluetooth::le_audio::GroupStreamStatus::RELEASING))
+          .Times(0);
   EXPECT_CALL(mock_callbacks_,
               StatusReportCb(leaudio_group_id, bluetooth::le_audio::GroupStreamStatus::IDLE));
 
@@ -9556,7 +9587,7 @@ TEST_F(StateMachineTest, testStopStreamBeforeCodecConfigureIsArrived) {
 
   // Check if group has transitioned to a proper state
   ASSERT_EQ(group->GetState(), types::AseState::BTA_LE_AUDIO_ASE_STATE_IDLE);
-  ASSERT_EQ(2, get_func_call_count("alarm_cancel"));
+  ASSERT_EQ(1, get_func_call_count("alarm_cancel"));
 }
 
 TEST_F(StateMachineTest, testAutonomousReleaseFromEnablingState) {

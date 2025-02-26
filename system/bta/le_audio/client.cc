@@ -2434,7 +2434,7 @@ public:
                                                          supp_audio_contexts.source.value());
       }
     } else if (hdl == leAudioDevice->ctp_hdls_.val_hdl) {
-      groupStateMachine_->ProcessGattCtpNotification(group, value, len);
+      groupStateMachine_->ProcessGattCtpNotification(group, leAudioDevice, value, len);
     } else if (hdl == leAudioDevice->tmap_role_hdl_) {
       bluetooth::le_audio::client_parser::tmap::ParseTmapRole(leAudioDevice->tmap_role_, len,
                                                               value);
