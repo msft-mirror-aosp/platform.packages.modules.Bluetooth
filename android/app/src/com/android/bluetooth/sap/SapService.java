@@ -18,6 +18,8 @@ package com.android.bluetooth.sap;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
 import static java.util.Objects.requireNonNull;
 
@@ -534,7 +536,7 @@ public class SapService extends ProfileService implements AdapterService.Bluetoo
     private synchronized void setState(int state, int result) {
         if (state != mState) {
             Log.d(TAG, "Sap state " + mState + " -> " + state + ", result = " + result);
-            if (state == BluetoothProfile.STATE_CONNECTED) {
+            if (state == STATE_CONNECTED) {
                 MetricsLogger.logProfileConnectionEvent(BluetoothMetricsProto.ProfileId.SAP);
             }
             int prevState = mState;
@@ -617,9 +619,9 @@ public class SapService extends ProfileService implements AdapterService.Bluetoo
             if (getState() == BluetoothSap.STATE_CONNECTED
                     && getRemoteDevice() != null
                     && getRemoteDevice().equals(device)) {
-                return BluetoothProfile.STATE_CONNECTED;
+                return STATE_CONNECTED;
             } else {
-                return BluetoothProfile.STATE_DISCONNECTED;
+                return STATE_DISCONNECTED;
             }
         }
     }
@@ -955,7 +957,7 @@ public class SapService extends ProfileService implements AdapterService.Bluetoo
                 return false;
             }
 
-            return service.getConnectionState(device) == BluetoothProfile.STATE_CONNECTED;
+            return service.getConnectionState(device) == STATE_CONNECTED;
         }
 
         @Override
@@ -1001,7 +1003,7 @@ public class SapService extends ProfileService implements AdapterService.Bluetoo
 
             SapService service = getService(source);
             if (service == null) {
-                return BluetoothProfile.STATE_DISCONNECTED;
+                return STATE_DISCONNECTED;
             }
 
             return service.getConnectionState(device);

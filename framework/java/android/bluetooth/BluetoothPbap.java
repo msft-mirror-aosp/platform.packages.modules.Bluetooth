@@ -18,6 +18,7 @@ package android.bluetooth;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
 import android.annotation.NonNull;
 import android.annotation.RequiresNoPermission;
@@ -193,11 +194,11 @@ public class BluetoothPbap implements BluetoothProfile {
             if (service == null) {
                 Log.w(TAG, "Proxy not attached to service");
             }
-            return BluetoothProfile.STATE_DISCONNECTED;
+            return STATE_DISCONNECTED;
         } catch (RemoteException e) {
             Log.e(TAG, e.toString());
         }
-        return BluetoothProfile.STATE_DISCONNECTED;
+        return STATE_DISCONNECTED;
     }
 
     /**

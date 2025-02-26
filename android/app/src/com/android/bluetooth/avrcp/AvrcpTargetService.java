@@ -16,11 +16,12 @@
 
 package com.android.bluetooth.avrcp;
 
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
+
 import static java.util.Objects.requireNonNull;
 
 import android.annotation.NonNull;
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothUtils;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -341,7 +342,7 @@ public class AvrcpTargetService extends ProfileService {
      */
     public void handleA2dpConnectionStateChanged(BluetoothDevice device, int newState) {
         if (device == null) return;
-        if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+        if (newState == STATE_DISCONNECTED) {
             // If there is no connection, disconnectDevice() will do nothing
             if (mNativeInterface.disconnectDevice(device)) {
                 Log.d(TAG, "request to disconnect device " + device);

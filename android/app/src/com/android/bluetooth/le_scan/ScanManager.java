@@ -16,6 +16,10 @@
 
 package com.android.bluetooth.le_scan;
 
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTING;
 import static android.bluetooth.le.ScanSettings.getScanModeString;
 
 import android.app.ActivityManager;
@@ -2222,7 +2226,7 @@ public class ScanManager {
 
     private boolean updateCountersAndCheckForConnectingState(int state, int prevState) {
         switch (prevState) {
-            case BluetoothProfile.STATE_CONNECTING:
+            case STATE_CONNECTING:
                 if (mProfilesConnecting > 0) {
                     mProfilesConnecting--;
                 } else {
@@ -2231,7 +2235,7 @@ public class ScanManager {
                             "Invalid state transition, " + prevState + " -> " + state);
                 }
                 break;
-            case BluetoothProfile.STATE_CONNECTED:
+            case STATE_CONNECTED:
                 if (mProfilesConnected > 0) {
                     mProfilesConnected--;
                 } else {
@@ -2240,7 +2244,7 @@ public class ScanManager {
                             "Invalid state transition, " + prevState + " -> " + state);
                 }
                 break;
-            case BluetoothProfile.STATE_DISCONNECTING:
+            case STATE_DISCONNECTING:
                 if (mProfilesDisconnecting > 0) {
                     mProfilesDisconnecting--;
                 } else {
@@ -2251,16 +2255,16 @@ public class ScanManager {
                 break;
         }
         switch (state) {
-            case BluetoothProfile.STATE_CONNECTING:
+            case STATE_CONNECTING:
                 mProfilesConnecting++;
                 break;
-            case BluetoothProfile.STATE_CONNECTED:
+            case STATE_CONNECTED:
                 mProfilesConnected++;
                 break;
-            case BluetoothProfile.STATE_DISCONNECTING:
+            case STATE_DISCONNECTING:
                 mProfilesDisconnecting++;
                 break;
-            case BluetoothProfile.STATE_DISCONNECTED:
+            case STATE_DISCONNECTED:
                 break;
             default:
         }

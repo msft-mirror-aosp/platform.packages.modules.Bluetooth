@@ -1009,8 +1009,7 @@ public class PhonePolicy implements AdapterService.BluetoothStateCallback {
                 if (!connectedDevices.contains(device)
                         && (hapClientService.getConnectionPolicy(device)
                                 == BluetoothProfile.CONNECTION_POLICY_ALLOWED)
-                        && (hapClientService.getConnectionState(device)
-                                == BluetoothProfile.STATE_DISCONNECTED)) {
+                        && (hapClientService.getConnectionState(device) == STATE_DISCONNECTED)) {
                     Log.d(TAG, log + "Retrying HAP connection");
                     hapClientService.connect(device);
                 }

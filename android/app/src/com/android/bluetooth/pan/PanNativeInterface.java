@@ -16,10 +16,14 @@
 
 package com.android.bluetooth.pan;
 
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTING;
+
 import static java.util.Objects.requireNonNull;
 
 import android.bluetooth.BluetoothPan;
-import android.bluetooth.BluetoothProfile;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
@@ -71,16 +75,16 @@ public class PanNativeInterface {
     static int convertHalState(int halState) {
         switch (halState) {
             case CONN_STATE_CONNECTED:
-                return BluetoothProfile.STATE_CONNECTED;
+                return STATE_CONNECTED;
             case CONN_STATE_CONNECTING:
-                return BluetoothProfile.STATE_CONNECTING;
+                return STATE_CONNECTING;
             case CONN_STATE_DISCONNECTED:
-                return BluetoothProfile.STATE_DISCONNECTED;
+                return STATE_DISCONNECTED;
             case CONN_STATE_DISCONNECTING:
-                return BluetoothProfile.STATE_DISCONNECTING;
+                return STATE_DISCONNECTING;
             default:
                 Log.e(TAG, "Invalid pan connection state: " + halState);
-                return BluetoothProfile.STATE_DISCONNECTED;
+                return STATE_DISCONNECTED;
         }
     }
 

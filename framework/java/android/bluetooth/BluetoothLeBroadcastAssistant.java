@@ -19,6 +19,7 @@ package android.bluetooth;
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static android.Manifest.permission.BLUETOOTH_SCAN;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
 import static java.util.Objects.requireNonNull;
 
@@ -582,7 +583,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
         log("getConnectionState(" + sink + ")");
         requireNonNull(sink);
         final IBluetoothLeBroadcastAssistant service = getService();
-        final int defaultValue = BluetoothProfile.STATE_DISCONNECTED;
+        final int defaultValue = STATE_DISCONNECTED;
         if (service == null) {
             Log.w(TAG, "Proxy not attached to service");
             if (DBG) log(Log.getStackTraceString(new Throwable()));

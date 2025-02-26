@@ -552,8 +552,7 @@ public class A2dpServiceTest {
         assertThat(mA2dpService.getDevices()).doesNotContain(mDevice);
 
         // A2DP stack event: CONNECTION_STATE_CONNECTED - state machine should be created
-        generateConnectionMessageFromNative(
-                mDevice, STATE_CONNECTED, BluetoothProfile.STATE_DISCONNECTED);
+        generateConnectionMessageFromNative(mDevice, STATE_CONNECTED, STATE_DISCONNECTED);
         assertThat(mA2dpService.getConnectionState(mDevice)).isEqualTo(STATE_CONNECTED);
         assertThat(mA2dpService.getDevices()).contains(mDevice);
 

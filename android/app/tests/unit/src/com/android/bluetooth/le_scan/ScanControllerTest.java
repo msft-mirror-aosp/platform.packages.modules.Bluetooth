@@ -16,6 +16,9 @@
 
 package com.android.bluetooth.le_scan;
 
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
+
 import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 
@@ -411,14 +414,10 @@ public class ScanControllerTest {
     @Test
     public void profileConnectionStateChanged_notifyScanManager() {
         mScanController.notifyProfileConnectionStateChange(
-                BluetoothProfile.A2DP,
-                BluetoothProfile.STATE_CONNECTING,
-                BluetoothProfile.STATE_CONNECTED);
+                BluetoothProfile.A2DP, STATE_CONNECTING, STATE_CONNECTED);
         verify(mScanManager)
                 .handleBluetoothProfileConnectionStateChanged(
-                        BluetoothProfile.A2DP,
-                        BluetoothProfile.STATE_CONNECTING,
-                        BluetoothProfile.STATE_CONNECTED);
+                        BluetoothProfile.A2DP, STATE_CONNECTING, STATE_CONNECTED);
     }
 
     @Test
