@@ -53,25 +53,20 @@ constexpr char kBtmLogTagTA[] = "TA";
 
 struct closure_data {
   base::OnceClosure user_task;
-  base::Location posted_from;
 };
 
 extern std::string get_client_name(uint8_t gatt_if);
 
 static void alarm_closure_cb(void* p) {
   closure_data* data = (closure_data*)p;
-  log::verbose("executing timer scheduled at {}", data->posted_from.ToString());
   std::move(data->user_task).Run();
   delete data;
 }
 
 // Periodic alarms are not supported, because we clean up data in callback
-static void alarm_set_closure(const base::Location& posted_from, alarm_t* alarm,
-                              uint64_t interval_ms, base::OnceClosure user_task) {
+static void alarm_set_closure(alarm_t* alarm, uint64_t interval_ms, base::OnceClosure user_task) {
   closure_data* data = new closure_data;
-  data->posted_from = posted_from;
   data->user_task = std::move(user_task);
-  log::verbose("scheduling timer {}", data->posted_from.ToString());
   alarm_set_on_mloop(alarm, interval_ms, alarm_closure_cb, data);
 }
 
@@ -561,7 +556,7 @@ bool direct_connect_add(uint8_t app_id, const RawAddress& address, tBLE_ADDR_TYP
 
   // Setup a timer
   alarm_t* timeout = alarm_new("wl_conn_params_30s");
-  alarm_set_closure(FROM_HERE, timeout, DIRECT_CONNECT_TIMEOUT,
+  alarm_set_closure(timeout, DIRECT_CONNECT_TIMEOUT,
                     base::BindOnce(&wl_direct_connect_timeout_cb, app_id, address));
 
   bgconn_dev[address].doing_direct_conn.emplace(app_id, unique_alarm_ptr(timeout, &alarm_free));
