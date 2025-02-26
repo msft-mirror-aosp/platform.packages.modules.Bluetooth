@@ -59,7 +59,7 @@ import java.util.concurrent.Executor;
  * proxy object.
  */
 public final class BluetoothCsipSetCoordinator implements BluetoothProfile, AutoCloseable {
-    private static final String TAG = "BluetoothCsipSetCoordinator";
+    private static final String TAG = BluetoothCsipSetCoordinator.class.getSimpleName();
 
     private static final boolean DBG = false;
     private static final boolean VDBG = false;
@@ -83,7 +83,7 @@ public final class BluetoothCsipSetCoordinator implements BluetoothProfile, Auto
         @interface Status {}
 
         /**
-         * Callback is invoken as a result on {@link #groupLock()}.
+         * Callback is invoked as a result on {@link #groupLock()}.
          *
          * @param groupId group identifier
          * @param opStatus status of lock operation

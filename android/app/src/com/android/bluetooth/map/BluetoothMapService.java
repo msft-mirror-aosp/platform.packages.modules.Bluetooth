@@ -70,7 +70,7 @@ import java.util.List;
 
 // Next tag value for ContentProfileErrorReportUtils.report(): 25
 public class BluetoothMapService extends ProfileService {
-    private static final String TAG = "BluetoothMapService";
+    private static final String TAG = BluetoothMapService.class.getSimpleName();
 
     /**
      * To enable MAP DEBUG/VERBOSE logging - run below cmd in adb shell, and restart

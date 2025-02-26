@@ -13,9 +13,9 @@
 // limitations under the License.
 
 use crate::ffi::{CInterface, CStatus, Callbacks, DataCallbacks, Ffi};
-use android_hardware_bluetooth::aidl::android::hardware::bluetooth::{
-    IBluetoothHci::IBluetoothHci, IBluetoothHciCallbacks::IBluetoothHciCallbacks, Status::Status,
-};
+use android_hardware_bluetooth::aidl::android::hardware::bluetooth::IBluetoothHci::IBluetoothHci;
+use android_hardware_bluetooth::aidl::android::hardware::bluetooth::IBluetoothHciCallbacks::IBluetoothHciCallbacks;
+use android_hardware_bluetooth::aidl::android::hardware::bluetooth::Status::Status;
 use binder::{DeathRecipient, ExceptionCode, IBinder, Interface, Result as BinderResult, Strong};
 use bluetooth_offload_hci::{Module, ModuleBuilder};
 use std::sync::{Arc, RwLock};
@@ -78,9 +78,7 @@ impl IBluetoothHci for HciHalProxy {
                 DeathRecipient::new(move || {
                     log::info!("Bluetooth stack has died");
                     let mut state = state.write().unwrap();
-                    if !matches!(*state, State::Closed) {
-                        ffi.close();
-                    }
+                    ffi.client_died();
                     *state = State::Closed;
                 })
             };

@@ -881,7 +881,7 @@ public class HeadsetClientStateMachine extends StateMachine {
         return features;
     }
 
-    private boolean isSupported(int bitfield, int mask) {
+    private static boolean isSupported(int bitfield, int mask) {
         return (bitfield & mask) == mask;
     }
 
@@ -2517,7 +2517,7 @@ public class HeadsetClientStateMachine extends StateMachine {
         return mAudioRouteAllowed;
     }
 
-    private String createMaskString(BluetoothSinkAudioPolicy policies) {
+    private static String createMaskString(BluetoothSinkAudioPolicy policies) {
         StringBuilder mask = new StringBuilder();
         mask.append(BluetoothSinkAudioPolicy.HFP_SET_SINK_AUDIO_POLICY_ID);
         mask.append(",").append(policies.getCallEstablishPolicy());
@@ -2582,7 +2582,7 @@ public class HeadsetClientStateMachine extends StateMachine {
     }
 
     /** handles the value of {@link BluetoothSinkAudioPolicy} from system property */
-    private int getAudioPolicySystemProp(String propKey) {
+    private static int getAudioPolicySystemProp(String propKey) {
         int mProp = SystemProperties.getInt(propKey, BluetoothSinkAudioPolicy.POLICY_UNCONFIGURED);
         if (mProp < BluetoothSinkAudioPolicy.POLICY_UNCONFIGURED
                 || mProp > BluetoothSinkAudioPolicy.POLICY_NOT_ALLOWED) {

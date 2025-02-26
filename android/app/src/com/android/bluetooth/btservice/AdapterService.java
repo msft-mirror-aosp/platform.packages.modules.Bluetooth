@@ -209,7 +209,8 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class AdapterService extends Service {
-    private static final String TAG = "BluetoothAdapterService";
+    private static final String TAG =
+            Utils.TAG_PREFIX_BLUETOOTH + AdapterService.class.getSimpleName();
 
     private static final int MESSAGE_PROFILE_SERVICE_STATE_CHANGED = 1;
     private static final int MESSAGE_PROFILE_SERVICE_REGISTERED = 2;
@@ -1124,7 +1125,7 @@ public class AdapterService extends Service {
         }
     }
 
-    private void invalidateBluetoothGetStateCache() {
+    private static void invalidateBluetoothGetStateCache() {
         if (Flags.getStateFromSystemServer()) {
             // State is managed by the system server
             return;
@@ -1248,6 +1249,9 @@ public class AdapterService extends Service {
                     BluetoothProperties.snoop_log_filter_profile_map()
                             .orElse(BluetoothProperties.snoop_log_filter_profile_map_values.EMPTY);
 
+            if (Utils.isInstrumentationTestMode()) {
+                return;
+            }
             BluetoothProperties.snoop_default_mode(
                     BluetoothProperties.snoop_default_mode_values.DISABLED);
             for (BluetoothProperties.snoop_default_mode_values value :
@@ -1505,7 +1509,7 @@ public class AdapterService extends Service {
         mMetadataListeners.values().forEach(v -> v.kill());
     }
 
-    private void invalidateBluetoothCaches() {
+    private static void invalidateBluetoothCaches() {
         BluetoothAdapter.invalidateGetProfileConnectionStateCache();
         BluetoothAdapter.invalidateIsOffloadedFilteringSupportedCache();
         BluetoothDevice.invalidateBluetoothGetBondStateCache();
@@ -1561,7 +1565,7 @@ public class AdapterService extends Service {
                 Log.wtf(TAG, logHdr + " profile is already started");
                 return;
             }
-            Log.d(TAG, logHdr + " starting profile");
+            Log.i(TAG, logHdr + " starting profile");
             ProfileService profileService = PROFILE_CONSTRUCTORS.get(profileId).apply(this);
             mStartedProfiles.put(profileId, profileService);
             addProfile(profileService);
@@ -1579,7 +1583,7 @@ public class AdapterService extends Service {
                 Log.wtf(TAG, logHdr + " profile is already stopped");
                 return;
             }
-            Log.d(TAG, logHdr + " stopping profile");
+            Log.i(TAG, logHdr + " stopping profile");
             profileService.setAvailable(false);
             onProfileServiceStateChanged(profileService, BluetoothAdapter.STATE_OFF);
             removeProfile(profileService);
@@ -1589,7 +1593,7 @@ public class AdapterService extends Service {
             }
         }
         Instant end = Instant.now();
-        Log.d(TAG, logHdr + " completed in " + Duration.between(start, end).toMillis() + "ms");
+        Log.i(TAG, logHdr + " completed in " + Duration.between(start, end).toMillis() + "ms");
     }
 
     private void setAllProfileServiceStates(int[] profileIds, int state) {
@@ -2135,7 +2139,7 @@ public class AdapterService extends Service {
         }
     }
 
-    private void pendingSocketTimeoutRunnable(
+    private static void pendingSocketTimeoutRunnable(
             RfcommListenerData listenerData, BluetoothSocket socket) {
         boolean socketFound = listenerData.mPendingSockets.remove(socket);
         if (socketFound) {
@@ -4852,6 +4856,11 @@ public class AdapterService extends Service {
         mAdapterStateMachine.sendMessage(AdapterState.USER_TURN_OFF);
     }
 
+    void disconnectAllAcls() {
+        Log.d(TAG, "disconnectAllAcls()");
+        mNativeInterface.disconnectAllAcls();
+    }
+
     public String getName() {
         return mAdapterProperties.getName();
     }
@@ -6698,19 +6707,19 @@ public class AdapterService extends Service {
         list.finishBroadcast();
     }
 
-    private int getIdleCurrentMa() {
+    private static int getIdleCurrentMa() {
         return BluetoothProperties.getHardwareIdleCurrentMa().orElse(0);
     }
 
-    private int getTxCurrentMa() {
+    private static int getTxCurrentMa() {
         return BluetoothProperties.getHardwareTxCurrentMa().orElse(0);
     }
 
-    private int getRxCurrentMa() {
+    private static int getRxCurrentMa() {
         return BluetoothProperties.getHardwareRxCurrentMa().orElse(0);
     }
 
-    private double getOperatingVolt() {
+    private static double getOperatingVolt() {
         return BluetoothProperties.getHardwareOperatingVoltageMv().orElse(0) / 1000.0;
     }
 
@@ -6718,7 +6727,7 @@ public class AdapterService extends Service {
         return mRemoteDevices;
     }
 
-    private String dumpScanMode(int scanMode) {
+    private static String dumpScanMode(int scanMode) {
         switch (scanMode) {
             case SCAN_MODE_NONE:
                 return "SCAN_MODE_NONE";
@@ -7382,7 +7391,7 @@ public class AdapterService extends Service {
         deleteDirectoryContents("/data/misc/bluetooth/");
     }
 
-    private void deleteDirectoryContents(String dirPath) {
+    private static void deleteDirectoryContents(String dirPath) {
         Path directoryPath = Paths.get(dirPath);
         try {
             Files.walkFileTree(

@@ -53,7 +53,7 @@ import java.util.List;
  */
 @SystemApi
 public final class BluetoothHidHost implements BluetoothProfile {
-    private static final String TAG = "BluetoothHidHost";
+    private static final String TAG = BluetoothHidHost.class.getSimpleName();
 
     private static final boolean DBG = true;
     private static final boolean VDBG = false;
@@ -790,7 +790,7 @@ public final class BluetoothHidHost implements BluetoothProfile {
     @RequiresBluetoothConnectPermission
     @RequiresPermission(BLUETOOTH_CONNECT)
     public boolean getIdleTime(BluetoothDevice device) {
-        if (DBG) log("getIdletime(" + device + ")");
+        if (DBG) log("getIdleTime(" + device + ")");
         final IBluetoothHidHost service = getService();
         if (service == null) {
             Log.w(TAG, "Proxy not attached to service");
@@ -817,7 +817,7 @@ public final class BluetoothHidHost implements BluetoothProfile {
     @RequiresBluetoothConnectPermission
     @RequiresPermission(BLUETOOTH_CONNECT)
     public boolean setIdleTime(BluetoothDevice device, byte idleTime) {
-        if (DBG) log("setIdletime(" + device + "), idleTime=" + idleTime);
+        if (DBG) log("setIdleTime(" + device + "), idleTime=" + idleTime);
         final IBluetoothHidHost service = getService();
         if (service == null) {
             Log.w(TAG, "Proxy not attached to service");

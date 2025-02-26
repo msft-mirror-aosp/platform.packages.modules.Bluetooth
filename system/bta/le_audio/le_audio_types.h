@@ -1285,12 +1285,6 @@ const types::LeAudioCodecId LeAudioCodecIdLc3 = {
 
 static constexpr uint32_t kChannelAllocationStereo =
         codec_spec_conf::kLeAudioLocationFrontLeft | codec_spec_conf::kLeAudioLocationFrontRight;
-
-/* Declarations */
-void get_cis_count(types::LeAudioContextType context_type, uint8_t expected_direction,
-                   int expected_device_cnt, types::LeAudioConfigurationStrategy strategy,
-                   int group_ase_snk_cnt, int group_ase_src_count, uint8_t& cis_count_bidir,
-                   uint8_t& cis_count_unidir_sink, uint8_t& cis_count_unidir_source);
 }  // namespace types
 
 struct stream_map_info {

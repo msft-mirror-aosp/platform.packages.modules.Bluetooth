@@ -104,7 +104,7 @@ import java.util.concurrent.TimeUnit;
 @MediumTest
 @RunWith(ParameterizedAndroidJunit4.class)
 public class MapClientStateMachineTest {
-    private static final String TAG = "MapClientStateMachineTest";
+    private static final String TAG = MapClientStateMachineTest.class.getSimpleName();
 
     @Rule public final SetFlagsRule mSetFlagsRule;
     @Rule public final MockitoRule mMockitoRule = new MockitoRule();

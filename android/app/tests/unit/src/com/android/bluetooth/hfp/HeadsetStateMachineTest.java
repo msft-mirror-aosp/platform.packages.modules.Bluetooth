@@ -17,6 +17,7 @@
 package com.android.bluetooth.hfp;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
+import static android.Manifest.permission.READ_PRIVILEGED_PHONE_STATE;
 import static android.media.audio.Flags.FLAG_DEPRECATE_STREAM_BT_SCO;
 
 import static com.android.bluetooth.TestUtils.MockitoRule;
@@ -68,6 +69,8 @@ import com.android.bluetooth.btservice.SilenceDeviceManager;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
 import com.android.bluetooth.flags.Flags;
 
+import com.google.common.util.concurrent.Uninterruptibles;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -118,8 +121,9 @@ public class HeadsetStateMachineTest {
 
     @Before
     public void setUp() throws Exception {
-        // Setup mocks and test assets
-        TestUtils.setAdapterService(mAdapterService);
+        InstrumentationRegistry.getInstrumentation()
+                .getUiAutomation()
+                .adoptShellPermissionIdentity(READ_PRIVILEGED_PHONE_STATE);
         // Stub system interface
         doReturn(mPhoneState).when(mSystemInterface).getHeadsetPhoneState();
         doReturn(mAudioManager).when(mSystemInterface).getAudioManager();
@@ -174,7 +178,10 @@ public class HeadsetStateMachineTest {
     public void tearDown() throws Exception {
         HeadsetObjectsFactory.getInstance().destroyStateMachine(mHeadsetStateMachine);
         mHandlerThread.quit();
-        TestUtils.clearAdapterService(mAdapterService);
+        Uninterruptibles.joinUninterruptibly(mHandlerThread);
+        InstrumentationRegistry.getInstrumentation()
+                .getUiAutomation()
+                .dropShellPermissionIdentity();
     }
 
     /** Test that default state is Disconnected */
@@ -1534,8 +1541,8 @@ public class HeadsetStateMachineTest {
 
     @Test
     public void testProcessAtClcc_withVirtualCallNotStarted() {
-        when(mHeadsetService.isVirtualCallStarted()).thenReturn(false);
-        when(mSystemInterface.listCurrentCalls()).thenReturn(false);
+        doReturn(false).when(mHeadsetService).isVirtualCallStarted();
+        doReturn(false).when(mSystemInterface).listCurrentCalls(any());
 
         mHeadsetStateMachine.processAtClcc(mDevice);
 

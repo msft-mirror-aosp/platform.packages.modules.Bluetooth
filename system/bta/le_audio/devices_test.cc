@@ -35,13 +35,6 @@
 #include "stack/btm/btm_int_types.h"
 #include "test/mock/mock_main_shim_entry.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
-tACL_CONN* btm_bda_to_acl(const RawAddress& /*bda*/, tBT_TRANSPORT /*transport*/) {
-  return nullptr;
-}
-
 const tBLE_BD_ADDR BTM_Sec_GetAddressWithType(const RawAddress& bd_addr) {
   return tBLE_BD_ADDR{.type = BLE_ADDR_PUBLIC, .bda = bd_addr};
 }
@@ -2597,6 +2590,23 @@ TEST_P(LeAudioAseConfigurationTest, test_vendor_codec_configure_incomplete_group
 
   TestGroupAseConfiguration(LeAudioContextType::MEDIA, data, devices_to_verify,
                             direction_to_verify);
+}
+
+TEST_P(LeAudioAseConfigurationTest, test_get_metadata_no_ccid) {
+  auto mono_microphone = AddTestDevice(1, 0);
+  auto metadata = mono_microphone->GetMetadata(
+          bluetooth::le_audio::types::AudioContexts(
+                  bluetooth::le_audio::types::LeAudioContextType::MEDIA),
+          std::vector<uint8_t>());
+  ASSERT_EQ(metadata.Find(types::kLeAudioMetadataTypeCcidList), std::nullopt);
+  ASSERT_TRUE(metadata.Find(bluetooth::le_audio::types::kLeAudioMetadataTypeStreamingAudioContext)
+                      .has_value());
+  ASSERT_EQ(metadata.Find(bluetooth::le_audio::types::kLeAudioMetadataTypeStreamingAudioContext)
+                    .value()[0],
+            uint8_t(LeAudioContextType::MEDIA));
+  ASSERT_EQ(metadata.Find(bluetooth::le_audio::types::kLeAudioMetadataTypeStreamingAudioContext)
+                    .value()[1],
+            uint8_t((uint16_t)LeAudioContextType::MEDIA >> 8));
 }
 
 INSTANTIATE_TEST_CASE_P(Test, LeAudioAseConfigurationTest,

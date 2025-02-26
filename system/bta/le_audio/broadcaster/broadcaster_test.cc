@@ -32,17 +32,16 @@
 #include "bta/le_audio/content_control_id_keeper.h"
 #include "bta/le_audio/le_audio_types.h"
 #include "bta/le_audio/mock_codec_manager.h"
+#include "btif/include/btif_common.h"
 #include "hci/controller_interface_mock.h"
 #include "stack/include/btm_iso_api.h"
+#include "stack/include/main_thread.h"
 #include "test/common/mock_functions.h"
 #include "test/mock/mock_main_shim_entry.h"
 #include "test/mock/mock_osi_alarm.h"
 #include "test/mock/mock_stack_btm_iso.h"
 
 #define TEST_BT com::android::bluetooth::flags
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace std::chrono_literals;
 
@@ -72,6 +71,7 @@ using bluetooth::le_audio::broadcaster::BroadcastStateMachine;
 using bluetooth::le_audio::broadcaster::BroadcastSubgroupCodecConfig;
 
 // Disables most likely false-positives from base::SplitString()
+extern "C" const char* __asan_default_options();
 extern "C" const char* __asan_default_options() { return "detect_container_overflow=0"; }
 
 struct alarm_t {
@@ -110,9 +110,6 @@ bt_status_t do_in_main_thread(base::OnceClosure task) {
   return BT_STATUS_SUCCESS;
 }
 
-static base::MessageLoop* message_loop_;
-base::MessageLoop* get_main_message_loop() { return message_loop_; }
-
 static void init_message_loop_thread() {
   num_async_tasks = 0;
   message_loop_thread.StartUp();
@@ -123,17 +120,9 @@ static void init_message_loop_thread() {
   if (!message_loop_thread.EnableRealTimeScheduling()) {
     log::error("Unable to set real time scheduling");
   }
-
-  message_loop_ = message_loop_thread.message_loop();
-  if (message_loop_ == nullptr) {
-    FAIL() << "unable to get message loop.";
-  }
 }
 
-static void cleanup_message_loop_thread() {
-  message_loop_ = nullptr;
-  message_loop_thread.ShutDown();
-}
+static void cleanup_message_loop_thread() { message_loop_thread.ShutDown(); }
 
 bool LeAudioClient::IsLeAudioClientRunning(void) { return false; }
 

@@ -310,8 +310,11 @@ bool SourceImpl::OnMetadataUpdateReq(const source_metadata_v7_t& source_metadata
     return false;
   }
 
-  std::vector<struct playback_track_metadata_v7> metadata(
-          source_metadata.tracks, source_metadata.tracks + source_metadata.track_count);
+  std::vector<struct playback_track_metadata_v7> metadata;
+  if (source_metadata.tracks != nullptr) {
+    metadata = std::vector<struct playback_track_metadata_v7>(
+            source_metadata.tracks, source_metadata.tracks + source_metadata.track_count);
+  }
 
   bt_status_t status = do_in_main_thread(base::BindOnce(
           &LeAudioSourceAudioHalClient::Callbacks::OnAudioMetadataUpdate,

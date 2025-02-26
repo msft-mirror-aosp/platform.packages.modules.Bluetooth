@@ -22,6 +22,8 @@ import static com.android.bluetooth.TestUtils.mockGetSystemService;
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 
@@ -30,6 +32,7 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.content.Context;
 import android.content.Intent;
+import android.os.HandlerThread;
 import android.os.UserManager;
 import android.util.Log;
 
@@ -50,7 +53,7 @@ import org.mockito.Mockito;
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class PbapClientStateMachineOldTest {
-    private static final String TAG = "PbapClientStateMachineOldTest";
+    private static final String TAG = PbapClientStateMachineOldTest.class.getSimpleName();
 
     @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
@@ -62,22 +65,28 @@ public class PbapClientStateMachineOldTest {
     private final BluetoothDevice mDevice = getTestDevice(40);
     private final ArgumentCaptor<Intent> mIntentArgument = ArgumentCaptor.forClass(Intent.class);
 
-    private PbapClientStateMachineOld mPbapClientStateMachine = null;
+    private HandlerThread mHandlerThread;
+    private PbapClientStateMachineOld mPbapClientStateMachine;
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         mockGetSystemService(mMockPbapClientService, Context.USER_SERVICE, UserManager.class);
 
+        doCallRealMethod().when(mMockHandler).obtainMessage(anyInt(), any());
+        doCallRealMethod().when(mMockHandler).obtainMessage(anyInt());
+
+        mHandlerThread = new HandlerThread("HeadsetStateMachineTestHandlerThread");
+        mHandlerThread.start();
+
         mPbapClientStateMachine =
-                new PbapClientStateMachineOld(mMockPbapClientService, mDevice, mMockHandler);
+                new PbapClientStateMachineOld(
+                        mMockPbapClientService, mDevice, mMockHandler, mHandlerThread);
         mPbapClientStateMachine.start();
     }
 
     @After
-    public void tearDown() throws Exception {
-        if (mPbapClientStateMachine != null) {
-            mPbapClientStateMachine.doQuit();
-        }
+    public void tearDown() {
+        mPbapClientStateMachine.doQuit();
     }
 
     /** Test that default state is STATE_CONNECTING */

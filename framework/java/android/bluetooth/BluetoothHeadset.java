@@ -60,7 +60,7 @@ import java.util.List;
  * its appropriate permission.
  */
 public final class BluetoothHeadset implements BluetoothProfile {
-    private static final String TAG = "BluetoothHeadset";
+    private static final String TAG = BluetoothHeadset.class.getSimpleName();
 
     private static final boolean DBG = Log.isLoggable(TAG, Log.DEBUG);
     private static final boolean VDBG = false;
@@ -1150,33 +1150,6 @@ public final class BluetoothHeadset implements BluetoothProfile {
             try {
                 service.phoneStateChanged(
                         numActive, numHeld, callState, number, type, name, mAttributionSource);
-            } catch (RemoteException e) {
-                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-            }
-        }
-    }
-
-    /**
-     * Send Headset of CLCC response
-     *
-     * @hide
-     */
-    @RequiresBluetoothConnectPermission
-    @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                MODIFY_PHONE_STATE,
-            })
-    public void clccResponse(
-            int index, int direction, int status, int mode, boolean mpty, String number, int type) {
-        final IBluetoothHeadset service = getService();
-        if (service == null) {
-            Log.w(TAG, "Proxy not attached to service");
-            if (DBG) log(Log.getStackTraceString(new Throwable()));
-        } else if (isEnabled()) {
-            try {
-                service.clccResponse(
-                        index, direction, status, mode, mpty, number, type, mAttributionSource);
             } catch (RemoteException e) {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }

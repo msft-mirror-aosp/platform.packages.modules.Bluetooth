@@ -138,7 +138,7 @@ public class A2dpSinkNativeInterface {
     }
 
     /** Send a stack event up to the A2DP Sink Service */
-    private void sendMessageToService(StackEvent event) {
+    private static void sendMessageToService(StackEvent event) {
         A2dpSinkService service = A2dpSinkService.getA2dpSinkService();
         if (service != null) {
             service.messageFromNative(event);

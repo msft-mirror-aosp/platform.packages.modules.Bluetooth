@@ -58,7 +58,7 @@ import java.util.List;
  * is protected with its appropriate permission.
  */
 public final class BluetoothHearingAid implements BluetoothProfile {
-    private static final String TAG = "BluetoothHearingAid";
+    private static final String TAG = BluetoothHearingAid.class.getSimpleName();
 
     private static final boolean DBG = true;
     private static final boolean VDBG = Log.isLoggable(TAG, Log.VERBOSE);
@@ -75,7 +75,7 @@ public final class BluetoothHearingAid implements BluetoothProfile {
      */
     @SystemApi
     public static final class AdvertisementServiceData implements Parcelable {
-        private static final String TAG = "AdvertisementData";
+        private static final String TAG = AdvertisementServiceData.class.getSimpleName();
 
         private final int mCapability;
         private final int mTruncatedHiSyncId;
@@ -775,14 +775,14 @@ public final class BluetoothHearingAid implements BluetoothProfile {
         return false;
     }
 
-    private void verifyDeviceNotNull(BluetoothDevice device, String methodName) {
+    private static void verifyDeviceNotNull(BluetoothDevice device, String methodName) {
         if (device == null) {
             Log.e(TAG, methodName + ": device param is null");
             throw new IllegalArgumentException("Device cannot be null");
         }
     }
 
-    private boolean isValidDevice(BluetoothDevice device) {
+    private static boolean isValidDevice(BluetoothDevice device) {
         if (device == null) return false;
 
         if (BluetoothAdapter.checkBluetoothAddress(device.getAddress())) return true;

@@ -130,6 +130,8 @@ static std::shared_timed_mutex interface_mutex;
 static jobject mCallbacksObj = nullptr;
 static std::shared_timed_mutex callbacks_mutex;
 
+static jclass class_LeAudioNativeInterface;
+
 jobject prepareCodecConfigObj(JNIEnv* env, btle_audio_codec_config_t codecConfig) {
   log::info(
           "ct: {}, codec_priority: {}, sample_rate: {}, bits_per_sample: {}, "
@@ -174,7 +176,7 @@ public:
     if (!sCallbackEnv.valid() || mCallbacksObj == nullptr) {
       return;
     }
-    sCallbackEnv->CallVoidMethod(mCallbacksObj, method_onInitialized);
+    sCallbackEnv->CallStaticVoidMethod(class_LeAudioNativeInterface, method_onInitialized);
   }
 
   void OnConnectionState(ConnectionState state, const RawAddress& bd_addr) override {
@@ -429,6 +431,10 @@ static void initNative(JNIEnv* env, jobject object, jobjectArray codecOffloading
     log::error("Bluetooth module is not loaded");
     return;
   }
+
+  jclass tmpControllerInterface =
+          env->FindClass("com/android/bluetooth/le_audio/LeAudioNativeInterface");
+  class_LeAudioNativeInterface = (jclass)env->NewGlobalRef(tmpControllerInterface);
 
   if (mCallbacksObj != nullptr) {
     log::info("Cleaning up LeAudio callback object");
@@ -1573,7 +1579,7 @@ int register_com_android_bluetooth_le_audio(JNIEnv* env) {
           {"onGroupNodeStatus", "([BII)V", &method_onGroupNodeStatus},
           {"onAudioConf", "(IIIII)V", &method_onAudioConf},
           {"onSinkAudioLocationAvailable", "([BI)V", &method_onSinkAudioLocationAvailable},
-          {"onInitialized", "()V", &method_onInitialized},
+          {"onInitialized", "()V", &method_onInitialized, true},
           {"onConnectionStateChanged", "(I[B)V", &method_onConnectionStateChanged},
           {"onAudioLocalCodecCapabilities",
            "([Landroid/bluetooth/BluetoothLeAudioCodecConfig;"

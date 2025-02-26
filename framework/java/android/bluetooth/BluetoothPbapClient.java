@@ -44,7 +44,7 @@ import java.util.List;
  */
 @SystemApi
 public final class BluetoothPbapClient implements BluetoothProfile, AutoCloseable {
-    private static final String TAG = "BluetoothPbapClient";
+    private static final String TAG = BluetoothPbapClient.class.getSimpleName();
 
     private static final boolean DBG = false;
     private static final boolean VDBG = false;

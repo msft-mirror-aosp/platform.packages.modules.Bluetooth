@@ -47,7 +47,7 @@ import java.util.UUID;
  * {@link BluetoothManager#openGattServer} to get an instance of this class.
  */
 public final class BluetoothGattServer implements BluetoothProfile {
-    private static final String TAG = "BluetoothGattServer";
+    private static final String TAG = BluetoothGattServer.class.getSimpleName();
 
     private static final boolean DBG = true;
     private static final boolean VDBG = false;

@@ -1200,7 +1200,7 @@ public class HeadsetClientService extends ProfileService {
         sm.sendMessage(StackEvent.STACK_EVENT, stackEvent);
     }
 
-    private boolean isConnectionEvent(StackEvent stackEvent) {
+    private static boolean isConnectionEvent(StackEvent stackEvent) {
         if (stackEvent.type == StackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED) {
             if ((stackEvent.valueInt == HeadsetClientHalConstants.CONNECTION_STATE_CONNECTING)
                     || (stackEvent.valueInt

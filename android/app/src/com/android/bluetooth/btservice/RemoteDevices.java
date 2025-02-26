@@ -40,7 +40,6 @@ import android.bluetooth.BluetoothProtoEnums;
 import android.bluetooth.BluetoothSinkAudioPolicy;
 import android.bluetooth.BluetoothUtils;
 import android.bluetooth.IBluetoothConnectionCallback;
-import android.content.Context;
 import android.content.Intent;
 import android.net.MacAddress;
 import android.os.Handler;
@@ -70,7 +69,8 @@ import java.util.function.Predicate;
 
 /** Remote device manager. This class is currently mostly used for HF and AG remote devices. */
 public class RemoteDevices {
-    private static final String TAG = "BluetoothRemoteDevices";
+    private static final String TAG =
+            Utils.TAG_PREFIX_BLUETOOTH + RemoteDevices.class.getSimpleName();
 
     // Maximum number of device properties to remember
     private static final int MAX_DEVICE_QUEUE_SIZE = 200;
@@ -161,7 +161,7 @@ public class RemoteDevices {
             };
 
     RemoteDevices(AdapterService service, Looper looper) {
-        mAdapter = ((Context) service).getSystemService(BluetoothManager.class).getAdapter();
+        mAdapter = service.getSystemService(BluetoothManager.class).getAdapter();
         mAdapterService = service;
         mSdpTracker = new ArrayList<>();
         mDevices = new HashMap<>();
@@ -348,6 +348,7 @@ public class RemoteDevices {
         @VisibleForTesting int mDeviceType;
         @VisibleForTesting ParcelUuid[] mUuidsBrEdr;
         @VisibleForTesting ParcelUuid[] mUuidsLe;
+        @VisibleForTesting boolean mHfpBatteryIndicator = false;
         private BluetoothSinkAudioPolicy mAudioPolicy;
 
         DeviceProperties() {
@@ -743,6 +744,21 @@ public class RemoteDevices {
             }
         }
 
+        /**
+         * @param hfpBatteryIndicator is set to true based on the HF battery indicator support
+         *     received from AT+BIND command and set to false in disconnect path.
+         */
+        void setHfpBatteryIndicatorStatus(boolean hfpBatteryIndicator) {
+            this.mHfpBatteryIndicator = hfpBatteryIndicator;
+        }
+
+        /**
+         * @return mHfpBatteryIndicator
+         */
+        boolean isHfpBatteryIndicatorEnabled() {
+            return mHfpBatteryIndicator;
+        }
+
         void setBatteryLevelFromHfp(int batteryLevel) {
             synchronized (mObject) {
                 if (mBatteryLevelFromHfp == batteryLevel) {
@@ -956,6 +972,9 @@ public class RemoteDevices {
             deviceProperties.setBatteryLevelFromHfp(BluetoothDevice.BATTERY_LEVEL_UNKNOWN);
         }
 
+        if (Flags.enableBatteryLevelUpdateOnlyThroughHfIndicator()) {
+            deviceProperties.setHfpBatteryIndicatorStatus(false);
+        }
         int newBatteryLevel = deviceProperties.getBatteryLevel();
         if (prevBatteryLevel == newBatteryLevel) {
             debugLog("Battery level was not changed due to reset, device=" + device);
@@ -1694,6 +1713,23 @@ public class RemoteDevices {
         }
     }
 
+    /** Handle Indicator status events from Hands-free. */
+    public void handleHfIndicatorStatus(
+            BluetoothDevice device, int indicatorId, boolean indicatorStatus) {
+        mMainHandler.post(() -> onHfIndicatorStatus(device, indicatorId, indicatorStatus));
+    }
+
+    @VisibleForTesting
+    void onHfIndicatorStatus(BluetoothDevice device, int indicatorId, boolean indicatorStatus) {
+        if (device == null) {
+            Log.e(TAG, "onHfIndicatorStatus() remote device is null");
+            return;
+        }
+        if (indicatorId == HeadsetHalConstants.HF_INDICATOR_BATTERY_LEVEL_STATUS) {
+            getDeviceProperties(device).setHfpBatteryIndicatorStatus(indicatorStatus);
+        }
+    }
+
     /** Handle indication events from Hands-free. */
     public void handleHfIndicatorValueChanged(
             BluetoothDevice device, int indicatorId, int indicatorValue) {
@@ -1746,6 +1782,20 @@ public class RemoteDevices {
             Log.e(TAG, "onVendorSpecificHeadsetEvent() arguments are null");
             return;
         }
+
+        if (Flags.enableBatteryLevelUpdateOnlyThroughHfIndicator()) {
+            DeviceProperties deviceProperties = getDeviceProperties(device);
+            if ((deviceProperties.isHfpBatteryIndicatorEnabled())
+                    && ((BluetoothHeadset.VENDOR_SPECIFIC_HEADSET_EVENT_XEVENT.equals(cmd))
+                            || (BluetoothHeadset.VENDOR_SPECIFIC_HEADSET_EVENT_IPHONEACCEV.equals(
+                                    cmd)))) {
+                infoLog(
+                        "Ignoring Battery Level update through vendor specific command as"
+                                + "HfpBatteryIndicator support is enabled.");
+                return;
+            }
+        }
+
         int batteryPercent = BluetoothDevice.BATTERY_LEVEL_UNKNOWN;
         switch (cmd) {
             case BluetoothHeadset.VENDOR_SPECIFIC_HEADSET_EVENT_XEVENT:

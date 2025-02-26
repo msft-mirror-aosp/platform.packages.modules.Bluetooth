@@ -53,7 +53,7 @@ import java.util.List;
  */
 @SystemApi
 public final class BluetoothMapClient implements BluetoothProfile, AutoCloseable {
-    private static final String TAG = "BluetoothMapClient";
+    private static final String TAG = BluetoothMapClient.class.getSimpleName();
 
     private static final boolean DBG = Log.isLoggable(TAG, Log.DEBUG);
     private static final boolean VDBG = Log.isLoggable(TAG, Log.VERBOSE);

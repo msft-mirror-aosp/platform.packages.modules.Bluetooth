@@ -53,7 +53,7 @@ import java.util.concurrent.TimeUnit;
 /** Test cases for {@link BluetoothGattServer}. */
 @RunWith(AndroidJUnit4.class)
 public class GattServerConnectWithScanTest {
-    private static final String TAG = "GattServerConnectWithScanTest";
+    private static final String TAG = GattServerConnectWithScanTest.class.getSimpleName();
 
     private static final int TIMEOUT_SCANNING_MS = 2_000;
     private static final int TIMEOUT_GATT_CONNECTION_MS = 2_000;

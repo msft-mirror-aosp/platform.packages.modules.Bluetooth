@@ -158,7 +158,7 @@ public class DckL2capTest() : Closeable {
             val waitFlow = flow { emit(waitConnection(dckSpsm, remoteDevice)) }
             val connectJob =
                 scope.launch {
-                    //give some time for Bumble to host the socket server
+                    // give some time for Bumble to host the socket server
                     Thread.sleep(200)
                     bluetoothSocket.connect()
                     Log.d(TAG, "testSend: Bluetooth socket connected")
@@ -298,7 +298,7 @@ public class DckL2capTest() : Closeable {
             val waitFlow = flow { emit(waitConnection(dckSpsm, remoteDevice)) }
             val connectJob =
                 scope.launch {
-                    //give some time for Bumble to host the socket server
+                    // give some time for Bumble to host the socket server
                     Thread.sleep(200)
                     bluetoothSocket.connect()
                     Log.d(TAG, "testSendOverEncryptedOnlySocket: Bluetooth socket connected")

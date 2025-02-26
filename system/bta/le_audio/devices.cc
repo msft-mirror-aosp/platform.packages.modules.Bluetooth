@@ -59,9 +59,6 @@
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using bluetooth::hci::kIsoCigPhy1M;
 using bluetooth::hci::kIsoCigPhy2M;
 using bluetooth::le_audio::DeviceConnectState;
@@ -205,9 +202,9 @@ static uint32_t GetFirstRight(const AudioLocations& audio_locations) {
   return 0;
 }
 
-uint32_t PickAudioLocation(types::LeAudioConfigurationStrategy strategy,
-                           const AudioLocations& device_locations,
-                           AudioLocations& group_locations) {
+static uint32_t PickAudioLocation(types::LeAudioConfigurationStrategy strategy,
+                                  const AudioLocations& device_locations,
+                                  AudioLocations& group_locations) {
   log::debug("strategy: {}, locations: 0x{:x}, input group locations: 0x{:x}", (int)strategy,
              device_locations.to_ulong(), group_locations.to_ulong());
 
@@ -1184,7 +1181,9 @@ types::LeAudioLtvMap LeAudioDevice::GetMetadata(AudioContexts context_type,
                                                 const std::vector<uint8_t>& ccid_list) {
   types::LeAudioLtvMap metadata;
   metadata.Add(types::kLeAudioMetadataTypeStreamingAudioContext, context_type.value());
-  metadata.Add(types::kLeAudioMetadataTypeCcidList, ccid_list);
+  if (ccid_list.size()) {
+    metadata.Add(types::kLeAudioMetadataTypeCcidList, ccid_list);
+  }
   return metadata;
 }
 

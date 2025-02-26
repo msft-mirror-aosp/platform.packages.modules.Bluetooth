@@ -43,7 +43,7 @@ import java.util.Calendar;
 /** VCard composer especially for Call Log used in Bluetooth. */
 // Next tag value for ContentProfileErrorReportUtils.report(): 3
 public class BluetoothPbapCallLogComposer implements AutoCloseable {
-    private static final String TAG = "PbapCallLogComposer";
+    private static final String TAG = BluetoothPbapCallLogComposer.class.getSimpleName();
 
     @VisibleForTesting
     static final String FAILURE_REASON_FAILED_TO_GET_DATABASE_INFO =

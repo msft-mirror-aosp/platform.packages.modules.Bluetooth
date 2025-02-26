@@ -109,7 +109,7 @@ import java.util.Optional;
  * Handsfree device, device running headset client, e.g. Wireless headphones or car kits
  */
 public class HeadsetService extends ProfileService {
-    private static final String TAG = "HeadsetService";
+    private static final String TAG = HeadsetService.class.getSimpleName();
 
     /** HFP AG owned/managed components */
     private static final String HFP_AG_IN_CALL_SERVICE =
@@ -780,25 +780,6 @@ public class HeadsetService extends ProfileService {
 
             service.enforceCallingOrSelfPermission(MODIFY_PHONE_STATE, null);
             service.phoneStateChanged(numActive, numHeld, callState, number, type, name, false);
-        }
-
-        @Override
-        public void clccResponse(
-                int index,
-                int direction,
-                int status,
-                int mode,
-                boolean mpty,
-                String number,
-                int type,
-                AttributionSource source) {
-            HeadsetService service = getService(source);
-            if (service == null) {
-                return;
-            }
-
-            service.enforceCallingOrSelfPermission(MODIFY_PHONE_STATE, null);
-            service.clccResponse(index, direction, status, mode, mpty, number, type);
         }
 
         @Override
@@ -2086,7 +2067,7 @@ public class HeadsetService extends ProfileService {
         }
     }
 
-    void clccResponse(
+    public void clccResponse(
             int index, int direction, int status, int mode, boolean mpty, String number, int type) {
         mPendingClccResponses.add(
                 stateMachine ->
@@ -2159,7 +2140,7 @@ public class HeadsetService extends ProfileService {
                 && !isHeadsetClientConnected();
     }
 
-    private boolean isHeadsetClientConnected() {
+    private static boolean isHeadsetClientConnected() {
         HeadsetClientService headsetClientService = HeadsetClientService.getHeadsetClientService();
         if (headsetClientService == null) {
             return false;

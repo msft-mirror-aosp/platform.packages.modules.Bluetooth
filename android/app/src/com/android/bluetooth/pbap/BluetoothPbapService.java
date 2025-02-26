@@ -68,6 +68,8 @@ import com.android.bluetooth.sdp.SdpManagerNativeInterface;
 import com.android.bluetooth.util.DevicePolicyUtils;
 import com.android.internal.annotations.VisibleForTesting;
 
+import com.google.common.util.concurrent.Uninterruptibles;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -735,6 +737,7 @@ public class BluetoothPbapService extends ProfileService implements IObexConnect
         setBluetoothPbapService(null);
         mSessionStatusHandler.sendEmptyMessage(SHUTDOWN);
         mHandlerThread.quitSafely();
+        Uninterruptibles.joinUninterruptibly(mHandlerThread);
         mContactsLoaded = false;
         unregisterReceiver(mPbapReceiver);
         mAdapterService.getContentResolver().unregisterContentObserver(mContactChangeObserver);

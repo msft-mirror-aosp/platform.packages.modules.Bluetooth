@@ -250,7 +250,8 @@ public final class BluetoothHidDevice implements BluetoothProfile {
      * during app registration.
      */
     public abstract static class Callback {
-        private static final String TAG = "BluetoothHidDevCallback";
+        private static final String TAG =
+                BluetoothHidDevice.TAG + "." + Callback.class.getSimpleName();
 
         /**
          * Callback called when application registration state changes. Usually it's called due to
@@ -785,7 +786,7 @@ public final class BluetoothHidDevice implements BluetoothProfile {
         return false;
     }
 
-    private boolean isValidDevice(BluetoothDevice device) {
+    private static boolean isValidDevice(BluetoothDevice device) {
         if (device == null) return false;
 
         if (BluetoothAdapter.checkBluetoothAddress(device.getAddress())) return true;

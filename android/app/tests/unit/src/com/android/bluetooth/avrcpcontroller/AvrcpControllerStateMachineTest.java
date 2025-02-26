@@ -115,7 +115,7 @@ public class AvrcpControllerStateMachineTest {
         doReturn(mBrowseTree).when(mAvrcpControllerService).getBrowseTree();
 
         mockGetSystemService(
-                mAvrcpControllerService, Context.AUDIO_SERVICE, AudioManager.class, mAudioManager);
+                mAdapterService, Context.AUDIO_SERVICE, AudioManager.class, mAudioManager);
         doReturn(mCoverArtManager).when(mAvrcpControllerService).getCoverArtManager();
         if (Looper.myLooper() == null) {
             Looper.prepare();
@@ -239,7 +239,7 @@ public class AvrcpControllerStateMachineTest {
         return builder.build();
     }
 
-    private AvrcpPlayer makePlayer(
+    private static AvrcpPlayer makePlayer(
             BluetoothDevice device,
             int playerId,
             String playerName,

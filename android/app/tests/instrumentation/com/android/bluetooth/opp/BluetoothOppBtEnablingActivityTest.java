@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 The Android Open Source Project
+ * Copyright 2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -159,8 +159,8 @@ public class BluetoothOppBtEnablingActivityTest {
         assertThat(finishCalled.get()).isTrue();
     }
 
-    private void assertActivityState(ActivityScenario activityScenario, Lifecycle.State state)
-            throws Exception {
+    private static void assertActivityState(
+            ActivityScenario activityScenario, Lifecycle.State state) throws Exception {
         // TODO: Change this into an event driven systems
         Thread.sleep(3_000);
         assertThat(activityScenario.getState()).isEqualTo(state);

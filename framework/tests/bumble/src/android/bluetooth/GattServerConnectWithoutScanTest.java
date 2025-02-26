@@ -43,7 +43,7 @@ import pandora.HostProto.OwnAddressType;
 /** Test cases for {@link BluetoothGattServer}. */
 @RunWith(AndroidJUnit4.class)
 public class GattServerConnectWithoutScanTest {
-    private static final String TAG = "GattServerConnectWithoutScanTest";
+    private static final String TAG = GattServerConnectWithoutScanTest.class.getSimpleName();
 
     private static final int TIMEOUT_GATT_CONNECTION_MS = 2_000;
 

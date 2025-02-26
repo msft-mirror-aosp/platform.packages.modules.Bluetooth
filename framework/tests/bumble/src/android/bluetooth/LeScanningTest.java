@@ -72,7 +72,7 @@ import java.util.stream.Stream;
 
 @RunWith(TestParameterInjector.class)
 public class LeScanningTest {
-    private static final String TAG = "LeScanningTest";
+    private static final String TAG = LeScanningTest.class.getSimpleName();
 
     private static final int TIMEOUT_SCANNING_MS = 3000;
     private static final String TEST_UUID_STRING = "00001805-0000-1000-8000-00805f9b34fb";

@@ -69,7 +69,7 @@ import java.util.stream.Collectors;
 
 /** Provides Bluetooth CSIP Set Coordinator profile, as a service. */
 public class CsipSetCoordinatorService extends ProfileService {
-    private static final String TAG = "CsipSetCoordinatorService";
+    private static final String TAG = CsipSetCoordinatorService.class.getSimpleName();
 
     // Timeout for state machine thread join, to prevent potential ANR.
     private static final int SM_THREAD_JOIN_TIMEOUT_MS = 1000;
@@ -689,7 +689,7 @@ public class CsipSetCoordinatorService extends ProfileService {
         }
     }
 
-    private void executeCallback(
+    private static void executeCallback(
             Executor exec,
             IBluetoothCsipSetCoordinatorCallback callback,
             BluetoothDevice device,

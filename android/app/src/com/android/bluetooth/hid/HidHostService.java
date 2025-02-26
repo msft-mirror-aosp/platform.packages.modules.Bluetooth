@@ -210,7 +210,7 @@ public class HidHostService extends ProfileService {
      * @param device remote device
      * @return address type
      */
-    private int getAddressType(BluetoothDevice device) {
+    private static int getAddressType(BluetoothDevice device) {
         return device.getAddressType();
     }
 
@@ -416,9 +416,10 @@ public class HidHostService extends ProfileService {
                         + (" device=" + device)
                         + (" transport: prev=" + prevTransport + " -> new=" + transport));
 
-        // Save the preferred transport
         InputDevice inputDevice = getOrCreateInputDevice(device);
-        inputDevice.mSelectedTransport = transport;
+        if (!Flags.ignoreUnselectedHidTransportStates()) {
+            inputDevice.mSelectedTransport = transport;
+        }
 
         /* If connections are allowed, ensure that the previous transport is disconnected and the
         new transport is connected */
@@ -431,10 +432,20 @@ public class HidHostService extends ProfileService {
                                 + (" transport: prev=" + prevTransport + " -> new=" + transport));
                 // Disconnect the other transport and disallow reconnections
                 nativeDisconnect(device, prevTransport, false);
-
+                if (Flags.ignoreUnselectedHidTransportStates()) {
+                    // Immediately update the connection state to disconnected. From now on,
+                    // the connection state will be updated only for the selected transport.
+                    updateConnectionState(
+                            device, prevTransport, BluetoothProfile.STATE_DISCONNECTED);
+                }
                 // Request to connect the preferred transport
                 nativeConnect(device, transport);
             }
+        }
+
+        if (Flags.ignoreUnselectedHidTransportStates()) {
+            // Save the preferred transport
+            inputDevice.mSelectedTransport = transport;
         }
     }
 
@@ -612,12 +623,16 @@ public class HidHostService extends ProfileService {
                             + (" transport=" + transport)
                             + (" newState=" + state)
                             + (" prevState=" + prevState));
+            if (Flags.ignoreUnselectedHidTransportStates()) {
+                return;
+            }
         }
 
         Log.d(
                 TAG,
                 "handleMessageConnectStateChanged:"
                         + (" device=" + device)
+                        + (" transport=" + transport)
                         + (" newState=" + state)
                         + (" prevState=" + prevState));
 

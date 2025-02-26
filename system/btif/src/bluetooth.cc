@@ -40,6 +40,7 @@
 #include <utility>
 #include <vector>
 
+#include "bta/gatt/bta_gattc_int.h"
 #include "bta/hh/bta_hh_int.h"
 #include "bta/include/bta_api.h"
 #include "bta/include/bta_ar_api.h"
@@ -61,16 +62,19 @@
 #include "btif/include/btif_config.h"
 #include "btif/include/btif_debug_conn.h"
 #include "btif/include/btif_dm.h"
+#include "btif/include/btif_gatt.h"
 #include "btif/include/btif_hd.h"
 #include "btif/include/btif_hearing_aid.h"
 #include "btif/include/btif_hf.h"
 #include "btif/include/btif_hf_client.h"
 #include "btif/include/btif_hh.h"
 #include "btif/include/btif_keystore.h"
+#include "btif/include/btif_le_audio.h"
 #include "btif/include/btif_metrics_logging.h"
 #include "btif/include/btif_pan.h"
 #include "btif/include/btif_profile_storage.h"
 #include "btif/include/btif_rc.h"
+#include "btif/include/btif_sdp.h"
 #include "btif/include/btif_sock.h"
 #include "btif/include/btif_sock_logging.h"
 #include "btif/include/btif_storage.h"
@@ -162,40 +166,11 @@ tBT_TRANSPORT to_bt_transport(int val) {
  ******************************************************************************/
 
 static bt_callbacks_t* bt_hal_cbacks = NULL;
-bool restricted_mode = false;
-bool common_criteria_mode = false;
-const int CONFIG_COMPARE_ALL_PASS = 0b11;
-int common_criteria_config_compare_result = CONFIG_COMPARE_ALL_PASS;
-bool is_local_device_atv = false;
-
-/*******************************************************************************
- *  Externs
- ******************************************************************************/
-
-/* list all extended interfaces here */
-
-/*rfc l2cap*/
-extern const btsock_interface_t* btif_sock_get_interface();
-/* gatt */
-extern const btgatt_interface_t* btif_gatt_get_interface();
-/* avrc controller */
-extern const btrc_ctrl_interface_t* btif_rc_ctrl_get_interface();
-/*SDP search client*/
-extern const btsdp_interface_t* btif_sdp_get_interface();
-/* Hearing Access client */
-extern HasClientInterface* btif_has_client_get_interface();
-/* LeAudio testi client */
-extern LeAudioClientInterface* btif_le_audio_get_interface();
-/* LeAudio Broadcaster */
-extern LeAudioBroadcasterInterface* btif_le_audio_broadcaster_get_interface();
-/* Coordinated Set Service Client */
-extern CsisClientInterface* btif_csis_client_get_interface();
-/* Volume Control client */
-extern VolumeControlInterface* btif_volume_control_get_interface();
-
-bt_status_t btif_av_sink_execute_service(bool b_enable);
-
-extern void bta_gatt_client_dump(int fd);
+static bool restricted_mode = false;
+static bool common_criteria_mode = false;
+static constexpr int CONFIG_COMPARE_ALL_PASS = 0b11;
+static int common_criteria_config_compare_result = CONFIG_COMPARE_ALL_PASS;
+static bool is_local_device_atv = false;
 
 /*******************************************************************************
  *  Callbacks from bluetooth::core (see go/invisalign-bt)

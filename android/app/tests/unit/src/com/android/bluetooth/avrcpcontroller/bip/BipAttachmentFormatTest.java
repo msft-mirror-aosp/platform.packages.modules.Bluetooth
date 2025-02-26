@@ -33,7 +33,8 @@ import java.util.TimeZone;
 @RunWith(AndroidJUnit4.class)
 public class BipAttachmentFormatTest {
 
-    private Date makeDate(int month, int day, int year, int hours, int min, int sec, TimeZone tz) {
+    private static Date makeDate(
+            int month, int day, int year, int hours, int min, int sec, TimeZone tz) {
         Calendar.Builder builder = new Calendar.Builder();
 
         /* Note that Calendar months are zero-based in Java framework */
@@ -43,12 +44,12 @@ public class BipAttachmentFormatTest {
         return builder.build().getTime();
     }
 
-    private Date makeDate(int month, int day, int year, int hours, int min, int sec) {
+    private static Date makeDate(int month, int day, int year, int hours, int min, int sec) {
         return makeDate(month, day, year, hours, min, sec, null);
     }
 
     @SuppressLint("UndefinedEquals")
-    private void testParse(
+    private static void testParse(
             String contentType,
             String charset,
             String name,
@@ -83,7 +84,7 @@ public class BipAttachmentFormatTest {
     }
 
     @SuppressLint("UndefinedEquals")
-    private void testCreate(
+    private static void testCreate(
             String contentType,
             String charset,
             String name,

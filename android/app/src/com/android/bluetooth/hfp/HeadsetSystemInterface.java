@@ -68,7 +68,7 @@ class HeadsetSystemInterface {
         mTelecomManager = mHeadsetService.getSystemService(TelecomManager.class);
     }
 
-    private BluetoothInCallService getBluetoothInCallServiceInstance() {
+    private static BluetoothInCallService getBluetoothInCallServiceInstance() {
         return BluetoothInCallService.getInstance();
     }
 
@@ -274,18 +274,17 @@ class HeadsetSystemInterface {
     }
 
     /**
-     * Ask the Telecomm service to list current list of calls through CLCC response {@link
+     * Ask the Telecom service to list current list of calls through CLCC response {@link
      * BluetoothHeadset#clccResponse(int, int, int, int, boolean, String, int)}
      */
     @VisibleForTesting
-    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, MODIFY_PHONE_STATE})
-    public boolean listCurrentCalls() {
+    public boolean listCurrentCalls(HeadsetService headsetService) {
         BluetoothInCallService bluetoothInCallService = getBluetoothInCallServiceInstance();
         if (bluetoothInCallService == null) {
             Log.e(TAG, "listCurrentCalls() failed: mBluetoothInCallService is null");
             return false;
         }
-        return bluetoothInCallService.listCurrentCalls();
+        return bluetoothInCallService.listCurrentCalls(headsetService);
     }
 
     /**

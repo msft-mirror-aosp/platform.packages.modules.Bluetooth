@@ -73,7 +73,7 @@ import java.util.UUID;
  * <p>Implemented according to Media Control Service v1.0 specification.
  */
 public class MediaControlGattService implements MediaControlGattServiceInterface {
-    private static final String TAG = "MediaControlGattService";
+    private static final String TAG = MediaControlGattService.class.getSimpleName();
 
     /* MCS assigned UUIDs */
     public static final UUID UUID_PLAYER_NAME =
@@ -438,12 +438,12 @@ public class MediaControlGattService implements MediaControlGattServiceInterface
                         }
                     });
 
-    private long millisecondsToMcsInterval(long interval) {
+    private static long millisecondsToMcsInterval(long interval) {
         /* MCS presents time in 0.01s intervals */
         return interval / 10;
     }
 
-    private long mcsIntervalToMilliseconds(long interval) {
+    private static long mcsIntervalToMilliseconds(long interval) {
         /* MCS presents time in 0.01s intervals */
         return interval * 10L;
     }

@@ -31,9 +31,6 @@
 #include "osi/include/fixed_queue.h"
 #include "osi/include/thread.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using bluetooth::common::MessageLoopThread;
 using namespace bluetooth;
 
@@ -42,7 +39,7 @@ using namespace bluetooth;
 static int g_counter = 0;
 static std::unique_ptr<std::promise<void>> g_counter_promise = nullptr;
 
-void callback_batch(fixed_queue_t* queue, void* /* data */) {
+static void callback_batch(fixed_queue_t* queue, void* /* data */) {
   if (queue != nullptr) {
     fixed_queue_dequeue(queue);
   }

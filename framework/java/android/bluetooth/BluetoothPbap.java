@@ -61,7 +61,7 @@ import java.util.List;
  */
 @SystemApi
 public class BluetoothPbap implements BluetoothProfile {
-    private static final String TAG = "BluetoothPbap";
+    private static final String TAG = BluetoothPbap.class.getSimpleName();
 
     private static final boolean DBG = false;
 
@@ -297,7 +297,7 @@ public class BluetoothPbap implements BluetoothProfile {
         return false;
     }
 
-    private boolean isValidDevice(BluetoothDevice device) {
+    private static boolean isValidDevice(BluetoothDevice device) {
         if (device == null) return false;
 
         if (BluetoothAdapter.checkBluetoothAddress(device.getAddress())) return true;

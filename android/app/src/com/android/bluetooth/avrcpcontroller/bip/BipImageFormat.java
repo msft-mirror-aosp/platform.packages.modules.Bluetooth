@@ -38,7 +38,8 @@ import java.util.Objects;
  * pixel="80*60-640*480"/>
  */
 public class BipImageFormat {
-    private static final String TAG = "avrcpcontroller.BipImageFormat";
+    private static final String TAG =
+            AvrcpControllerUtils.TAG_PREFIX_AVRCP_CONTROLLER + BipImageFormat.class.getSimpleName();
 
     public static final int FORMAT_NATIVE = 0;
     public static final int FORMAT_VARIANT = 1;

@@ -81,6 +81,11 @@ cc_defaults {
     ],
     c_std: "c99",
     cpp_std: "c++20",
+    arch: {
+        riscv64: {
+            ldflags: ["-Wl,--no-relax"],
+        },
+    },
 }
 
 // List of tidy checks that are enabled for cc targets.
@@ -132,6 +137,7 @@ java_defaults {
             "-Xep:EqualsIncompatibleType:ERROR",
             "-Xep:FallThrough:ERROR",
             "-Xep:Finalize:ERROR",
+            "-Xep:ForEachIterable:ERROR",
             "-Xep:FutureReturnValueIgnored:ERROR",
             "-Xep:GuardedBy:ERROR",
             "-Xep:HidingField:ERROR",
@@ -146,6 +152,7 @@ java_defaults {
             "-Xep:LockOnNonEnclosingClassLiteral:ERROR",
             "-Xep:LongFloatConversion:ERROR",
             "-Xep:LoopOverCharArray:ERROR",
+            "-Xep:MethodCanBeStatic:ERROR",
             "-Xep:MissingCasesInEnumSwitch:ERROR",
             "-Xep:MixedMutabilityReturnType:ERROR",
             "-Xep:MockNotUsedInProduction:ERROR",

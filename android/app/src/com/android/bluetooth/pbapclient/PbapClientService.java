@@ -25,6 +25,7 @@ import android.bluetooth.BluetoothUuid;
 import android.bluetooth.SdpPseRecord;
 import android.content.ComponentName;
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.ParcelUuid;
 import android.os.Parcelable;
@@ -533,7 +534,10 @@ public class PbapClientService extends ProfileService {
             synchronized (mPbapClientStateMachineOldMap) {
                 PbapClientStateMachineOld smOld = mPbapClientStateMachineOldMap.get(device);
                 if (smOld == null && mPbapClientStateMachineOldMap.size() < MAXIMUM_DEVICES) {
-                    smOld = new PbapClientStateMachineOld(this, device);
+                    HandlerThread smThread = new HandlerThread("PbapClientStateMachineOld");
+                    smThread.start();
+
+                    smOld = new PbapClientStateMachineOld(this, device, smThread);
                     smOld.start();
                     mPbapClientStateMachineOldMap.put(device, smOld);
                     return true;
