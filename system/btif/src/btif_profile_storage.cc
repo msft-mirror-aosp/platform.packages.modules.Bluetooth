@@ -683,17 +683,27 @@ void btif_storage_leaudio_update_ase_bin(const RawAddress& addr) {
 }
 
 /** Store Le Audio device audio locations */
-void btif_storage_set_leaudio_audio_location(const RawAddress& addr, uint32_t sink_location,
-                                             uint32_t source_location) {
+void btif_storage_set_leaudio_sink_audio_location(const RawAddress& addr, uint32_t sink_location) {
   do_in_jni_thread(Bind(
-          [](const RawAddress& addr, int sink_location, int source_location) {
+          [](const RawAddress& addr, int sink_location) {
             std::string bdstr = addr.ToString();
-            log::debug("saving le audio device: {}", addr);
+            log::debug("saving le audio device: {} sink locations", addr);
             btif_config_set_int(bdstr, BTIF_STORAGE_KEY_LEAUDIO_SINK_AUDIOLOCATION, sink_location);
+          },
+          addr, sink_location));
+}
+
+/** Store Le Audio device audio locations */
+void btif_storage_set_leaudio_source_audio_location(const RawAddress& addr,
+                                                    uint32_t source_location) {
+  do_in_jni_thread(Bind(
+          [](const RawAddress& addr, int source_location) {
+            std::string bdstr = addr.ToString();
+            log::debug("saving le audio device: {} source locations", addr);
             btif_config_set_int(bdstr, BTIF_STORAGE_KEY_LEAUDIO_SOURCE_AUDIOLOCATION,
                                 source_location);
           },
-          addr, sink_location, source_location));
+          addr, source_location));
 }
 
 /** Store Le Audio device context types */
@@ -729,12 +739,12 @@ void btif_storage_load_bonded_leaudio() {
       autoconnect = !!value;
     }
 
-    int sink_audio_location = 0;
+    std::optional<int> sink_audio_location = std::nullopt;
     if (btif_config_get_int(name, BTIF_STORAGE_KEY_LEAUDIO_SINK_AUDIOLOCATION, &value)) {
       sink_audio_location = value;
     }
 
-    int source_audio_location = 0;
+    std::optional<int> source_audio_location = std::nullopt;
     if (btif_config_get_int(name, BTIF_STORAGE_KEY_LEAUDIO_SOURCE_AUDIOLOCATION, &value)) {
       source_audio_location = value;
     }
