@@ -1225,9 +1225,11 @@ public class LeAudioServiceTest {
         assertThat(connInfo.isSuppressNoisyIntent()).isTrue();
 
         // AudioManager removes audio device
+        // We just ignore it as AudioManager is going to restart and re-add devices
         injectAudioDeviceRemoved(
-                mSingleDevice, AudioDeviceInfo.TYPE_BLE_HEADSET, true, false, true);
-        verify(mNativeInterface, times(1)).groupSetActive(-1);
+                mSingleDevice, AudioDeviceInfo.TYPE_BLE_HEADSET, true, false, false);
+
+        verify(mNativeInterface, never()).groupSetActive(-1);
     }
 
     /** Test setting active device group without Ringtone context */
