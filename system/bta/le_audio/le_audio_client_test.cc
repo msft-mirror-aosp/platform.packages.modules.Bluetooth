@@ -1516,6 +1516,8 @@ protected:
 
   void SetUp() override {
     __android_log_set_minimum_priority(ANDROID_LOG_VERBOSE);
+    com::android::bluetooth::flags::provider_->reset_flags();
+
     init_message_loop_thread();
     reset_mock_function_count_map();
     ON_CALL(controller_, SupportsBleConnectedIsochronousStreamCentral).WillByDefault(Return(true));
@@ -1599,7 +1601,9 @@ protected:
   }
 
   void TearDown() override {
-    com::android::bluetooth::flags::provider_->reset_flags();
+    // WARNING: Message loop cleanup should wait for all the 'till now' scheduled calls
+    // so it should be called right at the very begginning of teardown.
+    cleanup_message_loop_thread();
 
     if (is_audio_unicast_source_acquired) {
       if (unicast_source_hal_cb_ != nullptr) {
@@ -1614,10 +1618,6 @@ protected:
       }
       EXPECT_CALL(*mock_le_audio_sink_hal_client_, OnDestroyed()).Times(1);
     }
-
-    // Message loop cleanup should wait for all the 'till now' scheduled calls
-    // so it should be called right at the very begginning of teardown.
-    cleanup_message_loop_thread();
 
     // This is required since Stop() and Cleanup() may trigger some callbacks or
     // drop unique pointers to mocks we have raw pointer for and we want to

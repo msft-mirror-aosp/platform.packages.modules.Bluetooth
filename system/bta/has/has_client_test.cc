@@ -1127,11 +1127,11 @@ protected:
 
 class HasClientTest : public HasClientTestBase {
   void SetUp(void) override {
+    com::android::bluetooth::flags::provider_->reset_flags();
     HasClientTestBase::SetUp();
     TestAppRegister();
   }
   void TearDown(void) override {
-    com::android::bluetooth::flags::provider_->reset_flags();
     TestAppUnregister();
     HasClientTestBase::TearDown();
   }
