@@ -43,6 +43,7 @@ android_test {
         "flag-junit",
         "framework-bluetooth-pre-jarjar",
         "gson",
+        "guava-android-testlib",
         "mmslib",
         "mockito-target-extended",
         "modules-utils-handlerexecutor",

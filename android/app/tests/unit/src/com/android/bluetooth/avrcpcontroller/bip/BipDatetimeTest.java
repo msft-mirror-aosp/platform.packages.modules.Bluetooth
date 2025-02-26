@@ -22,6 +22,8 @@ import android.annotation.SuppressLint;
 
 import androidx.test.runner.AndroidJUnit4;
 
+import com.google.common.testing.EqualsTester;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -213,29 +215,7 @@ public class BipDatetimeTest {
     }
 
     @Test
-    public void testEquals_withSameInstance() {
-        TimeZone utc = TimeZone.getTimeZone("UTC");
-        utc.setRawOffset(0);
-
-        BipDateTime bipDate = new BipDateTime(makeDate(1, 1, 2000, 6, 1, 15, utc));
-
-        assertThat(bipDate).isEqualTo(bipDate);
-    }
-
-    @Test
-    @SuppressLint("TruthIncompatibleType") // That the point of this test
-    public void testEquals_withDifferentClass() {
-        TimeZone utc = TimeZone.getTimeZone("UTC");
-        utc.setRawOffset(0);
-
-        BipDateTime bipDate = new BipDateTime(makeDate(1, 1, 2000, 6, 1, 15, utc));
-        String notBipDate = "notBipDate";
-
-        assertThat(bipDate).isNotEqualTo(notBipDate);
-    }
-
-    @Test
-    public void testEquals_withSameInfo() {
+    public void testEquals() {
         TimeZone utc = TimeZone.getTimeZone("UTC");
         utc.setRawOffset(0);
         Date date = makeDate(1, 1, 2000, 6, 1, 15, utc);
@@ -243,6 +223,11 @@ public class BipDatetimeTest {
         BipDateTime bipDate = new BipDateTime(date);
         BipDateTime bipDateEqual = new BipDateTime(date);
 
-        assertThat(bipDate).isEqualTo(bipDateEqual);
+        String notBipDate = "notBipDate";
+
+        new EqualsTester()
+                .addEqualityGroup(bipDate, bipDate, bipDateEqual)
+                .addEqualityGroup(notBipDate)
+                .testEquals();
     }
 }
