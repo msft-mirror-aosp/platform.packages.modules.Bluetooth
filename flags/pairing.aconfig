@@ -270,3 +270,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "auto_transport_pairing"
+    namespace: "bluetooth"
+    description: "Fix transport selection for auto transport pairing"
+    bug: "398329326"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
