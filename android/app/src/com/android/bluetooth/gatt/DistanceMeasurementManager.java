@@ -50,8 +50,8 @@ public class DistanceMeasurementManager {
     private static final int RSSI_MEDIUM_FREQUENCY_INTERVAL_MS = 1000;
     private static final int RSSI_HIGH_FREQUENCY_INTERVAL_MS = 500;
     private static final int CS_LOW_FREQUENCY_INTERVAL_MS = 5000;
-    private static final int CS_MEDIUM_FREQUENCY_INTERVAL_MS = 3000;
-    private static final int CS_HIGH_FREQUENCY_INTERVAL_MS = 200;
+    private static final int CS_MEDIUM_FREQUENCY_INTERVAL_MS = 200;
+    private static final int CS_HIGH_FREQUENCY_INTERVAL_MS = 100;
 
     // sync with system/gd/hic/DistanceMeasurementManager
     private static final int INVALID_AZIMUTH_ANGLE_DEGREE = -1;
