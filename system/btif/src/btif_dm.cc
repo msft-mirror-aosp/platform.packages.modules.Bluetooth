@@ -1325,6 +1325,31 @@ static void btif_dm_search_devices_evt(tBTA_DM_SEARCH_EVT event, tBTA_DM_SEARCH*
     } break;
 
     case BTA_DM_INQ_RES_EVT: {
+      RawAddress& bdaddr = p_search_data->inq_res.bd_addr;
+
+      // Do not update device properties of already bonded devices.
+      if (com::android::bluetooth::flags::guard_bonded_device_properties() &&
+          btm_sec_is_a_bonded_dev(bdaddr)) {
+        log::debug("Ignore device properties from discovery results for the bonded device: {}",
+                   bdaddr);
+
+        bool restrict_report =
+                osi_property_get_bool("bluetooth.restrict_discovered_device.enabled", false);
+        if (restrict_report && p_search_data->inq_res.device_type == BT_DEVICE_TYPE_BLE &&
+            !(p_search_data->inq_res.ble_evt_type & BTM_BLE_CONNECTABLE_MASK)) {
+          log::debug("Ble device {} is not connectable", bdaddr);
+          break;
+        }
+
+        bt_property_t bt_property[] = {
+                {BT_PROPERTY_BDADDR, sizeof(bdaddr), &bdaddr},
+                {BT_PROPERTY_REMOTE_RSSI, sizeof(p_search_data->inq_res.rssi),
+                 &(p_search_data->inq_res.rssi)}};
+        GetInterfaceToProfiles()->events->invoke_device_found_cb(ARRAY_SIZE(bt_property),
+                                                                 bt_property);
+        break;
+      }
+
       /* inquiry result */
       bt_bdname_t bdname;
       uint8_t remote_name_len = 0;
@@ -1335,7 +1360,6 @@ static void btif_dm_search_devices_evt(tBTA_DM_SEARCH_EVT event, tBTA_DM_SEARCH*
         p_search_data->inq_res.remt_name_not_required =
                 check_eir_remote_name(p_search_data, NULL, NULL);
       }
-      RawAddress& bdaddr = p_search_data->inq_res.bd_addr;
 
       log::verbose("addr:{} device_type=0x{:x}", bdaddr, p_search_data->inq_res.device_type);
       bdname.name[0] = 0;
