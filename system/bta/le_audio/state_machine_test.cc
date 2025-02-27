@@ -1260,6 +1260,8 @@ protected:
                   cached_codec_configuration_map_[ase_id] = codec_configured_state_params;
                 }
 
+                InjectCtpNotification(group, device, value);
+
                 if (inject_configured) {
                   InjectAseStateNotification(ase, device, group, ascs::kAseStateCodecConfigured,
                                              &codec_configured_state_params);
@@ -1278,6 +1280,7 @@ protected:
             .WillByDefault(Invoke([group, verify_ase_count, caching, inject_qos_configured, this](
                                           LeAudioDevice* device, std::vector<uint8_t> value,
                                           GATT_WRITE_OP_CB /*cb*/, void* /*cb_data*/) {
+              InjectCtpNotification(group, device, value);
               auto num_ase = value[1];
 
               // Verify ase count if needed
@@ -1345,43 +1348,70 @@ protected:
             }));
   }
 
-  void PrepareCtpNotificationError(LeAudioDeviceGroup* group, uint8_t opcode, uint8_t response_code,
-                                   uint8_t reason) {
-    auto foo = [group, opcode, response_code, reason](LeAudioDevice* device,
-                                                      std::vector<uint8_t> value,
-                                                      GATT_WRITE_OP_CB /*cb*/, void* /*cb_data*/) {
-      auto num_ase = value[1];
-      std::vector<uint8_t> notif_value(2 +
-                                       num_ase * sizeof(struct client_parser::ascs::ctp_ase_entry));
-      auto* p = notif_value.data();
+  void InjectCtpNotification(LeAudioDeviceGroup* group, LeAudioDevice* leAudioDevice,
+                             std::vector<uint8_t>& ctp_command, uint8_t response_code = 0x00,
+                             uint8_t reason = 0x00) {
+    auto opcode = ctp_command[0];
+    auto num_ase = ctp_command[1];
+    std::vector<uint8_t> notif_value(2 +
+                                     num_ase * sizeof(struct client_parser::ascs::ctp_ase_entry));
+    auto* p = notif_value.data();
 
-      UINT8_TO_STREAM(p, opcode);
-      UINT8_TO_STREAM(p, num_ase);
+    UINT8_TO_STREAM(p, opcode);
+    UINT8_TO_STREAM(p, num_ase);
 
-      auto* ase_p = &value[2];
-      for (auto i = 0u; i < num_ase; ++i) {
-        /* Check if this is a valid ASE ID  */
-        auto ase_id = *ase_p++;
-        auto it = std::find_if(device->ases_.begin(), device->ases_.end(),
+    auto* ase_p = &ctp_command[2];
+    for (auto i = 0u; i < num_ase; ++i) {
+      /* Check if this is a valid ASE ID  */
+      auto ase_id = *ase_p++;
+
+      /* Do additional verification with the device ASE only when opcode is different than codec
+       * config. This is because, device will get ASE id when Codec Configured Notification arrives.
+       */
+      if (opcode != client_parser::ascs::kCtpOpcodeCodecConfiguration) {
+        auto it = std::find_if(leAudioDevice->ases_.begin(), leAudioDevice->ases_.end(),
                                [ase_id](auto& ase) { return ase.id == ase_id; });
-        ASSERT_NE(it, device->ases_.end());
-
-        auto meta_len = *ase_p++;
-        auto num_handled_bytes = ase_p - value.data();
-        ase_p += meta_len;
-
-        client_parser::ascs::ase_transient_state_params enable_params = {
-                .metadata = std::vector<uint8_t>(value.begin() + num_handled_bytes,
-                                                 value.begin() + num_handled_bytes + meta_len)};
-
-        // Inject error response
-        UINT8_TO_STREAM(p, ase_id);
-        UINT8_TO_STREAM(p, response_code);
-        UINT8_TO_STREAM(p, reason);
+        ASSERT_NE(it, leAudioDevice->ases_.end());
       }
 
-      LeAudioGroupStateMachine::Get()->ProcessGattCtpNotification(group, notif_value.data(),
-                                                                  notif_value.size());
+      switch (opcode) {
+        case client_parser::ascs::kCtpOpcodeCodecConfiguration: {
+          ase_p += 7;
+          auto codec_spec_len = *ase_p++;
+          ase_p += codec_spec_len;
+        } break;
+        case client_parser::ascs::kCtpOpcodeQosConfiguration:
+          ase_p += 15;
+          break;
+        case client_parser::ascs::kCtpOpcodeUpdateMetadata:
+        case client_parser::ascs::kCtpOpcodeEnable: {
+          auto meta_len = *ase_p++;
+          ase_p += meta_len;
+        } break;
+        case client_parser::ascs::kCtpOpcodeReceiverStartReady:
+        case client_parser::ascs::kCtpOpcodeDisable:
+        case client_parser::ascs::kCtpOpcodeReceiverStopReady:
+        case client_parser::ascs::kCtpOpcodeRelease:
+        default:
+          break;
+      }
+
+      // Inject error response
+      UINT8_TO_STREAM(p, ase_id);
+      UINT8_TO_STREAM(p, response_code);
+      UINT8_TO_STREAM(p, reason);
+    }
+
+    LeAudioGroupStateMachine::Get()->ProcessGattCtpNotification(group, notif_value.data(),
+                                                                notif_value.size());
+  }
+
+  void PrepareCtpNotificationError(LeAudioDeviceGroup* group, uint8_t opcode, uint8_t response_code,
+                                   uint8_t reason) {
+    auto foo = [group, response_code, reason, this](LeAudioDevice* device,
+                                                    std::vector<uint8_t> value,
+                                                    GATT_WRITE_OP_CB /*cb*/, void* /*cb_data*/) {
+      InjectCtpNotification(group, device, value, response_code, reason);
     };
 
     switch (opcode) {
@@ -1420,6 +1450,8 @@ protected:
             .WillByDefault(Invoke([group, verify_ase_count, inject_enabling, incject_streaming,
                                    this](LeAudioDevice* device, std::vector<uint8_t> value,
                                          GATT_WRITE_OP_CB /*cb*/, void* /*cb_data*/) {
+              InjectCtpNotification(group, device, value);
+
               auto num_ase = value[1];
 
               // Verify ase count if needed
@@ -1472,6 +1504,7 @@ protected:
             .WillByDefault(Invoke([group, verify_ase_count, this](
                                           LeAudioDevice* device, std::vector<uint8_t> value,
                                           GATT_WRITE_OP_CB /*cb*/, void* /*cb_data*/) {
+              InjectCtpNotification(group, device, value);
               auto num_ase = value[1];
 
               // Verify ase count if needed
@@ -1515,6 +1548,7 @@ protected:
             .WillByDefault(Invoke([group, verify_ase_count, this](
                                           LeAudioDevice* device, std::vector<uint8_t> value,
                                           GATT_WRITE_OP_CB /*cb*/, void* /*cb_data*/) {
+              InjectCtpNotification(group, device, value);
               auto num_ase = value[1];
 
               // Verify ase count if needed
@@ -1547,6 +1581,7 @@ protected:
             .WillByDefault(Invoke([group, verify_ase_count, this](
                                           LeAudioDevice* device, std::vector<uint8_t> value,
                                           GATT_WRITE_OP_CB /*cb*/, void* /*cb_data*/) {
+              InjectCtpNotification(group, device, value);
               auto num_ase = value[1];
 
               // Verify ase count if needed
@@ -1584,7 +1619,7 @@ protected:
                 log::info("Do nothing for {}", dev->address_);
                 return;
               }
-
+              InjectCtpNotification(group, device, value);
               auto num_ase = value[1];
 
               // Verify ase count if needed
