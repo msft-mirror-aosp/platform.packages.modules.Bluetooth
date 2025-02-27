@@ -72,7 +72,6 @@ cc_defaults {
         "libbt-audio-asrc",
         "libbt-audio-hal-interface",
         "libbt-bta",
-        "libbt-bta-core",
         "libbt-common",
         "libbt-hci",
         "libbt-sbc-decoder",
