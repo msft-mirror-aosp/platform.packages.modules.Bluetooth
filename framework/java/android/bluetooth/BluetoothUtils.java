@@ -290,7 +290,7 @@ public final class BluetoothUtils {
                             repl = Integer.toHexString(Byte.toUnsignedInt((byte) arg));
                         } else {
                             throw new IllegalArgumentException(
-                                    "Unsupported hex type " + arg.getClass());
+                                    "Unsupported hex type " + arg.getClass().getSimpleName());
                         }
                     }
                     case '%' -> {

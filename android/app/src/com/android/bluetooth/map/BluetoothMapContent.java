@@ -3818,7 +3818,7 @@ public class BluetoothMapContent {
     }
 
     /**
-     * Read out the mms parts and update the bMessage object provided i {@linkplain message}
+     * Read out the mms parts and update the bMessage object provided i {@code message}
      *
      * @param id the content provider ID of the message
      * @param message the bMessage object to add the information to
