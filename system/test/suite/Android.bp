@@ -78,7 +78,6 @@ cc_defaults {
         "libbt-sbc-decoder",
         "libbt-sbc-encoder",
         "libbt-stack",
-        "libbt-stack-core",
         "libbtcore",
         "libbtdevice",
         "libbte",

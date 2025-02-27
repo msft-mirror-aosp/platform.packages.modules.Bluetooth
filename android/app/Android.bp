@@ -121,7 +121,6 @@ cc_library_shared {
         "libbt-sbc-decoder",
         "libbt-sbc-encoder",
         "libbt-stack",
-        "libbt-stack-core",
         "libbtcore",
         "libbtdevice",
         "libbte",
