@@ -120,7 +120,7 @@ public class ScanControllerTest {
         doReturn(mScanManager)
                 .when(mScanObjectsFactory)
                 .createScanManager(any(), any(), any(), any());
-        doReturn(mPeriodicScanManager).when(mScanObjectsFactory).createPeriodicScanManager(any());
+        doReturn(mPeriodicScanManager).when(mScanObjectsFactory).createPeriodicScanManager();
 
         doReturn(mResources).when(mAdapterService).getResources();
         doReturn(mContext.getPackageManager()).when(mAdapterService).getPackageManager();
