@@ -916,9 +916,9 @@ public class GattService extends ProfileService {
                         + connId
                         + ", address="
                         + BluetoothUtils.toAnonymizedAddress(address));
-
+        BluetoothDevice device = getDevice(address);
         mClientMap.removeConnection(clientIf, connId);
-        mAdapterService.notifyGattClientDisconnect(clientIf, getDevice(address));
+        mAdapterService.notifyGattClientDisconnect(clientIf, device);
         ContextMap<IBluetoothGattCallback>.App app = mClientMap.getById(clientIf);
 
         mRestrictedHandles.remove(connId);
@@ -946,10 +946,19 @@ public class GattService extends ProfileService {
         }
 
         if (app != null) {
-            app.callback.onClientConnectionState(status, clientIf, false, address);
+            int disconnectStatus = status;
+            if (status == 0x16 /* HCI_ERR_CONN_CAUSE_LOCAL_HOST */
+                    && mAdapterService.getDatabase().getKeyMissingCount(device) > 0) {
+                // Native stack disconnects the link on detecting the bond loss. Native GATT would
+                // return HCI_ERR_CONN_CAUSE_LOCAL_HOST in such case, but the apps should see
+                // HCI_ERR_AUTH_FAILURE.
+                Log.d(TAG, "onDisconnected() - disconnected due to bond loss for device=" + device);
+                disconnectStatus = 0x05 /* HCI_ERR_AUTH_FAILURE */;
+            }
+            app.callback.onClientConnectionState(disconnectStatus, clientIf, false, address);
             MetricsLogger.getInstance()
                     .logBluetoothEvent(
-                            getDevice(address),
+                            device,
                             BluetoothStatsLog
                                     .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__GATT_DISCONNECT_JAVA,
                             BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__STATE__SUCCESS,
