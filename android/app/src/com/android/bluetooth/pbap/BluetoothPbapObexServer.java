@@ -1738,28 +1738,18 @@ public class BluetoothPbapObexServer extends ServerRequestHandler {
 
     public static final void logHeader(HeaderSet hs) {
         Log.v(TAG, "Dumping HeaderSet " + hs.toString());
-        try {
-
-            Log.v(TAG, "COUNT : " + hs.getHeader(HeaderSet.COUNT));
-            Log.v(TAG, "NAME : " + hs.getHeader(HeaderSet.NAME));
-            Log.v(TAG, "TYPE : " + hs.getHeader(HeaderSet.TYPE));
-            Log.v(TAG, "LENGTH : " + hs.getHeader(HeaderSet.LENGTH));
-            Log.v(TAG, "TIME_ISO_8601 : " + hs.getHeader(HeaderSet.TIME_ISO_8601));
-            Log.v(TAG, "TIME_4_BYTE : " + hs.getHeader(HeaderSet.TIME_4_BYTE));
-            Log.v(TAG, "DESCRIPTION : " + hs.getHeader(HeaderSet.DESCRIPTION));
-            Log.v(TAG, "TARGET : " + hs.getHeader(HeaderSet.TARGET));
-            Log.v(TAG, "HTTP : " + hs.getHeader(HeaderSet.HTTP));
-            Log.v(TAG, "WHO : " + hs.getHeader(HeaderSet.WHO));
-            Log.v(TAG, "OBJECT_CLASS : " + hs.getHeader(HeaderSet.OBJECT_CLASS));
-            Log.v(TAG, "APPLICATION_PARAMETER : " + hs.getHeader(HeaderSet.APPLICATION_PARAMETER));
-        } catch (IOException e) {
-            ContentProfileErrorReportUtils.report(
-                    BluetoothProfile.PBAP,
-                    BluetoothProtoEnums.BLUETOOTH_PBAP_OBEX_SERVER,
-                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                    33);
-            Log.e(TAG, "dump HeaderSet error " + e);
-        }
+        Log.v(TAG, "COUNT : " + hs.getHeader(HeaderSet.COUNT));
+        Log.v(TAG, "NAME : " + hs.getHeader(HeaderSet.NAME));
+        Log.v(TAG, "TYPE : " + hs.getHeader(HeaderSet.TYPE));
+        Log.v(TAG, "LENGTH : " + hs.getHeader(HeaderSet.LENGTH));
+        Log.v(TAG, "TIME_ISO_8601 : " + hs.getHeader(HeaderSet.TIME_ISO_8601));
+        Log.v(TAG, "TIME_4_BYTE : " + hs.getHeader(HeaderSet.TIME_4_BYTE));
+        Log.v(TAG, "DESCRIPTION : " + hs.getHeader(HeaderSet.DESCRIPTION));
+        Log.v(TAG, "TARGET : " + hs.getHeader(HeaderSet.TARGET));
+        Log.v(TAG, "HTTP : " + hs.getHeader(HeaderSet.HTTP));
+        Log.v(TAG, "WHO : " + hs.getHeader(HeaderSet.WHO));
+        Log.v(TAG, "OBJECT_CLASS : " + hs.getHeader(HeaderSet.OBJECT_CLASS));
+        Log.v(TAG, "APPLICATION_PARAMETER : " + hs.getHeader(HeaderSet.APPLICATION_PARAMETER));
     }
 
     @VisibleForTesting

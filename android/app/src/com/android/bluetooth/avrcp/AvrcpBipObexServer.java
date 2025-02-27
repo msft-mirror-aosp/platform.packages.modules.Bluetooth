@@ -88,17 +88,11 @@ public class AvrcpBipObexServer extends ServerRequestHandler {
     @Override
     public int onConnect(final HeaderSet request, HeaderSet reply) {
         debug("onConnect");
-        try {
-            byte[] uuid = (byte[]) request.getHeader(HeaderSet.TARGET);
-            debug("onConnect - uuid=" + Arrays.toString(uuid));
-            if (!Arrays.equals(uuid, BLUETOOTH_UUID_AVRCP_COVER_ART)) {
-                warn("onConnect - uuid didn't match. Not Acceptable");
-                return ResponseCodes.OBEX_HTTP_NOT_ACCEPTABLE;
-            }
-            // ...
-        } catch (IOException e) {
-            warn("onConnect - Something bad happened");
-            return ResponseCodes.OBEX_HTTP_INTERNAL_ERROR;
+        byte[] uuid = (byte[]) request.getHeader(HeaderSet.TARGET);
+        debug("onConnect - uuid=" + Arrays.toString(uuid));
+        if (!Arrays.equals(uuid, BLUETOOTH_UUID_AVRCP_COVER_ART)) {
+            warn("onConnect - uuid didn't match. Not Acceptable");
+            return ResponseCodes.OBEX_HTTP_NOT_ACCEPTABLE;
         }
 
         reply.setHeader(HeaderSet.WHO, BLUETOOTH_UUID_AVRCP_COVER_ART);
