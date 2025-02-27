@@ -35,8 +35,6 @@ package com.android.bluetooth.opp;
 import android.annotation.RequiresPermission;
 import android.annotation.SdkConstant;
 import android.annotation.SdkConstant.SdkConstantType;
-import android.bluetooth.BluetoothProfile;
-import android.bluetooth.BluetoothProtoEnums;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
@@ -44,11 +42,8 @@ import android.net.Uri;
 import android.util.Log;
 
 import com.android.bluetooth.BluetoothMethodProxy;
-import com.android.bluetooth.BluetoothStatsLog;
-import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
 import com.android.obex.HeaderSet;
 
-import java.io.IOException;
 import java.util.regex.Pattern;
 
 /** Bluetooth OPP internal constant definitions */
@@ -278,26 +273,17 @@ public class Constants {
 
     static void logHeader(HeaderSet hs) {
         Log.v(TAG, "Dumping HeaderSet " + hs.toString());
-        try {
-            Log.v(TAG, "COUNT : " + hs.getHeader(HeaderSet.COUNT));
-            Log.v(TAG, "NAME : " + hs.getHeader(HeaderSet.NAME));
-            Log.v(TAG, "TYPE : " + hs.getHeader(HeaderSet.TYPE));
-            Log.v(TAG, "LENGTH : " + hs.getHeader(HeaderSet.LENGTH));
-            Log.v(TAG, "TIME_ISO_8601 : " + hs.getHeader(HeaderSet.TIME_ISO_8601));
-            Log.v(TAG, "TIME_4_BYTE : " + hs.getHeader(HeaderSet.TIME_4_BYTE));
-            Log.v(TAG, "DESCRIPTION : " + hs.getHeader(HeaderSet.DESCRIPTION));
-            Log.v(TAG, "TARGET : " + hs.getHeader(HeaderSet.TARGET));
-            Log.v(TAG, "HTTP : " + hs.getHeader(HeaderSet.HTTP));
-            Log.v(TAG, "WHO : " + hs.getHeader(HeaderSet.WHO));
-            Log.v(TAG, "OBJECT_CLASS : " + hs.getHeader(HeaderSet.OBJECT_CLASS));
-            Log.v(TAG, "APPLICATION_PARAMETER : " + hs.getHeader(HeaderSet.APPLICATION_PARAMETER));
-        } catch (IOException e) {
-            ContentProfileErrorReportUtils.report(
-                    BluetoothProfile.OPP,
-                    BluetoothProtoEnums.BLUETOOTH_OPP_CONSTANTS,
-                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                    0);
-            Log.e(TAG, "dump HeaderSet error " + e);
-        }
+        Log.v(TAG, "COUNT : " + hs.getHeader(HeaderSet.COUNT));
+        Log.v(TAG, "NAME : " + hs.getHeader(HeaderSet.NAME));
+        Log.v(TAG, "TYPE : " + hs.getHeader(HeaderSet.TYPE));
+        Log.v(TAG, "LENGTH : " + hs.getHeader(HeaderSet.LENGTH));
+        Log.v(TAG, "TIME_ISO_8601 : " + hs.getHeader(HeaderSet.TIME_ISO_8601));
+        Log.v(TAG, "TIME_4_BYTE : " + hs.getHeader(HeaderSet.TIME_4_BYTE));
+        Log.v(TAG, "DESCRIPTION : " + hs.getHeader(HeaderSet.DESCRIPTION));
+        Log.v(TAG, "TARGET : " + hs.getHeader(HeaderSet.TARGET));
+        Log.v(TAG, "HTTP : " + hs.getHeader(HeaderSet.HTTP));
+        Log.v(TAG, "WHO : " + hs.getHeader(HeaderSet.WHO));
+        Log.v(TAG, "OBJECT_CLASS : " + hs.getHeader(HeaderSet.OBJECT_CLASS));
+        Log.v(TAG, "APPLICATION_PARAMETER : " + hs.getHeader(HeaderSet.APPLICATION_PARAMETER));
     }
 }
