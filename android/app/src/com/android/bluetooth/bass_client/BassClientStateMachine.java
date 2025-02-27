@@ -63,6 +63,8 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
 
+import com.google.common.primitives.Bytes;
+
 import java.io.ByteArrayOutputStream;
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -762,7 +764,7 @@ class BassClientStateMachine extends StateMachine {
                     BassConstants.BCAST_RCVR_STATE_SRC_ADDR_SIZE);
             byte sourceAddressType =
                     receiverState[BassConstants.BCAST_RCVR_STATE_SRC_ADDR_TYPE_IDX];
-            BassUtils.reverse(sourceAddress);
+            Bytes.reverse(sourceAddress);
             String address = Utils.getAddressStringFromByte(sourceAddress);
             BluetoothDevice device =
                     BluetoothAdapter.getDefaultAdapter()
@@ -983,7 +985,7 @@ class BassClientStateMachine extends StateMachine {
                     BassConstants.BCAST_RCVR_STATE_SRC_ADDR_SIZE);
             byte sourceAddressType =
                     receiverState[BassConstants.BCAST_RCVR_STATE_SRC_ADDR_TYPE_IDX];
-            BassUtils.reverse(sourceAddress);
+            Bytes.reverse(sourceAddress);
             String address = Utils.getAddressStringFromByte(sourceAddress);
             BluetoothDevice device =
                     BluetoothAdapter.getDefaultAdapter()
@@ -1565,7 +1567,7 @@ class BassClientStateMachine extends StateMachine {
 
         // Advertiser_Address
         byte[] bcastSourceAddr = Utils.getBytesFromAddress(advSource.getAddress());
-        BassUtils.reverse(bcastSourceAddr);
+        Bytes.reverse(bcastSourceAddr);
         stream.write(bcastSourceAddr, 0, 6);
 
         // Advertising_SID

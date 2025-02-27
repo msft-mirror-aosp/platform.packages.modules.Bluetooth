@@ -65,8 +65,8 @@ public final class BluetoothUtils {
         }
     }
 
-    // Helper method to extract bytes from byte array.
-    private static byte[] extractBytes(byte[] rawBytes, int start, int length) {
+    /** Helper method to extract bytes from byte array. */
+    public static byte[] extractBytes(byte[] rawBytes, int start, int length) {
         int remainingLength = rawBytes.length - start;
         if (remainingLength < length) {
             Log.w(
