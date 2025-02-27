@@ -16,6 +16,12 @@
 
 package com.android.bluetooth.btservice;
 
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
+
 import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 import static com.android.bluetooth.TestUtils.mockGetSystemService;
@@ -42,6 +48,7 @@ import android.bluetooth.BluetoothLeBroadcastMetadata;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothSinkAudioPolicy;
 import android.content.Context;
+import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
@@ -605,9 +612,7 @@ public class ActiveDeviceManagerTest {
         when(mHeadsetService.getFallbackDevice()).thenReturn(mA2dpHeadsetDevice);
 
         mDatabaseManager.setProfileConnectionPolicy(
-                mA2dpHeadsetDevice,
-                BluetoothProfile.A2DP,
-                BluetoothProfile.CONNECTION_POLICY_FORBIDDEN);
+                mA2dpHeadsetDevice, BluetoothProfile.A2DP, CONNECTION_POLICY_FORBIDDEN);
         a2dpDisconnected(mA2dpHeadsetDevice);
         mTestLooper.dispatchAll();
         verify(mHeadsetService, times(2)).setActiveDevice(mA2dpHeadsetDevice);
@@ -636,9 +641,7 @@ public class ActiveDeviceManagerTest {
         when(mHeadsetService.getFallbackDevice()).thenReturn(mA2dpHeadsetDevice);
 
         mDatabaseManager.setProfileConnectionPolicy(
-                mSecondaryAudioDevice,
-                BluetoothProfile.HEADSET,
-                BluetoothProfile.CONNECTION_POLICY_FORBIDDEN);
+                mSecondaryAudioDevice, BluetoothProfile.HEADSET, CONNECTION_POLICY_FORBIDDEN);
         headsetDisconnected(mSecondaryAudioDevice);
         mTestLooper.dispatchAll();
         verify(mHeadsetService, times(3)).setActiveDevice(mA2dpHeadsetDevice);
@@ -1714,44 +1717,39 @@ public class ActiveDeviceManagerTest {
         verify(mHearingAidService).removeActiveDevice(false);
     }
 
-    // TODO: b/393810023 - re-enable when AudioDeviceInfo can be mocked
-    // /** A wired audio device is disconnected. Check if falls back to connected A2DP. */
-    // @Test
-    // @DisableFlags(Flags.FLAG_ADM_REMOVE_HANDLING_WIRED)
-    // public void wiredAudioDeviceDisconnected_setFallbackDevice() throws Exception {
-    //     AudioDevicePort a2dpPort = mock(AudioDevicePort.class);
-    //     doReturn(AudioDeviceInfo.TYPE_BLUETOOTH_A2DP).when(a2dpPort).type();
-    //     doReturn("a2dp").when(a2dpPort).name();
+    /** A wired audio device is disconnected. Check if falls back to connected A2DP. */
+    @Test
+    @DisableFlags(Flags.FLAG_ADM_REMOVE_HANDLING_WIRED)
+    public void wiredAudioDeviceDisconnected_setFallbackDevice() throws Exception {
+        AudioDeviceInfo a2dpDevice = mock(AudioDeviceInfo.class);
+        doReturn(AudioDeviceInfo.TYPE_BLUETOOTH_A2DP).when(a2dpDevice).getType();
 
-    //     AudioDevicePort usbPort = mock(AudioDevicePort.class);
-    //     doReturn(AudioDeviceInfo.TYPE_USB_HEADSET).when(usbPort).type();
-    //     doReturn("usb").when(usbPort).name();
+        AudioDeviceInfo usbDevice = mock(AudioDeviceInfo.class);
+        doReturn(AudioDeviceInfo.TYPE_USB_HEADSET).when(usbDevice).getType();
 
-    //     AudioDeviceInfo a2dpDevice = new AudioDeviceInfo(a2dpPort);
-    //     AudioDeviceInfo usbDevice = new AudioDeviceInfo(usbPort);
-    //     return new AudioDeviceInfo[] {a2dpDevice, usbDevice};
+        AudioDeviceInfo[] testDevices = new AudioDeviceInfo[] {a2dpDevice, usbDevice};
 
-    //     // Connect A2DP headphones
-    //     a2dpConnected(mA2dpDevice, false);
-    //     mTestLooper.dispatchAll();
-    //     verify(mA2dpService).setActiveDevice(mA2dpDevice);
-    //     verify(mLeAudioService).removeActiveDevice(true);
+        // Connect A2DP headphones
+        a2dpConnected(mA2dpDevice, false);
+        mTestLooper.dispatchAll();
+        verify(mA2dpService).setActiveDevice(mA2dpDevice);
+        verify(mLeAudioService).removeActiveDevice(true);
 
-    //     // Connect wired audio device
-    //     mActiveDeviceManager.mAudioManagerAudioDeviceCallback.onAudioDevicesAdded(testDevices);
+        // Connect wired audio device
+        mActiveDeviceManager.mAudioManagerAudioDeviceCallback.onAudioDevicesAdded(testDevices);
 
-    //     // Check wiredAudioDeviceConnected invoked properly
-    //     verify(mA2dpService).removeActiveDevice(false);
-    //     verify(mHeadsetService).setActiveDevice(isNull());
-    //     verify(mHearingAidService).removeActiveDevice(false);
-    //     verify(mLeAudioService, times(2)).removeActiveDevice(true);
+        // Check wiredAudioDeviceConnected invoked properly
+        verify(mA2dpService).removeActiveDevice(false);
+        verify(mHeadsetService).setActiveDevice(isNull());
+        verify(mHearingAidService).removeActiveDevice(false);
+        verify(mLeAudioService, times(2)).removeActiveDevice(true);
 
-    //     // Disconnect wired audio device
-    //     mActiveDeviceManager.mAudioManagerAudioDeviceCallback.onAudioDevicesRemoved(testDevices);
+        // Disconnect wired audio device
+        mActiveDeviceManager.mAudioManagerAudioDeviceCallback.onAudioDevicesRemoved(testDevices);
 
-    //     // Verify fallback to A2DP device
-    //     verify(mA2dpService, times(2)).setActiveDevice(mA2dpDevice);
-    // }
+        // Verify fallback to A2DP device
+        verify(mA2dpService, times(2)).setActiveDevice(mA2dpDevice);
+    }
 
     /**
      * Verifies if Le Audio Broadcast is streaming, connected a2dp device should not be set as
@@ -1833,18 +1831,13 @@ public class ActiveDeviceManagerTest {
         mDatabaseManager.setProfileConnectionPolicy(
                 device,
                 BluetoothProfile.HEADSET,
-                supportHfp
-                        ? BluetoothProfile.CONNECTION_POLICY_ALLOWED
-                        : BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
+                supportHfp ? CONNECTION_POLICY_ALLOWED : CONNECTION_POLICY_UNKNOWN);
 
         mDeviceConnectionStack.add(device);
         mMostRecentDevice = device;
 
         mActiveDeviceManager.profileConnectionStateChanged(
-                BluetoothProfile.A2DP,
-                device,
-                BluetoothProfile.STATE_DISCONNECTED,
-                BluetoothProfile.STATE_CONNECTED);
+                BluetoothProfile.A2DP, device, STATE_DISCONNECTED, STATE_CONNECTED);
     }
 
     /** Helper to indicate A2dp disconnected for a device. */
@@ -1856,10 +1849,7 @@ public class ActiveDeviceManagerTest {
                         : null;
 
         mActiveDeviceManager.profileConnectionStateChanged(
-                BluetoothProfile.A2DP,
-                device,
-                BluetoothProfile.STATE_CONNECTED,
-                BluetoothProfile.STATE_DISCONNECTED);
+                BluetoothProfile.A2DP, device, STATE_CONNECTED, STATE_DISCONNECTED);
     }
 
     /** Helper to indicate A2dp active device changed for a device. */
@@ -1876,18 +1866,13 @@ public class ActiveDeviceManagerTest {
         mDatabaseManager.setProfileConnectionPolicy(
                 device,
                 BluetoothProfile.A2DP,
-                supportA2dp
-                        ? BluetoothProfile.CONNECTION_POLICY_ALLOWED
-                        : BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
+                supportA2dp ? CONNECTION_POLICY_ALLOWED : CONNECTION_POLICY_UNKNOWN);
 
         mDeviceConnectionStack.add(device);
         mMostRecentDevice = device;
 
         mActiveDeviceManager.profileConnectionStateChanged(
-                BluetoothProfile.HEADSET,
-                device,
-                BluetoothProfile.STATE_DISCONNECTED,
-                BluetoothProfile.STATE_CONNECTED);
+                BluetoothProfile.HEADSET, device, STATE_DISCONNECTED, STATE_CONNECTED);
     }
 
     /** Helper to indicate Headset disconnected for a device. */
@@ -1899,10 +1884,7 @@ public class ActiveDeviceManagerTest {
                         : null;
 
         mActiveDeviceManager.profileConnectionStateChanged(
-                BluetoothProfile.HEADSET,
-                device,
-                BluetoothProfile.STATE_CONNECTED,
-                BluetoothProfile.STATE_DISCONNECTED);
+                BluetoothProfile.HEADSET, device, STATE_CONNECTED, STATE_DISCONNECTED);
     }
 
     /** Helper to indicate Headset active device changed for a device. */
@@ -1920,10 +1902,7 @@ public class ActiveDeviceManagerTest {
         mMostRecentDevice = device;
 
         mActiveDeviceManager.profileConnectionStateChanged(
-                BluetoothProfile.HEARING_AID,
-                device,
-                BluetoothProfile.STATE_DISCONNECTED,
-                BluetoothProfile.STATE_CONNECTED);
+                BluetoothProfile.HEARING_AID, device, STATE_DISCONNECTED, STATE_CONNECTED);
     }
 
     /** Helper to indicate Hearing Aid disconnected for a device. */
@@ -1935,10 +1914,7 @@ public class ActiveDeviceManagerTest {
                         : null;
 
         mActiveDeviceManager.profileConnectionStateChanged(
-                BluetoothProfile.HEARING_AID,
-                device,
-                BluetoothProfile.STATE_CONNECTED,
-                BluetoothProfile.STATE_DISCONNECTED);
+                BluetoothProfile.HEARING_AID, device, STATE_CONNECTED, STATE_DISCONNECTED);
     }
 
     /** Helper to indicate Hearing Aid active device changed for a device. */
@@ -1955,10 +1931,7 @@ public class ActiveDeviceManagerTest {
         mMostRecentDevice = device;
 
         mActiveDeviceManager.profileConnectionStateChanged(
-                BluetoothProfile.LE_AUDIO,
-                device,
-                BluetoothProfile.STATE_DISCONNECTED,
-                BluetoothProfile.STATE_CONNECTED);
+                BluetoothProfile.LE_AUDIO, device, STATE_DISCONNECTED, STATE_CONNECTED);
     }
 
     /** Helper to indicate LE Audio disconnected for a device. */
@@ -1970,10 +1943,7 @@ public class ActiveDeviceManagerTest {
                         : null;
 
         mActiveDeviceManager.profileConnectionStateChanged(
-                BluetoothProfile.LE_AUDIO,
-                device,
-                BluetoothProfile.STATE_CONNECTED,
-                BluetoothProfile.STATE_DISCONNECTED);
+                BluetoothProfile.LE_AUDIO, device, STATE_CONNECTED, STATE_DISCONNECTED);
     }
 
     /** Helper to indicate LE Audio active device changed for a device. */
@@ -1991,10 +1961,7 @@ public class ActiveDeviceManagerTest {
         mMostRecentDevice = device;
 
         mActiveDeviceManager.profileConnectionStateChanged(
-                BluetoothProfile.HAP_CLIENT,
-                device,
-                BluetoothProfile.STATE_DISCONNECTED,
-                BluetoothProfile.STATE_CONNECTED);
+                BluetoothProfile.HAP_CLIENT, device, STATE_DISCONNECTED, STATE_CONNECTED);
     }
 
     /** Helper to indicate LE Hearing Aid disconnected for a device. */
@@ -2006,10 +1973,7 @@ public class ActiveDeviceManagerTest {
                         : null;
 
         mActiveDeviceManager.profileConnectionStateChanged(
-                BluetoothProfile.HAP_CLIENT,
-                device,
-                BluetoothProfile.STATE_CONNECTED,
-                BluetoothProfile.STATE_DISCONNECTED);
+                BluetoothProfile.HAP_CLIENT, device, STATE_CONNECTED, STATE_DISCONNECTED);
     }
 
     private class TestDatabaseManager extends DatabaseManager {
@@ -2040,9 +2004,9 @@ public class ActiveDeviceManagerTest {
             if (device == null) {
                 return false;
             }
-            if (policy != BluetoothProfile.CONNECTION_POLICY_UNKNOWN
-                    && policy != BluetoothProfile.CONNECTION_POLICY_FORBIDDEN
-                    && policy != BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
+            if (policy != CONNECTION_POLICY_UNKNOWN
+                    && policy != CONNECTION_POLICY_FORBIDDEN
+                    && policy != CONNECTION_POLICY_ALLOWED) {
                 return false;
             }
             SparseIntArray policyMap = mProfileConnectionPolicy.get(device);
@@ -2058,9 +2022,9 @@ public class ActiveDeviceManagerTest {
         public int getProfileConnectionPolicy(BluetoothDevice device, int profile) {
             SparseIntArray policy = mProfileConnectionPolicy.get(device);
             if (policy == null) {
-                return BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
+                return CONNECTION_POLICY_FORBIDDEN;
             }
-            return policy.get(profile, BluetoothProfile.CONNECTION_POLICY_FORBIDDEN);
+            return policy.get(profile, CONNECTION_POLICY_FORBIDDEN);
         }
     }
 }

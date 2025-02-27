@@ -18,6 +18,9 @@ package android.bluetooth;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
 import static java.util.Objects.requireNonNull;
 
@@ -53,7 +56,7 @@ import java.util.List;
  */
 @SystemApi
 public final class BluetoothHidHost implements BluetoothProfile {
-    private static final String TAG = "BluetoothHidHost";
+    private static final String TAG = BluetoothHidHost.class.getSimpleName();
 
     private static final boolean DBG = true;
     private static final boolean VDBG = false;
@@ -386,7 +389,7 @@ public final class BluetoothHidHost implements BluetoothProfile {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
-        return BluetoothProfile.STATE_DISCONNECTED;
+        return STATE_DISCONNECTED;
     }
 
     /**
@@ -441,8 +444,8 @@ public final class BluetoothHidHost implements BluetoothProfile {
             if (DBG) log(Log.getStackTraceString(new Throwable()));
         } else if (isEnabled()
                 && isValidDevice(device)
-                && (connectionPolicy == BluetoothProfile.CONNECTION_POLICY_FORBIDDEN
-                        || connectionPolicy == BluetoothProfile.CONNECTION_POLICY_ALLOWED)) {
+                && (connectionPolicy == CONNECTION_POLICY_FORBIDDEN
+                        || connectionPolicy == CONNECTION_POLICY_ALLOWED)) {
             try {
                 return service.setConnectionPolicy(device, connectionPolicy, mAttributionSource);
             } catch (RemoteException e) {
@@ -556,7 +559,7 @@ public final class BluetoothHidHost implements BluetoothProfile {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
-        return BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
+        return CONNECTION_POLICY_FORBIDDEN;
     }
 
     /**
@@ -790,7 +793,7 @@ public final class BluetoothHidHost implements BluetoothProfile {
     @RequiresBluetoothConnectPermission
     @RequiresPermission(BLUETOOTH_CONNECT)
     public boolean getIdleTime(BluetoothDevice device) {
-        if (DBG) log("getIdletime(" + device + ")");
+        if (DBG) log("getIdleTime(" + device + ")");
         final IBluetoothHidHost service = getService();
         if (service == null) {
             Log.w(TAG, "Proxy not attached to service");
@@ -817,7 +820,7 @@ public final class BluetoothHidHost implements BluetoothProfile {
     @RequiresBluetoothConnectPermission
     @RequiresPermission(BLUETOOTH_CONNECT)
     public boolean setIdleTime(BluetoothDevice device, byte idleTime) {
-        if (DBG) log("setIdletime(" + device + "), idleTime=" + idleTime);
+        if (DBG) log("setIdleTime(" + device + "), idleTime=" + idleTime);
         final IBluetoothHidHost service = getService();
         if (service == null) {
             Log.w(TAG, "Proxy not attached to service");

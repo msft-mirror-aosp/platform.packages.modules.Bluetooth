@@ -19,6 +19,8 @@ package com.android.bluetooth.gatt;
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
 import static com.android.bluetooth.Utils.callerIsSystemOrActiveOrManagedUser;
 import static com.android.bluetooth.Utils.checkCallerTargetSdk;
@@ -87,7 +89,8 @@ import java.util.stream.Stream;
 
 /** Provides Bluetooth Gatt profile, as a service in the Bluetooth application. */
 public class GattService extends ProfileService {
-    private static final String TAG = GattServiceConfig.TAG_PREFIX + "GattService";
+    private static final String TAG =
+            GattServiceConfig.TAG_PREFIX + GattService.class.getSimpleName();
 
     private static final UUID HID_SERVICE_UUID =
             UUID.fromString("00001812-0000-1000-8000-00805F9B34FB");
@@ -1471,7 +1474,7 @@ public class GattService extends ProfileService {
         BluetoothDevice[] bondedDevices = mAdapterService.getBondedDevices();
         for (BluetoothDevice device : bondedDevices) {
             if (getDeviceType(device) != AbstractionLayer.BT_DEVICE_TYPE_BREDR) {
-                deviceStates.put(device, BluetoothProfile.STATE_DISCONNECTED);
+                deviceStates.put(device, STATE_DISCONNECTED);
             }
         }
 
@@ -1484,7 +1487,7 @@ public class GattService extends ProfileService {
         for (String address : connectedDevices) {
             BluetoothDevice device = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(address);
             if (device != null) {
-                deviceStates.put(device, BluetoothProfile.STATE_CONNECTED);
+                deviceStates.put(device, STATE_CONNECTED);
             }
         }
 
@@ -2981,11 +2984,11 @@ public class GattService extends ProfileService {
      * Private functions
      *************************************************************************/
 
-    private boolean isHidSrvcUuid(final UUID uuid) {
+    private static boolean isHidSrvcUuid(final UUID uuid) {
         return HID_SERVICE_UUID.equals(uuid);
     }
 
-    private boolean isHidCharUuid(final UUID uuid) {
+    private static boolean isHidCharUuid(final UUID uuid) {
         for (UUID hidUuid : HID_UUIDS) {
             if (hidUuid.equals(uuid)) {
                 return true;
@@ -2994,15 +2997,15 @@ public class GattService extends ProfileService {
         return false;
     }
 
-    private boolean isAndroidTvRemoteSrvcUuid(final UUID uuid) {
+    private static boolean isAndroidTvRemoteSrvcUuid(final UUID uuid) {
         return ANDROID_TV_REMOTE_SERVICE_UUID.equals(uuid);
     }
 
-    private boolean isFidoSrvcUuid(final UUID uuid) {
+    private static boolean isFidoSrvcUuid(final UUID uuid) {
         return FIDO_SERVICE_UUID.equals(uuid);
     }
 
-    private boolean isLeAudioSrvcUuid(final UUID uuid) {
+    private static boolean isLeAudioSrvcUuid(final UUID uuid) {
         for (UUID leAudioUuid : LE_AUDIO_SERVICE_UUIDS) {
             if (leAudioUuid.equals(uuid)) {
                 return true;
@@ -3011,11 +3014,11 @@ public class GattService extends ProfileService {
         return false;
     }
 
-    private boolean isAndroidHeadtrackerSrvcUuid(final UUID uuid) {
+    private static boolean isAndroidHeadtrackerSrvcUuid(final UUID uuid) {
         return HidHostService.ANDROID_HEADTRACKER_UUID.getUuid().equals(uuid);
     }
 
-    private boolean isRestrictedSrvcUuid(final UUID uuid) {
+    private static boolean isRestrictedSrvcUuid(final UUID uuid) {
         return isFidoSrvcUuid(uuid)
                 || isAndroidTvRemoteSrvcUuid(uuid)
                 || isLeAudioSrvcUuid(uuid)

@@ -53,7 +53,7 @@ import java.util.List;
 
 // Next tag value for ContentProfileErrorReportUtils.report(): 34
 public class BluetoothPbapObexServer extends ServerRequestHandler {
-    private static final String TAG = "BluetoothPbapObexServer";
+    private static final String TAG = BluetoothPbapObexServer.class.getSimpleName();
 
     private static final int UUID_LENGTH = 16;
 
@@ -620,7 +620,7 @@ public class BluetoothPbapObexServer extends ServerRequestHandler {
         }
     }
 
-    private boolean isNameMatchTarget(String name, String target) {
+    private static boolean isNameMatchTarget(String name, String target) {
         if (name == null) {
             return false;
         }
@@ -642,7 +642,7 @@ public class BluetoothPbapObexServer extends ServerRequestHandler {
     }
 
     /** check whether path is legal */
-    private boolean isLegalPath(final String str) {
+    private static boolean isLegalPath(final String str) {
         if (str.length() == 0) {
             return true;
         }
@@ -1070,7 +1070,7 @@ public class BluetoothPbapObexServer extends ServerRequestHandler {
     }
 
     /** Function to send vcard data to client */
-    private int pushBytes(Operation op, final String vcardString) {
+    private static int pushBytes(Operation op, final String vcardString) {
         if (vcardString == null) {
             Log.w(TAG, "vcardString is null!");
             return ResponseCodes.OBEX_HTTP_OK;

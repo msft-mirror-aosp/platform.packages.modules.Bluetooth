@@ -116,7 +116,7 @@ public final class AdvertisingSetParameters implements Parcelable {
     @SystemApi public static final int ADDRESS_TYPE_PUBLIC = 0;
 
     /**
-     * Generate and adverise own resolvable private address.
+     * Generate and advertise own resolvable private address.
      *
      * @hide
      */

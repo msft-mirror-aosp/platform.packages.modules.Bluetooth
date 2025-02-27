@@ -84,7 +84,7 @@ import java.util.Locale;
  */
 // Next tag value for ContentProfileErrorReportUtils.report(): 22
 public class BluetoothOppService extends ProfileService implements IObexConnectionHandler {
-    private static final String TAG = "BtOppService";
+    private static final String TAG = BluetoothOppService.class.getSimpleName();
 
     /** Owned providers and activities */
     private static final String OPP_PROVIDER = BluetoothOppProvider.class.getCanonicalName();

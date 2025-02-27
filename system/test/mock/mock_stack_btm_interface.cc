@@ -18,6 +18,9 @@
  * Generated mock file from original source file
  */
 
+#include "mock_stack_btm_interface.h"
+
+#include "stack/include/btm_ble_api.h"
 #include "stack/include/btm_ble_api_types.h"
 #include "stack/include/btm_ble_sec_api_types.h"
 #include "stack/include/btm_client_interface.h"
@@ -25,9 +28,6 @@
 #include "stack/include/btm_status.h"
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 // Test accessible feature page
 uint8_t hci_feature_bytes_per_page[HCI_FEATURE_BYTES_PER_PAGE] = {};

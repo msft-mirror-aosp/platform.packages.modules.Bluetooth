@@ -49,7 +49,7 @@ import java.util.regex.Pattern;
 /** Various utility methods and generic defines that can be used throughout MAPS */
 // Next tag value for ContentProfileErrorReportUtils.report(): 11
 public class BluetoothMapUtils {
-    private static final String TAG = "BluetoothMapUtils";
+    private static final String TAG = BluetoothMapUtils.class.getSimpleName();
 
     /* We use the upper 4 bits for the type mask.
      * TODO: When more types are needed, consider just using a number

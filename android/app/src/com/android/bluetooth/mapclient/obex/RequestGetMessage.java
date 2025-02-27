@@ -36,7 +36,7 @@ import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 
 class RequestGetMessage extends Request {
-    private static final String TAG = "RequestGetMessage";
+    private static final String TAG = RequestGetMessage.class.getSimpleName();
 
     private static final String TYPE = "x-bt/message";
 

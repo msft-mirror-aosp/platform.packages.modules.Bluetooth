@@ -16,6 +16,12 @@
 
 package com.android.bluetooth.hfp;
 
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
+
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasData;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
@@ -127,6 +133,7 @@ public class HeadsetServiceAndStateMachineTest {
         doReturn(mTargetContext.getPackageName()).when(mAdapterService).getPackageName();
         doReturn(mTargetContext.getPackageManager()).when(mAdapterService).getPackageManager();
         doReturn(mTargetContext.getResources()).when(mAdapterService).getResources();
+        doReturn(mTargetContext.getContentResolver()).when(mAdapterService).getContentResolver();
 
         PowerManager powerManager = mTargetContext.getSystemService(PowerManager.class);
         mVoiceRecognitionWakeLock =
@@ -214,8 +221,7 @@ public class HeadsetServiceAndStateMachineTest {
         assertThat(HeadsetService.getHeadsetService()).isEqualTo(mHeadsetService);
         // Verify default connection and audio states
         BluetoothDevice device = getTestDevice(0);
-        assertThat(mHeadsetService.getConnectionState(device))
-                .isEqualTo(BluetoothProfile.STATE_DISCONNECTED);
+        assertThat(mHeadsetService.getConnectionState(device)).isEqualTo(STATE_DISCONNECTED);
         assertThat(mHeadsetService.getAudioState(device))
                 .isEqualTo(BluetoothHeadset.STATE_AUDIO_DISCONNECTED);
     }
@@ -227,7 +233,7 @@ public class HeadsetServiceAndStateMachineTest {
     @Test
     public void testConnectFromApi() {
         BluetoothDevice device = getTestDevice(0);
-        doReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN)
+        doReturn(CONNECTION_POLICY_UNKNOWN)
                 .when(mDatabaseManager)
                 .getProfileConnectionPolicy(device, BluetoothProfile.HEADSET);
         mBondedDevices.add(device);
@@ -241,14 +247,10 @@ public class HeadsetServiceAndStateMachineTest {
                         mAdapterService,
                         mNativeInterface,
                         mSystemInterface);
-        verifyConnectionStateIntent(
-                device, BluetoothProfile.STATE_CONNECTING, BluetoothProfile.STATE_DISCONNECTED);
+        verifyConnectionStateIntent(device, STATE_CONNECTING, STATE_DISCONNECTED);
         verify(mNativeInterface).connectHfp(device);
-        assertThat(mHeadsetService.getConnectionState(device))
-                .isEqualTo(BluetoothProfile.STATE_CONNECTING);
-        assertThat(
-                        mHeadsetService.getDevicesMatchingConnectionStates(
-                                new int[] {BluetoothProfile.STATE_CONNECTING}))
+        assertThat(mHeadsetService.getConnectionState(device)).isEqualTo(STATE_CONNECTING);
+        assertThat(mHeadsetService.getDevicesMatchingConnectionStates(new int[] {STATE_CONNECTING}))
                 .containsExactly(device);
         // Get feedback from native to put device into connected state
         HeadsetStackEvent connectedEvent =
@@ -258,13 +260,9 @@ public class HeadsetServiceAndStateMachineTest {
                         device);
         mHeadsetService.messageFromNative(connectedEvent);
         mTestLooper.dispatchAll();
-        verifyConnectionStateIntent(
-                device, BluetoothProfile.STATE_CONNECTED, BluetoothProfile.STATE_CONNECTING);
-        assertThat(mHeadsetService.getConnectionState(device))
-                .isEqualTo(BluetoothProfile.STATE_CONNECTED);
-        assertThat(
-                        mHeadsetService.getDevicesMatchingConnectionStates(
-                                new int[] {BluetoothProfile.STATE_CONNECTED}))
+        verifyConnectionStateIntent(device, STATE_CONNECTED, STATE_CONNECTING);
+        assertThat(mHeadsetService.getConnectionState(device)).isEqualTo(STATE_CONNECTED);
+        assertThat(mHeadsetService.getDevicesMatchingConnectionStates(new int[] {STATE_CONNECTED}))
                 .containsExactly(device);
     }
 
@@ -276,7 +274,7 @@ public class HeadsetServiceAndStateMachineTest {
     @Test
     public void testUnbondDevice_disconnectBeforeUnbond() {
         BluetoothDevice device = getTestDevice(0);
-        doReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN)
+        doReturn(CONNECTION_POLICY_UNKNOWN)
                 .when(mDatabaseManager)
                 .getProfileConnectionPolicy(device, BluetoothProfile.HEADSET);
         mBondedDevices.add(device);
@@ -290,8 +288,7 @@ public class HeadsetServiceAndStateMachineTest {
                         mAdapterService,
                         mNativeInterface,
                         mSystemInterface);
-        verifyConnectionStateIntent(
-                device, BluetoothProfile.STATE_CONNECTING, BluetoothProfile.STATE_DISCONNECTED);
+        verifyConnectionStateIntent(device, STATE_CONNECTING, STATE_DISCONNECTED);
         verify(mNativeInterface).connectHfp(device);
         // Get feedback from native layer to go back to disconnected state
         HeadsetStackEvent connectedEvent =
@@ -301,8 +298,7 @@ public class HeadsetServiceAndStateMachineTest {
                         device);
         mHeadsetService.messageFromNative(connectedEvent);
         mTestLooper.dispatchAll();
-        verifyConnectionStateIntent(
-                device, BluetoothProfile.STATE_DISCONNECTED, BluetoothProfile.STATE_CONNECTING);
+        verifyConnectionStateIntent(device, STATE_DISCONNECTED, STATE_CONNECTING);
 
         mHeadsetService.handleBondStateChanged(
                 device, BluetoothDevice.BOND_BONDED, BluetoothDevice.BOND_NONE);
@@ -322,7 +318,7 @@ public class HeadsetServiceAndStateMachineTest {
     @Test
     public void testUnbondDevice_disconnectAfterUnbond() {
         BluetoothDevice device = getTestDevice(0);
-        doReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN)
+        doReturn(CONNECTION_POLICY_UNKNOWN)
                 .when(mDatabaseManager)
                 .getProfileConnectionPolicy(device, BluetoothProfile.HEADSET);
         mBondedDevices.add(device);
@@ -337,8 +333,7 @@ public class HeadsetServiceAndStateMachineTest {
                         mNativeInterface,
                         mSystemInterface);
         verify(mNativeInterface).connectHfp(device);
-        verifyConnectionStateIntent(
-                device, BluetoothProfile.STATE_CONNECTING, BluetoothProfile.STATE_DISCONNECTED);
+        verifyConnectionStateIntent(device, STATE_CONNECTING, STATE_DISCONNECTED);
         // Get feedback from native layer to go to connected state
         HeadsetStackEvent connectedEvent =
                 new HeadsetStackEvent(
@@ -347,10 +342,8 @@ public class HeadsetServiceAndStateMachineTest {
                         device);
         mHeadsetService.messageFromNative(connectedEvent);
         mTestLooper.dispatchAll();
-        verifyConnectionStateIntent(
-                device, BluetoothProfile.STATE_CONNECTED, BluetoothProfile.STATE_CONNECTING);
-        assertThat(mHeadsetService.getConnectionState(device))
-                .isEqualTo(BluetoothProfile.STATE_CONNECTED);
+        verifyConnectionStateIntent(device, STATE_CONNECTED, STATE_CONNECTING);
+        assertThat(mHeadsetService.getConnectionState(device)).isEqualTo(STATE_CONNECTED);
         assertThat(mHeadsetService.getConnectedDevices()).containsExactly(device);
 
         // Check that the state machine is not destroyed
@@ -366,8 +359,7 @@ public class HeadsetServiceAndStateMachineTest {
         mHeadsetService.messageFromNative(connectingEvent);
         mTestLooper.dispatchAll();
 
-        verifyConnectionStateIntent(
-                device, BluetoothProfile.STATE_DISCONNECTED, BluetoothProfile.STATE_CONNECTED);
+        verifyConnectionStateIntent(device, STATE_DISCONNECTED, STATE_CONNECTED);
 
         // Check that the state machine is destroyed after another async call
         ArgumentCaptor<HeadsetStateMachine> stateMachineArgument =
@@ -391,7 +383,7 @@ public class HeadsetServiceAndStateMachineTest {
                     .containsExactlyElementsIn(mBondedDevices);
             assertThat(
                             mHeadsetService.getDevicesMatchingConnectionStates(
-                                    new int[] {BluetoothProfile.STATE_CONNECTED}))
+                                    new int[] {STATE_CONNECTED}))
                     .containsExactlyElementsIn(mBondedDevices);
         }
         List<BluetoothDevice> connectedDevices = mHeadsetService.getConnectedDevices();
@@ -430,7 +422,7 @@ public class HeadsetServiceAndStateMachineTest {
                     .containsExactlyElementsIn(mBondedDevices);
             assertThat(
                             mHeadsetService.getDevicesMatchingConnectionStates(
-                                    new int[] {BluetoothProfile.STATE_CONNECTED}))
+                                    new int[] {STATE_CONNECTED}))
                     .containsExactlyElementsIn(mBondedDevices);
         }
         List<BluetoothDevice> connectedDevices = mHeadsetService.getConnectedDevices();
@@ -474,7 +466,7 @@ public class HeadsetServiceAndStateMachineTest {
                     .containsExactlyElementsIn(mBondedDevices);
             assertThat(
                             mHeadsetService.getDevicesMatchingConnectionStates(
-                                    new int[] {BluetoothProfile.STATE_CONNECTED}))
+                                    new int[] {STATE_CONNECTED}))
                     .containsExactlyElementsIn(mBondedDevices);
         }
         List<BluetoothDevice> connectedDevices = mHeadsetService.getConnectedDevices();
@@ -525,7 +517,7 @@ public class HeadsetServiceAndStateMachineTest {
                     .containsExactlyElementsIn(mBondedDevices);
             assertThat(
                             mHeadsetService.getDevicesMatchingConnectionStates(
-                                    new int[] {BluetoothProfile.STATE_CONNECTED}))
+                                    new int[] {STATE_CONNECTED}))
                     .containsExactlyElementsIn(mBondedDevices);
         }
         List<BluetoothDevice> connectedDevices = mHeadsetService.getConnectedDevices();
@@ -619,7 +611,7 @@ public class HeadsetServiceAndStateMachineTest {
                     .containsExactlyElementsIn(mBondedDevices);
             assertThat(
                             mHeadsetService.getDevicesMatchingConnectionStates(
-                                    new int[] {BluetoothProfile.STATE_CONNECTED}))
+                                    new int[] {STATE_CONNECTED}))
                     .containsExactlyElementsIn(mBondedDevices);
         }
         List<BluetoothDevice> connectedDevices = mHeadsetService.getConnectedDevices();
@@ -1186,7 +1178,7 @@ public class HeadsetServiceAndStateMachineTest {
                     .containsExactlyElementsIn(mBondedDevices);
             assertThat(
                             mHeadsetService.getDevicesMatchingConnectionStates(
-                                    new int[] {BluetoothProfile.STATE_CONNECTED}))
+                                    new int[] {STATE_CONNECTED}))
                     .containsExactlyElementsIn(mBondedDevices);
         }
         List<BluetoothDevice> connectedDevices = mHeadsetService.getConnectedDevices();
@@ -1579,16 +1571,16 @@ public class HeadsetServiceAndStateMachineTest {
         verify(mNativeInterface).sendBsir(eq(device), eq(true));
 
         // this device is a HFP only device
-        doReturn(BluetoothProfile.CONNECTION_POLICY_ALLOWED)
+        doReturn(CONNECTION_POLICY_ALLOWED)
                 .when(mDatabaseManager)
                 .getProfileConnectionPolicy(device, BluetoothProfile.HEADSET);
-        doReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN)
+        doReturn(CONNECTION_POLICY_UNKNOWN)
                 .when(mDatabaseManager)
                 .getProfileConnectionPolicy(device, BluetoothProfile.A2DP);
-        doReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN)
+        doReturn(CONNECTION_POLICY_UNKNOWN)
                 .when(mDatabaseManager)
                 .getProfileConnectionPolicy(device, BluetoothProfile.HEARING_AID);
-        doReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN)
+        doReturn(CONNECTION_POLICY_UNKNOWN)
                 .when(mDatabaseManager)
                 .getProfileConnectionPolicy(device, BluetoothProfile.LE_AUDIO);
 
@@ -1787,7 +1779,7 @@ public class HeadsetServiceAndStateMachineTest {
     }
 
     private void connectTestDevice(BluetoothDevice device) {
-        doReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN)
+        doReturn(CONNECTION_POLICY_UNKNOWN)
                 .when(mDatabaseManager)
                 .getProfileConnectionPolicy(device, BluetoothProfile.HEADSET);
         doReturn(BluetoothDevice.BOND_BONDED).when(mAdapterService).getBondState(eq(device));
@@ -1811,20 +1803,11 @@ public class HeadsetServiceAndStateMachineTest {
                         mSystemInterface);
         verify(mActiveDeviceManager)
                 .profileConnectionStateChanged(
-                        BluetoothProfile.HEADSET,
-                        device,
-                        BluetoothProfile.STATE_DISCONNECTED,
-                        BluetoothProfile.STATE_CONNECTING);
+                        BluetoothProfile.HEADSET, device, STATE_DISCONNECTED, STATE_CONNECTING);
         verify(mSilenceDeviceManager)
-                .hfpConnectionStateChanged(
-                        device,
-                        BluetoothProfile.STATE_DISCONNECTED,
-                        BluetoothProfile.STATE_CONNECTING);
-        assertThat(mHeadsetService.getConnectionState(device))
-                .isEqualTo(BluetoothProfile.STATE_CONNECTING);
-        assertThat(
-                        mHeadsetService.getDevicesMatchingConnectionStates(
-                                new int[] {BluetoothProfile.STATE_CONNECTING}))
+                .hfpConnectionStateChanged(device, STATE_DISCONNECTED, STATE_CONNECTING);
+        assertThat(mHeadsetService.getConnectionState(device)).isEqualTo(STATE_CONNECTING);
+        assertThat(mHeadsetService.getDevicesMatchingConnectionStates(new int[] {STATE_CONNECTING}))
                 .containsExactly(device);
         // Get feedback from native to put device into connected state
         HeadsetStackEvent slcConnectedEvent =
@@ -1836,17 +1819,10 @@ public class HeadsetServiceAndStateMachineTest {
         mTestLooper.dispatchAll();
         verify(mActiveDeviceManager)
                 .profileConnectionStateChanged(
-                        BluetoothProfile.HEADSET,
-                        device,
-                        BluetoothProfile.STATE_CONNECTING,
-                        BluetoothProfile.STATE_CONNECTED);
+                        BluetoothProfile.HEADSET, device, STATE_CONNECTING, STATE_CONNECTED);
         verify(mSilenceDeviceManager)
-                .hfpConnectionStateChanged(
-                        device,
-                        BluetoothProfile.STATE_CONNECTING,
-                        BluetoothProfile.STATE_CONNECTED);
-        assertThat(mHeadsetService.getConnectionState(device))
-                .isEqualTo(BluetoothProfile.STATE_CONNECTED);
+                .hfpConnectionStateChanged(device, STATE_CONNECTING, STATE_CONNECTED);
+        assertThat(mHeadsetService.getConnectionState(device)).isEqualTo(STATE_CONNECTED);
     }
 
     @SafeVarargs

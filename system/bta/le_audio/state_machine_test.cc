@@ -42,9 +42,6 @@
 #include "test/mock/mock_stack_btm_iso.h"
 #include "types/bt_transport.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using ::bluetooth::le_audio::DeviceConnectState;
 using ::bluetooth::le_audio::codec_spec_caps::kLeAudioCodecChannelCountSingleChannel;
 using ::bluetooth::le_audio::codec_spec_caps::kLeAudioCodecChannelCountTwoChannel;
@@ -61,8 +58,6 @@ using ::testing::Test;
 
 extern struct fake_osi_alarm_set_on_mloop fake_osi_alarm_set_on_mloop_;
 
-void osi_property_set_bool(const char* key, bool value);
-
 constexpr uint8_t media_ccid = 0xC0;
 constexpr auto media_context = LeAudioContextType::MEDIA;
 
@@ -70,20 +65,20 @@ constexpr uint8_t call_ccid = 0xD0;
 constexpr auto call_context = LeAudioContextType::CONVERSATIONAL;
 
 const std::string kSmpOptions("mock smp options");
-bool get_pts_avrcp_test(void) { return false; }
-bool get_pts_secure_only_mode(void) { return false; }
-bool get_pts_conn_updates_disabled(void) { return false; }
-bool get_pts_crosskey_sdp_disable(void) { return false; }
-const std::string* get_pts_smp_options(void) { return &kSmpOptions; }
-int get_pts_smp_failure_case(void) { return 123; }
-bool get_pts_force_eatt_for_notifications(void) { return false; }
-bool get_pts_connect_eatt_unconditionally(void) { return false; }
-bool get_pts_connect_eatt_before_encryption(void) { return false; }
-bool get_pts_unencrypt_broadcast(void) { return false; }
-bool get_pts_eatt_peripheral_collision_support(void) { return false; }
-bool get_pts_force_le_audio_multiple_contexts_metadata(void) { return false; }
-bool get_pts_le_audio_disable_ases_before_stopping(void) { return false; }
-config_t* get_all(void) { return nullptr; }
+static bool get_pts_avrcp_test(void) { return false; }
+static bool get_pts_secure_only_mode(void) { return false; }
+static bool get_pts_conn_updates_disabled(void) { return false; }
+static bool get_pts_crosskey_sdp_disable(void) { return false; }
+static const std::string* get_pts_smp_options(void) { return &kSmpOptions; }
+static int get_pts_smp_failure_case(void) { return 123; }
+static bool get_pts_force_eatt_for_notifications(void) { return false; }
+static bool get_pts_connect_eatt_unconditionally(void) { return false; }
+static bool get_pts_connect_eatt_before_encryption(void) { return false; }
+static bool get_pts_unencrypt_broadcast(void) { return false; }
+static bool get_pts_eatt_peripheral_collision_support(void) { return false; }
+static bool get_pts_force_le_audio_multiple_contexts_metadata(void) { return false; }
+static bool get_pts_le_audio_disable_ases_before_stopping(void) { return false; }
+static config_t* get_all(void) { return nullptr; }
 
 stack_config_t mock_stack_config{
         .get_pts_avrcp_test = get_pts_avrcp_test,
@@ -251,6 +246,7 @@ protected:
   /* Use for single test to simulate late ASE notifications */
   bool stop_inject_configured_ase_after_first_ase_configured_;
 
+  uint16_t attr_handle = ATTR_HANDLE_ASCS_POOL_START;
   uint16_t pacs_attr_handle_next = ATTR_HANDLE_PACS_POOL_START;
 
   virtual void SetUp() override {
@@ -646,11 +642,6 @@ protected:
     leAudioDevice->conn_id_ = id;
     leAudioDevice->SetConnectionState(DeviceConnectState::CONNECTED);
 
-    uint16_t attr_handle = ATTR_HANDLE_ASCS_POOL_START;
-    leAudioDevice->snk_audio_locations_hdls_.val_hdl = attr_handle++;
-    leAudioDevice->snk_audio_locations_hdls_.ccc_hdl = attr_handle++;
-    leAudioDevice->src_audio_locations_hdls_.val_hdl = attr_handle++;
-    leAudioDevice->src_audio_locations_hdls_.ccc_hdl = attr_handle++;
     leAudioDevice->audio_avail_hdls_.val_hdl = attr_handle++;
     leAudioDevice->audio_avail_hdls_.ccc_hdl = attr_handle++;
     leAudioDevice->audio_supp_cont_hdls_.val_hdl = attr_handle++;
@@ -1087,7 +1078,10 @@ protected:
 
       leAudioDevice->snk_pacs_.emplace_back(std::make_tuple(std::move(handle_pair), pac_recs));
 
-      leAudioDevice->snk_audio_locations_ = audio_locations;
+      auto val_hdl = attr_handle++;
+      auto ccc_hdl = attr_handle++;
+      leAudioDevice->audio_locations_.sink.emplace(types::hdl_pair(val_hdl, ccc_hdl),
+                                                   types::AudioLocations(audio_locations));
     }
 
     if ((direction & types::kLeAudioDirectionSource) > 0) {
@@ -1108,7 +1102,10 @@ protected:
 
       leAudioDevice->src_pacs_.emplace_back(std::make_tuple(std::move(handle_pair), pac_recs));
 
-      leAudioDevice->src_audio_locations_ = audio_locations;
+      auto val_hdl = attr_handle++;
+      auto ccc_hdl = attr_handle++;
+      leAudioDevice->audio_locations_.source.emplace(types::hdl_pair(val_hdl, ccc_hdl),
+                                                     types::AudioLocations(audio_locations));
     }
 
     DeviceContextsUpdate(leAudioDevice, direction, contexts_available, contexts_supported);
@@ -9235,7 +9232,7 @@ TEST_F(StateMachineTest, testAutonomousDisableOneDeviceAndGoBackToStream_CisDisc
   /* Now lets try to attach the device back to the stream (Enabling and Receiver
    * Start ready to be called)*/
 
-  EXPECT_CALL(gatt_queue, WriteCharacteristic(lastDevice->conn_id_, firstDevice->ctp_hdls_.val_hdl,
+  EXPECT_CALL(gatt_queue, WriteCharacteristic(lastDevice->conn_id_, lastDevice->ctp_hdls_.val_hdl,
                                               _, GATT_WRITE_NO_RSP, _, _))
           .Times(2);
 
@@ -9344,7 +9341,7 @@ TEST_F(StateMachineTest, testAutonomousDisableOneDeviceAndGoBackToStream_CisConn
   /* Now lets try to attach the device back to the stream (Enabling and Receiver
    * Start ready to be called)*/
 
-  EXPECT_CALL(gatt_queue, WriteCharacteristic(lastDevice->conn_id_, firstDevice->ctp_hdls_.val_hdl,
+  EXPECT_CALL(gatt_queue, WriteCharacteristic(lastDevice->conn_id_, lastDevice->ctp_hdls_.val_hdl,
                                               _, GATT_WRITE_NO_RSP, _, _))
           .Times(2);
 

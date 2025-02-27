@@ -16,6 +16,9 @@
 
 package com.android.bluetooth.bass_client;
 
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
 import static android.bluetooth.BluetoothProfile.EXTRA_PREVIOUS_STATE;
 import static android.bluetooth.BluetoothProfile.EXTRA_STATE;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
@@ -304,6 +307,13 @@ public class BassClientServiceTest {
                             doReturn(true).when(stateMachine).isBassStateReady();
                             mStateMachines.put(
                                     (BluetoothDevice) invocation.getArgument(0), stateMachine);
+                            doAnswer(
+                                            inv -> {
+                                                return Message.obtain(
+                                                        (Handler) null, (int) inv.getArgument(0));
+                                            })
+                                    .when(stateMachine)
+                                    .obtainMessage(anyInt());
                             return stateMachine;
                         })
                 .when(mObjectsFactory)
@@ -325,7 +335,6 @@ public class BassClientServiceTest {
 
     @After
     public void tearDown() throws Exception {
-        android.util.Log.e("WILLIAM", "tearDown");
         mBassClientService.unregisterCallback(mCallback);
 
         mBassClientService.cleanup();
@@ -349,9 +358,9 @@ public class BassClientServiceTest {
         mBassClientService.cleanup();
         when(mDatabaseManager.getProfileConnectionPolicy(
                         mCurrentDevice, BluetoothProfile.LE_AUDIO_BROADCAST_ASSISTANT))
-                .thenReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
+                .thenReturn(CONNECTION_POLICY_UNKNOWN);
         assertThat(mBassClientService.getConnectionPolicy(mCurrentDevice))
-                .isEqualTo(BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
+                .isEqualTo(CONNECTION_POLICY_UNKNOWN);
     }
 
     /**
@@ -363,7 +372,7 @@ public class BassClientServiceTest {
         when(mDatabaseManager.getProfileConnectionPolicy(
                         any(BluetoothDevice.class),
                         eq(BluetoothProfile.LE_AUDIO_BROADCAST_ASSISTANT)))
-                .thenReturn(BluetoothProfile.CONNECTION_POLICY_ALLOWED);
+                .thenReturn(CONNECTION_POLICY_ALLOWED);
 
         assertThat(mBassClientService.connect(mCurrentDevice)).isTrue();
         verify(mObjectsFactory)
@@ -380,7 +389,7 @@ public class BassClientServiceTest {
         when(mDatabaseManager.getProfileConnectionPolicy(
                         any(BluetoothDevice.class),
                         eq(BluetoothProfile.LE_AUDIO_BROADCAST_ASSISTANT)))
-                .thenReturn(BluetoothProfile.CONNECTION_POLICY_ALLOWED);
+                .thenReturn(CONNECTION_POLICY_ALLOWED);
         BluetoothDevice nullDevice = null;
 
         assertThat(mBassClientService.connect(nullDevice)).isFalse();
@@ -395,7 +404,7 @@ public class BassClientServiceTest {
         when(mDatabaseManager.getProfileConnectionPolicy(
                         any(BluetoothDevice.class),
                         eq(BluetoothProfile.LE_AUDIO_BROADCAST_ASSISTANT)))
-                .thenReturn(BluetoothProfile.CONNECTION_POLICY_FORBIDDEN);
+                .thenReturn(CONNECTION_POLICY_FORBIDDEN);
         assertThat(mCurrentDevice).isNotNull();
 
         assertThat(mBassClientService.connect(mCurrentDevice)).isFalse();
@@ -445,7 +454,7 @@ public class BassClientServiceTest {
         when(mDatabaseManager.getProfileConnectionPolicy(
                         any(BluetoothDevice.class),
                         eq(BluetoothProfile.LE_AUDIO_BROADCAST_ASSISTANT)))
-                .thenReturn(BluetoothProfile.CONNECTION_POLICY_ALLOWED);
+                .thenReturn(CONNECTION_POLICY_ALLOWED);
 
         // Mock the CSIP group
         List<BluetoothDevice> groupDevices = new ArrayList<>();
@@ -548,7 +557,6 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void testStopSearchingForSources() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -589,7 +597,6 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void testStop() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -626,7 +633,6 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void testStopSearchingForSources_startAndSyncAgain() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -660,7 +666,6 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void testStop_startAndSyncAgain() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -698,7 +703,6 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void testStopSearchingForSources_addSourceCauseSyncEvenWithoutScanning() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -756,7 +760,6 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     @DisableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void testNotRemovingCachedBroadcastOnLostWithoutScanning_noResyncFlag()
             throws RemoteException {
@@ -818,10 +821,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void testNotRemovingCachedBroadcastOnLostWithoutScanning() throws RemoteException {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -882,7 +882,6 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void testNotRemovingCachedBroadcastOnFailEstablishWithoutScanning()
             throws RemoteException {
         final BluetoothDevice device1 =
@@ -1016,7 +1015,6 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void testMultipleAddSourceToUnsyncedBroadcaster() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -1074,7 +1072,6 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void testMultipleAddSourceToUnsyncedInactiveBroadcaster() throws RemoteException {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -1145,7 +1142,6 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     @DisableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void testStopSearchingForSources_timeoutForActiveSync() {
         prepareConnectedDeviceGroup();
@@ -1192,7 +1188,6 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     @DisableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void testStopSearchingForSources_clearTimeoutForActiveSync() {
         prepareConnectedDeviceGroup();
@@ -1241,7 +1236,7 @@ public class BassClientServiceTest {
                 .isEqualTo(TEST_BROADCAST_ID);
     }
 
-    private byte[] getScanRecord(int broadcastId) {
+    private static byte[] getScanRecord(int broadcastId) {
         return new byte[] {
             0x02,
             0x01,
@@ -1326,7 +1321,7 @@ public class BassClientServiceTest {
         generateScanResult(scanResult);
     }
 
-    private byte[] getPAScanRecord() {
+    private static byte[] getPAScanRecord() {
         return new byte[] {
             (byte) 0x02,
             (byte) 0x01,
@@ -1450,7 +1445,7 @@ public class BassClientServiceTest {
         }
     }
 
-    private BluetoothLeBroadcastReceiveState injectRemoteSourceState(
+    private static BluetoothLeBroadcastReceiveState injectRemoteSourceState(
             BassClientStateMachine sm,
             BluetoothLeBroadcastMetadata meta,
             int sourceId,
@@ -2407,85 +2402,56 @@ public class BassClientServiceTest {
 
     @Test
     public void testActiveSyncedSource_AddRemoveGet() {
-        if (Flags.leaudioBroadcastExtractPeriodicScannerFromStateMachine()) {
-            final int handle1 = 1;
-            final int handle2 = 2;
-            final int handle3 = 3;
+        final int handle1 = 1;
+        final int handle2 = 2;
+        final int handle3 = 3;
 
-            // Check if empty
-            assertThat(mBassClientService.getActiveSyncedSources()).isEmpty();
+        // Check if empty
+        assertThat(mBassClientService.getActiveSyncedSources()).isEmpty();
 
-            // Check adding first handle
-            mBassClientService.addActiveSyncedSource(handle1);
-            assertThat(mBassClientService.getActiveSyncedSources()).hasSize(1);
-            assertThat(mBassClientService.getActiveSyncedSources()).containsExactly(handle1);
+        // Check adding first handle
+        mBassClientService.addActiveSyncedSource(handle1);
+        assertThat(mBassClientService.getActiveSyncedSources()).hasSize(1);
+        assertThat(mBassClientService.getActiveSyncedSources()).containsExactly(handle1);
 
-            // Check if cannot add duplicate element
-            mBassClientService.addActiveSyncedSource(handle1);
-            assertThat(mBassClientService.getActiveSyncedSources()).hasSize(1);
-            assertThat(mBassClientService.getActiveSyncedSources()).containsExactly(handle1);
+        // Check if cannot add duplicate element
+        mBassClientService.addActiveSyncedSource(handle1);
+        assertThat(mBassClientService.getActiveSyncedSources()).hasSize(1);
+        assertThat(mBassClientService.getActiveSyncedSources()).containsExactly(handle1);
 
-            // Check adding second element
-            mBassClientService.addActiveSyncedSource(handle2);
-            assertThat(mBassClientService.getActiveSyncedSources()).hasSize(2);
-            assertThat(mBassClientService.getActiveSyncedSources())
-                    .containsExactly(handle1, handle2)
-                    .inOrder();
+        // Check adding second element
+        mBassClientService.addActiveSyncedSource(handle2);
+        assertThat(mBassClientService.getActiveSyncedSources()).hasSize(2);
+        assertThat(mBassClientService.getActiveSyncedSources())
+                .containsExactly(handle1, handle2)
+                .inOrder();
 
-            // Check removing non existing element
-            mBassClientService.removeActiveSyncedSource(handle3);
-            assertThat(mBassClientService.getActiveSyncedSources()).hasSize(2);
-            assertThat(mBassClientService.getActiveSyncedSources())
-                    .containsExactly(handle1, handle2)
-                    .inOrder();
-            // Check removing second element
-            mBassClientService.removeActiveSyncedSource(handle1);
-            assertThat(mBassClientService.getActiveSyncedSources()).hasSize(1);
-            assertThat(mBassClientService.getActiveSyncedSources()).containsExactly(handle2);
+        // Check removing non existing element
+        mBassClientService.removeActiveSyncedSource(handle3);
+        assertThat(mBassClientService.getActiveSyncedSources()).hasSize(2);
+        assertThat(mBassClientService.getActiveSyncedSources())
+                .containsExactly(handle1, handle2)
+                .inOrder();
+        // Check removing second element
+        mBassClientService.removeActiveSyncedSource(handle1);
+        assertThat(mBassClientService.getActiveSyncedSources()).hasSize(1);
+        assertThat(mBassClientService.getActiveSyncedSources()).containsExactly(handle2);
 
-            // Check removing first element
-            mBassClientService.removeActiveSyncedSource(handle2);
-            assertThat(mBassClientService.getActiveSyncedSources()).isEmpty();
+        // Check removing first element
+        mBassClientService.removeActiveSyncedSource(handle2);
+        assertThat(mBassClientService.getActiveSyncedSources()).isEmpty();
 
-            // Add 2 elements
-            mBassClientService.addActiveSyncedSource(handle1);
-            mBassClientService.addActiveSyncedSource(handle2);
-            assertThat(mBassClientService.getActiveSyncedSources()).hasSize(2);
+        // Add 2 elements
+        mBassClientService.addActiveSyncedSource(handle1);
+        mBassClientService.addActiveSyncedSource(handle2);
+        assertThat(mBassClientService.getActiveSyncedSources()).hasSize(2);
 
-            // Check removing all at once
-            mBassClientService.removeActiveSyncedSource(null);
-            assertThat(mBassClientService.getActiveSyncedSources()).isEmpty();
-        } else {
-            final int testSyncHandle = 1;
-            prepareConnectedDeviceGroup();
-            assertThat(mStateMachines).hasSize(2);
-
-            assertThat(mBassClientService.getActiveSyncedSources(mCurrentDevice)).isNull();
-            assertThat(mBassClientService.getActiveSyncedSources(mCurrentDevice1)).isNull();
-
-            // Verify add active synced source
-            mBassClientService.addActiveSyncedSource(mCurrentDevice, testSyncHandle);
-            mBassClientService.addActiveSyncedSource(mCurrentDevice1, testSyncHandle);
-            // Verify duplicated source won't be added
-            mBassClientService.addActiveSyncedSource(mCurrentDevice, testSyncHandle);
-            mBassClientService.addActiveSyncedSource(mCurrentDevice1, testSyncHandle);
-            assertThat(mBassClientService.getActiveSyncedSources(mCurrentDevice)).isNotNull();
-            assertThat(mBassClientService.getActiveSyncedSources(mCurrentDevice1)).isNotNull();
-            assertThat(mBassClientService.getActiveSyncedSources(mCurrentDevice).size())
-                    .isEqualTo(1);
-            assertThat(mBassClientService.getActiveSyncedSources(mCurrentDevice1).size())
-                    .isEqualTo(1);
-
-            // Verify remove active synced source
-            mBassClientService.removeActiveSyncedSource(mCurrentDevice, testSyncHandle);
-            mBassClientService.removeActiveSyncedSource(mCurrentDevice1, testSyncHandle);
-            expect.that(mBassClientService.getActiveSyncedSources(mCurrentDevice)).isNull();
-            expect.that(mBassClientService.getActiveSyncedSources(mCurrentDevice1)).isNull();
-        }
+        // Check removing all at once
+        mBassClientService.removeActiveSyncedSource(null);
+        assertThat(mBassClientService.getActiveSyncedSources()).isEmpty();
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void testScanResult_withSameBroadcastId() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -2515,7 +2481,6 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void testSelectSource_withSameBroadcastId() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -2538,7 +2503,6 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void testSelectSource_wrongBassUUID() {
         byte[] scanRecord =
                 new byte[] {
@@ -2616,7 +2580,6 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void testSyncEstablished_statusFailed() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -2640,7 +2603,6 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void testSelectSource_wrongPublicBroadcastUUID() {
         byte[] scanRecord =
                 new byte[] {
@@ -2718,7 +2680,6 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void testSelectSource_wrongPublicBroadcastData() {
         byte[] scanRecord =
                 new byte[] {
@@ -2796,7 +2757,6 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void testSelectSource_queueAndRemoveAfterMaxLimit() {
         final BluetoothDevice device1 =
                 mBluetoothAdapter.getRemoteLeDevice(
@@ -2992,10 +2952,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void testSelectSource_removeAfterMaxLimit_notSyncedToAnySink() {
         final BluetoothDevice device1 =
                 mBluetoothAdapter.getRemoteLeDevice(
@@ -3087,10 +3044,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void testSelectSource_removeAfterMaxLimit_firstIfAllSyncedToSinks() {
         final BluetoothDevice device1 =
                 mBluetoothAdapter.getRemoteLeDevice(
@@ -3221,7 +3175,6 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void testAddSourceToUnsyncedSource_causesSyncBeforeAddingSource() {
         final BluetoothDevice device1 =
                 mBluetoothAdapter.getRemoteLeDevice(
@@ -3368,11 +3321,6 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_ALLOWED_CONTEXT_MASK,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
-        Flags.FLAG_LEAUDIO_BROADCAST_ASSISTANT_PERIPHERAL_ENTRUSTMENT
-    })
     public void testAddSourceForExternalBroadcast_triggerSetContextMask() {
         final int testGroupId = 1;
         prepareConnectedDeviceGroup();
@@ -3439,7 +3387,6 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void testSelectSource_orderOfSyncRegisteringByPriorityAndRssi() {
         final BluetoothDevice device1 =
                 mBluetoothAdapter.getRemoteLeDevice(
@@ -3686,10 +3633,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_SORT_SCANS_TO_SYNC_BY_FAILS,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_SORT_SCANS_TO_SYNC_BY_FAILS)
     public void testSelectSource_orderOfSyncRegisteringByRssiAndFailsCounter() {
         final BluetoothDevice device1 =
                 mBluetoothAdapter.getRemoteLeDevice(
@@ -3880,64 +3824,6 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
-    public void testSelectSource_invalidActiveSource() {
-        final int testSyncHandle = 0;
-        final int testSyncHandle1 = 1;
-        final int testSyncHandle2 = 2;
-        final int testSyncHandle3 = 3;
-        byte[] scanRecord = getScanRecord(12345);
-        ScanRecord record = ScanRecord.parseFromBytes(scanRecord);
-
-        prepareConnectedDeviceGroup();
-        assertThat(mStateMachines).hasSize(2);
-
-        // Verify add active synced source
-        mBassClientService.addActiveSyncedSource(mCurrentDevice, testSyncHandle);
-        mBassClientService.addActiveSyncedSource(mCurrentDevice1, testSyncHandle);
-        assertThat(mBassClientService.getActiveSyncedSources(mCurrentDevice)).isNotNull();
-        assertThat(mBassClientService.getActiveSyncedSources(mCurrentDevice1)).isNotNull();
-        assertThat(mBassClientService.getActiveSyncedSources(mCurrentDevice)).hasSize(1);
-        assertThat(mBassClientService.getActiveSyncedSources(mCurrentDevice1)).hasSize(1);
-
-        // Verify selectSource with max synced device should not proceed
-        mBassClientService.addActiveSyncedSource(mCurrentDevice, testSyncHandle1);
-        mBassClientService.addActiveSyncedSource(mCurrentDevice1, testSyncHandle1);
-        mBassClientService.addActiveSyncedSource(mCurrentDevice, testSyncHandle2);
-        mBassClientService.addActiveSyncedSource(mCurrentDevice1, testSyncHandle2);
-        mBassClientService.addActiveSyncedSource(mCurrentDevice, testSyncHandle3);
-        mBassClientService.addActiveSyncedSource(mCurrentDevice1, testSyncHandle3);
-
-        assertThat(mBassClientService.getActiveSyncedSources(mCurrentDevice)).isNotNull();
-        assertThat(mBassClientService.getActiveSyncedSources(mCurrentDevice1)).isNotNull();
-        assertThat(mBassClientService.getActiveSyncedSources(mCurrentDevice)).hasSize(4);
-        assertThat(mBassClientService.getActiveSyncedSources(mCurrentDevice1)).hasSize(4);
-
-        BluetoothDevice testDevice4 =
-                mBluetoothAdapter.getRemoteLeDevice(
-                        "00:01:02:03:04:05", BluetoothDevice.ADDRESS_TYPE_RANDOM);
-        ScanResult scanResult1 = new ScanResult(testDevice4, 0, 0, 0, 0, 0, 0, 0, record, 0);
-        mBassClientService.selectSource(mCurrentDevice, scanResult1, false);
-        mBassClientService.selectSource(mCurrentDevice1, scanResult1, false);
-        for (BassClientStateMachine sm : mStateMachines.values()) {
-            ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
-            verify(sm, atLeast(1)).sendMessage(messageCaptor.capture());
-
-            Optional<Message> msg =
-                    messageCaptor.getAllValues().stream()
-                            .filter(m -> m.what == BassClientStateMachine.REACHED_MAX_SOURCE_LIMIT)
-                            .findFirst();
-            assertThat(msg.isPresent()).isEqualTo(true);
-        }
-
-        // Verify remove all active synced source
-        mBassClientService.removeActiveSyncedSource(mCurrentDevice, null);
-        mBassClientService.removeActiveSyncedSource(mCurrentDevice1, null);
-        expect.that(mBassClientService.getActiveSyncedSources(mCurrentDevice)).isNull();
-        expect.that(mBassClientService.getActiveSyncedSources(mCurrentDevice1)).isNull();
-    }
-
-    @Test
     public void testPeriodicAdvertisementResultMap_updateGetAndModifyNotifiedFlag() {
         final String testBroadcastName = "Test";
         final int testSyncHandle = 1;
@@ -3990,7 +3876,6 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void testPeriodicAdvertisementResultMap_syncEstablishedOnTheSameSyncHandle() {
         final String testBroadcastName1 = "Test1";
         final String testBroadcastName2 = "Test2";
@@ -4077,65 +3962,24 @@ public class BassClientServiceTest {
 
     @Test
     public void testSyncHandleToBroadcastIdMap_getSyncHandleAndGetBroadcastId() {
-        if (Flags.leaudioBroadcastExtractPeriodicScannerFromStateMachine()) {
-            final int testSyncHandle = 1;
-            final int testSyncHandleInvalid = 2;
-            final int testBroadcastId = 42;
-            final int testBroadcastIdInvalid = 43;
+        final int testSyncHandle = 1;
+        final int testSyncHandleInvalid = 2;
+        final int testBroadcastId = 42;
+        final int testBroadcastIdInvalid = 43;
 
-            prepareConnectedDeviceGroup();
-            startSearchingForSources();
-            onScanResult(mSourceDevice, testBroadcastId);
-            onSyncEstablished(mSourceDevice, testSyncHandle);
+        prepareConnectedDeviceGroup();
+        startSearchingForSources();
+        onScanResult(mSourceDevice, testBroadcastId);
+        onSyncEstablished(mSourceDevice, testSyncHandle);
 
-            assertThat(mBassClientService.getSyncHandleForBroadcastId(testBroadcastIdInvalid))
-                    .isEqualTo(BassConstants.INVALID_SYNC_HANDLE);
-            assertThat(mBassClientService.getBroadcastIdForSyncHandle(testSyncHandleInvalid))
-                    .isEqualTo(BassConstants.INVALID_BROADCAST_ID);
-            assertThat(mBassClientService.getSyncHandleForBroadcastId(testBroadcastId))
-                    .isEqualTo(testSyncHandle);
-            assertThat(mBassClientService.getBroadcastIdForSyncHandle(testSyncHandle))
-                    .isEqualTo(testBroadcastId);
-        } else {
-            final String testBroadcastName = "Test";
-            final int testSyncHandle = 1;
-            final int testSyncHandleInvalid = 2;
-            final int testBroadcastId = 42;
-            final int testBroadcastIdInvalid = 43;
-            final int testAdvertiserSid = 1234;
-            final int testAdvInterval = 100;
-
-            // mock the update in selectSource
-            mBassClientService.updatePeriodicAdvertisementResultMap(
-                    mSourceDevice,
-                    mSourceDevice.getAddressType(),
-                    BassConstants.PENDING_SYNC_HANDLE,
-                    BassConstants.INVALID_ADV_SID,
-                    testAdvInterval,
-                    testBroadcastId,
-                    null,
-                    testBroadcastName);
-
-            // mock the update in onSyncEstablished
-            mBassClientService.updatePeriodicAdvertisementResultMap(
-                    mSourceDevice,
-                    BassConstants.INVALID_ADV_ADDRESS_TYPE,
-                    testSyncHandle,
-                    testAdvertiserSid,
-                    BassConstants.INVALID_ADV_INTERVAL,
-                    BassConstants.INVALID_BROADCAST_ID,
-                    null,
-                    null);
-
-            expect.that(mBassClientService.getSyncHandleForBroadcastId(testBroadcastIdInvalid))
-                    .isEqualTo(BassConstants.INVALID_SYNC_HANDLE);
-            expect.that(mBassClientService.getBroadcastIdForSyncHandle(testSyncHandleInvalid))
-                    .isEqualTo(BassConstants.INVALID_BROADCAST_ID);
-            expect.that(mBassClientService.getSyncHandleForBroadcastId(testBroadcastId))
-                    .isEqualTo(testSyncHandle);
-            expect.that(mBassClientService.getBroadcastIdForSyncHandle(testSyncHandle))
-                    .isEqualTo(testBroadcastId);
-        }
+        assertThat(mBassClientService.getSyncHandleForBroadcastId(testBroadcastIdInvalid))
+                .isEqualTo(BassConstants.INVALID_SYNC_HANDLE);
+        assertThat(mBassClientService.getBroadcastIdForSyncHandle(testSyncHandleInvalid))
+                .isEqualTo(BassConstants.INVALID_BROADCAST_ID);
+        assertThat(mBassClientService.getSyncHandleForBroadcastId(testBroadcastId))
+                .isEqualTo(testSyncHandle);
+        assertThat(mBassClientService.getBroadcastIdForSyncHandle(testSyncHandle))
+                .isEqualTo(testBroadcastId);
     }
 
     private void verifyAllGroupMembersGettingUpdateOrAddSource(BluetoothLeBroadcastMetadata meta) {
@@ -4207,20 +4051,15 @@ public class BassClientServiceTest {
         verifyAddSourceForGroup(meta);
         prepareRemoteSourceState(meta, /* isPaSynced */ true, /* isBisSynced */ false);
 
-        if (Flags.leaudioBroadcastAssistantPeripheralEntrustment()) {
-            injectRemoteSourceStateChanged(meta, /* isPaSynced */ true, /* isBisSynced */ true);
-            verify(mLeAudioService).activeBroadcastAssistantNotification(eq(true));
-            Mockito.clearInvocations(mLeAudioService);
+        injectRemoteSourceStateChanged(meta, /* isPaSynced */ true, /* isBisSynced */ true);
+        verify(mLeAudioService).activeBroadcastAssistantNotification(eq(true));
+        Mockito.clearInvocations(mLeAudioService);
 
-            /* Imitate broadcast source stop, sink notify about loosing PA and BIS sync */
-            injectRemoteSourceStateChanged(meta, /* isPaSynced */ false, /* isBisSynced */ false);
+        /* Imitate broadcast source stop, sink notify about loosing PA and BIS sync */
+        injectRemoteSourceStateChanged(meta, /* isPaSynced */ false, /* isBisSynced */ false);
 
-            /* Unicast would like to stream */
-            mBassClientService.cacheSuspendingSources(TEST_BROADCAST_ID);
-        } else {
-            mBassClientService.suspendAllReceiversSourceSynchronization();
-            verifyRemoveMessageAndInjectSourceRemoval();
-        }
+        /* Unicast would like to stream */
+        mBassClientService.cacheSuspendingSources(TEST_BROADCAST_ID);
 
         mBassClientService.resumeReceiversSourceSynchronization();
         handleHandoverSupport();
@@ -4249,12 +4088,8 @@ public class BassClientServiceTest {
         mBassClientService.handleUnicastSourceStreamStatusChange(
                 0 /* STATUS_LOCAL_STREAM_REQUESTED */);
 
-        if (Flags.leaudioBroadcastAssistantPeripheralEntrustment()) {
-            /* Imitate broadcast source stop, sink notify about loosing PA and BIS sync */
-            injectRemoteSourceStateChanged(meta, /* isPaSynced */ false, /* isBisSynced */ false);
-        } else {
-            verifyRemoveMessageAndInjectSourceRemoval();
-        }
+        /* Imitate broadcast source stop, sink notify about loosing PA and BIS sync */
+        injectRemoteSourceStateChanged(meta, /* isPaSynced */ false, /* isBisSynced */ false);
 
         /* Unicast finished streaming */
         mBassClientService.handleUnicastSourceStreamStatusChange(
@@ -4271,7 +4106,6 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_ASSISTANT_PERIPHERAL_ENTRUSTMENT)
     public void testHandleUnicastSourceStreamStatusChange_MultipleRequests() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -4468,7 +4302,6 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_ASSISTANT_PERIPHERAL_ENTRUSTMENT)
     public void testLocalAddSourceWhenBroadcastIsPlaying() throws RemoteException {
         doReturn(true).when(mLeAudioService).isPlaying(TEST_BROADCAST_ID);
         if (Flags.leaudioBigDependsOnAudioState()) {
@@ -4480,7 +4313,6 @@ public class BassClientServiceTest {
 
     @Test
     @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_ASSISTANT_PERIPHERAL_ENTRUSTMENT,
         Flags.FLAG_LEAUDIO_BIG_DEPENDS_ON_AUDIO_STATE
     })
     public void testLocalAddSourceWhenBroadcastIsPaused() throws RemoteException {
@@ -4491,7 +4323,6 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_ASSISTANT_PERIPHERAL_ENTRUSTMENT)
     public void testLocalAddSourceWhenBroadcastIsStopped() throws RemoteException {
         doReturn(false).when(mLeAudioService).isPlaying(TEST_BROADCAST_ID);
         if (Flags.leaudioBigDependsOnAudioState()) {
@@ -4692,7 +4523,6 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void onPeriodicAdvertisingReport_withoutBaseData_cancelActiveSync() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -4783,7 +4613,6 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void onPeriodicAdvertisingReport_wrongBaseData_cancelActiveSync() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -4883,7 +4712,6 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void onPeriodicAdvertisingReport_updateBase() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -4917,7 +4745,6 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void onPeriodicAdvertisingReport_updateBaseAfterWrongBaseData() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -5061,7 +4888,6 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void notifySourceFound_once_updateRssi() throws RemoteException {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -5108,10 +4934,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
-        Flags.FLAG_LEAUDIO_BIG_DEPENDS_ON_AUDIO_STATE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BIG_DEPENDS_ON_AUDIO_STATE)
     public void notifySourceFound_without_public_announcement() throws RemoteException {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -5208,7 +5031,6 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void notifySourceFound_periodic_after_big() throws RemoteException {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -5252,10 +5074,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
-        Flags.FLAG_LEAUDIO_BIG_DEPENDS_ON_AUDIO_STATE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BIG_DEPENDS_ON_AUDIO_STATE)
     public void notifySourceFound_periodic_after_wrong_periodic() throws RemoteException {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -5337,7 +5156,6 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     public void notifySourceFound_alreadySynced_clearFlag() throws RemoteException {
         // Scan
         prepareConnectedDeviceGroup();
@@ -5393,7 +5211,6 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE)
     @DisableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void onSyncLost_notifySourceLostAndCancelSync_noResyncFlag() throws RemoteException {
         prepareConnectedDeviceGroup();
@@ -5431,10 +5248,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void onSyncLost_notifySourceLostAndCancelSync() throws RemoteException {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -5472,10 +5286,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void monitorBroadcastAfterSyncMaxLimit() throws RemoteException {
         final BluetoothDevice device1 =
                 mBluetoothAdapter.getRemoteLeDevice(
@@ -5701,10 +5512,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void sinkUnintentional_resync_withoutScanning() {
         sinkUnintentionalWithoutScanning();
 
@@ -5713,10 +5521,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void sinkUnintentional_resync_duringScanning() {
         sinkUnintentionalDuringScanning();
 
@@ -5725,10 +5530,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void sinkUnintentional_resyncByRemote_withoutScanning() {
         sinkUnintentionalWithoutScanning();
 
@@ -5736,10 +5538,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void sinkUnintentional_resyncByRemote_duringScanning() {
         sinkUnintentionalDuringScanning();
 
@@ -5747,10 +5546,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void sinkUnintentional_addNewSource() {
         sinkUnintentionalDuringScanning();
 
@@ -5783,10 +5579,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void sinkUnintentional_addSameSource() {
         sinkUnintentionalDuringScanning();
 
@@ -5797,10 +5590,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void sinkUnintentional_removeSource_withoutScanning() {
         sinkUnintentionalWithoutScanning();
 
@@ -5812,10 +5602,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void sinkUnintentional_removeSource_duringScanning() {
         sinkUnintentionalDuringScanning();
 
@@ -5827,10 +5614,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void sinkUnintentional_stopReceivers_withoutScanning() {
         sinkUnintentionalWithoutScanning();
 
@@ -5843,10 +5627,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void sinkUnintentional_stopReceivers_duringScanning() {
         sinkUnintentionalDuringScanning();
 
@@ -5859,10 +5640,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void sinkUnintentional_suspendReceivers_withoutScanning() {
         sinkUnintentionalWithoutScanning();
 
@@ -5875,10 +5653,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void sinkUnintentional_suspendReceivers_duringScanning() {
         sinkUnintentionalDuringScanning();
 
@@ -5891,10 +5666,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void sinkUnintentional_suspendAllReceivers_withoutScanning() {
         sinkUnintentionalWithoutScanning();
 
@@ -5907,10 +5679,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void sinkUnintentional_suspendAllReceivers_duringScanning() {
         sinkUnintentionalDuringScanning();
 
@@ -5923,10 +5692,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void sinkUnintentional_publicStopBigMonitoring_withoutScanning() {
         sinkUnintentionalWithoutScanning();
 
@@ -5936,10 +5702,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void sinkUnintentional_publicStopBigMonitoring_duringScanning() {
         sinkUnintentionalDuringScanning();
 
@@ -5949,10 +5712,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void sinkUnintentional_unsync_withoutScanning() {
         sinkUnintentionalWithoutScanning();
 
@@ -5991,10 +5751,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void sinkUnintentional_unsync_duringScanning() {
         sinkUnintentionalDuringScanning();
 
@@ -6033,10 +5790,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void sinkUnintentional_disconnect_withoutScanning() {
         sinkUnintentionalWithoutScanning();
 
@@ -6057,10 +5811,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void sinkUnintentional_disconnect_duringScanning() {
         sinkUnintentionalDuringScanning();
 
@@ -6081,10 +5832,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void sinkUnintentional_syncLost_withoutScanning_outOfRange() {
         sinkUnintentionalWithoutScanning();
 
@@ -6113,10 +5861,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void sinkUnintentional_syncLost_duringScanning_outOfRange() {
         sinkUnintentionalDuringScanning();
 
@@ -6147,10 +5892,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void sinkUnintentional_bigMonitorTimeout_withoutScanning() {
         sinkUnintentionalWithoutScanning();
 
@@ -6163,10 +5905,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void sinkUnintentional_bigMonitorTimeout_duringScanning() {
         sinkUnintentionalDuringScanning();
 
@@ -6181,7 +5920,6 @@ public class BassClientServiceTest {
     @Test
     @EnableFlags({
         Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
         Flags.FLAG_LEAUDIO_MONITOR_UNICAST_SOURCE_WHEN_MANAGED_BY_BROADCAST_DELEGATOR
     })
     public void sinkUnintentional_handleUnicastSourceStreamStatusChange_withoutScanning() {
@@ -6203,7 +5941,6 @@ public class BassClientServiceTest {
     @Test
     @EnableFlags({
         Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
         Flags.FLAG_LEAUDIO_MONITOR_UNICAST_SOURCE_WHEN_MANAGED_BY_BROADCAST_DELEGATOR
     })
     public void sinkUnintentional_handleUnicastSourceStreamStatusChange_duringScanning() {
@@ -6222,10 +5959,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void sinkUnintentional_handleUnicastSourceStreamStatusChangeNoContext_withoutScanning() {
         sinkUnintentionalWithoutScanning();
 
@@ -6244,10 +5978,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void sinkUnintentional_handleUnicastSourceStreamStatusChangeNoContext_duringScanning() {
         sinkUnintentionalDuringScanning();
 
@@ -6265,10 +5996,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     @DisableFlags(Flags.FLAG_LEAUDIO_BROADCAST_PREVENT_RESUME_INTERRUPTION)
     public void sinkUnintentional_autoSyncToBroadcast_onStopSearching() {
         sinkUnintentionalDuringScanning();
@@ -6287,7 +6015,6 @@ public class BassClientServiceTest {
     @Test
     @EnableFlags({
         Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
         Flags.FLAG_LEAUDIO_BROADCAST_PREVENT_RESUME_INTERRUPTION
     })
     public void sinkUnintentional_remainEstablishedSync_onStopSearching() {
@@ -6361,7 +6088,6 @@ public class BassClientServiceTest {
     @Test
     @EnableFlags({
         Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
         Flags.FLAG_LEAUDIO_BROADCAST_PREVENT_RESUME_INTERRUPTION
     })
     public void waitingForPast_remainPendingSync_onStopSearching() {
@@ -6429,7 +6155,6 @@ public class BassClientServiceTest {
     @Test
     @EnableFlags({
         Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
         Flags.FLAG_LEAUDIO_BROADCAST_PREVENT_RESUME_INTERRUPTION
     })
     public void pendingSourceToAdd_remainPendingSync_onStopSearching() {
@@ -6505,7 +6230,6 @@ public class BassClientServiceTest {
     @Test
     @EnableFlags({
         Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
         Flags.FLAG_LEAUDIO_BROADCAST_PREVENT_RESUME_INTERRUPTION
     })
     public void alreadySynced_remainSyncAndCache_onStartSearching() {
@@ -6598,7 +6322,6 @@ public class BassClientServiceTest {
     @Test
     @EnableFlags({
         Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
         Flags.FLAG_LEAUDIO_BROADCAST_PREVENT_RESUME_INTERRUPTION
     })
     public void alreadySyncedWithSinks_syncAndRemainCache_onStartSearching() {
@@ -6677,7 +6400,6 @@ public class BassClientServiceTest {
     @Test
     @EnableFlags({
         Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
         Flags.FLAG_LEAUDIO_BROADCAST_PREVENT_RESUME_INTERRUPTION
     })
     public void waitingForPast_remainPendingSyncAndCache_onStartSearching() {
@@ -6762,7 +6484,6 @@ public class BassClientServiceTest {
     @Test
     @EnableFlags({
         Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
         Flags.FLAG_LEAUDIO_BROADCAST_PREVENT_RESUME_INTERRUPTION
     })
     public void pendingSourcesToAdd_remainPendingSyncAndCache_onStartSearching() {
@@ -6857,7 +6578,6 @@ public class BassClientServiceTest {
     @Test
     @EnableFlags({
         Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
         Flags.FLAG_LEAUDIO_BROADCAST_PREVENT_RESUME_INTERRUPTION
     })
     public void hostIntentional_SyncAndRemainCache_onStartSearching() {
@@ -6948,10 +6668,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void hostIntentional_addSameSource() {
         prepareSynchronizedPair();
 
@@ -6968,10 +6685,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void hostIntentional_removeSource_withoutScanning() {
         prepareSynchronizedPairAndStopSearching();
 
@@ -6982,10 +6696,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void hostIntentional_removeSource_duringScanning() {
         prepareSynchronizedPair();
 
@@ -6996,10 +6707,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void hostIntentional_stopReceivers_withoutScanning() {
         prepareSynchronizedPairAndStopSearching();
 
@@ -7010,10 +6718,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void hostIntentional_stopReceivers_duringScanning() {
         prepareSynchronizedPair();
 
@@ -7024,78 +6729,51 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void hostIntentional_suspendReceivers_withoutScanning() {
         prepareSynchronizedPairAndStopSearching();
 
         // Suspend receivers, HOST_INTENTIONAL
         mBassClientService.suspendReceiversSourceSynchronization(TEST_BROADCAST_ID);
         checkNoSinkPause();
-        if (!Flags.leaudioBroadcastAssistantPeripheralEntrustment()) {
-            verifyRemoveMessageAndInjectSourceRemoval();
-        }
         checkResumeSynchronizationByHost();
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void hostIntentional_suspendReceivers_duringScanning() {
         prepareSynchronizedPair();
 
         // Suspend receivers, HOST_INTENTIONAL
         mBassClientService.suspendReceiversSourceSynchronization(TEST_BROADCAST_ID);
         checkNoSinkPause();
-        if (!Flags.leaudioBroadcastAssistantPeripheralEntrustment()) {
-            verifyRemoveMessageAndInjectSourceRemoval();
-        }
         checkResumeSynchronizationByHost();
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void hostIntentional_suspendAllReceivers_withoutScanning() {
         prepareSynchronizedPairAndStopSearching();
 
         // Suspend all receivers, HOST_INTENTIONAL
         mBassClientService.suspendAllReceiversSourceSynchronization();
         checkNoSinkPause();
-        if (!Flags.leaudioBroadcastAssistantPeripheralEntrustment()) {
-            verifyRemoveMessageAndInjectSourceRemoval();
-        }
         checkResumeSynchronizationByHost();
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void hostIntentional_suspendAllReceivers_duringScanning() {
         prepareSynchronizedPair();
 
         // Suspend all receivers, HOST_INTENTIONAL
         mBassClientService.suspendAllReceiversSourceSynchronization();
         checkNoSinkPause();
-        if (!Flags.leaudioBroadcastAssistantPeripheralEntrustment()) {
-            verifyRemoveMessageAndInjectSourceRemoval();
-        }
         checkResumeSynchronizationByHost();
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void hostIntentional_handleUnicastSourceStreamStatusChange_withoutScanning() {
         prepareSynchronizedPairAndStopSearching();
 
@@ -7103,9 +6781,6 @@ public class BassClientServiceTest {
         mBassClientService.handleUnicastSourceStreamStatusChange(
                 0 /* STATUS_LOCAL_STREAM_REQUESTED */);
         checkNoSinkPause();
-        if (!Flags.leaudioBroadcastAssistantPeripheralEntrustment()) {
-            verifyRemoveMessageAndInjectSourceRemoval();
-        }
 
         /* Unicast finished streaming */
         mBassClientService.handleUnicastSourceStreamStatusChange(
@@ -7115,10 +6790,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void hostIntentional_handleUnicastSourceStreamStatusChange_duringScanning() {
         prepareSynchronizedPair();
 
@@ -7126,9 +6798,6 @@ public class BassClientServiceTest {
         mBassClientService.handleUnicastSourceStreamStatusChange(
                 0 /* STATUS_LOCAL_STREAM_REQUESTED */);
         checkNoSinkPause();
-        if (!Flags.leaudioBroadcastAssistantPeripheralEntrustment()) {
-            verifyRemoveMessageAndInjectSourceRemoval();
-        }
 
         /* Unicast finished streaming */
         mBassClientService.handleUnicastSourceStreamStatusChange(
@@ -7139,8 +6808,6 @@ public class BassClientServiceTest {
     @Test
     @EnableFlags({
         Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE,
-        Flags.FLAG_LEAUDIO_BROADCAST_ASSISTANT_PERIPHERAL_ENTRUSTMENT,
         Flags.FLAG_LEAUDIO_MONITOR_UNICAST_SOURCE_WHEN_MANAGED_BY_BROADCAST_DELEGATOR
     })
     public void hostIntentional_handleUnicastSourceStreamStatusChange_beforeResumeCompleted() {
@@ -7175,10 +6842,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void hostIntentional_handleUnicastSourceStreamStatusChangeNoContext_withoutScanning() {
         prepareSynchronizedPairAndStopSearching();
 
@@ -7196,10 +6860,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void hostIntentional_handleUnicastSourceStreamStatusChangeNoContext_duringScanning() {
         prepareSynchronizedPair();
 
@@ -7216,10 +6877,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void outOfRange_syncEstablishedFailed_stopMonitoringAfterTimeout() {
         prepareSynchronizedPairAndStopSearching();
 
@@ -7254,10 +6912,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void outOfRange_syncEstablishedFailed_clearTimeout() {
         prepareSynchronizedPairAndStopSearching();
 
@@ -7289,10 +6944,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void outOfRange_syncEstablishedFailed_restartSearching() {
         prepareSynchronizedPairAndStopSearching();
 
@@ -7358,10 +7010,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void outOfRange_syncEstablishedFailed_allowSyncAnotherBroadcaster() {
         prepareSynchronizedPairAndStopSearching();
 
@@ -7408,10 +7057,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void autoSyncToBroadcast_AlreadySyncedToSink_onStartSearching() {
         prepareSynchronizedPairAndStopSearching();
 
@@ -7428,10 +7074,7 @@ public class BassClientServiceTest {
      * source
      */
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void sinkBassStateReady_addSourceIfPeerDeviceSynced() throws RemoteException {
         // Imitate broadcast being active
         doReturn(true).when(mLeAudioService).isPlaying(TEST_BROADCAST_ID);
@@ -7447,11 +7090,7 @@ public class BassClientServiceTest {
         }
 
         // Remove source on the mCurrentDevice
-        for (BassClientStateMachine sm : mStateMachines.values()) {
-            if (sm.getDevice().equals(mCurrentDevice)) {
-                injectRemoteSourceStateRemoval(sm, TEST_SOURCE_ID);
-            }
-        }
+        injectRemoteSourceStateRemoval(mStateMachines.get(mCurrentDevice), TEST_SOURCE_ID);
 
         mBassClientService.getCallbacks().notifyBassStateReady(mCurrentDevice);
         TestUtils.waitForLooperToFinishScheduledTask(mBassClientService.getCallbacks().getLooper());
@@ -7479,10 +7118,7 @@ public class BassClientServiceTest {
 
     /** Test add pending source when BASS state get ready */
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void sinkBassStateReady_addPendingSource() throws RemoteException {
         prepareConnectedDeviceGroup();
         BluetoothLeBroadcastMetadata meta = createBroadcastMetadata(TEST_BROADCAST_ID);
@@ -7536,6 +7172,70 @@ public class BassClientServiceTest {
         // Verify adding source is resumed once BASS state ready
         for (BassClientStateMachine sm : mStateMachines.values()) {
             if (sm.getDevice().equals(mCurrentDevice)) {
+                ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+                verify(sm, atLeast(1)).sendMessage(messageCaptor.capture());
+
+                Message msg =
+                        messageCaptor.getAllValues().stream()
+                                .filter(m -> (m.what == BassClientStateMachine.ADD_BCAST_SOURCE))
+                                .findFirst()
+                                .orElse(null);
+                assertThat(msg).isNotNull();
+                clearInvocations(sm);
+            }
+        }
+    }
+
+    /** Test add pending source when BASS state get ready */
+    @Test
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
+    public void sinkBassStateReady_addPendingSourceGroup_oneByOneReady() throws RemoteException {
+        prepareConnectedDeviceGroup();
+        BluetoothLeBroadcastMetadata meta = createBroadcastMetadata(TEST_BROADCAST_ID);
+        // Verify adding source when Bass state not ready
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            doReturn(false).when(sm).isBassStateReady();
+        }
+        doReturn(true).when(mLeAudioService).isPlaying(TEST_BROADCAST_ID);
+        doReturn(new ArrayList<BluetoothLeBroadcastMetadata>(Arrays.asList(meta)))
+                .when(mLeAudioService)
+                .getAllBroadcastMetadata();
+        // Add broadcast source and got queued due to BASS not ready
+        mBassClientService.addSource(mCurrentDevice, meta, /* isGroupOp */ true);
+
+        // First BASS ready
+        doReturn(true).when(mStateMachines.get(mCurrentDevice)).isBassStateReady();
+        mBassClientService.getCallbacks().notifyBassStateReady(mCurrentDevice);
+        TestUtils.waitForLooperToFinishScheduledTask(mBassClientService.getCallbacks().getLooper());
+
+        // Verify adding source is resumed once BASS state ready
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            if (sm.getDevice().equals(mCurrentDevice)) {
+                ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+                verify(sm, atLeast(1)).sendMessage(messageCaptor.capture());
+
+                Message msg =
+                        messageCaptor.getAllValues().stream()
+                                .filter(m -> (m.what == BassClientStateMachine.ADD_BCAST_SOURCE))
+                                .findFirst()
+                                .orElse(null);
+                assertThat(msg).isNotNull();
+                clearInvocations(sm);
+            } else if (sm.getDevice().equals(mCurrentDevice1)) {
+                verify(sm, never()).sendMessage(any());
+            }
+        }
+
+        // Second BASS ready
+        doReturn(true).when(mStateMachines.get(mCurrentDevice1)).isBassStateReady();
+        mBassClientService.getCallbacks().notifyBassStateReady(mCurrentDevice1);
+        TestUtils.waitForLooperToFinishScheduledTask(mBassClientService.getCallbacks().getLooper());
+
+        // Verify adding source is resumed once BASS state ready
+        for (BassClientStateMachine sm : mStateMachines.values()) {
+            if (sm.getDevice().equals(mCurrentDevice)) {
+                verify(sm, never()).sendMessage(any());
+            } else if (sm.getDevice().equals(mCurrentDevice1)) {
                 ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
                 verify(sm, atLeast(1)).sendMessage(messageCaptor.capture());
 
@@ -7646,10 +7346,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void initiatePaSyncTransfer() {
         prepareSynchronizedPairAndStopSearching();
 
@@ -7668,10 +7365,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void InitiatePaSyncTransfer_concurrentWithResume() {
         prepareSynchronizedPairAndStopSearching();
 
@@ -7700,10 +7394,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void resumeSourceSynchronization_omitWhenPaSyncedOrRequested() {
         prepareSynchronizedPair();
 
@@ -7733,10 +7424,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void removeSource_duringSuspend() {
         prepareSynchronizedPair();
 
@@ -7752,10 +7440,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void stopReceivers_duringSuspend() {
         prepareSynchronizedPair();
 
@@ -7771,10 +7456,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void multipleSinkMetadata_clearWhenSourceAddFailed() throws RemoteException {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -7820,10 +7502,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void multipleSinkMetadata_clearWhenSwitch() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -7857,10 +7536,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void multipleSinkMetadata_clearWhenSwitch_duringSuspend() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -7902,10 +7578,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void multipleSinkMetadata_clearWhenRemove() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -7965,10 +7638,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void multipleSinkMetadata_clearWhenAllDisconnected() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -7982,20 +7652,14 @@ public class BassClientServiceTest {
         prepareRemoteSourceState(meta, /* isPaSynced */ false, /* isBisSynced */ false);
 
         // Disconnect first sink not cause removing metadata
-        doReturn(BluetoothProfile.STATE_DISCONNECTED)
-                .when(mStateMachines.get(mCurrentDevice))
-                .getConnectionState();
+        doReturn(STATE_DISCONNECTED).when(mStateMachines.get(mCurrentDevice)).getConnectionState();
         doReturn(false).when(mStateMachines.get(mCurrentDevice)).isConnected();
         mBassClientService.connectionStateChanged(
-                mCurrentDevice,
-                BluetoothProfile.STATE_CONNECTED,
-                BluetoothProfile.STATE_DISCONNECTED);
+                mCurrentDevice, STATE_CONNECTED, STATE_DISCONNECTED);
         injectRemoteSourceStateRemoval(mStateMachines.get(mCurrentDevice), TEST_SOURCE_ID);
 
         // Connect again first sink
-        doReturn(BluetoothProfile.STATE_CONNECTED)
-                .when(mStateMachines.get(mCurrentDevice))
-                .getConnectionState();
+        doReturn(STATE_CONNECTED).when(mStateMachines.get(mCurrentDevice)).getConnectionState();
         doReturn(true).when(mStateMachines.get(mCurrentDevice)).isConnected();
         prepareRemoteSourceState(meta, /* isPaSynced */ false, /* isBisSynced */ false);
 
@@ -8008,35 +7672,23 @@ public class BassClientServiceTest {
         }
 
         // Disconnect first sink not cause removing metadata
-        doReturn(BluetoothProfile.STATE_DISCONNECTED)
-                .when(mStateMachines.get(mCurrentDevice))
-                .getConnectionState();
+        doReturn(STATE_DISCONNECTED).when(mStateMachines.get(mCurrentDevice)).getConnectionState();
         doReturn(false).when(mStateMachines.get(mCurrentDevice)).isConnected();
         mBassClientService.connectionStateChanged(
-                mCurrentDevice,
-                BluetoothProfile.STATE_CONNECTED,
-                BluetoothProfile.STATE_DISCONNECTED);
+                mCurrentDevice, STATE_CONNECTED, STATE_DISCONNECTED);
         injectRemoteSourceStateRemoval(mStateMachines.get(mCurrentDevice), TEST_SOURCE_ID);
 
         // Disconnect second sink cause remove metada for both devices
-        doReturn(BluetoothProfile.STATE_DISCONNECTED)
-                .when(mStateMachines.get(mCurrentDevice1))
-                .getConnectionState();
+        doReturn(STATE_DISCONNECTED).when(mStateMachines.get(mCurrentDevice1)).getConnectionState();
         doReturn(false).when(mStateMachines.get(mCurrentDevice1)).isConnected();
         mBassClientService.connectionStateChanged(
-                mCurrentDevice1,
-                BluetoothProfile.STATE_CONNECTED,
-                BluetoothProfile.STATE_DISCONNECTED);
+                mCurrentDevice1, STATE_CONNECTED, STATE_DISCONNECTED);
         injectRemoteSourceStateRemoval(mStateMachines.get(mCurrentDevice1), TEST_SOURCE_ID + 1);
 
         // Connect again both devices
-        doReturn(BluetoothProfile.STATE_CONNECTED)
-                .when(mStateMachines.get(mCurrentDevice))
-                .getConnectionState();
+        doReturn(STATE_CONNECTED).when(mStateMachines.get(mCurrentDevice)).getConnectionState();
         doReturn(true).when(mStateMachines.get(mCurrentDevice)).isConnected();
-        doReturn(BluetoothProfile.STATE_CONNECTED)
-                .when(mStateMachines.get(mCurrentDevice1))
-                .getConnectionState();
+        doReturn(STATE_CONNECTED).when(mStateMachines.get(mCurrentDevice1)).getConnectionState();
         doReturn(true).when(mStateMachines.get(mCurrentDevice1)).isConnected();
         prepareRemoteSourceState(meta, /* isPaSynced */ false, /* isBisSynced */ false);
 
@@ -8050,10 +7702,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void multipleSinkMetadata_clearWhenAllDisconnected_duringSuspend() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -8075,20 +7724,14 @@ public class BassClientServiceTest {
         }
 
         // Disconnect first sink not cause removing metadata
-        doReturn(BluetoothProfile.STATE_DISCONNECTED)
-                .when(mStateMachines.get(mCurrentDevice))
-                .getConnectionState();
+        doReturn(STATE_DISCONNECTED).when(mStateMachines.get(mCurrentDevice)).getConnectionState();
         doReturn(false).when(mStateMachines.get(mCurrentDevice)).isConnected();
         mBassClientService.connectionStateChanged(
-                mCurrentDevice,
-                BluetoothProfile.STATE_CONNECTED,
-                BluetoothProfile.STATE_DISCONNECTED);
+                mCurrentDevice, STATE_CONNECTED, STATE_DISCONNECTED);
         injectRemoteSourceStateRemoval(mStateMachines.get(mCurrentDevice), TEST_SOURCE_ID);
 
         // Connect again first sink
-        doReturn(BluetoothProfile.STATE_CONNECTED)
-                .when(mStateMachines.get(mCurrentDevice))
-                .getConnectionState();
+        doReturn(STATE_CONNECTED).when(mStateMachines.get(mCurrentDevice)).getConnectionState();
         doReturn(true).when(mStateMachines.get(mCurrentDevice)).isConnected();
         prepareRemoteSourceState(meta, /* isPaSynced */ false, /* isBisSynced */ false);
 
@@ -8109,35 +7752,23 @@ public class BassClientServiceTest {
         }
 
         // Disconnect first sink not cause removing metadata
-        doReturn(BluetoothProfile.STATE_DISCONNECTED)
-                .when(mStateMachines.get(mCurrentDevice))
-                .getConnectionState();
+        doReturn(STATE_DISCONNECTED).when(mStateMachines.get(mCurrentDevice)).getConnectionState();
         doReturn(false).when(mStateMachines.get(mCurrentDevice)).isConnected();
         mBassClientService.connectionStateChanged(
-                mCurrentDevice,
-                BluetoothProfile.STATE_CONNECTED,
-                BluetoothProfile.STATE_DISCONNECTED);
+                mCurrentDevice, STATE_CONNECTED, STATE_DISCONNECTED);
         injectRemoteSourceStateRemoval(mStateMachines.get(mCurrentDevice), TEST_SOURCE_ID);
 
         // Disconnect second sink cause remove metada for both devices
-        doReturn(BluetoothProfile.STATE_DISCONNECTED)
-                .when(mStateMachines.get(mCurrentDevice1))
-                .getConnectionState();
+        doReturn(STATE_DISCONNECTED).when(mStateMachines.get(mCurrentDevice1)).getConnectionState();
         doReturn(false).when(mStateMachines.get(mCurrentDevice1)).isConnected();
         mBassClientService.connectionStateChanged(
-                mCurrentDevice1,
-                BluetoothProfile.STATE_CONNECTED,
-                BluetoothProfile.STATE_DISCONNECTED);
+                mCurrentDevice1, STATE_CONNECTED, STATE_DISCONNECTED);
         injectRemoteSourceStateRemoval(mStateMachines.get(mCurrentDevice1), TEST_SOURCE_ID + 1);
 
         // Connect again both devices
-        doReturn(BluetoothProfile.STATE_CONNECTED)
-                .when(mStateMachines.get(mCurrentDevice))
-                .getConnectionState();
+        doReturn(STATE_CONNECTED).when(mStateMachines.get(mCurrentDevice)).getConnectionState();
         doReturn(true).when(mStateMachines.get(mCurrentDevice)).isConnected();
-        doReturn(BluetoothProfile.STATE_CONNECTED)
-                .when(mStateMachines.get(mCurrentDevice1))
-                .getConnectionState();
+        doReturn(STATE_CONNECTED).when(mStateMachines.get(mCurrentDevice1)).getConnectionState();
         doReturn(true).when(mStateMachines.get(mCurrentDevice1)).isConnected();
         prepareRemoteSourceState(meta, /* isPaSynced */ false, /* isBisSynced */ false);
 
@@ -8151,10 +7782,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void multipleSinkMetadata_clearWhenRemove_oneDisconnectedFirst() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -8169,14 +7797,10 @@ public class BassClientServiceTest {
         prepareRemoteSourceState(meta, /* isPaSynced */ false, /* isBisSynced */ false);
 
         // Disconnect first sink not cause removing metadata
-        doReturn(BluetoothProfile.STATE_DISCONNECTED)
-                .when(mStateMachines.get(mCurrentDevice))
-                .getConnectionState();
+        doReturn(STATE_DISCONNECTED).when(mStateMachines.get(mCurrentDevice)).getConnectionState();
         doReturn(false).when(mStateMachines.get(mCurrentDevice)).isConnected();
         mBassClientService.connectionStateChanged(
-                mCurrentDevice,
-                BluetoothProfile.STATE_CONNECTED,
-                BluetoothProfile.STATE_DISCONNECTED);
+                mCurrentDevice, STATE_CONNECTED, STATE_DISCONNECTED);
         injectRemoteSourceStateRemoval(mStateMachines.get(mCurrentDevice), TEST_SOURCE_ID);
 
         // Remove second source should remove metadata for both
@@ -8187,9 +7811,7 @@ public class BassClientServiceTest {
         }
 
         // Connect again first sink
-        doReturn(BluetoothProfile.STATE_CONNECTED)
-                .when(mStateMachines.get(mCurrentDevice))
-                .getConnectionState();
+        doReturn(STATE_CONNECTED).when(mStateMachines.get(mCurrentDevice)).getConnectionState();
         doReturn(true).when(mStateMachines.get(mCurrentDevice)).isConnected();
         prepareRemoteSourceState(meta, /* isPaSynced */ false, /* isBisSynced */ false);
 
@@ -8203,10 +7825,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void multipleSinkMetadata_clearWhenRemove_oneDisconnectedFirst_duringSuspend() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -8229,14 +7848,10 @@ public class BassClientServiceTest {
         }
 
         // Disconnect first sink not cause removing metadata
-        doReturn(BluetoothProfile.STATE_DISCONNECTED)
-                .when(mStateMachines.get(mCurrentDevice))
-                .getConnectionState();
+        doReturn(STATE_DISCONNECTED).when(mStateMachines.get(mCurrentDevice)).getConnectionState();
         doReturn(false).when(mStateMachines.get(mCurrentDevice)).isConnected();
         mBassClientService.connectionStateChanged(
-                mCurrentDevice,
-                BluetoothProfile.STATE_CONNECTED,
-                BluetoothProfile.STATE_DISCONNECTED);
+                mCurrentDevice, STATE_CONNECTED, STATE_DISCONNECTED);
         injectRemoteSourceStateRemoval(mStateMachines.get(mCurrentDevice), TEST_SOURCE_ID);
 
         // Remove second source should remove metadata for both
@@ -8247,9 +7862,7 @@ public class BassClientServiceTest {
         }
 
         // Connect again first sink
-        doReturn(BluetoothProfile.STATE_CONNECTED)
-                .when(mStateMachines.get(mCurrentDevice))
-                .getConnectionState();
+        doReturn(STATE_CONNECTED).when(mStateMachines.get(mCurrentDevice)).getConnectionState();
         doReturn(true).when(mStateMachines.get(mCurrentDevice)).isConnected();
         prepareRemoteSourceState(meta, /* isPaSynced */ false, /* isBisSynced */ false);
 
@@ -8263,10 +7876,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void clearPendingSourceToAdd_oneByOne_whenDisconnected() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -8282,14 +7892,10 @@ public class BassClientServiceTest {
         mBassClientService.addSource(mCurrentDevice1, meta, /* isGroupOp */ false);
 
         // Disconnect first sink should remove pendingSourceToAdd for it
-        doReturn(BluetoothProfile.STATE_DISCONNECTED)
-                .when(mStateMachines.get(mCurrentDevice))
-                .getConnectionState();
+        doReturn(STATE_DISCONNECTED).when(mStateMachines.get(mCurrentDevice)).getConnectionState();
         doReturn(false).when(mStateMachines.get(mCurrentDevice)).isConnected();
         mBassClientService.connectionStateChanged(
-                mCurrentDevice,
-                BluetoothProfile.STATE_CONNECTED,
-                BluetoothProfile.STATE_DISCONNECTED);
+                mCurrentDevice, STATE_CONNECTED, STATE_DISCONNECTED);
         injectRemoteSourceStateRemoval(mStateMachines.get(mCurrentDevice), TEST_SOURCE_ID);
 
         // Sync established should add source on only one sink
@@ -8316,10 +7922,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void clearPendingSourceToAdd_group_whenDisconnected() {
         prepareConnectedDeviceGroup();
         startSearchingForSources();
@@ -8334,14 +7937,10 @@ public class BassClientServiceTest {
         mBassClientService.addSource(mCurrentDevice, meta, /* isGroupOp */ true);
 
         // Disconnect first sink should remove pendingSourceToAdd for it
-        doReturn(BluetoothProfile.STATE_DISCONNECTED)
-                .when(mStateMachines.get(mCurrentDevice))
-                .getConnectionState();
+        doReturn(STATE_DISCONNECTED).when(mStateMachines.get(mCurrentDevice)).getConnectionState();
         doReturn(false).when(mStateMachines.get(mCurrentDevice)).isConnected();
         mBassClientService.connectionStateChanged(
-                mCurrentDevice,
-                BluetoothProfile.STATE_CONNECTED,
-                BluetoothProfile.STATE_DISCONNECTED);
+                mCurrentDevice, STATE_CONNECTED, STATE_DISCONNECTED);
         injectRemoteSourceStateRemoval(mStateMachines.get(mCurrentDevice), TEST_SOURCE_ID);
 
         // Sync established should add source on only one sink
@@ -8368,10 +7967,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void doNotAllowDuplicatesInAddSelectSource() {
         prepareSynchronizedPairAndStopSearching();
 
@@ -8395,10 +7991,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER,
-        Flags.FLAG_LEAUDIO_BROADCAST_EXTRACT_PERIODIC_SCANNER_FROM_STATE_MACHINE
-    })
+    @EnableFlags(Flags.FLAG_LEAUDIO_BROADCAST_RESYNC_HELPER)
     public void sinkDisconnectionDuringReasuming() {
         prepareSynchronizedPairAndStopSearching();
 
