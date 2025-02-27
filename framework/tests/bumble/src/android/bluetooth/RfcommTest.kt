@@ -17,6 +17,7 @@ package android.bluetooth
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN
 import android.bluetooth.test_utils.EnableBluetoothRule
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -123,21 +124,12 @@ class RfcommTest {
         mHost = Host(mContext)
 
         val bluetoothA2dp = getProfileProxy(mContext, BluetoothProfile.A2DP) as BluetoothA2dp
-        bluetoothA2dp.setConnectionPolicy(
-            mRemoteDevice,
-            BluetoothProfile.CONNECTION_POLICY_FORBIDDEN,
-        )
+        bluetoothA2dp.setConnectionPolicy(mRemoteDevice, CONNECTION_POLICY_FORBIDDEN)
         val bluetoothHfp = getProfileProxy(mContext, BluetoothProfile.HEADSET) as BluetoothHeadset
-        bluetoothHfp.setConnectionPolicy(
-            mRemoteDevice,
-            BluetoothProfile.CONNECTION_POLICY_FORBIDDEN,
-        )
+        bluetoothHfp.setConnectionPolicy(mRemoteDevice, CONNECTION_POLICY_FORBIDDEN)
         val bluetoothHidHost =
             getProfileProxy(mContext, BluetoothProfile.HID_HOST) as BluetoothHidHost
-        bluetoothHidHost.setConnectionPolicy(
-            mRemoteDevice,
-            BluetoothProfile.CONNECTION_POLICY_FORBIDDEN,
-        )
+        bluetoothHidHost.setConnectionPolicy(mRemoteDevice, CONNECTION_POLICY_FORBIDDEN)
         if (mRemoteDevice.isConnected) {
             mHost.disconnectAndVerify(mRemoteDevice)
         }

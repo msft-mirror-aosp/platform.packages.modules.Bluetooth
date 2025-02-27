@@ -19,6 +19,11 @@ package com.android.bluetooth.le_audio;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 import static android.bluetooth.IBluetoothLeAudio.LE_AUDIO_GROUP_ID_INVALID;
 
 import static com.android.bluetooth.bass_client.BassConstants.INVALID_BROADCAST_ID;
@@ -883,7 +888,7 @@ public class LeAudioService extends ProfileService {
     public boolean connect(BluetoothDevice device) {
         Log.d(TAG, "connect(): " + device);
 
-        if (getConnectionPolicy(device) == BluetoothProfile.CONNECTION_POLICY_FORBIDDEN) {
+        if (getConnectionPolicy(device) == CONNECTION_POLICY_FORBIDDEN) {
             Log.e(TAG, "Cannot connect to " + device + " : CONNECTION_POLICY_FORBIDDEN");
             return false;
         }
@@ -994,7 +999,7 @@ public class LeAudioService extends ProfileService {
                 if (!Utils.arrayContains(featureUuids, BluetoothUuid.LE_AUDIO)) {
                     continue;
                 }
-                int connectionState = BluetoothProfile.STATE_DISCONNECTED;
+                int connectionState = STATE_DISCONNECTED;
                 LeAudioDeviceDescriptor descriptor = getDeviceDescriptor(device);
                 if (descriptor == null) {
                     Log.e(
@@ -1056,12 +1061,12 @@ public class LeAudioService extends ProfileService {
         try {
             LeAudioDeviceDescriptor descriptor = getDeviceDescriptor(device);
             if (descriptor == null) {
-                return BluetoothProfile.STATE_DISCONNECTED;
+                return STATE_DISCONNECTED;
             }
 
             LeAudioStateMachine sm = descriptor.mStateMachine;
             if (sm == null) {
-                return BluetoothProfile.STATE_DISCONNECTED;
+                return STATE_DISCONNECTED;
             }
             return sm.getConnectionState();
         } finally {
@@ -1742,8 +1747,7 @@ public class LeAudioService extends ProfileService {
             }
 
             if (groupDescriptor.mCurrentLeadDevice != null
-                    && getConnectionState(groupDescriptor.mCurrentLeadDevice)
-                            == BluetoothProfile.STATE_CONNECTED) {
+                    && getConnectionState(groupDescriptor.mCurrentLeadDevice) == STATE_CONNECTED) {
                 return groupDescriptor.mCurrentLeadDevice;
             }
 
@@ -1753,7 +1757,7 @@ public class LeAudioService extends ProfileService {
                 }
 
                 LeAudioStateMachine sm = descriptor.mStateMachine;
-                if (sm == null || sm.getConnectionState() != BluetoothProfile.STATE_CONNECTED) {
+                if (sm == null || sm.getConnectionState() != STATE_CONNECTED) {
                     continue;
                 }
                 groupDescriptor.mCurrentLeadDevice = sm.getDevice();
@@ -2212,10 +2216,10 @@ public class LeAudioService extends ProfileService {
         if (device.equals(mActiveAudioInDevice) || device.equals(mActiveAudioOutDevice)) {
             mEventLogger.loge(
                     TAG,
-                    "[From AudioManager]: Audio manager autonomusly disactivated LeAudio device "
+                    "[From AudioManager]: Audio manager autonomusly disactivated LeAudio device."
+                            + " Probably restarting and device shall be re-added "
                             + mExposedActiveDevice);
-            mExposedActiveDevice = null;
-            setActiveDevice(null);
+
             return;
         }
 
@@ -2637,7 +2641,7 @@ public class LeAudioService extends ProfileService {
             Log.e(TAG, "device should not be null!");
             return removeActiveDevice(false);
         }
-        if (getConnectionState(device) != BluetoothProfile.STATE_CONNECTED) {
+        if (getConnectionState(device) != STATE_CONNECTED) {
             Log.e(
                     TAG,
                     "setActiveDevice("
@@ -2825,25 +2829,22 @@ public class LeAudioService extends ProfileService {
             Log.d(TAG, "Disable LE_AUDIO for the device: " + activeGroupDevice);
             final ParcelUuid[] uuids = mAdapterService.getRemoteUuids(activeGroupDevice);
 
-            setConnectionPolicy(activeGroupDevice, BluetoothProfile.CONNECTION_POLICY_FORBIDDEN);
+            setConnectionPolicy(activeGroupDevice, CONNECTION_POLICY_FORBIDDEN);
             if (hsService != null && !isDualMode && Utils.arrayContains(uuids, BluetoothUuid.HFP)) {
                 Log.d(TAG, "Enable HFP for the device: " + activeGroupDevice);
-                hsService.setConnectionPolicy(
-                        activeGroupDevice, BluetoothProfile.CONNECTION_POLICY_ALLOWED);
+                hsService.setConnectionPolicy(activeGroupDevice, CONNECTION_POLICY_ALLOWED);
             }
             if (a2dpService != null
                     && !isDualMode
                     && (Utils.arrayContains(uuids, BluetoothUuid.A2DP_SINK)
                             || Utils.arrayContains(uuids, BluetoothUuid.ADV_AUDIO_DIST))) {
                 Log.d(TAG, "Enable A2DP for the device: " + activeGroupDevice);
-                a2dpService.setConnectionPolicy(
-                        activeGroupDevice, BluetoothProfile.CONNECTION_POLICY_ALLOWED);
+                a2dpService.setConnectionPolicy(activeGroupDevice, CONNECTION_POLICY_ALLOWED);
             }
             if (hearingAidService != null
                     && Utils.arrayContains(uuids, BluetoothUuid.HEARING_AID)) {
                 Log.d(TAG, "Enable ASHA for the device: " + activeGroupDevice);
-                hearingAidService.setConnectionPolicy(
-                        activeGroupDevice, BluetoothProfile.CONNECTION_POLICY_ALLOWED);
+                hearingAidService.setConnectionPolicy(activeGroupDevice, CONNECTION_POLICY_ALLOWED);
             }
         }
     }
@@ -2979,6 +2980,11 @@ public class LeAudioService extends ProfileService {
                 if (!device.equals(mActiveBroadcastAudioDevice)) {
                     updateBroadcastActiveDevice(device, mActiveBroadcastAudioDevice, true);
                 }
+
+                /* After group de-activation a fallback broadcast to unicast device would be
+                 * potential ringtone streaming device.
+                 */
+                updateInbandRingtoneForTheGroup(mUnicastGroupIdDeactivatedForBroadcastTransition);
             }
 
             updateActiveDevices(
@@ -3140,6 +3146,19 @@ public class LeAudioService extends ProfileService {
         mHfpHandoverDevice = null;
     }
 
+    boolean isBroadcastStarted() {
+        return isBroadcastActive() || isBroadcastReadyToBeReActivated();
+    }
+
+    /* Return true if Fallback Unicast Group For Broadcast is the given groupId and broadcast is
+     * active or ready to be activated.
+     */
+    boolean isFallbackUnicastGroupDuringBroadcast(int groupId) {
+        return (groupId != IBluetoothLeAudio.LE_AUDIO_GROUP_ID_INVALID)
+                && (groupId == mUnicastGroupIdDeactivatedForBroadcastTransition)
+                && isBroadcastStarted();
+    }
+
     void updateInbandRingtoneForTheGroup(int groupId) {
         if (!mLeAudioInbandRingtoneSupportedByPlatform) {
             Log.d(TAG, "Platform does not support inband ringtone");
@@ -3167,7 +3186,7 @@ public class LeAudioService extends ProfileService {
             }
 
             /* Enables in-band ringtone only for the currently active device or
-             * primary device in broadcast scenarios.
+             * fallback broadcast to unicast device in broadcast scenarios.
              * Devices are notified of its state over GTBS.
              * When enabled, remote devices will not generate an internal ringtone upon
              * receiving a GTBS incoming call notification. Instead, they will wait for a
@@ -3181,15 +3200,14 @@ public class LeAudioService extends ProfileService {
             boolean isRingtoneEnabled =
                     ringtoneContextAvailable
                             && (groupDescriptor.isActive()
-                                    || isPrimaryGroup(groupId)
-                                    || isBroadcastReadyToBeReActivated());
-
+                                    || isFallbackUnicastGroupDuringBroadcast(groupId));
             Log.i(
                     TAG,
                     "updateInbandRingtoneForTheGroup groupId: "
                             + (groupId + ", active state: " + groupDescriptor.mActiveState)
                             + (", ringtone supported: " + ringtoneContextAvailable)
-                            + (", is primary group: " + isPrimaryGroup(groupId))
+                            + (", is fallback Unicast group during broadcast: "
+                                    + isFallbackUnicastGroupDuringBroadcast(groupId))
                             + (", isBroadcastReadyToBeReActivated: "
                                     + isBroadcastReadyToBeReActivated())
                             + (", state change: "
@@ -3272,6 +3290,11 @@ public class LeAudioService extends ProfileService {
                         + mUnicastGroupIdDeactivatedForBroadcastTransition
                         + ", with device: "
                         + unicastDevice);
+
+        /* After group activation a fallback broadcast to unicast device should be no longer
+         * potential ringtone streaming device.
+         */
+        updateInbandRingtoneForTheGroup(mUnicastGroupIdDeactivatedForBroadcastTransition);
 
         if (!Flags.leaudioBroadcastPrimaryGroupSelection()) {
             updateFallbackUnicastGroupIdForBroadcast(LE_AUDIO_GROUP_ID_INVALID);
@@ -4146,7 +4169,7 @@ public class LeAudioService extends ProfileService {
             if (sm == null) {
                 return;
             }
-            if (sm.getConnectionState() != BluetoothProfile.STATE_DISCONNECTED) {
+            if (sm.getConnectionState() != STATE_DISCONNECTED) {
                 Log.w(TAG, "Device is not disconnected yet.");
                 disconnect(device);
                 return;
@@ -4354,8 +4377,8 @@ public class LeAudioService extends ProfileService {
         if (bondState != BluetoothDevice.BOND_BONDED) {
             Log.w(TAG, "okToConnect: return false, bondState=" + bondState);
             return false;
-        } else if (connectionPolicy != BluetoothProfile.CONNECTION_POLICY_UNKNOWN
-                && connectionPolicy != BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
+        } else if (connectionPolicy != CONNECTION_POLICY_UNKNOWN
+                && connectionPolicy != CONNECTION_POLICY_ALLOWED) {
             // Otherwise, reject the connection if connectionPolicy is not valid.
             Log.w(TAG, "okToConnect: return false, connectionPolicy=" + connectionPolicy);
             return false;
@@ -4505,7 +4528,7 @@ public class LeAudioService extends ProfileService {
             return false;
         }
 
-        if (connectionPolicy == BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
+        if (connectionPolicy == CONNECTION_POLICY_ALLOWED) {
             setEnabledState(device, /* enabled= */ true);
             // Authorizes LEA GATT server services if already assigned to a group
             int groupId = getGroupId(device);
@@ -4513,7 +4536,7 @@ public class LeAudioService extends ProfileService {
                 setAuthorizationForRelatedProfiles(device, true);
             }
             connect(device);
-        } else if (connectionPolicy == BluetoothProfile.CONNECTION_POLICY_FORBIDDEN) {
+        } else if (connectionPolicy == CONNECTION_POLICY_FORBIDDEN) {
             setEnabledState(device, /* enabled= */ false);
             // Remove authorization for LEA GATT server services
             setAuthorizationForRelatedProfiles(device, false);
@@ -4879,11 +4902,10 @@ public class LeAudioService extends ProfileService {
             }
             for (BluetoothDevice device : mDeviceDescriptors.keySet()) {
                 int connection_policy = getConnectionPolicy(device);
-                if (connection_policy != BluetoothProfile.CONNECTION_POLICY_FORBIDDEN) {
+                if (connection_policy != CONNECTION_POLICY_FORBIDDEN) {
                     setAuthorizationForRelatedProfiles(device, true);
                 }
-                setEnabledState(
-                        device, connection_policy != BluetoothProfile.CONNECTION_POLICY_FORBIDDEN);
+                setEnabledState(device, connection_policy != CONNECTION_POLICY_FORBIDDEN);
             }
         } finally {
             mGroupReadLock.unlock();
@@ -5272,7 +5294,18 @@ public class LeAudioService extends ProfileService {
                         + mUnicastGroupIdDeactivatedForBroadcastTransition
                         + " to : "
                         + groupId);
+        int oldBroadcastToUnicastFallbackGroup = mUnicastGroupIdDeactivatedForBroadcastTransition;
         mUnicastGroupIdDeactivatedForBroadcastTransition = groupId;
+
+        // Revise inband ringtone support for old and new Fallback Unicast group
+        if (isBroadcastStarted()) {
+            if (oldBroadcastToUnicastFallbackGroup != LE_AUDIO_GROUP_ID_INVALID) {
+                updateInbandRingtoneForTheGroup(oldBroadcastToUnicastFallbackGroup);
+            }
+            if (groupId != LE_AUDIO_GROUP_ID_INVALID) {
+                updateInbandRingtoneForTheGroup(groupId);
+            }
+        }
 
         // waive WRITE_SECURE_SETTINGS permission check
         final long callingIdentity = Binder.clearCallingIdentity();
@@ -5771,7 +5804,7 @@ public class LeAudioService extends ProfileService {
 
             LeAudioService service = getServiceAndEnforceConnect(source);
             if (service == null) {
-                return BluetoothProfile.STATE_DISCONNECTED;
+                return STATE_DISCONNECTED;
             }
 
             return service.getConnectionState(device);
@@ -5854,7 +5887,7 @@ public class LeAudioService extends ProfileService {
 
             LeAudioService service = getServiceAndEnforceConnect(source);
             if (service == null) {
-                return BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
+                return CONNECTION_POLICY_UNKNOWN;
             }
 
             service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);

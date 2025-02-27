@@ -55,7 +55,7 @@ using namespace bluetooth;
 bluetooth::common::MessageLoopThread message_loop_thread("test message loop");
 bluetooth::common::MessageLoopThread* get_main_thread() { return &message_loop_thread; }
 bt_status_t do_in_main_thread(base::OnceClosure task) {
-  if (!message_loop_thread.DoInThread(FROM_HERE, std::move(task))) {
+  if (!message_loop_thread.DoInThread(std::move(task))) {
     log::error("failed to post task to task runner!");
     return BT_STATUS_FAIL;
   }

@@ -16,6 +16,8 @@
 
 package android.bluetooth;
 
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.any;
@@ -91,7 +93,7 @@ public class GattServerConnectWithScanTest {
 
             gattServer.connect(device, false);
             verify(mockGattServerCallback, timeout(TIMEOUT_GATT_CONNECTION_MS))
-                    .onConnectionStateChange(any(), anyInt(), eq(BluetoothProfile.STATE_CONNECTED));
+                    .onConnectionStateChange(any(), anyInt(), eq(STATE_CONNECTED));
         } finally {
             gattServer.close();
         }
@@ -118,7 +120,7 @@ public class GattServerConnectWithScanTest {
 
             gattServer.connect(device, false);
             verify(mockGattServerCallback, timeout(TIMEOUT_GATT_CONNECTION_MS))
-                    .onConnectionStateChange(any(), anyInt(), eq(BluetoothProfile.STATE_CONNECTED));
+                    .onConnectionStateChange(any(), anyInt(), eq(STATE_CONNECTED));
         } finally {
             gattServer.close();
         }
@@ -142,7 +144,7 @@ public class GattServerConnectWithScanTest {
         try {
             gattServer.connect(mBumble.getRemoteDevice(), false);
             verify(mockGattServerCallback, timeout(TIMEOUT_GATT_CONNECTION_MS))
-                    .onConnectionStateChange(any(), anyInt(), eq(BluetoothProfile.STATE_CONNECTED));
+                    .onConnectionStateChange(any(), anyInt(), eq(STATE_CONNECTED));
         } finally {
             gattServer.close();
         }
@@ -166,7 +168,7 @@ public class GattServerConnectWithScanTest {
         try {
             gattServer.connect(mBumble.getRemoteDevice(), false);
             verify(mockGattServerCallback, timeout(TIMEOUT_GATT_CONNECTION_MS))
-                    .onConnectionStateChange(any(), anyInt(), eq(BluetoothProfile.STATE_CONNECTED));
+                    .onConnectionStateChange(any(), anyInt(), eq(STATE_CONNECTED));
         } finally {
             gattServer.close();
         }

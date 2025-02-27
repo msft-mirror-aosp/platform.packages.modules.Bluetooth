@@ -19,6 +19,9 @@ package android.bluetooth;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
 import static java.util.Objects.requireNonNull;
 
@@ -972,7 +975,7 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
-        return BluetoothProfile.STATE_DISCONNECTED;
+        return STATE_DISCONNECTED;
     }
 
     /**
@@ -1291,8 +1294,8 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
             if (DBG) log(Log.getStackTraceString(new Throwable()));
         } else if (mAdapter.isEnabled()
                 && isValidDevice(device)
-                && (connectionPolicy == BluetoothProfile.CONNECTION_POLICY_FORBIDDEN
-                        || connectionPolicy == BluetoothProfile.CONNECTION_POLICY_ALLOWED)) {
+                && (connectionPolicy == CONNECTION_POLICY_FORBIDDEN
+                        || connectionPolicy == CONNECTION_POLICY_ALLOWED)) {
             try {
                 return service.setConnectionPolicy(device, connectionPolicy, mAttributionSource);
             } catch (RemoteException e) {
@@ -1328,29 +1331,7 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
-        return BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
-    }
-
-    /**
-     * Helper for converting a state to a string.
-     *
-     * <p>For debug use only - strings are not internationalized.
-     *
-     * @hide
-     */
-    public static String stateToString(int state) {
-        switch (state) {
-            case STATE_DISCONNECTED:
-                return "disconnected";
-            case STATE_CONNECTING:
-                return "connecting";
-            case STATE_CONNECTED:
-                return "connected";
-            case STATE_DISCONNECTING:
-                return "disconnecting";
-            default:
-                return "<unknown state " + state + ">";
-        }
+        return CONNECTION_POLICY_FORBIDDEN;
     }
 
     private static boolean isValidDevice(@Nullable BluetoothDevice device) {

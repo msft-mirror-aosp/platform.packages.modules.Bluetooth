@@ -17,6 +17,8 @@
 package android.bluetooth
 
 import android.Manifest
+import android.bluetooth.BluetoothProfile.STATE_CONNECTED
+import android.bluetooth.BluetoothProfile.STATE_DISCONNECTED
 import android.bluetooth.test_utils.EnableBluetoothRule
 import android.content.Context
 import android.platform.test.annotations.RequiresFlagsEnabled
@@ -75,7 +77,7 @@ public class DckL2capTest() : Closeable {
     private val bluetoothAdapter = bluetoothManager.adapter
     private val openedGatts: MutableList<BluetoothGatt> = mutableListOf()
     private var serviceDiscoveredFlow = MutableStateFlow(false)
-    private var connectionStateFlow = MutableStateFlow(BluetoothProfile.STATE_DISCONNECTED)
+    private var connectionStateFlow = MutableStateFlow(STATE_DISCONNECTED)
     private var dckSpsmFlow = MutableStateFlow(0)
     private var dckSpsm = 0
     private var connectionHandle = BluetoothDevice.ERROR
@@ -367,9 +369,7 @@ public class DckL2capTest() : Closeable {
     private fun readDckSpsm(gatt: BluetoothGatt) = runBlocking {
         Log.d(TAG, "readDckSpsm")
         launch {
-            withTimeout(GRPC_TIMEOUT) {
-                connectionStateFlow.first { it == BluetoothProfile.STATE_CONNECTED }
-            }
+            withTimeout(GRPC_TIMEOUT) { connectionStateFlow.first { it == STATE_CONNECTED } }
             Log.i(TAG, "Connected to GATT")
             gatt.discoverServices()
             withTimeout(GRPC_TIMEOUT) { serviceDiscoveredFlow.first { it == true } }

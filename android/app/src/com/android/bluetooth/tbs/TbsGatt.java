@@ -18,6 +18,7 @@
 package com.android.bluetooth.tbs;
 
 import static android.bluetooth.BluetoothDevice.METADATA_GTBS_CCCD;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
 import static java.util.Objects.requireNonNull;
 
@@ -28,7 +29,6 @@ import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattServerCallback;
 import android.bluetooth.BluetoothGattService;
-import android.bluetooth.BluetoothProfile;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
@@ -1491,7 +1491,7 @@ public class TbsGatt {
                         BluetoothDevice device, int status, int newState) {
                     super.onConnectionStateChange(device, status, newState);
                     Log.d(TAG, "BluetoothGattServerCallback: onConnectionStateChange");
-                    if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                    if (newState == STATE_DISCONNECTED) {
                         clearUnauthorizedGattOperationss(device);
                     }
                 }

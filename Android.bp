@@ -121,6 +121,7 @@ java_defaults {
         javacflags: [
             "-Xep:AlmostJavadoc:ERROR",
             "-Xep:AlreadyChecked:ERROR",
+            "-Xep:ArrayRecordComponent:ERROR",
             "-Xep:BadImport:ERROR",
             "-Xep:CatchAndPrintStackTrace:ERROR",
             "-Xep:CatchFail:ERROR",
@@ -136,6 +137,7 @@ java_defaults {
             "-Xep:EqualsHashCode:ERROR",
             "-Xep:EqualsIncompatibleType:ERROR",
             "-Xep:FallThrough:ERROR",
+            "-Xep:FieldCanBeStatic:ERROR",
             "-Xep:Finalize:ERROR",
             "-Xep:ForEachIterable:ERROR",
             "-Xep:FutureReturnValueIgnored:ERROR",
@@ -172,6 +174,7 @@ java_defaults {
             "-Xep:ReferenceEquality:ERROR",
             "-Xep:ReturnAtTheEndOfVoidFunction:ERROR",
             "-Xep:ReturnFromVoid:ERROR",
+            "-Xep:SelfAssertion:ERROR",
             "-Xep:StaticAssignmentInConstructor:ERROR",
             "-Xep:StaticGuardedByInstance:ERROR",
             "-Xep:StringCaseLocaleUsage:ERROR",

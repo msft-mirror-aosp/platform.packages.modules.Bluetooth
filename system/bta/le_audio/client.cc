@@ -145,6 +145,7 @@ using bluetooth::le_audio::types::AudioLocations;
 using bluetooth::le_audio::types::BidirectionalPair;
 using bluetooth::le_audio::types::DataPathState;
 using bluetooth::le_audio::types::hdl_pair;
+using bluetooth::le_audio::types::hdl_pair_wrapper;
 using bluetooth::le_audio::types::kLeAudioContextAllRemoteSource;
 using bluetooth::le_audio::types::kLeAudioContextAllTypesArray;
 using bluetooth::le_audio::types::LeAudioContextType;
@@ -845,9 +846,9 @@ public:
       /* All the configurations should be recalculated for the new conditions */
       group->InvalidateCachedConfigurations();
       group->InvalidateGroupStrategy();
-      callbacks_->OnAudioConf(
-              group->audio_directions_, group->group_id_, group->snk_audio_locations_.to_ulong(),
-              group->src_audio_locations_.to_ulong(), group->GetAvailableContexts().value());
+      callbacks_->OnAudioConf(group->audio_directions_, group->group_id_,
+                              group->audio_locations_.sink, group->audio_locations_.source,
+                              group->GetAvailableContexts().value());
     }
   }
 
@@ -1933,8 +1934,9 @@ public:
   }
 
   /* Restore paired device from storage to recreate groups */
-  void AddFromStorage(const RawAddress& address, bool autoconnect, int sink_audio_location,
-                      int source_audio_location, int sink_supported_context_types,
+  void AddFromStorage(const RawAddress& address, bool autoconnect,
+                      std::optional<int> sink_audio_location,
+                      std::optional<int> source_audio_location, int sink_supported_context_types,
                       int source_supported_context_types, const std::vector<uint8_t>& handles,
                       const std::vector<uint8_t>& sink_pacs,
                       const std::vector<uint8_t>& source_pacs, const std::vector<uint8_t>& ases,
@@ -1950,7 +1952,9 @@ public:
             "restoring: {}, autoconnect {}, sink_audio_location: {}, "
             "source_audio_location: {}, sink_supported_context_types : 0x{:04x}, "
             "source_supported_context_types 0x{:04x}",
-            address, autoconnect, sink_audio_location, source_audio_location,
+            address, autoconnect,
+            sink_audio_location ? std::to_string(sink_audio_location.value()) : "none",
+            source_audio_location ? std::to_string(source_audio_location.value()) : "none",
             sink_supported_context_types, source_supported_context_types);
 
     leAudioDevices_.Add(address, DeviceConnectState::DISCONNECTED);
@@ -1961,11 +1965,6 @@ public:
     if (group_id != bluetooth::groups::kGroupUnknown) {
       group_add_node(group_id, address);
     }
-
-    leAudioDevice->src_audio_locations_ = source_audio_location;
-    leAudioDevice->snk_audio_locations_ = sink_audio_location;
-    callbacks_->OnSinkAudioLocationAvailable(leAudioDevice->address_,
-                                             leAudioDevice->snk_audio_locations_.to_ulong());
 
     BidirectionalPair<AudioContexts> supported_contexts = {
             .sink = AudioContexts(sink_supported_context_types),
@@ -1981,12 +1980,22 @@ public:
       log::warn("Could not load Handles");
     }
 
+    if (sink_audio_location) {
+      leAudioDevice->audio_locations_.sink->value = sink_audio_location.value();
+    }
+
+    if (source_audio_location) {
+      leAudioDevice->audio_locations_.source->value = source_audio_location.value();
+    }
+
     /* Presence of PAC characteristic for a direction means support for that direction */
-    if (leAudioDevice->src_audio_locations_hdls_.val_hdl != 0) {
+    if (leAudioDevice->audio_locations_.source) {
       leAudioDevice->audio_directions_ |= bluetooth::le_audio::types::kLeAudioDirectionSource;
     }
-    if (leAudioDevice->snk_audio_locations_hdls_.val_hdl != 0) {
+    if (leAudioDevice->audio_locations_.sink) {
       leAudioDevice->audio_directions_ |= bluetooth::le_audio::types::kLeAudioDirectionSink;
+      callbacks_->OnSinkAudioLocationAvailable(leAudioDevice->address_,
+                                               leAudioDevice->audio_locations_.sink->value);
     }
 
     if (!DeserializeSinkPacs(leAudioDevice, sink_pacs)) {
@@ -2198,13 +2207,13 @@ public:
                                            std::get<0>(pac_tuple).val_hdl);
     }
 
-    if (leAudioDevice->snk_audio_locations_hdls_.val_hdl != 0) {
+    if (leAudioDevice->audio_locations_.sink) {
       BTA_GATTC_DeregisterForNotifications(gatt_if_, leAudioDevice->address_,
-                                           leAudioDevice->snk_audio_locations_hdls_.val_hdl);
+                                           leAudioDevice->audio_locations_.sink->handles.val_hdl);
     }
-    if (leAudioDevice->src_audio_locations_hdls_.val_hdl != 0) {
+    if (leAudioDevice->audio_locations_.source) {
       BTA_GATTC_DeregisterForNotifications(gatt_if_, leAudioDevice->address_,
-                                           leAudioDevice->src_audio_locations_hdls_.val_hdl);
+                                           leAudioDevice->audio_locations_.source->handles.val_hdl);
     }
     if (leAudioDevice->audio_avail_hdls_.val_hdl != 0) {
       BTA_GATTC_DeregisterForNotifications(gatt_if_, leAudioDevice->address_,
@@ -2326,15 +2335,15 @@ public:
       return;
     }
 
-    if (hdl == leAudioDevice->snk_audio_locations_hdls_.val_hdl) {
+    if (leAudioDevice->audio_locations_.sink &&
+        hdl == leAudioDevice->audio_locations_.sink->handles.val_hdl) {
       AudioLocations snk_audio_locations;
-
       bluetooth::le_audio::client_parser::pacs::ParseAudioLocations(snk_audio_locations, len,
                                                                     value);
 
       /* Value may not change */
-      if ((leAudioDevice->audio_directions_ & bluetooth::le_audio::types::kLeAudioDirectionSink) &&
-          (leAudioDevice->snk_audio_locations_ ^ snk_audio_locations).none()) {
+      if (!leAudioDevice->audio_locations_.sink ||
+          (leAudioDevice->audio_locations_.sink->value ^ snk_audio_locations).none()) {
         return;
       }
 
@@ -2342,29 +2351,26 @@ public:
        * audio location. Value of 0x00000000 means mono/unspecified
        */
       leAudioDevice->audio_directions_ |= bluetooth::le_audio::types::kLeAudioDirectionSink;
-      leAudioDevice->snk_audio_locations_ = snk_audio_locations;
+      leAudioDevice->audio_locations_.sink->value = snk_audio_locations;
 
-      callbacks_->OnSinkAudioLocationAvailable(leAudioDevice->address_,
-                                               snk_audio_locations.to_ulong());
+      callbacks_->OnSinkAudioLocationAvailable(leAudioDevice->address_, snk_audio_locations);
 
       if (notify) {
-        btif_storage_set_leaudio_audio_location(leAudioDevice->address_,
-                                                leAudioDevice->snk_audio_locations_.to_ulong(),
-                                                leAudioDevice->src_audio_locations_.to_ulong());
+        btif_storage_set_leaudio_sink_audio_location(
+                leAudioDevice->address_, leAudioDevice->audio_locations_.sink->value.to_ulong());
         if (group && group->IsReleasingOrIdle()) {
           UpdateLocationsAndContextsAvailability(group);
         }
       }
-    } else if (hdl == leAudioDevice->src_audio_locations_hdls_.val_hdl) {
+    } else if (leAudioDevice->audio_locations_.source &&
+               hdl == leAudioDevice->audio_locations_.source->handles.val_hdl) {
       AudioLocations src_audio_locations;
-
       bluetooth::le_audio::client_parser::pacs::ParseAudioLocations(src_audio_locations, len,
                                                                     value);
 
       /* Value may not change */
-      if ((leAudioDevice->audio_directions_ &
-           bluetooth::le_audio::types::kLeAudioDirectionSource) &&
-          (leAudioDevice->src_audio_locations_ ^ src_audio_locations).none()) {
+      if (!leAudioDevice->audio_locations_.source ||
+          (leAudioDevice->audio_locations_.source->value ^ src_audio_locations).none()) {
         return;
       }
 
@@ -2372,12 +2378,11 @@ public:
        * audio location. Value of 0x00000000 means mono/unspecified
        */
       leAudioDevice->audio_directions_ |= bluetooth::le_audio::types::kLeAudioDirectionSource;
-      leAudioDevice->src_audio_locations_ = src_audio_locations;
+      leAudioDevice->audio_locations_.source->value = src_audio_locations;
 
       if (notify) {
-        btif_storage_set_leaudio_audio_location(leAudioDevice->address_,
-                                                leAudioDevice->snk_audio_locations_.to_ulong(),
-                                                leAudioDevice->src_audio_locations_.to_ulong());
+        btif_storage_set_leaudio_source_audio_location(
+                leAudioDevice->address_, leAudioDevice->audio_locations_.source->value.to_ulong());
         if (group && group->IsReleasingOrIdle()) {
           UpdateLocationsAndContextsAvailability(group);
         }
@@ -2624,14 +2629,14 @@ public:
                                  std::get<0>(pac_tuple), gatt_register, write_ccc);
     }
 
-    if (leAudioDevice->snk_audio_locations_hdls_.val_hdl != 0) {
+    if (leAudioDevice->audio_locations_.sink) {
       subscribe_for_notification(leAudioDevice->conn_id_, leAudioDevice->address_,
-                                 leAudioDevice->snk_audio_locations_hdls_, gatt_register,
+                                 leAudioDevice->audio_locations_.sink->handles, gatt_register,
                                  write_ccc);
     }
-    if (leAudioDevice->src_audio_locations_hdls_.val_hdl != 0) {
+    if (leAudioDevice->audio_locations_.source) {
       subscribe_for_notification(leAudioDevice->conn_id_, leAudioDevice->address_,
-                                 leAudioDevice->src_audio_locations_hdls_, gatt_register,
+                                 leAudioDevice->audio_locations_.source->handles, gatt_register,
                                  write_ccc);
     }
 
@@ -2972,7 +2977,7 @@ public:
   }
 
   bool subscribe_for_notification(tCONN_ID conn_id, const RawAddress& address,
-                                  struct bluetooth::le_audio::types::hdl_pair handle_pair,
+                                  const struct bluetooth::le_audio::types::hdl_pair& handle_pair,
                                   bool gatt_register = true, bool write_ccc = true) {
     std::vector<uint8_t> value(2);
     uint8_t* ptr = value.data();
@@ -3282,55 +3287,51 @@ public:
                 "Found Source PAC characteristic, handle: 0x{:04x}, ccc handle: 0x{:04x}, addr: {}",
                 charac.value_handle, hdl_pair.ccc_hdl, leAudioDevice->address_);
       } else if (charac.uuid == bluetooth::le_audio::uuid::kSinkAudioLocationCharacteristicUuid) {
-        leAudioDevice->snk_audio_locations_hdls_.val_hdl = charac.value_handle;
-        leAudioDevice->snk_audio_locations_hdls_.ccc_hdl = find_ccc_handle(charac);
+        auto ccc_hdl = find_ccc_handle(charac);
+        leAudioDevice->audio_locations_.sink.emplace(hdl_pair(charac.value_handle, ccc_hdl),
+                                                     AudioLocations(0));
 
-        if (leAudioDevice->snk_audio_locations_hdls_.ccc_hdl == 0) {
+        if (ccc_hdl == 0) {
           log::info(", snk audio locations char doesn't have ccc");
-        }
-
-        if (leAudioDevice->snk_audio_locations_hdls_.ccc_hdl != 0 &&
-            !subscribe_for_notification(conn_id, leAudioDevice->address_,
-                                        leAudioDevice->snk_audio_locations_hdls_)) {
+        } else if (!subscribe_for_notification(conn_id, leAudioDevice->address_,
+                                               leAudioDevice->audio_locations_.sink->handles)) {
           disconnectInvalidDevice(leAudioDevice, ", could not subscribe for snk locations char",
                                   LeAudioHealthDeviceStatType::INVALID_DB);
           return;
         }
 
         /* Obtain initial state of sink audio locations */
-        BtaGattQueue::ReadCharacteristic(conn_id, leAudioDevice->snk_audio_locations_hdls_.val_hdl,
+        BtaGattQueue::ReadCharacteristic(conn_id,
+                                         leAudioDevice->audio_locations_.sink->handles.val_hdl,
                                          OnGattReadRspStatic, NULL);
 
         log::info(
-                "Found Sink audio locations characteristic, handle: 0x{:04x}, ccc "
-                "handle: 0x{:04x}, addr: {}",
-                charac.value_handle, leAudioDevice->snk_audio_locations_hdls_.ccc_hdl,
-                leAudioDevice->address_);
+                "Found Sink audio locations characteristic, handle: 0x{:04x}, ccc handle: "
+                "0x{:04x}, addr: {}",
+                charac.value_handle, ccc_hdl, leAudioDevice->address_);
       } else if (charac.uuid == bluetooth::le_audio::uuid::kSourceAudioLocationCharacteristicUuid) {
-        leAudioDevice->src_audio_locations_hdls_.val_hdl = charac.value_handle;
-        leAudioDevice->src_audio_locations_hdls_.ccc_hdl = find_ccc_handle(charac);
+        auto ccc_hdl = find_ccc_handle(charac);
+        leAudioDevice->audio_locations_.source.emplace(hdl_pair(charac.value_handle, ccc_hdl),
+                                                       AudioLocations(0));
 
-        if (leAudioDevice->src_audio_locations_hdls_.ccc_hdl == 0) {
+        if (ccc_hdl == 0) {
           log::info(", src audio locations char doesn't have ccc");
-        }
-
-        if (leAudioDevice->src_audio_locations_hdls_.ccc_hdl != 0 &&
-            !subscribe_for_notification(conn_id, leAudioDevice->address_,
-                                        leAudioDevice->src_audio_locations_hdls_)) {
+        } else if (!subscribe_for_notification(conn_id, leAudioDevice->address_,
+                                               leAudioDevice->audio_locations_.source->handles)) {
           disconnectInvalidDevice(leAudioDevice, ", could not subscribe for src locations char",
                                   LeAudioHealthDeviceStatType::INVALID_DB);
           return;
         }
 
         /* Obtain initial state of source audio locations */
-        BtaGattQueue::ReadCharacteristic(conn_id, leAudioDevice->src_audio_locations_hdls_.val_hdl,
+        BtaGattQueue::ReadCharacteristic(conn_id,
+                                         leAudioDevice->audio_locations_.source->handles.val_hdl,
                                          OnGattReadRspStatic, NULL);
 
         log::info(
-                "Found Source audio locations characteristic, handle: 0x{:04x}, "
-                "ccc handle: 0x{:04x}, addr: {}",
-                charac.value_handle, leAudioDevice->src_audio_locations_hdls_.ccc_hdl,
-                leAudioDevice->address_);
+                "Found Source audio locations characteristic, handle: 0x{:04x}, ccc handle: "
+                "0x{:04x}, addr: {}",
+                charac.value_handle, ccc_hdl, leAudioDevice->address_);
       } else if (charac.uuid ==
                  bluetooth::le_audio::uuid::kAudioContextAvailabilityCharacteristicUuid) {
         leAudioDevice->audio_avail_hdls_.val_hdl = charac.value_handle;
@@ -3948,8 +3949,11 @@ public:
     uint16_t left_cis_handle = 0;
     uint16_t right_cis_handle = 0;
     for (auto const& info : group->stream_conf.stream_params.source.stream_config.stream_map) {
-      if (info.audio_channel_allocation &
-          bluetooth::le_audio::codec_spec_conf::kLeAudioLocationAnyLeft) {
+      // Use the left channel decoder for the Mono Audio microphone
+      auto is_mono = info.audio_channel_allocation ==
+                     bluetooth::le_audio::codec_spec_conf::kLeAudioLocationMonoAudio;
+      if (is_mono || (info.audio_channel_allocation &
+                      bluetooth::le_audio::codec_spec_conf::kLeAudioLocationAnyLeft)) {
         left_cis_handle = info.stream_handle;
       }
       if (info.audio_channel_allocation &
@@ -5407,6 +5411,24 @@ public:
     auto all_bidirectional_contexts = group->GetAllSupportedBidirectionalContextTypes();
     log::debug("all_bidirectional_contexts {}", ToString(all_bidirectional_contexts));
 
+    /*
+     * Detect the gaming scenario and mirror the context to the other direction.
+     * Thanks to this, we will be able to configure even Microphone only devices, for the GAME
+     * audio context detected on the local audio source, which never gets resumed for such devices.
+     */
+    if (remote_metadata.sink.test(LeAudioContextType::GAME)) {
+      auto ctxs = group->GetSupportedContexts(bluetooth::le_audio::types::kLeAudioDirectionSource) &
+                  AudioContexts(LeAudioContextType::GAME) &
+                  bluetooth::le_audio::types::kLeAudioContextAllBidir;
+      if (ctxs.any()) {
+        log::debug(
+                "Gaming scenario detected. Use this audio context for the other direction if "
+                "supported");
+        remote_metadata.source.clear();
+        remote_metadata.source.set_all(ctxs);
+      }
+    }
+
     /* Make sure we have CONVERSATIONAL when in a call and it is not mixed
      * with any other bidirectional context
      */
@@ -5446,10 +5468,26 @@ public:
     log::debug("is_ongoing_call_on_other_direction={}",
                is_ongoing_call_on_other_direction ? "True" : "False");
 
-    if (remote_metadata.get(remote_other_direction).test_any(all_bidirectional_contexts) &&
-        !(is_streaming_other_direction || is_releasing_for_reconfiguration_other_direction)) {
-      log::debug("The other direction is not streaming bidirectional, ignore that context.");
-      remote_metadata.get(remote_other_direction).clear();
+    /* If the other direction is a bidir scenario we might want to take it into the account, but
+     * not always. Look below for details.
+     */
+    auto is_other_direction_bidir =
+            remote_metadata.get(remote_other_direction).test_any(all_bidirectional_contexts);
+
+    /* If the not-resumed direction is local source, we might need to take it's metadata,
+     * (this way we detect GAME scenario), but local sink metadata is unreliable.
+     */
+    bool take_unresumed_local_source_metadata_for_mic_only_devices =
+            (group->audio_locations_.sink == std::nullopt) &&
+            (local_other_direction == bluetooth::le_audio::types::kLeAudioDirectionSource);
+    if (is_other_direction_bidir) {
+      if (!(is_streaming_other_direction || is_releasing_for_reconfiguration_other_direction) &&
+          !take_unresumed_local_source_metadata_for_mic_only_devices) {
+        log::debug(
+                "The other direction is not streaming bidirectional or is not a reliable source of "
+                "metadata, ignore that context.");
+        remote_metadata.get(remote_other_direction).clear();
+      }
     }
 
     auto single_direction_only_context_types =
@@ -5474,7 +5512,8 @@ public:
         remote_metadata.get(remote_direction).unset_all(all_bidirectional_contexts);
         remote_metadata.get(remote_direction).set(LeAudioContextType::CONVERSATIONAL);
       } else {
-        if (!(is_streaming_other_direction || is_releasing_for_reconfiguration_other_direction)) {
+        if (!(is_streaming_other_direction || is_releasing_for_reconfiguration_other_direction) &&
+            !take_unresumed_local_source_metadata_for_mic_only_devices) {
           // Do not take the obsolete metadata
           remote_metadata.get(remote_other_direction).clear();
         } else {
@@ -5729,9 +5768,14 @@ public:
       btif_storage_leaudio_update_pacs_bin(leAudioDevice->address_);
       btif_storage_leaudio_update_ase_bin(leAudioDevice->address_);
 
-      btif_storage_set_leaudio_audio_location(leAudioDevice->address_,
-                                              leAudioDevice->snk_audio_locations_.to_ulong(),
-                                              leAudioDevice->src_audio_locations_.to_ulong());
+      if (leAudioDevice->audio_locations_.sink) {
+        btif_storage_set_leaudio_sink_audio_location(
+                leAudioDevice->address_, leAudioDevice->audio_locations_.sink->value.to_ulong());
+      }
+      if (leAudioDevice->audio_locations_.source) {
+        btif_storage_set_leaudio_source_audio_location(
+                leAudioDevice->address_, leAudioDevice->audio_locations_.source->value.to_ulong());
+      }
 
       instance->connectionReady(leAudioDevice);
     }
@@ -6794,8 +6838,8 @@ DeviceGroupsCallbacksImpl deviceGroupsCallbacksImpl;
 }  // namespace
 
 void LeAudioClient::AddFromStorage(
-        const RawAddress& addr, bool autoconnect, int sink_audio_location,
-        int source_audio_location, int sink_supported_context_types,
+        const RawAddress& addr, bool autoconnect, std::optional<int> sink_audio_location,
+        std::optional<int> source_audio_location, int sink_supported_context_types,
         int source_supported_context_types, const std::vector<uint8_t>& handles,
         const std::vector<uint8_t>& sink_pacs, const std::vector<uint8_t>& source_pacs,
         const std::vector<uint8_t>& ases, const std::vector<uint8_t>& gmap) {
@@ -6909,12 +6953,22 @@ void LeAudioClient::Initialize(
                                             cm->GetLocalAudioOutputCodecCapa());
 
   if (GmapServer::IsGmapServerEnabled()) {
-    auto capabilities = cm->GetLocalAudioOutputCodecCapa();
     std::bitset<8> UGG_feature = GmapServer::GetUGGFeature();
-    for (auto& capa : capabilities) {
+
+    auto input_capabilities = cm->GetLocalAudioOutputCodecCapa();
+    for (auto& capa : input_capabilities) {
       if (capa.sample_rate == bluetooth::le_audio::LE_AUDIO_SAMPLE_RATE_INDEX_48000HZ) {
         UGG_feature |= static_cast<uint8_t>(
                 bluetooth::gmap::UGGFeatureBitMask::NinetySixKbpsSourceFeatureSupport);
+        break;
+      }
+    }
+
+    auto output_capabilities = cm->GetLocalAudioOutputCodecCapa();
+    for (auto& capa : output_capabilities) {
+      if (capa.channel_count > bluetooth::le_audio::LE_AUDIO_CHANNEL_COUNT_INDEX_1) {
+        UGG_feature |=
+                static_cast<uint8_t>(bluetooth::gmap::UGGFeatureBitMask::MultiplexFeatureSupport);
         break;
       }
     }

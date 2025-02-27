@@ -16,6 +16,11 @@
 
 package com.android.bluetooth.pbapclient;
 
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
+
 import static java.util.Objects.requireNonNull;
 
 import android.accounts.Account;
@@ -89,7 +94,7 @@ public class PbapClientService extends ProfileService {
                             + oldState
                             + ", new="
                             + newState);
-            if (oldState != newState && newState == BluetoothProfile.STATE_DISCONNECTED) {
+            if (oldState != newState && newState == STATE_DISCONNECTED) {
                 removeDevice(mDevice);
             }
         }
@@ -295,7 +300,7 @@ public class PbapClientService extends ProfileService {
             PbapClientStateMachine pbapClientStateMachine = mPbapClientStateMachineMap.get(device);
             if (pbapClientStateMachine != null) {
                 int state = pbapClientStateMachine.getConnectionState();
-                if (state != BluetoothProfile.STATE_DISCONNECTED) {
+                if (state != STATE_DISCONNECTED) {
                     Log.w(TAG, "Removing connected device, device=" + device + ", state=" + state);
                 }
                 mPbapClientStateMachineMap.remove(device);
@@ -361,7 +366,7 @@ public class PbapClientService extends ProfileService {
      */
     public void handleHeadsetClientConnectionStateChanged(
             BluetoothDevice device, int oldState, int newState) {
-        if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+        if (newState == STATE_DISCONNECTED) {
             Log.d(TAG, "Received intent to disconnect HFP with " + device);
             if (Flags.pbapClientStorageRefactor()) {
                 Account account = mPbapClientContactsStorage.getStorageAccountForDevice(device);
@@ -439,7 +444,7 @@ public class PbapClientService extends ProfileService {
             return;
         }
 
-        if (getConnectionState(device) == BluetoothProfile.STATE_CONNECTED) {
+        if (getConnectionState(device) == STATE_CONNECTED) {
             disconnect(device);
         }
     }
@@ -524,7 +529,7 @@ public class PbapClientService extends ProfileService {
             throw new IllegalArgumentException("Null device");
         }
         Log.d(TAG, "connect(device=" + device.getAddress() + ")");
-        if (getConnectionPolicy(device) <= BluetoothProfile.CONNECTION_POLICY_FORBIDDEN) {
+        if (getConnectionPolicy(device) <= CONNECTION_POLICY_FORBIDDEN) {
             return false;
         }
 
@@ -585,7 +590,7 @@ public class PbapClientService extends ProfileService {
      * @return The list of connected PBAP Server devices
      */
     public List<BluetoothDevice> getConnectedDevices() {
-        int[] desiredStates = {BluetoothProfile.STATE_CONNECTED};
+        int[] desiredStates = {STATE_CONNECTED};
         return getDevicesMatchingConnectionStates(desiredStates);
     }
 
@@ -645,14 +650,14 @@ public class PbapClientService extends ProfileService {
         if (Flags.pbapClientStorageRefactor()) {
             PbapClientStateMachine pbapClientStateMachine = getDeviceStateMachine(device);
             if (pbapClientStateMachine == null) {
-                return BluetoothProfile.STATE_DISCONNECTED;
+                return STATE_DISCONNECTED;
             } else {
                 return pbapClientStateMachine.getConnectionState();
             }
         } else {
             PbapClientStateMachineOld smOld = mPbapClientStateMachineOldMap.get(device);
             if (smOld == null) {
-                return BluetoothProfile.STATE_DISCONNECTED;
+                return STATE_DISCONNECTED;
             } else {
                 return smOld.getConnectionState(device);
             }
@@ -683,9 +688,9 @@ public class PbapClientService extends ProfileService {
                 device, BluetoothProfile.PBAP_CLIENT, connectionPolicy)) {
             return false;
         }
-        if (connectionPolicy == BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
+        if (connectionPolicy == CONNECTION_POLICY_ALLOWED) {
             connect(device);
-        } else if (connectionPolicy == BluetoothProfile.CONNECTION_POLICY_FORBIDDEN) {
+        } else if (connectionPolicy == CONNECTION_POLICY_FORBIDDEN) {
             disconnect(device);
         }
         return true;

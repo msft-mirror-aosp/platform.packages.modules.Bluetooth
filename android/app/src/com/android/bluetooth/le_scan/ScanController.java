@@ -71,6 +71,8 @@ import com.android.internal.annotations.VisibleForTesting;
 
 import libcore.util.HexEncoding;
 
+import com.google.protobuf.ByteString;
+
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -424,13 +426,13 @@ public class ScanController {
                 BluetoothAdapter.getDefaultAdapter().getRemoteLeDevice(address, addressType);
 
         for (ScanClient client : mScanManager.getRegularScanQueue()) {
-            ScannerMap.ScannerApp app = mScannerMap.getById(client.scannerId);
+            ScannerMap.ScannerApp app = mScannerMap.getById(client.mScannerId);
             if (app == null) {
                 Log.v(TAG, "App is null; skip.");
                 continue;
             }
 
-            ScanSettings settings = client.settings;
+            ScanSettings settings = client.mSettings;
             byte[] scanRecordData;
             // This is for compatibility with applications that assume fixed size scan data.
             if (settings.getLegacy()) {
@@ -460,23 +462,23 @@ public class ScanController {
                             scanRecord,
                             SystemClock.elapsedRealtimeNanos());
 
-            if (client.hasDisavowedLocation) {
+            if (client.mHasDisavowedLocation) {
                 if (mLocationDenylistPredicate.test(result)) {
-                    Log.i(TAG, "Skipping client " + client.scannerId + " for location deny list");
+                    Log.i(TAG, "Skipping client " + client.mScannerId + " for location deny list");
                     continue;
                 }
             }
 
             boolean hasPermission = hasScanResultPermission(client);
             if (!hasPermission) {
-                for (String associatedDevice : client.associatedDevices) {
+                for (String associatedDevice : client.mAssociatedDevices) {
                     if (associatedDevice.equalsIgnoreCase(address)) {
                         hasPermission = true;
                         break;
                     }
                 }
             }
-            if (!hasPermission && client.eligibleForSanitizedExposureNotification) {
+            if (!hasPermission && client.mEligibleForSanitizedExposureNotification) {
                 ScanResult sanitized = getSanitizedExposureNotification(result);
                 if (sanitized != null) {
                     hasPermission = true;
@@ -499,7 +501,7 @@ public class ScanController {
             }
 
             try {
-                app.mAppScanStats.addResult(client.scannerId);
+                app.mAppScanStats.addResult(client.mScannerId);
                 if (app.mCallback != null) {
                     app.mCallback.onScanResult(result);
                 } else {
@@ -526,8 +528,8 @@ public class ScanController {
         } catch (PendingIntent.CanceledException e) {
             final long token = Binder.clearCallingIdentity();
             try {
-                stopScanInternal(client.scannerId);
-                unregisterScannerInternal(client.scannerId);
+                stopScanInternal(client.mScannerId);
+                unregisterScannerInternal(client.mScannerId);
             } finally {
                 Binder.restoreCallingIdentity(token);
             }
@@ -588,20 +590,20 @@ public class ScanController {
 
     /** Determines if the given scan client has the appropriate permissions to receive callbacks. */
     private boolean hasScanResultPermission(final ScanClient client) {
-        if (leaudioBassScanWithInternalScanController() && client.isInternalClient) {
+        if (leaudioBassScanWithInternalScanController() && client.mIsInternalClient) {
             // Bypass permission check for internal clients
             return true;
         }
-        if (client.hasNetworkSettingsPermission
-                || client.hasNetworkSetupWizardPermission
-                || client.hasScanWithoutLocationPermission) {
+        if (client.mHasNetworkSettingsPermission
+                || client.mHasNetworkSetupWizardPermission
+                || client.mHasScanWithoutLocationPermission) {
             return true;
         }
-        if (client.hasDisavowedLocation) {
+        if (client.mHasDisavowedLocation) {
             return true;
         }
-        return client.hasLocationPermission
-                && !Utils.blockedByLocationOff(mAdapterService, client.userHandle);
+        return client.mHasLocationPermission
+                && !Utils.blockedByLocationOff(mAdapterService, client.mUserHandle);
     }
 
     // Check if a scan record matches a specific filters.
@@ -612,11 +614,11 @@ public class ScanController {
     // Check if a scan record matches a specific filters or original address
     private static boolean matchesFilters(
             ScanClient client, ScanResult scanResult, String originalAddress) {
-        if (client.filters == null || client.filters.isEmpty()) {
+        if (client.mFilters == null || client.mFilters.isEmpty()) {
             // TODO: Do we really wanna return true here?
             return true;
         }
-        for (ScanFilter filter : client.filters) {
+        for (ScanFilter filter : client.mFilters) {
             // Need to check the filter matches, and the original address without changing the API
             if (filter.matches(scanResult)) {
                 return true;
@@ -630,15 +632,15 @@ public class ScanController {
     }
 
     private void handleDeadScanClient(ScanClient client) {
-        if (client.appDied) {
-            Log.w(TAG, "Already dead client " + client.scannerId);
+        if (client.mAppDied) {
+            Log.w(TAG, "Already dead client " + client.mScannerId);
             return;
         }
-        client.appDied = true;
-        if (client.stats != null) {
-            client.stats.isAppDead = true;
+        client.mAppDied = true;
+        if (client.mStats != null) {
+            client.mStats.isAppDead = true;
         }
-        stopScanInternal(client.scannerId);
+        stopScanInternal(client.mScannerId);
     }
 
     /** Callback method for scan filter enablement/disablement. */
@@ -710,7 +712,7 @@ public class ScanController {
 
     ScanClient findBatchScanClientById(int scannerId) {
         for (ScanClient client : mScanManager.getBatchScanQueue()) {
-            if (client.scannerId == scannerId) {
+            if (client.mScannerId == scannerId) {
                 return client;
             }
         }
@@ -762,7 +764,7 @@ public class ScanController {
             } else {
                 permittedResults = new ArrayList<ScanResult>();
                 for (ScanResult scanResult : results) {
-                    for (String associatedDevice : client.associatedDevices) {
+                    for (String associatedDevice : client.mAssociatedDevices) {
                         if (associatedDevice.equalsIgnoreCase(
                                 scanResult.getDevice().getAddress())) {
                             permittedResults.add(scanResult);
@@ -771,7 +773,7 @@ public class ScanController {
                 }
             }
 
-            if (client.hasDisavowedLocation) {
+            if (client.mHasDisavowedLocation) {
                 permittedResults.removeIf(mLocationDenylistPredicate);
             }
             if (permittedResults.isEmpty()) {
@@ -811,7 +813,7 @@ public class ScanController {
                 if (mScanManager.isAutoBatchScanClientEnabled(client)) {
                     Log.d(TAG, "sendBatchScanResults() to onScanResult()" + client);
                     for (ScanResult result : results) {
-                        app.mAppScanStats.addResult(client.scannerId);
+                        app.mAppScanStats.addResult(client.mScannerId);
                         app.mCallback.onScanResult(result);
                     }
                 } else {
@@ -832,7 +834,7 @@ public class ScanController {
     // Check and deliver scan results for different scan clients.
     private void deliverBatchScan(ScanClient client, Set<ScanResult> allResults)
             throws RemoteException {
-        ScannerMap.ScannerApp app = mScannerMap.getById(client.scannerId);
+        ScannerMap.ScannerApp app = mScannerMap.getById(client.mScannerId);
         if (app == null) {
             return;
         }
@@ -843,7 +845,7 @@ public class ScanController {
         } else {
             permittedResults = new ArrayList<ScanResult>();
             for (ScanResult scanResult : allResults) {
-                for (String associatedDevice : client.associatedDevices) {
+                for (String associatedDevice : client.mAssociatedDevices) {
                     if (associatedDevice.equalsIgnoreCase(scanResult.getDevice().getAddress())) {
                         permittedResults.add(scanResult);
                     }
@@ -851,7 +853,7 @@ public class ScanController {
             }
         }
 
-        if (client.filters == null || client.filters.isEmpty()) {
+        if (client.mFilters == null || client.mFilters.isEmpty()) {
             sendBatchScanResults(app, client, permittedResults);
             return;
         }
@@ -966,10 +968,10 @@ public class ScanController {
 
     AdvtFilterOnFoundOnLostInfo createOnTrackAdvFoundLostObject(
             int clientIf,
-            int advPktLen,
-            byte[] advPkt,
-            int scanRspLen,
-            byte[] scanRsp,
+            int advPacketLen,
+            byte[] advPacket,
+            int scanResponseLen,
+            byte[] scanResponse,
             int filtIndex,
             int advState,
             int advInfoPresent,
@@ -978,13 +980,12 @@ public class ScanController {
             int txPower,
             int rssiValue,
             int timeStamp) {
-
         return new AdvtFilterOnFoundOnLostInfo(
                 clientIf,
-                advPktLen,
-                advPkt,
-                scanRspLen,
-                scanRsp,
+                advPacketLen,
+                ByteString.copyFrom(advPacket),
+                scanResponseLen,
+                ByteString.copyFrom(scanResponse),
                 filtIndex,
                 advState,
                 advInfoPresent,
@@ -999,15 +1000,15 @@ public class ScanController {
         Log.d(
                 TAG,
                 "onTrackAdvFoundLost() - scannerId= "
-                        + trackingInfo.getClientIf()
+                        + trackingInfo.clientIf()
                         + " address = "
-                        + trackingInfo.getAddress()
+                        + trackingInfo.address()
                         + " addressType = "
-                        + trackingInfo.getAddressType()
+                        + trackingInfo.addressType()
                         + " adv_state = "
-                        + trackingInfo.getAdvState());
+                        + trackingInfo.advState());
 
-        ScannerMap.ScannerApp app = mScannerMap.getById(trackingInfo.getClientIf());
+        ScannerMap.ScannerApp app = mScannerMap.getById(trackingInfo.clientIf());
         if (app == null) {
             Log.e(TAG, "app is null");
             return;
@@ -1015,19 +1016,18 @@ public class ScanController {
 
         BluetoothDevice device =
                 BluetoothAdapter.getDefaultAdapter()
-                        .getRemoteLeDevice(
-                                trackingInfo.getAddress(), trackingInfo.getAddressType());
-        int advertiserState = trackingInfo.getAdvState();
+                        .getRemoteLeDevice(trackingInfo.address(), trackingInfo.addressType());
+        int advertiserState = trackingInfo.advState();
         ScanResult result =
                 new ScanResult(
                         device,
                         ScanRecord.parseFromBytes(trackingInfo.getResult()),
-                        trackingInfo.getRSSIValue(),
+                        trackingInfo.rssiValue(),
                         SystemClock.elapsedRealtimeNanos());
 
         for (ScanClient client : mScanManager.getRegularScanQueue()) {
-            if (client.scannerId == trackingInfo.getClientIf()) {
-                ScanSettings settings = client.settings;
+            if (client.mScannerId == trackingInfo.clientIf()) {
+                ScanSettings settings = client.mSettings;
                 if ((advertiserState == ADVT_STATE_ONFOUND)
                         && ((settings.getCallbackType() & ScanSettings.CALLBACK_TYPE_FIRST_MATCH)
                                 != 0)) {
@@ -1052,7 +1052,7 @@ public class ScanController {
                             "Not reporting onlost/onfound : "
                                     + advertiserState
                                     + " scannerId = "
-                                    + client.scannerId
+                                    + client.mScannerId
                                     + " callbackType "
                                     + settings.getCallbackType());
                 }
@@ -1229,35 +1229,35 @@ public class ScanController {
         settings = enforceReportDelayFloor(settings);
         enforcePrivilegedPermissionIfNeeded(filters);
         final ScanClient scanClient = new ScanClient(scannerId, settings, filters);
-        scanClient.userHandle = Binder.getCallingUserHandle();
+        scanClient.mUserHandle = Binder.getCallingUserHandle();
         mAppOps.checkPackage(Binder.getCallingUid(), callingPackage);
-        scanClient.eligibleForSanitizedExposureNotification =
+        scanClient.mEligibleForSanitizedExposureNotification =
                 callingPackage.equals(mExposureNotificationPackage);
 
-        scanClient.hasDisavowedLocation =
+        scanClient.mHasDisavowedLocation =
                 Utils.hasDisavowedLocationForScan(
                         mAdapterService, attributionSource, mTestModeEnabled);
 
-        scanClient.isQApp =
+        scanClient.mIsQApp =
                 checkCallerTargetSdk(mAdapterService, callingPackage, Build.VERSION_CODES.Q);
-        if (!scanClient.hasDisavowedLocation) {
-            if (scanClient.isQApp) {
-                scanClient.hasLocationPermission =
+        if (!scanClient.mHasDisavowedLocation) {
+            if (scanClient.mIsQApp) {
+                scanClient.mHasLocationPermission =
                         Utils.checkCallerHasFineLocation(
-                                mAdapterService, attributionSource, scanClient.userHandle);
+                                mAdapterService, attributionSource, scanClient.mUserHandle);
             } else {
-                scanClient.hasLocationPermission =
+                scanClient.mHasLocationPermission =
                         Utils.checkCallerHasCoarseOrFineLocation(
-                                mAdapterService, attributionSource, scanClient.userHandle);
+                                mAdapterService, attributionSource, scanClient.mUserHandle);
             }
         }
-        scanClient.hasNetworkSettingsPermission =
+        scanClient.mHasNetworkSettingsPermission =
                 Utils.checkCallerHasNetworkSettingsPermission(mAdapterService);
-        scanClient.hasNetworkSetupWizardPermission =
+        scanClient.mHasNetworkSetupWizardPermission =
                 Utils.checkCallerHasNetworkSetupWizardPermission(mAdapterService);
-        scanClient.hasScanWithoutLocationPermission =
+        scanClient.mHasScanWithoutLocationPermission =
                 Utils.checkCallerHasScanWithoutLocationPermission(mAdapterService);
-        scanClient.associatedDevices = getAssociatedDevices(callingPackage);
+        scanClient.mAssociatedDevices = getAssociatedDevices(callingPackage);
 
         startScan(scannerId, settings, filters, scanClient);
     }
@@ -1265,18 +1265,18 @@ public class ScanController {
     /** Intended for internal use within the Bluetooth app. Bypass permission check */
     public void startScanInternal(int scannerId, ScanSettings settings, List<ScanFilter> filters) {
         final ScanClient scanClient = new ScanClient(scannerId, settings, filters);
-        scanClient.isInternalClient = true;
-        scanClient.userHandle = Binder.getCallingUserHandle();
-        scanClient.eligibleForSanitizedExposureNotification = false;
-        scanClient.hasDisavowedLocation = false;
-        scanClient.isQApp = true;
-        scanClient.hasNetworkSettingsPermission =
+        scanClient.mIsInternalClient = true;
+        scanClient.mUserHandle = Binder.getCallingUserHandle();
+        scanClient.mEligibleForSanitizedExposureNotification = false;
+        scanClient.mHasDisavowedLocation = false;
+        scanClient.mIsQApp = true;
+        scanClient.mHasNetworkSettingsPermission =
                 Utils.checkCallerHasNetworkSettingsPermission(mAdapterService);
-        scanClient.hasNetworkSetupWizardPermission =
+        scanClient.mHasNetworkSetupWizardPermission =
                 Utils.checkCallerHasNetworkSetupWizardPermission(mAdapterService);
-        scanClient.hasScanWithoutLocationPermission =
+        scanClient.mHasScanWithoutLocationPermission =
                 Utils.checkCallerHasScanWithoutLocationPermission(mAdapterService);
-        scanClient.associatedDevices = Collections.emptyList();
+        scanClient.mAssociatedDevices = Collections.emptyList();
 
         startScan(scannerId, settings, filters, scanClient);
     }
@@ -1285,7 +1285,7 @@ public class ScanController {
             int scannerId, ScanSettings settings, List<ScanFilter> filters, ScanClient scanClient) {
         AppScanStats app = mScannerMap.getAppScanStatsById(scannerId);
         if (app != null) {
-            scanClient.stats = app;
+            scanClient.mStats = app;
             boolean isFilteredScan = (filters != null) && !filters.isEmpty();
             boolean isCallbackScan = false;
 
@@ -1392,20 +1392,21 @@ public class ScanController {
         final PendingIntentInfo piInfo = app.mInfo;
         final ScanClient scanClient =
                 new ScanClient(scannerId, piInfo.settings, piInfo.filters, piInfo.callingUid);
-        scanClient.hasLocationPermission = app.mHasLocationPermission;
-        scanClient.userHandle = app.mUserHandle;
-        scanClient.isQApp = checkCallerTargetSdk(mAdapterService, app.mName, Build.VERSION_CODES.Q);
-        scanClient.eligibleForSanitizedExposureNotification =
+        scanClient.mHasLocationPermission = app.mHasLocationPermission;
+        scanClient.mUserHandle = app.mUserHandle;
+        scanClient.mIsQApp =
+                checkCallerTargetSdk(mAdapterService, app.mName, Build.VERSION_CODES.Q);
+        scanClient.mEligibleForSanitizedExposureNotification =
                 app.mEligibleForSanitizedExposureNotification;
-        scanClient.hasNetworkSettingsPermission = app.mHasNetworkSettingsPermission;
-        scanClient.hasNetworkSetupWizardPermission = app.mHasNetworkSetupWizardPermission;
-        scanClient.hasScanWithoutLocationPermission = app.mHasScanWithoutLocationPermission;
-        scanClient.associatedDevices = app.mAssociatedDevices;
-        scanClient.hasDisavowedLocation = app.mHasDisavowedLocation;
+        scanClient.mHasNetworkSettingsPermission = app.mHasNetworkSettingsPermission;
+        scanClient.mHasNetworkSetupWizardPermission = app.mHasNetworkSetupWizardPermission;
+        scanClient.mHasScanWithoutLocationPermission = app.mHasScanWithoutLocationPermission;
+        scanClient.mAssociatedDevices = app.mAssociatedDevices;
+        scanClient.mHasDisavowedLocation = app.mHasDisavowedLocation;
 
         AppScanStats scanStats = mScannerMap.getAppScanStatsById(scannerId);
         if (scanStats != null) {
-            scanClient.stats = scanStats;
+            scanClient.mStats = scanStats;
             boolean isFilteredScan = (piInfo.filters != null) && !piInfo.filters.isEmpty();
             scanStats.recordScanStart(
                     piInfo.settings,
@@ -1575,12 +1576,12 @@ public class ScanController {
 
         private ScanClient getScanClient(int clientIf) {
             for (ScanClient client : mScanManager.getRegularScanQueue()) {
-                if (client.scannerId == clientIf) {
+                if (client.mScannerId == clientIf) {
                     return client;
                 }
             }
             for (ScanClient client : mScanManager.getBatchScanQueue()) {
-                if (client.scannerId == clientIf) {
+                if (client.mScannerId == clientIf) {
                     return client;
                 }
             }
@@ -1733,5 +1734,4 @@ public class ScanController {
             builder.addAllScanEvent(mScanEvents);
         }
     }
-
 }

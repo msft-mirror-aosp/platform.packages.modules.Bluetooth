@@ -1979,7 +1979,7 @@ void btm_create_conn_cancel_complete(uint8_t status, const RawAddress bd_addr) {
  * Returns          void
  *
  ******************************************************************************/
-void btm_sec_check_pending_reqs(void) {
+static void btm_sec_check_pending_reqs(void) {
   if (btm_sec_cb.pairing_state == BTM_PAIR_STATE_IDLE) {
     /* First, resubmit L2CAP requests */
     if (btm_sec_cb.sec_req_pending) {

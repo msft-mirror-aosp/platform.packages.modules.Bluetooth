@@ -15,6 +15,8 @@
  */
 package com.android.bluetooth.pbap;
 
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+
 import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 
@@ -168,9 +170,9 @@ public class BluetoothPbapServiceTest {
     public void getDevicesMatchingConnectionStates() {
         PbapStateMachine sm = mock(PbapStateMachine.class);
         mService.mPbapStateMachineMap.put(mRemoteDevice, sm);
-        when(sm.getConnectionState()).thenReturn(BluetoothProfile.STATE_CONNECTED);
+        when(sm.getConnectionState()).thenReturn(STATE_CONNECTED);
 
-        int[] states = new int[] {BluetoothProfile.STATE_CONNECTED};
+        int[] states = new int[] {STATE_CONNECTED};
         assertThat(mService.getDevicesMatchingConnectionStates(states)).contains(mRemoteDevice);
     }
 

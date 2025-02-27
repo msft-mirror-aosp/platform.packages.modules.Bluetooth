@@ -16,6 +16,12 @@
 package com.android.bluetooth.pan;
 
 import static android.bluetooth.BluetoothPan.PAN_ROLE_NONE;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTING;
 import static android.net.TetheringManager.TETHERING_BLUETOOTH;
 import static android.net.TetheringManager.TETHER_ERROR_SERVICE_UNAVAIL;
 
@@ -106,8 +112,7 @@ public class PanServiceTest {
         when(mMockUserManager.isGuestUser()).thenReturn(false);
         mService.mPanDevices.put(
                 mRemoteDevice,
-                new BluetoothPanDevice(
-                        BluetoothProfile.STATE_CONNECTED, PAN_ROLE_NONE, PAN_ROLE_NONE));
+                new BluetoothPanDevice(STATE_CONNECTED, PAN_ROLE_NONE, PAN_ROLE_NONE));
 
         assertThat(mService.connect(mRemoteDevice)).isFalse();
     }
@@ -117,8 +122,7 @@ public class PanServiceTest {
         when(mMockUserManager.isGuestUser()).thenReturn(false);
         mService.mPanDevices.put(
                 mRemoteDevice,
-                new BluetoothPanDevice(
-                        BluetoothProfile.STATE_DISCONNECTED, PAN_ROLE_NONE, PAN_ROLE_NONE));
+                new BluetoothPanDevice(STATE_DISCONNECTED, PAN_ROLE_NONE, PAN_ROLE_NONE));
 
         assertThat(mService.connect(mRemoteDevice)).isTrue();
         verify(mNativeInterface, timeout(TIMEOUT_MS)).connect(any());
@@ -133,23 +137,22 @@ public class PanServiceTest {
     @Test
     public void convertHalState() {
         assertThat(PanNativeInterface.convertHalState(PanNativeInterface.CONN_STATE_CONNECTED))
-                .isEqualTo(BluetoothProfile.STATE_CONNECTED);
+                .isEqualTo(STATE_CONNECTED);
         assertThat(PanNativeInterface.convertHalState(PanNativeInterface.CONN_STATE_CONNECTING))
-                .isEqualTo(BluetoothProfile.STATE_CONNECTING);
+                .isEqualTo(STATE_CONNECTING);
         assertThat(PanNativeInterface.convertHalState(PanNativeInterface.CONN_STATE_DISCONNECTED))
-                .isEqualTo(BluetoothProfile.STATE_DISCONNECTED);
+                .isEqualTo(STATE_DISCONNECTED);
         assertThat(PanNativeInterface.convertHalState(PanNativeInterface.CONN_STATE_DISCONNECTING))
-                .isEqualTo(BluetoothProfile.STATE_DISCONNECTING);
+                .isEqualTo(STATE_DISCONNECTING);
         assertThat(PanNativeInterface.convertHalState(-24664)) // illegal value
-                .isEqualTo(BluetoothProfile.STATE_DISCONNECTED);
+                .isEqualTo(STATE_DISCONNECTED);
     }
 
     @Test
     public void dump() {
         mService.mPanDevices.put(
                 mRemoteDevice,
-                new BluetoothPanDevice(
-                        BluetoothProfile.STATE_DISCONNECTED, PAN_ROLE_NONE, PAN_ROLE_NONE));
+                new BluetoothPanDevice(STATE_DISCONNECTED, PAN_ROLE_NONE, PAN_ROLE_NONE));
 
         mService.dump(new StringBuilder());
     }
@@ -172,7 +175,7 @@ public class PanServiceTest {
 
     @Test
     public void setConnectionPolicy_whenDatabaseManagerRefuses_returnsFalse() {
-        int connectionPolicy = BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+        int connectionPolicy = CONNECTION_POLICY_ALLOWED;
         when(mDatabaseManager.setProfileConnectionPolicy(
                         mRemoteDevice, BluetoothProfile.PAN, connectionPolicy))
                 .thenReturn(false);
@@ -183,24 +186,15 @@ public class PanServiceTest {
     @Test
     public void setConnectionPolicy_returnsTrue() {
         when(mDatabaseManager.setProfileConnectionPolicy(
-                        mRemoteDevice,
-                        BluetoothProfile.PAN,
-                        BluetoothProfile.CONNECTION_POLICY_ALLOWED))
+                        mRemoteDevice, BluetoothProfile.PAN, CONNECTION_POLICY_ALLOWED))
                 .thenReturn(true);
-        assertThat(
-                        mService.setConnectionPolicy(
-                                mRemoteDevice, BluetoothProfile.CONNECTION_POLICY_ALLOWED))
-                .isTrue();
+        assertThat(mService.setConnectionPolicy(mRemoteDevice, CONNECTION_POLICY_ALLOWED)).isTrue();
         verify(mNativeInterface, timeout(TIMEOUT_MS)).connect(any());
 
         when(mDatabaseManager.setProfileConnectionPolicy(
-                        mRemoteDevice,
-                        BluetoothProfile.PAN,
-                        BluetoothProfile.CONNECTION_POLICY_FORBIDDEN))
+                        mRemoteDevice, BluetoothProfile.PAN, CONNECTION_POLICY_FORBIDDEN))
                 .thenReturn(true);
-        assertThat(
-                        mService.setConnectionPolicy(
-                                mRemoteDevice, BluetoothProfile.CONNECTION_POLICY_FORBIDDEN))
+        assertThat(mService.setConnectionPolicy(mRemoteDevice, CONNECTION_POLICY_FORBIDDEN))
                 .isTrue();
         verify(mNativeInterface, timeout(TIMEOUT_MS)).disconnect(any());
     }
@@ -228,8 +222,7 @@ public class PanServiceTest {
         mService.mIsTethering = true;
         mService.mPanDevices.put(
                 mRemoteDevice,
-                new BluetoothPanDevice(
-                        BluetoothProfile.STATE_DISCONNECTED, PAN_ROLE_NONE, PAN_ROLE_NONE));
+                new BluetoothPanDevice(STATE_DISCONNECTED, PAN_ROLE_NONE, PAN_ROLE_NONE));
         TetheringInterface iface = new TetheringInterface(TETHERING_BLUETOOTH, "iface");
 
         mService.mTetheringCallback.onError(iface, TETHER_ERROR_SERVICE_UNAVAIL);

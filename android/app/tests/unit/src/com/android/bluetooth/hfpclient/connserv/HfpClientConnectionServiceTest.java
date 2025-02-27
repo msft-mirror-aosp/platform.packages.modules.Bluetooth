@@ -16,6 +16,10 @@
 
 package com.android.bluetooth.hfpclient;
 
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
+
 import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 import static com.android.bluetooth.TestUtils.mockGetSystemService;
@@ -30,7 +34,6 @@ import static org.mockito.Mockito.when;
 
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
-import android.bluetooth.BluetoothProfile;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.res.Resources;
@@ -146,7 +149,7 @@ public class HfpClientConnectionServiceTest {
 
     private void setupDeviceConnection(BluetoothDevice device) throws Exception {
         mHfpClientConnectionService.onConnectionStateChanged(
-                device, BluetoothProfile.STATE_CONNECTED, BluetoothProfile.STATE_CONNECTING);
+                device, STATE_CONNECTED, STATE_CONNECTING);
         HfpClientDeviceBlock block = mHfpClientConnectionService.findBlockForDevice(mDevice);
         assertThat(block).isNotNull();
         assertThat(block.getDevice()).isEqualTo(mDevice);
@@ -172,7 +175,7 @@ public class HfpClientConnectionServiceTest {
         createService();
         setupDeviceConnection(mDevice);
         HfpClientConnectionService.onConnectionStateChanged(
-                mDevice, BluetoothProfile.STATE_DISCONNECTED, BluetoothProfile.STATE_CONNECTED);
+                mDevice, STATE_DISCONNECTED, STATE_CONNECTED);
         assertThat(mHfpClientConnectionService.findBlockForDevice(mDevice)).isNull();
     }
 

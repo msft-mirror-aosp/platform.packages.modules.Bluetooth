@@ -158,7 +158,6 @@ cc_test {
         ":TestMockBtif",
         ":TestMockBtu",
         ":TestMockJni",
-        ":TestMockLegacyHciCommands",
         ":TestMockLegacyHciInterface",
         ":TestMockMainShimEntry",
         ":TestMockStack",

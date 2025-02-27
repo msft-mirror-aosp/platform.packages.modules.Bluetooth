@@ -19,6 +19,8 @@ package com.android.bluetooth.btservice;
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static android.Manifest.permission.BLUETOOTH_SCAN;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
 import static com.android.modules.utils.build.SdkLevel.isAtLeastV;
 
@@ -1405,8 +1407,7 @@ public class RemoteDevices {
             if (mAdapterService.getConnectionState(device) == 0) {
                 BatteryService batteryService = BatteryService.getBatteryService();
                 if (batteryService != null
-                        && batteryService.getConnectionState(device)
-                                != BluetoothProfile.STATE_DISCONNECTED
+                        && batteryService.getConnectionState(device) != STATE_DISCONNECTED
                         && transportLinkType == BluetoothDevice.TRANSPORT_LE) {
                     batteryService.disconnect(device);
                 }
@@ -1556,6 +1557,10 @@ public class RemoteDevices {
                             .addFlags(
                                     Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT
                                             | Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
+
+            // Bond loss detected, add to the count.
+            mAdapterService.getDatabase().updateKeyMissingCount(bluetoothDevice, true);
+
             if (Flags.keyMissingPublic()) {
                 mAdapterService.sendOrderedBroadcast(
                         intent,
@@ -1629,6 +1634,9 @@ public class RemoteDevices {
                 /* Classic link using non-secure connections mode */
                 algorithm = BluetoothDevice.ENCRYPTION_ALGORITHM_E0;
             }
+
+            // Successful bond detected, reset the count.
+            mAdapterService.getDatabase().updateKeyMissingCount(bluetoothDevice, false);
         }
 
         Intent intent =
@@ -1708,7 +1716,7 @@ public class RemoteDevices {
             Log.e(TAG, "onHeadsetConnectionStateChanged() remote device is null");
             return;
         }
-        if (toState == BluetoothProfile.STATE_DISCONNECTED && !hasBatteryService(device)) {
+        if (toState == STATE_DISCONNECTED && !hasBatteryService(device)) {
             resetBatteryLevel(device, /* isBas= */ false);
         }
     }
@@ -1923,7 +1931,7 @@ public class RemoteDevices {
     boolean hasBatteryService(BluetoothDevice device) {
         BatteryService batteryService = BatteryService.getBatteryService();
         return batteryService != null
-                && batteryService.getConnectionState(device) == BluetoothProfile.STATE_CONNECTED;
+                && batteryService.getConnectionState(device) == STATE_CONNECTED;
     }
 
     /** Handles headset client connection state change event. */
@@ -1938,7 +1946,7 @@ public class RemoteDevices {
             Log.e(TAG, "onHeadsetClientConnectionStateChanged() remote device is null");
             return;
         }
-        if (toState == BluetoothProfile.STATE_DISCONNECTED && !hasBatteryService(device)) {
+        if (toState == STATE_DISCONNECTED && !hasBatteryService(device)) {
             resetBatteryLevel(device, /* isBas= */ false);
         }
     }

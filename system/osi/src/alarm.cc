@@ -654,7 +654,7 @@ static void callback_dispatch(void* /* context */) {
       }
 
       alarm->closure.i.Reset(Bind(alarm_ready_mloop, alarm));
-      get_main_thread()->DoInThread(FROM_HERE, alarm->closure.i.callback());
+      get_main_thread()->DoInThread(alarm->closure.i.callback());
     } else {
       fixed_queue_enqueue(alarm->queue, alarm);
     }

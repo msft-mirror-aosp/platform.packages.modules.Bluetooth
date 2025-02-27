@@ -47,12 +47,6 @@ public class BluetoothHeadsetProxy {
         adapter.closeProfileProxy(BluetoothProfile.HEADSET, mBluetoothHeadset);
     }
 
-    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, MODIFY_PHONE_STATE})
-    public void phoneStateChanged(
-            int numActive, int numHeld, int callState, String number, int type, String name) {
-        mBluetoothHeadset.phoneStateChanged(numActive, numHeld, callState, number, type, name);
-    }
-
     @RequiresPermission(BLUETOOTH_CONNECT)
     public List<BluetoothDevice> getConnectedDevices() {
         return mBluetoothHeadset.getConnectedDevices();
