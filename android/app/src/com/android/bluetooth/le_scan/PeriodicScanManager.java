@@ -27,7 +27,6 @@ import android.os.IInterface;
 import android.os.RemoteException;
 import android.util.Log;
 
-import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.gatt.GattServiceConfig;
 import com.android.internal.annotations.VisibleForTesting;
 
@@ -54,7 +53,7 @@ public class PeriodicScanManager {
     private final PeriodicScanNativeInterface mNativeInterface;
 
     /** Constructor of {@link PeriodicScanManager}. */
-    PeriodicScanManager(AdapterService adapterService) {
+    PeriodicScanManager() {
         Log.d(TAG, "Periodic Scan Manager created");
         mAdapter = BluetoothAdapter.getDefaultAdapter();
         mNativeInterface = PeriodicScanNativeInterface.getInstance();
