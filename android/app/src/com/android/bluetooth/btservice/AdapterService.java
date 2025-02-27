@@ -127,6 +127,7 @@ import android.util.Log;
 import android.util.Pair;
 import android.util.SparseArray;
 
+import com.android.bluetooth.BluetoothEventLogger;
 import com.android.bluetooth.BluetoothMetricsProto;
 import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.R;
@@ -176,7 +177,6 @@ import com.android.modules.utils.BytesMatcher;
 import libcore.util.SneakyThrow;
 
 import com.google.common.base.Ascii;
-import com.google.common.collect.EvictingQueue;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import java.io.FileDescriptor;
@@ -284,7 +284,8 @@ public class AdapterService extends Service {
     private final RemoteCallbackList<IBluetoothConnectionCallback> mBluetoothConnectionCallbacks =
             new RemoteCallbackList<>();
 
-    private final EvictingQueue<String> mScanModeChanges = EvictingQueue.create(10);
+    private final BluetoothEventLogger mScanModeChanges =
+            new BluetoothEventLogger(10, "Scan Mode Changes");
 
     private final DeviceConfigListener mDeviceConfigListener = new DeviceConfigListener();
 
@@ -6237,7 +6238,7 @@ public class AdapterService extends Service {
     }
 
     private boolean setScanMode(int mode, String from) {
-        mScanModeChanges.add(Utils.getLocalTimeString() + " (" + from + ") " + dumpScanMode(mode));
+        mScanModeChanges.add(from + ": " + scanModeName(mode));
         if (!mNativeInterface.setScanMode(convertScanModeToHal(mode))) {
             return false;
         }
@@ -6693,17 +6694,13 @@ public class AdapterService extends Service {
         return mRemoteDevices;
     }
 
-    private static String dumpScanMode(int scanMode) {
-        switch (scanMode) {
-            case SCAN_MODE_NONE:
-                return "SCAN_MODE_NONE";
-            case SCAN_MODE_CONNECTABLE:
-                return "SCAN_MODE_CONNECTABLE";
-            case SCAN_MODE_CONNECTABLE_DISCOVERABLE:
-                return "SCAN_MODE_CONNECTABLE_DISCOVERABLE";
-            default:
-                return "Unknown Scan Mode " + scanMode;
-        }
+    private static String scanModeName(int scanMode) {
+        return switch (scanMode) {
+            case SCAN_MODE_NONE -> "SCAN_MODE_NONE";
+            case SCAN_MODE_CONNECTABLE -> "SCAN_MODE_CONNECTABLE";
+            case SCAN_MODE_CONNECTABLE_DISCOVERABLE -> "SCAN_MODE_CONNECTABLE_DISCOVERABLE";
+            default -> "Unknown Scan Mode " + scanMode;
+        };
     }
 
     @Override
@@ -6735,11 +6732,10 @@ public class AdapterService extends Service {
         writer.println();
         mAdapterProperties.dump(fd, writer, args);
 
-        writer.println("ScanMode: " + dumpScanMode(getScanMode()));
-        writer.println("Scan Mode Changes:");
-        for (String log : mScanModeChanges) {
-            writer.println("    " + log);
-        }
+        writer.println("ScanMode: " + scanModeName(getScanMode()));
+        StringBuilder sb = new StringBuilder();
+        mScanModeChanges.dump(sb);
+        writer.println(sb.toString());
         writer.println();
         writer.println("sSnoopLogSettingAtEnable = " + sSnoopLogSettingAtEnable);
         writer.println("sDefaultSnoopLogSettingAtEnable = " + sDefaultSnoopLogSettingAtEnable);
@@ -6759,7 +6755,11 @@ public class AdapterService extends Service {
 
         mAdapterStateMachine.dump(fd, writer, args);
 
-        StringBuilder sb = new StringBuilder();
+        sb = new StringBuilder();
+
+        mSilenceDeviceManager.dump(sb);
+        mDatabaseManager.dump(sb);
+
         for (ProfileService profile : mRegisteredProfiles) {
             profile.dump(sb);
         }
@@ -6770,11 +6770,8 @@ public class AdapterService extends Service {
                 scanController.dump(sb);
             }
         }
-        mSilenceDeviceManager.dump(fd, writer, args);
-        mDatabaseManager.dump(writer);
 
         writer.write(sb.toString());
-        writer.flush();
 
         final int currentState = mAdapterProperties.getState();
         if (currentState == BluetoothAdapter.STATE_OFF
@@ -6786,7 +6783,9 @@ public class AdapterService extends Service {
                     "Impossible to dump native stack. state="
                             + BluetoothAdapter.nameForState(currentState));
             writer.println();
+            writer.flush();
         } else {
+            writer.flush();
             mNativeInterface.dump(fd, args);
         }
     }

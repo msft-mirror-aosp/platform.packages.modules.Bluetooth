@@ -33,8 +33,6 @@ import com.android.bluetooth.a2dp.A2dpService;
 import com.android.bluetooth.hfp.HeadsetService;
 import com.android.internal.annotations.VisibleForTesting;
 
-import java.io.FileDescriptor;
-import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -322,11 +320,15 @@ public class SilenceDeviceManager {
         return (mA2dpConnectedDevices.contains(device) || mHfpConnectedDevices.contains(device));
     }
 
-    protected void dump(FileDescriptor fd, PrintWriter writer, String[] args) {
-        writer.println("\nSilenceDeviceManager:");
-        writer.println("  Address            | Is silenced?");
+    protected void dump(StringBuilder sb) {
+        sb.append("SilenceDeviceManager:\n");
+        sb.append("  Address            | Is silenced?\n");
         for (BluetoothDevice device : mSilenceDevices.keySet()) {
-            writer.println("  " + device + "  | " + getSilenceMode(device));
+            sb.append("  ")
+                    .append(device)
+                    .append("  | ")
+                    .append(getSilenceMode(device))
+                    .append("\n");
         }
     }
 }

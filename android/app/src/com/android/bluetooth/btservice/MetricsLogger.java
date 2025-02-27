@@ -77,8 +77,8 @@ import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.BtRestrictedStatsLog;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.bass_client.BassConstants;
+import com.android.internal.annotations.VisibleForTesting;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Ascii;
 import com.google.common.hash.BloomFilter;
 import com.google.common.hash.Funnels;
