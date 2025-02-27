@@ -633,7 +633,7 @@ protected:
 
     encryption_result = true;
 
-    ON_CALL(btm_interface, IsLinkKeyKnown(_, _)).WillByDefault(DoAll(Return(true)));
+    ON_CALL(btm_interface, IsDeviceBonded(_, _)).WillByDefault(DoAll(Return(true)));
 
     ON_CALL(btm_interface, SetEncryption(_, _, _, _, _))
             .WillByDefault(Invoke([this](const RawAddress& bd_addr, tBT_TRANSPORT /*transport*/,
@@ -861,7 +861,7 @@ protected:
     ON_CALL(btm_interface, BTM_IsEncrypted(address, _))
             .WillByDefault(DoAll(Return(encryption_result)));
 
-    ON_CALL(btm_interface, IsLinkKeyKnown(address, _)).WillByDefault(DoAll(Return(true)));
+    ON_CALL(btm_interface, IsDeviceBonded(address, _)).WillByDefault(DoAll(Return(true)));
   }
 
   void InjectNotifyReadPresetResponse(uint16_t conn_id, RawAddress const& address, uint16_t handle,
@@ -1189,7 +1189,7 @@ TEST_F(HasClientTest, test_connect_after_remove) {
   EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address));
 
   // Device has no Link Key
-  ON_CALL(btm_interface, IsLinkKeyKnown(test_address, _)).WillByDefault(DoAll(Return(true)));
+  ON_CALL(btm_interface, IsDeviceBonded(test_address, _)).WillByDefault(DoAll(Return(true)));
   HasClient::Get()->Connect(test_address);
   Mock::VerifyAndClearExpectations(&callbacks);
 }
