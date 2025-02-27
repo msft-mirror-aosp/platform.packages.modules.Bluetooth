@@ -1477,10 +1477,25 @@ public class RemoteDevices {
         if (connectionState == BluetoothAdapter.STATE_CONNECTED) {
             connectionChangeConsumer = cb -> cb.onDeviceConnected(device);
         } else {
+            final int disconnectReason;
+            if (hciReason == 0x16 /* HCI_ERR_CONN_CAUSE_LOCAL_HOST */
+                    && mAdapterService.getDatabase().getKeyMissingCount(device) > 0) {
+                // Native stack disconnects the link on detecting the bond loss. Native GATT would
+                // return HCI_ERR_CONN_CAUSE_LOCAL_HOST in such case, but the apps should see
+                // HCI_ERR_AUTH_FAILURE.
+                Log.d(
+                        TAG,
+                        "aclStateChangeCallback() - disconnected due to bond loss for device="
+                                + device);
+                disconnectReason = 0x05; /* HCI_ERR_AUTH_FAILURE */
+            } else {
+                disconnectReason = hciReason;
+            }
             connectionChangeConsumer =
                     cb ->
                             cb.onDeviceDisconnected(
-                                    device, AdapterService.hciToAndroidDisconnectReason(hciReason));
+                                    device,
+                                    AdapterService.hciToAndroidDisconnectReason(disconnectReason));
         }
 
         mAdapterService.aclStateChangeBroadcastCallback(connectionChangeConsumer);
