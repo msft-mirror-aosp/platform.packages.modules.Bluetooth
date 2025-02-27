@@ -47,6 +47,13 @@ filegroup {
     ],
 }
 
+filegroup {
+    name: "TestMockCodecManager",
+    srcs: [
+        "le_audio/mock_codec_manager.cc",
+    ],
+}
+
 // BTA static library for target
 cc_library_static {
     name: "libbt-bta",
