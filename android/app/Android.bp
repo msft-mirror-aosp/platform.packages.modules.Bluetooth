@@ -126,7 +126,6 @@ cc_library_shared {
         "libbtdevice",
         "libbte",
         "libbtif",
-        "libbtif-core",
         "libchrome",
         "libcutils",
         "libevent",

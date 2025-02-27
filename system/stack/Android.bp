@@ -803,7 +803,6 @@ cc_test {
         "libbtcore",
         "libbtdevice",
         "libbtif",
-        "libbtif-core",
         "libchrome",
         "libcom.android.sysprop.bluetooth.wrapped",
         "libflags_rust_cpp_bridge",

@@ -60,7 +60,6 @@ cc_defaults {
         "libbtdevice",
         "libbte",
         "libbtif",
-        "libbtif-core",
         "libchrome",
         "libcom.android.sysprop.bluetooth.wrapped",
         "libexpresslog",
