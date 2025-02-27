@@ -208,8 +208,7 @@ public class ScanController {
                                 BluetoothAdapterProxy.getInstance(),
                                 mScanThread.getLooper());
 
-        mPeriodicScanManager =
-                ScanObjectsFactory.getInstance().createPeriodicScanManager(mAdapterService);
+        mPeriodicScanManager = ScanObjectsFactory.getInstance().createPeriodicScanManager();
     }
 
     public void stop() {
