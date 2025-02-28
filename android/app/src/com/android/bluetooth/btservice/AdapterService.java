@@ -561,7 +561,7 @@ public class AdapterService extends Service {
                     // TODO(b/228875190): GATT is assumed supported. GATT starting triggers hardware
                     // initialization. Configuring a device without GATT causes start up failures.
                     if (GattService.class.getSimpleName().equals(profile.getName())
-                            && !Flags.scanManagerRefactor()) {
+                            && !Flags.onlyStartScanDuringBleOn()) {
                         mNativeInterface.enable();
                     } else if (mRegisteredProfiles.size() == Config.getSupportedProfiles().length
                             && mRegisteredProfiles.size() == mRunningProfiles.size()) {
@@ -586,7 +586,7 @@ public class AdapterService extends Service {
                     }
                     mRunningProfiles.remove(profile);
 
-                    if (Flags.scanManagerRefactor()) {
+                    if (Flags.onlyStartScanDuringBleOn()) {
                         if (mRunningProfiles.size() == 0) {
                             mAdapterStateMachine.sendMessage(AdapterState.BREDR_STOPPED);
                         }
@@ -994,7 +994,7 @@ public class AdapterService extends Service {
                     TAG,
                     "GATT is configured off but the stack assumes it to be enabled. Start anyway.");
         }
-        if (Flags.scanManagerRefactor()) {
+        if (Flags.onlyStartScanDuringBleOn()) {
             startScanController();
         } else {
             startGattProfileService();
@@ -1002,7 +1002,7 @@ public class AdapterService extends Service {
     }
 
     void bringDownBle() {
-        if (Flags.scanManagerRefactor()) {
+        if (Flags.onlyStartScanDuringBleOn()) {
             stopScanController();
         } else {
             stopGattProfileService();
@@ -1023,7 +1023,7 @@ public class AdapterService extends Service {
     void startProfileServices() {
         Log.d(TAG, "startCoreServices()");
         int[] supportedProfileServices = Config.getSupportedProfiles();
-        if (Flags.scanManagerRefactor()) {
+        if (Flags.onlyStartScanDuringBleOn()) {
             // Scanning is always supported, started separately, and is not a profile service.
             // This will check other profile services.
             if (supportedProfileServices.length == 0) {
@@ -1056,7 +1056,7 @@ public class AdapterService extends Service {
         setScanMode(SCAN_MODE_NONE, "StopProfileServices");
 
         int[] supportedProfileServices = Config.getSupportedProfiles();
-        if (Flags.scanManagerRefactor()) {
+        if (Flags.onlyStartScanDuringBleOn()) {
             // Scanning is always supported, started separately, and is not a profile service.
             // This will check other profile services.
             if (supportedProfileServices.length == 0) {
@@ -1576,10 +1576,10 @@ public class AdapterService extends Service {
             mStartedProfiles.put(profileId, profileService);
             addProfile(profileService);
             profileService.setAvailable(true);
-            // With `Flags.scanManagerRefactor()` GattService initialization is pushed back to
+            // With `Flags.onlyStartScanDuringBleOn()` GattService initialization is pushed back to
             // `ON` state instead of `BLE_ON`. Here we ensure mGattService is set prior
             // to other Profiles using it.
-            if (profileId == BluetoothProfile.GATT && Flags.scanManagerRefactor()) {
+            if (profileId == BluetoothProfile.GATT && Flags.onlyStartScanDuringBleOn()) {
                 mGattService = GattService.getGattService();
             }
             onProfileServiceStateChanged(profileService, BluetoothAdapter.STATE_ON);
@@ -1604,7 +1604,7 @@ public class AdapterService extends Service {
 
     private void setAllProfileServiceStates(int[] profileIds, int state) {
         for (int profileId : profileIds) {
-            if (!Flags.scanManagerRefactor()) {
+            if (!Flags.onlyStartScanDuringBleOn()) {
                 // TODO(b/228875190): GATT is assumed supported and treated differently as part of
                 //  the "BLE ON" state, despite GATT not being BLE specific.
                 if (profileId == BluetoothProfile.GATT) {
@@ -6327,7 +6327,7 @@ public class AdapterService extends Service {
 
     @Nullable
     public ScanController getBluetoothScanController() {
-        if (Flags.scanManagerRefactor()) {
+        if (Flags.onlyStartScanDuringBleOn()) {
             return mScanController;
         } else {
             return mGattService == null ? null : mGattService.getScanController();
@@ -6720,7 +6720,7 @@ public class AdapterService extends Service {
             for (ProfileService profile : mRunningProfiles) {
                 profile.setTestModeEnabled(testModeEnabled);
             }
-            if (Flags.scanManagerRefactor() && mScanController != null) {
+            if (Flags.onlyStartScanDuringBleOn() && mScanController != null) {
                 mScanController.setTestModeEnabled(testModeEnabled);
             }
             mTestModeEnabled = testModeEnabled;
@@ -6764,7 +6764,7 @@ public class AdapterService extends Service {
         for (ProfileService profile : mRegisteredProfiles) {
             profile.dump(sb);
         }
-        if (Flags.scanManagerRefactor()) {
+        if (Flags.onlyStartScanDuringBleOn()) {
             ScanController scanController = mScanController;
             if (scanController != null) {
                 scanController.dumpRegisterId(sb);
@@ -6810,7 +6810,7 @@ public class AdapterService extends Service {
         for (ProfileService profile : mRegisteredProfiles) {
             profile.dumpProto(metricsBuilder);
         }
-        if (Flags.scanManagerRefactor()) {
+        if (Flags.onlyStartScanDuringBleOn()) {
             ScanController scanController = mScanController;
             if (scanController != null) {
                 scanController.dumpProto(metricsBuilder);
