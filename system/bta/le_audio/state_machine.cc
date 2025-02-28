@@ -394,7 +394,8 @@ public:
     }
   }
 
-  void ProcessGattCtpNotification(LeAudioDeviceGroup* group, uint8_t* value, uint16_t len) {
+  void ProcessGattCtpNotification(LeAudioDeviceGroup* group, LeAudioDevice* leAudioDevice,
+                                  uint8_t* value, uint16_t len) {
     auto ntf = std::make_unique<struct bluetooth::le_audio::client_parser::ascs::ctp_ntf>();
 
     bool valid_notification = ParseAseCtpNotification(*ntf, len, value);
@@ -415,10 +416,13 @@ public:
      */
 
     auto target_state = group->GetTargetState();
+    auto current_state = group->GetState();
     auto in_transition = group->IsInTransition();
     if (!in_transition || target_state != AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING) {
-      log::debug("Not interested in ctp result for group {} inTransition: {} , targetState: {}",
-                 group->group_id_, in_transition, ToString(target_state));
+      log::debug(
+              "Not interested in ctp result for group {} inTransition: {} , targetState: {}, "
+              "currentState: {}",
+              group->group_id_, in_transition, ToString(target_state), ToString(current_state));
       return;
     }
 
@@ -429,24 +433,59 @@ public:
     }
 
     for (auto& entry : ntf->entries) {
+      // release ASEs on device which did not accept control point command
       if (entry.response_code !=
           bluetooth::le_audio::client_parser::ascs::kCtpResponseCodeSuccess) {
-        /* Gracefully stop the stream */
-        log::error(
-                "Stopping stream due to control point error for ase: {}, error: "
-                "0x{:02x}, reason: 0x{:02x}",
-                entry.ase_id, entry.response_code, entry.reason);
+        if (ntf->op == bluetooth::le_audio::client_parser::ascs::kCtpOpcodeRelease) {
+          log::warn(
+                  "Release failed for {}, ase: {}, last_ase_ctp_command_sent: {:#x}, error: {:#x}, "
+                  "reason: {:#x}, let "
+                  "watchdog to fire",
+                  leAudioDevice->address_, entry.ase_id, leAudioDevice->last_ase_ctp_command_sent,
+                  entry.response_code, entry.reason);
+          return;
+        }
 
-        notifyLeAudioHealth(
-                group,
-                bluetooth::le_audio::LeAudioHealthGroupStatType::STREAM_CREATE_SIGNALING_FAILED);
-        StopStream(group);
+        auto release_sent_to_remote = PrepareAndSendRelease(leAudioDevice);
+        auto active_devices = group->GetNumOfActiveDevices();
+
+        int releasing_devices = 0;
+        for (auto dev = group->GetFirstActiveDevice(); dev; dev = group->GetNextActiveDevice(dev)) {
+          if (dev->last_ase_ctp_command_sent ==
+              bluetooth::le_audio::client_parser::ascs::kCtpOpcodeRelease) {
+            releasing_devices++;
+          }
+        }
+
+        log::error(
+                "Releasing ASE due to control point error for {}, ase: {}, opcode: {:#x}, "
+                "last_ase_ctp_command_sent: {:#x}, error: "
+                "{:#x}, reason: {:#x}. release_sent_to_remote: {}, active_devices: {}, "
+                "releasing_devices: {}",
+                leAudioDevice->address_, entry.ase_id, ntf->op,
+                leAudioDevice->last_ase_ctp_command_sent, entry.response_code, entry.reason,
+                release_sent_to_remote, active_devices, releasing_devices);
+
+        // If there is no active devices it means, the whole set got released
+        if (releasing_devices == 0 && active_devices == 0) {
+          /* No remote communication expected */
+          ClearGroup(group, true);
+          notifyLeAudioHealth(
+                  group,
+                  bluetooth::le_audio::LeAudioHealthGroupStatType::STREAM_CREATE_SIGNALING_FAILED);
+        } else if (active_devices != 0 && releasing_devices == active_devices) {
+          group->SetTargetState(AseState::BTA_LE_AUDIO_ASE_STATE_IDLE);
+          state_machine_callbacks_->StatusReportCb(group->group_id_, GroupStreamStatus::RELEASING);
+          notifyLeAudioHealth(
+                  group,
+                  bluetooth::le_audio::LeAudioHealthGroupStatType::STREAM_CREATE_SIGNALING_FAILED);
+        }
         return;
       }
     }
 
-    log::debug("Ctp result OK for group {} inTransition: {} , targetState: {}", group->group_id_,
-               in_transition, ToString(target_state));
+    log::debug("Ctp result OK for group {} inTransition: {} , targetState: {}, currentState: {}",
+               group->group_id_, in_transition, ToString(target_state), ToString(current_state));
   }
 
   void ProcessGattNotifEvent(uint8_t* value, uint16_t len, struct ase* ase,
@@ -1280,6 +1319,9 @@ public:
 
     /* We should send Receiver Stop Ready when acting as a source */
     if (ases_pair.source && ases_pair.source->state == AseState::BTA_LE_AUDIO_ASE_STATE_DISABLING) {
+      leAudioDevice->last_ase_ctp_command_sent =
+              bluetooth::le_audio::client_parser::ascs::kCtpOpcodeReceiverStopReady;
+
       std::vector<uint8_t> ids = {ases_pair.source->id};
       std::vector<uint8_t> value;
 
@@ -1936,6 +1978,9 @@ private:
       extra_stream << +conf.codec_id.coding_format << "," << +conf.target_latency << ";;";
     }
 
+    leAudioDevice->last_ase_ctp_command_sent =
+            bluetooth::le_audio::client_parser::ascs::kCtpOpcodeCodecConfiguration;
+
     std::vector<uint8_t> value;
     log::info("{} -> ", leAudioDevice->address_);
     bluetooth::le_audio::client_parser::ascs::PrepareAseCtpCodecConfig(confs, value);
@@ -2453,6 +2498,9 @@ private:
                    << ";;";
     } while ((ase = leAudioDevice->GetNextActiveAse(ase)));
 
+    leAudioDevice->last_ase_ctp_command_sent =
+            bluetooth::le_audio::client_parser::ascs::kCtpOpcodeEnable;
+
     bluetooth::le_audio::client_parser::ascs::PrepareAseCtpEnable(confs, value);
     WriteToControlPoint(leAudioDevice, value);
 
@@ -2494,10 +2542,12 @@ private:
       msg_stream << "ASE_ID " << +ase->id << ", ";
     } while ((ase = leAudioDevice->GetNextActiveAse(ase)));
 
+    leAudioDevice->last_ase_ctp_command_sent =
+            bluetooth::le_audio::client_parser::ascs::kCtpOpcodeDisable;
+
     log::info("group_id: {}, {}", leAudioDevice->group_id_, leAudioDevice->address_);
     std::vector<uint8_t> value;
     bluetooth::le_audio::client_parser::ascs::PrepareAseCtpDisable(ids, value);
-
     WriteToControlPoint(leAudioDevice, value);
 
     log_history_->AddLogHistory(kLogControlPointCmd, leAudioDevice->group_id_,
@@ -2514,14 +2564,19 @@ private:
       return GroupStreamStatus::IDLE;
     }
 
+    bool releasing = false;
     for (; leAudioDevice; leAudioDevice = group->GetNextActiveDevice(leAudioDevice)) {
-      PrepareAndSendRelease(leAudioDevice);
+      releasing |= PrepareAndSendRelease(leAudioDevice);
     }
 
-    return GroupStreamStatus::RELEASING;
+    if (releasing) {
+      return GroupStreamStatus::RELEASING;
+    }
+
+    return GroupStreamStatus::IDLE;
   }
 
-  void PrepareAndSendRelease(LeAudioDevice* leAudioDevice) {
+  bool PrepareAndSendRelease(LeAudioDevice* leAudioDevice) {
     ase* ase = leAudioDevice->GetFirstActiveAse();
     log::assert_that(ase, "shouldn't be called without an active ASE");
 
@@ -2532,9 +2587,22 @@ private:
     do {
       log::debug("device: {}, ase_id: {}, cis_id: {}, ase state: {}", leAudioDevice->address_,
                  ase->id, ase->cis_id, ToString(ase->state));
-      ids.push_back(ase->id);
-      stream << "ASE_ID " << +ase->id << ",";
+      if (ase->state != AseState::BTA_LE_AUDIO_ASE_STATE_IDLE) {
+        ids.push_back(ase->id);
+        stream << "ASE_ID " << +ase->id << ",";
+      } else {
+        log::info("{}, ase: {} already in idle. Deactivate it", leAudioDevice->address_, ase->id);
+        ase->active = false;
+      }
     } while ((ase = leAudioDevice->GetNextActiveAse(ase)));
+
+    if (ids.empty()) {
+      log::info("Nothing to send to {}", leAudioDevice->address_);
+      return false;
+    }
+
+    leAudioDevice->last_ase_ctp_command_sent =
+            bluetooth::le_audio::client_parser::ascs::kCtpOpcodeRelease;
 
     std::vector<uint8_t> value;
     bluetooth::le_audio::client_parser::ascs::PrepareAseCtpRelease(ids, value);
@@ -2543,6 +2611,7 @@ private:
     log::info("group_id: {}, {}", leAudioDevice->group_id_, leAudioDevice->address_);
     log_history_->AddLogHistory(kLogControlPointCmd, leAudioDevice->group_id_,
                                 leAudioDevice->address_, stream.str());
+    return true;
   }
 
   void PrepareAndSendConfigQos(LeAudioDeviceGroup* group, LeAudioDevice* leAudioDevice) {
@@ -2634,6 +2703,9 @@ private:
       return;
     }
 
+    leAudioDevice->last_ase_ctp_command_sent =
+            bluetooth::le_audio::client_parser::ascs::kCtpOpcodeQosConfiguration;
+
     std::vector<uint8_t> value;
     bluetooth::le_audio::client_parser::ascs::PrepareAseCtpConfigQos(confs, value);
     WriteToControlPoint(leAudioDevice, value);
@@ -2710,6 +2782,9 @@ private:
     }
 
     if (confs.size() != 0) {
+      leAudioDevice->last_ase_ctp_command_sent =
+              bluetooth::le_audio::client_parser::ascs::kCtpOpcodeUpdateMetadata;
+
       std::vector<uint8_t> value;
       bluetooth::le_audio::client_parser::ascs::PrepareAseCtpUpdateMetadata(confs, value);
       WriteToControlPoint(leAudioDevice, value);
@@ -2736,6 +2811,9 @@ private:
     } while ((ase = leAudioDevice->GetNextActiveAse(ase)));
 
     if (ids.size() > 0) {
+      leAudioDevice->last_ase_ctp_command_sent =
+              bluetooth::le_audio::client_parser::ascs::kCtpOpcodeReceiverStartReady;
+
       bluetooth::le_audio::client_parser::ascs::PrepareAseCtpAudioReceiverStartReady(ids, value);
       WriteToControlPoint(leAudioDevice, value);
 
