@@ -1620,6 +1620,12 @@ public class DatabaseManager {
         }
     }
 
+    /**
+     * Get the key missing count.
+     *
+     * @param device the BluetoothDevice to get the key missing count for.
+     * @return the key missing count, or -1 if the device is not bonded.
+     */
     public int getKeyMissingCount(BluetoothDevice device) {
         synchronized (mMetadataCache) {
             String address = device.getAddress();
