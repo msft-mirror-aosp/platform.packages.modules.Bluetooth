@@ -177,6 +177,7 @@ public:
   LeAudioDevice* GetNextActiveDeviceByCisAndDataPathState(
           LeAudioDevice* leAudioDevice, types::CisState cis_state,
           types::DataPathState data_path_state) const;
+  int GetNumOfActiveDevices(void) const;
   bool IsDeviceInTheGroup(LeAudioDevice* leAudioDevice) const;
   bool HaveAllActiveDevicesAsesTheSameState(types::AseState state) const;
   bool HaveAnyActiveDeviceInStreamingState() const;
