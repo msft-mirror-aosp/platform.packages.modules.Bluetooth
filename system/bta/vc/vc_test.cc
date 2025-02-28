@@ -435,6 +435,7 @@ protected:
 
   void SetUp(void) override {
     __android_log_set_minimum_priority(ANDROID_LOG_VERBOSE);
+    com::android::bluetooth::flags::provider_->reset_flags();
 
     com::android::bluetooth::flags::provider_->leaudio_add_aics_support(true);
 
@@ -540,7 +541,6 @@ protected:
   }
 
   void TearDown(void) override {
-    com::android::bluetooth::flags::provider_->reset_flags();
     services_map.clear();
     gatt::SetMockBtaGattQueue(nullptr);
     gatt::SetMockBtaGattInterface(nullptr);

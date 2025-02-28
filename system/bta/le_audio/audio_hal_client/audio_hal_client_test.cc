@@ -230,6 +230,8 @@ public:
 class LeAudioClientAudioTest : public ::testing::Test {
 protected:
   void SetUp(void) override {
+    com::android::bluetooth::flags::provider_->reset_flags();
+
     init_message_loop_thread();
     bluetooth::audio::le_audio::interface_mock = &mock_client_interface_;
     bluetooth::audio::le_audio::sink_mock = &mock_hal_interface_audio_sink_;
@@ -279,8 +281,6 @@ protected:
   }
 
   void TearDown(void) override {
-    com::android::bluetooth::flags::provider_->reset_flags();
-
     /* We have to call Cleanup to tidy up some static variables.
      * If on the HAL end Source is running it means we are running the Sink
      * on our end, and vice versa.
