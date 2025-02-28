@@ -44,7 +44,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothLeBroadcastMetadata;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothSinkAudioPolicy;
 import android.content.Context;
@@ -1757,8 +1756,7 @@ public class ActiveDeviceManagerTest {
      */
     @Test
     public void a2dpConnectedWhenBroadcasting_notSetA2dpActive() {
-        final List<BluetoothLeBroadcastMetadata> metadataList = mock(List.class);
-        when(mLeAudioService.getAllBroadcastMetadata()).thenReturn(metadataList);
+        when(mLeAudioService.isBroadcastStarted()).thenReturn(true);
         a2dpConnected(mA2dpDevice, false);
         mTestLooper.dispatchAll();
         verify(mA2dpService, never()).setActiveDevice(any());
@@ -1773,8 +1771,7 @@ public class ActiveDeviceManagerTest {
      */
     @Test
     public void headsetConnectedWhenBroadcasting_notSetHeadsetActive() {
-        final List<BluetoothLeBroadcastMetadata> metadataList = mock(List.class);
-        when(mLeAudioService.getAllBroadcastMetadata()).thenReturn(metadataList);
+        when(mLeAudioService.isBroadcastStarted()).thenReturn(true);
         headsetConnected(mHeadsetDevice, false);
         mTestLooper.dispatchAll();
         verify(mHeadsetService, never()).setActiveDevice(any());
@@ -1789,8 +1786,7 @@ public class ActiveDeviceManagerTest {
      */
     @Test
     public void hearingAidConnectedWhenBroadcasting_notSetHearingAidActive() {
-        final List<BluetoothLeBroadcastMetadata> metadataList = mock(List.class);
-        when(mLeAudioService.getAllBroadcastMetadata()).thenReturn(metadataList);
+        when(mLeAudioService.isBroadcastStarted()).thenReturn(true);
         hearingAidConnected(mHearingAidDevice);
         mTestLooper.dispatchAll();
         verify(mHearingAidService, never()).setActiveDevice(any());
@@ -1802,8 +1798,7 @@ public class ActiveDeviceManagerTest {
      */
     @Test
     public void leHearingAidConnectedWhenBroadcasting_notSetLeHearingAidActive() {
-        final List<BluetoothLeBroadcastMetadata> metadataList = mock(List.class);
-        when(mLeAudioService.getAllBroadcastMetadata()).thenReturn(metadataList);
+        when(mLeAudioService.isBroadcastStarted()).thenReturn(true);
         leHearingAidConnected(mLeHearingAidDevice);
         mTestLooper.dispatchAll();
         verify(mLeAudioService, never()).setActiveDevice(any());

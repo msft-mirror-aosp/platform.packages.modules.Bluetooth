@@ -1565,6 +1565,15 @@ public class LeAudioService extends ProfileService {
     }
 
     /**
+     * Check if broadcast is active or ready to be re-activated
+     *
+     * @return true if there is active broadcast or ready to be re-activated, false otherwise
+     */
+    public boolean isBroadcastStarted() {
+        return isBroadcastActive() || isBroadcastReadyToBeReActivated();
+    }
+
+    /**
      * Get the maximum number of supported simultaneous broadcasts.
      *
      * @return number of supported simultaneous broadcasts
@@ -3144,10 +3153,6 @@ public class LeAudioService extends ProfileService {
             headsetService.connectAudio();
         }
         mHfpHandoverDevice = null;
-    }
-
-    boolean isBroadcastStarted() {
-        return isBroadcastActive() || isBroadcastReadyToBeReActivated();
     }
 
     /* Return true if Fallback Unicast Group For Broadcast is the given groupId and broadcast is
