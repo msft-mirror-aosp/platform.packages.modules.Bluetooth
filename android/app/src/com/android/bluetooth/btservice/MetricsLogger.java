@@ -569,31 +569,16 @@ public class MetricsLogger {
         }
         String deviceTypeMetaData = new String(deviceTypeMetaDataBytes, StandardCharsets.UTF_8);
 
-        switch (deviceTypeMetaData) {
-            case "Watch":
-                return BluetoothProtoEnums.WATCH;
-
-            case "Untethered Headset":
-                return BluetoothProtoEnums.UNTETHERED_HEADSET;
-
-            case "Stylus":
-                return BluetoothProtoEnums.STYLUS;
-
-            case "Speaker":
-                return BluetoothProtoEnums.SPEAKER;
-
-            case "Headset":
-                return BluetoothProtoEnums.HEADSET;
-
-            case "Carkit":
-                return BluetoothProtoEnums.CARKIT;
-
-            case "Default":
-                return BluetoothProtoEnums.DEFAULT;
-
-            default:
-                return BluetoothProtoEnums.NOT_AVAILABLE;
-        }
+        return switch (deviceTypeMetaData) {
+            case "Watch" -> BluetoothProtoEnums.WATCH;
+            case "Untethered Headset" -> BluetoothProtoEnums.UNTETHERED_HEADSET;
+            case "Stylus" -> BluetoothProtoEnums.STYLUS;
+            case "Speaker" -> BluetoothProtoEnums.SPEAKER;
+            case "Headset" -> BluetoothProtoEnums.HEADSET;
+            case "Carkit" -> BluetoothProtoEnums.CARKIT;
+            case "Default" -> BluetoothProtoEnums.DEFAULT;
+            default -> BluetoothProtoEnums.NOT_AVAILABLE;
+        };
     }
 
     private static int getOui(BluetoothDevice device) {
