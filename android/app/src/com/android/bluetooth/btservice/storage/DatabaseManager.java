@@ -19,6 +19,7 @@ package com.android.bluetooth.btservice.storage;
 import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
 import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
 import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
+import static android.bluetooth.BluetoothProfile.getProfileName;
 
 import static java.util.Objects.requireNonNull;
 
@@ -72,19 +73,7 @@ public class DatabaseManager {
     private static final String TAG =
             Utils.TAG_PREFIX_BLUETOOTH + DatabaseManager.class.getSimpleName();
 
-    private final AdapterService mAdapterService;
-    private HandlerThread mHandlerThread = null;
-    private Handler mHandler = null;
-    private final Object mDatabaseLock = new Object();
-    private @GuardedBy("mDatabaseLock") MetadataDatabase mDatabase = null;
-    private boolean mMigratedFromSettingsGlobal = false;
-
-    @VisibleForTesting final Map<String, Metadata> mMetadataCache = new HashMap<>();
-    private final Semaphore mSemaphore = new Semaphore(1);
-    private static final int METADATA_CHANGED_LOG_MAX_SIZE = 20;
-    private final EvictingQueue<String> mMetadataChangedLog;
-
-    private static final int LOAD_DATABASE_TIMEOUT = 500; // milliseconds
+    private static final int LOAD_DATABASE_TIMEOUT_MS = 500;
     private static final int MSG_LOAD_DATABASE = 0;
     private static final int MSG_UPDATE_DATABASE = 1;
     private static final int MSG_DELETE_DATABASE = 2;
@@ -110,13 +99,28 @@ public class DatabaseManager {
     private static final String LEGACY_HEARING_AID_PRIORITY_PREFIX =
             "bluetooth_hearing_aid_priority_";
 
+    private static final int METADATA_CHANGED_LOG_MAX_SIZE = 20;
+
+    private final BluetoothAdapter mAdapter;
+    private final AdapterService mAdapterService;
+    private HandlerThread mHandlerThread = null;
+    private Handler mHandler = null;
+    private final Object mDatabaseLock = new Object();
+    private @GuardedBy("mDatabaseLock") MetadataDatabase mDatabase = null;
+    private boolean mMigratedFromSettingsGlobal = false;
+
+    @VisibleForTesting final Map<String, Metadata> mMetadataCache = new HashMap<>();
+    private final Semaphore mSemaphore = new Semaphore(1);
+    private final EvictingQueue<String> mMetadataChangedLog;
+
     /** Constructor of the DatabaseManager */
     public DatabaseManager(AdapterService service) {
+        mAdapter = BluetoothAdapter.getDefaultAdapter();
         mAdapterService = requireNonNull(service);
         mMetadataChangedLog = EvictingQueue.create(METADATA_CHANGED_LOG_MAX_SIZE);
     }
 
-    class DatabaseHandler extends Handler {
+    private class DatabaseHandler extends Handler {
         DatabaseHandler(Looper looper) {
             super(looper);
         }
@@ -247,7 +251,6 @@ public class DatabaseManager {
     }
 
     /** Set customized metadata to database with requested key */
-    @VisibleForTesting
     public boolean setCustomMeta(BluetoothDevice device, int key, byte[] newValue) {
         if (device == null) {
             Log.e(TAG, "setCustomMeta: device is null");
@@ -304,7 +307,6 @@ public class DatabaseManager {
     }
 
     /** Set audio policy metadata to database with requested key */
-    @VisibleForTesting
     public boolean setAudioPolicyMetadata(
             BluetoothDevice device, BluetoothSinkAudioPolicy policies) {
         if (device == null) {
@@ -329,7 +331,6 @@ public class DatabaseManager {
     }
 
     /** Get audio policy metadata from database with requested key */
-    @VisibleForTesting
     public BluetoothSinkAudioPolicy getAudioPolicyMetadata(BluetoothDevice device) {
         if (device == null) {
             Log.e(TAG, "getAudioPolicyMetadata: device is null");
@@ -401,7 +402,7 @@ public class DatabaseManager {
                 Log.v(TAG, "setProfileConnectionPolicy connection policy not changed.");
                 return true;
             }
-            String profileStr = BluetoothProfile.getProfileName(profile);
+            String profileStr = getProfileName(profile);
             logMetadataChange(
                     data,
                     profileStr
@@ -409,7 +410,6 @@ public class DatabaseManager {
                             + oldConnectionPolicy
                             + " -> "
                             + newConnectionPolicy);
-
             Log.v(
                     TAG,
                     "setProfileConnectionPolicy:"
@@ -461,22 +461,21 @@ public class DatabaseManager {
                     TAG,
                     "getProfileConnectionPolicy:"
                             + (" device=" + device)
-                            + (" profile=" + BluetoothProfile.getProfileName(profile))
+                            + (" profile=" + getProfileName(profile))
                             + (" connectionPolicy=" + connectionPolicy));
             return connectionPolicy;
         }
     }
 
     /**
-     * Set the A2DP optional coedc support value
+     * Set the A2DP optional codec support value
      *
      * @param device {@link BluetoothDevice} wish to set
-     * @param newValue the new A2DP optional coedc support value, one of {@link
+     * @param newValue the new A2DP optional codec support value, one of {@link
      *     BluetoothA2dp#OPTIONAL_CODECS_SUPPORT_UNKNOWN}, {@link
      *     BluetoothA2dp#OPTIONAL_CODECS_NOT_SUPPORTED}, {@link
      *     BluetoothA2dp#OPTIONAL_CODECS_SUPPORTED}
      */
-    @VisibleForTesting
     public void setA2dpSupportsOptionalCodecs(BluetoothDevice device, int newValue) {
         if (device == null) {
             Log.e(TAG, "setA2dpOptionalCodec: device is null");
@@ -509,15 +508,14 @@ public class DatabaseManager {
     }
 
     /**
-     * Get the A2DP optional coedc support value
+     * Get the A2DP optional codec support value
      *
      * @param device {@link BluetoothDevice} wish to get
-     * @return the A2DP optional coedc support value, one of {@link
+     * @return the A2DP optional codec support value, one of {@link
      *     BluetoothA2dp#OPTIONAL_CODECS_SUPPORT_UNKNOWN}, {@link
      *     BluetoothA2dp#OPTIONAL_CODECS_NOT_SUPPORTED}, {@link
      *     BluetoothA2dp#OPTIONAL_CODECS_SUPPORTED},
      */
-    @VisibleForTesting
     @OptionalCodecsSupportStatus
     public int getA2dpSupportsOptionalCodecs(BluetoothDevice device) {
         if (device == null) {
@@ -539,15 +537,14 @@ public class DatabaseManager {
     }
 
     /**
-     * Set the A2DP optional coedc enabled value
+     * Set the A2DP optional codec enabled value
      *
      * @param device {@link BluetoothDevice} wish to set
-     * @param newValue the new A2DP optional coedc enabled value, one of {@link
+     * @param newValue the new A2DP optional codec enabled value, one of {@link
      *     BluetoothA2dp#OPTIONAL_CODECS_PREF_UNKNOWN}, {@link
      *     BluetoothA2dp#OPTIONAL_CODECS_PREF_DISABLED}, {@link
      *     BluetoothA2dp#OPTIONAL_CODECS_PREF_ENABLED}
      */
-    @VisibleForTesting
     public void setA2dpOptionalCodecsEnabled(BluetoothDevice device, int newValue) {
         if (device == null) {
             Log.e(TAG, "setA2dpOptionalCodecEnabled: device is null");
@@ -580,15 +577,14 @@ public class DatabaseManager {
     }
 
     /**
-     * Get the A2DP optional coedc enabled value
+     * Get the A2DP optional codec enabled value
      *
      * @param device {@link BluetoothDevice} wish to get
-     * @return the A2DP optional coedc enabled value, one of {@link
+     * @return the A2DP optional codec enabled value, one of {@link
      *     BluetoothA2dp#OPTIONAL_CODECS_PREF_UNKNOWN}, {@link
      *     BluetoothA2dp#OPTIONAL_CODECS_PREF_DISABLED}, {@link
      *     BluetoothA2dp#OPTIONAL_CODECS_PREF_ENABLED}
      */
-    @VisibleForTesting
     @OptionalCodecsPreferenceStatus
     public int getA2dpOptionalCodecsEnabled(BluetoothDevice device) {
         if (device == null) {
@@ -686,19 +682,12 @@ public class DatabaseManager {
      */
     public void setDisconnection(BluetoothDevice device, int profileId) {
         if (device == null) {
-            Log.e(
-                    TAG,
-                    "setDisconnection: device is null, "
-                            + "profileId: "
-                            + BluetoothProfile.getProfileName(profileId));
+            Log.e(TAG, "setDisconnection: device is null, profileId: " + getProfileName(profileId));
             return;
         }
         Log.d(
                 TAG,
-                "setDisconnection: device "
-                        + device
-                        + "profileId: "
-                        + BluetoothProfile.getProfileName(profileId));
+                "setDisconnection: device " + device + "profileId: " + getProfileName(profileId));
 
         if (profileId != BluetoothProfile.A2DP && profileId != BluetoothProfile.HEADSET) {
             // there is no change on metadata when profile is neither A2DP nor Headset
@@ -712,7 +701,6 @@ public class DatabaseManager {
                 return;
             }
             Metadata metadata = mMetadataCache.get(address);
-
             if (profileId == BluetoothProfile.A2DP && metadata.is_active_a2dp_device) {
                 metadata.is_active_a2dp_device = false;
                 Log.d(
@@ -775,8 +763,7 @@ public class DatabaseManager {
             for (Metadata metadata : sortedMetadata) {
                 try {
                     mostRecentlyConnectedDevices.add(
-                            BluetoothAdapter.getDefaultAdapter()
-                                    .getRemoteDevice(metadata.getAddress()));
+                            mAdapter.getRemoteDevice(metadata.getAddress()));
                 } catch (IllegalArgumentException ex) {
                     Log.d(
                             TAG,
@@ -829,8 +816,7 @@ public class DatabaseManager {
                 Metadata metadata = entry.getValue();
                 if (metadata.is_active_a2dp_device) {
                     try {
-                        return BluetoothAdapter.getDefaultAdapter()
-                                .getRemoteDevice(metadata.getAddress());
+                        return mAdapter.getRemoteDevice(metadata.getAddress());
                     } catch (IllegalArgumentException ex) {
                         Log.d(
                                 TAG,
@@ -859,8 +845,7 @@ public class DatabaseManager {
         }
         if (entry != null) {
             try {
-                return BluetoothAdapter.getDefaultAdapter()
-                        .getRemoteDevice(entry.getValue().getAddress());
+                return mAdapter.getRemoteDevice(entry.getValue().getAddress());
             } catch (IllegalArgumentException ex) {
                 Log.d(
                         TAG,
@@ -876,11 +861,10 @@ public class DatabaseManager {
      * @return the list of device registered as HFP active
      */
     public List<BluetoothDevice> getMostRecentlyActiveHfpDevices() {
-        BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
         synchronized (mMetadataCache) {
             return mMetadataCache.entrySet().stream()
                     .filter(x -> x.getValue().isActiveHfpDevice)
-                    .map(x -> adapter.getRemoteDevice(x.getValue().getAddress()))
+                    .map(x -> mAdapter.getRemoteDevice(x.getValue().getAddress()))
                     .collect(Collectors.toList());
         }
     }
@@ -961,7 +945,7 @@ public class DatabaseManager {
                                     + "device: "
                                     + device
                                     + " to "
-                                    + BluetoothProfile.getProfileName(outputProfile));
+                                    + getProfileName(outputProfile));
                     metadata.preferred_output_only_profile = outputProfile;
                     isPreferenceSet = true;
                 }
@@ -973,11 +957,10 @@ public class DatabaseManager {
                             "setPreferredAudioProfiles: Updating DUPLEX audio profile for device: "
                                     + device
                                     + " to "
-                                    + BluetoothProfile.getProfileName(duplexProfile));
+                                    + getProfileName(duplexProfile));
                     metadata.preferred_duplex_profile = duplexProfile;
                     isPreferenceSet = true;
                 }
-
                 updateDatabase(metadata);
             }
 
@@ -994,7 +977,7 @@ public class DatabaseManager {
                                     + "device: "
                                     + firstGroupDevice
                                     + " to "
-                                    + BluetoothProfile.getProfileName(outputProfile));
+                                    + getProfileName(outputProfile));
                     metadata.preferred_output_only_profile = outputProfile;
                 }
                 if (duplexProfile != 0) {
@@ -1003,10 +986,9 @@ public class DatabaseManager {
                             "setPreferredAudioProfiles: Updating duplex audio profile for device: "
                                     + firstGroupDevice
                                     + " to "
-                                    + BluetoothProfile.getProfileName(duplexProfile));
+                                    + getProfileName(duplexProfile));
                     metadata.preferred_duplex_profile = duplexProfile;
                 }
-
                 updateDatabase(metadata);
             }
         }
@@ -1083,7 +1065,6 @@ public class DatabaseManager {
                             + " to: "
                             + activeAudioDevicePolicy);
             metadata.active_audio_device_policy = activeAudioDevicePolicy;
-
             updateDatabase(metadata);
         }
         return BluetoothStatusCodes.SUCCESS;
@@ -1106,7 +1087,6 @@ public class DatabaseManager {
             }
 
             Metadata metadata = mMetadataCache.get(address);
-
             return metadata.active_audio_device_policy;
         }
     }
@@ -1132,7 +1112,6 @@ public class DatabaseManager {
             Metadata metadata = mMetadataCache.get(address);
             Log.i(TAG, "setMicrophoneForCallEnabled(" + device + ", " + enabled + ")");
             metadata.is_preferred_microphone_for_calls = enabled;
-
             updateDatabase(metadata);
         }
         return BluetoothStatusCodes.SUCCESS;
@@ -1156,7 +1135,6 @@ public class DatabaseManager {
             }
 
             Metadata metadata = mMetadataCache.get(address);
-
             return metadata.is_preferred_microphone_for_calls;
         }
     }
@@ -1166,7 +1144,6 @@ public class DatabaseManager {
      *
      * @return {@link Looper} for the handler thread
      */
-    @VisibleForTesting
     public Looper getHandlerLooper() {
         if (mHandlerThread == null) {
             return null;
@@ -1267,8 +1244,7 @@ public class DatabaseManager {
                                 && !Arrays.asList(bondedDevices).stream()
                                         .anyMatch(device -> address.equals(device.getAddress()))) {
                             List<Integer> list = metadata.getChangedCustomizedMeta();
-                            BluetoothDevice device =
-                                    BluetoothAdapter.getDefaultAdapter().getRemoteDevice(address);
+                            BluetoothDevice device = mAdapter.getRemoteDevice(address);
                             for (int key : list) {
                                 mAdapterService.onMetadataChanged(device, key, null);
                             }
@@ -1491,7 +1467,7 @@ public class DatabaseManager {
         mHandler.sendMessage(message);
         try {
             // Lock the thread until handler thread finish loading database.
-            mSemaphore.tryAcquire(LOAD_DATABASE_TIMEOUT, TimeUnit.MILLISECONDS);
+            mSemaphore.tryAcquire(LOAD_DATABASE_TIMEOUT_MS, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
             Log.e(TAG, "loadDatabase: semaphore acquire failed");
         }
@@ -1593,7 +1569,7 @@ public class DatabaseManager {
     /**
      * Update Key missing count.
      *
-     * <p> It is used to update the key missing count when a bond loss is detected (increment the
+     * <p>It is used to update the key missing count when a bond loss is detected (increment the
      * count) or a successful bond is detected (reset the count)
      *
      * @param isKeyMissingDetected true if the bond loss is detected, false if the bond is
