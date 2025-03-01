@@ -593,7 +593,10 @@ public class MetricsLogger {
         deviceName = deviceName.trim().replaceAll(" +", " ");
         // remove non alphanumeric characters and spaces, and transform to lower cases.
         String[] words =
-                deviceName.replaceAll("[^a-zA-Z0-9 ]", "").toLowerCase(Locale.ROOT).split(" ");
+                deviceName
+                        .replaceAll("[^a-zA-Z0-9 ]", "")
+                        .toLowerCase(Locale.ROOT)
+                        .split(" ", MAX_WORDS_ALLOWED_IN_DEVICE_NAME + 1);
 
         if (words.length > MAX_WORDS_ALLOWED_IN_DEVICE_NAME) {
             // Validity checking here to avoid excessively long sequences
