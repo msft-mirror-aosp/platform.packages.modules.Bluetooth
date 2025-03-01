@@ -1015,15 +1015,21 @@ public:
                                         " STATUS=" + loghex(event->status));
 
     if (event->status != HCI_SUCCESS) {
+      log::warn("{}: failed to create CIS 0x{:04x}, status: {} (0x{:02x})", leAudioDevice->address_,
+                event->cis_conn_hdl, ErrorCodeText((ErrorCode)event->status), event->status);
+
+      if (event->status == HCI_ERR_CANCELLED_BY_LOCAL_HOST) {
+        log::info("{} CIS creation aborted by us, waiting for disconnection complete",
+                  leAudioDevice->address_);
+        return;
+      }
+
       if (ases_pair.sink) {
         ases_pair.sink->cis_state = CisState::ASSIGNED;
       }
       if (ases_pair.source) {
         ases_pair.source->cis_state = CisState::ASSIGNED;
       }
-
-      log::warn("{}: failed to create CIS 0x{:04x}, status: {} (0x{:02x})", leAudioDevice->address_,
-                event->cis_conn_hdl, ErrorCodeText((ErrorCode)event->status), event->status);
 
       if (event->status == HCI_ERR_CONN_FAILED_ESTABLISHMENT &&
           ((leAudioDevice->cis_failed_to_be_established_retry_cnt_++) < kNumberOfCisRetries) &&
