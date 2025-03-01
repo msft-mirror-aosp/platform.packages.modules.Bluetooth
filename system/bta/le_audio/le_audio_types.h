@@ -669,8 +669,8 @@ struct LeAudioCoreCodecCapabilities {
 };
 
 struct LeAudioMetadata {
-  std::optional<uint16_t> preferred_audio_context;
-  std::optional<uint16_t> streaming_audio_context;
+  std::optional<AudioContexts> preferred_audio_context;
+  std::optional<AudioContexts> streaming_audio_context;
   std::optional<std::string> program_info;
   std::optional<std::string> language;  // ISO 639-3 (3 lowercase letter codes)
   std::optional<std::vector<uint8_t>> ccid_list;
@@ -837,17 +837,21 @@ private:
     LeAudioMetadata metadata;
 
     auto vec_opt = ltvs.Find(types::kLeAudioMetadataTypePreferredAudioContext);
-    if (vec_opt &&
-        (vec_opt->size() == sizeof(decltype(metadata.preferred_audio_context)::value_type))) {
+    if (vec_opt && (vec_opt->size() == sizeof(uint16_t))) {
       auto ptr = vec_opt->data();
-      STREAM_TO_UINT16(metadata.preferred_audio_context, ptr);
+      uint16_t raw_ctx;
+      STREAM_TO_UINT16(raw_ctx, ptr);
+      AudioContexts ctx(raw_ctx);
+      metadata.preferred_audio_context = ctx;
     }
 
     vec_opt = ltvs.Find(types::kLeAudioMetadataTypeStreamingAudioContext);
-    if (vec_opt &&
-        (vec_opt->size() == sizeof(decltype(metadata.streaming_audio_context)::value_type))) {
+    if (vec_opt && (vec_opt->size() == sizeof(uint16_t))) {
       auto ptr = vec_opt->data();
-      STREAM_TO_UINT16(metadata.streaming_audio_context, ptr);
+      uint16_t raw_ctx;
+      STREAM_TO_UINT16(raw_ctx, ptr);
+      AudioContexts ctx(raw_ctx);
+      metadata.streaming_audio_context = ctx;
     }
 
     vec_opt = ltvs.Find(types::kLeAudioMetadataTypeProgramInfo);
