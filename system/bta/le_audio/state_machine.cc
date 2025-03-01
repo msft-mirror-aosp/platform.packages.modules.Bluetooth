@@ -1069,9 +1069,25 @@ public:
       leAudioDevice->cis_failed_to_be_established_retry_cnt_ = 0;
     }
 
-    if (group->GetTargetState() != AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING) {
-      log::error("Unintended CIS establishement event came for group id: {}", group->group_id_);
-      StopStream(group);
+    bool is_cis_connecting =
+            (ases_pair.sink && ases_pair.sink->cis_state == CisState::CONNECTING) ||
+            (ases_pair.source && ases_pair.source->cis_state == CisState::CONNECTING);
+
+    if (group->GetTargetState() != AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING ||
+        !is_cis_connecting) {
+      bool is_cis_disconnecting =
+              (ases_pair.sink && ases_pair.sink->cis_state == CisState::DISCONNECTING) ||
+              (ases_pair.source && ases_pair.source->cis_state == CisState::DISCONNECTING);
+      if (is_cis_disconnecting) {
+        /* We are in the process of CIS disconnection while the Established event came.
+         * The Disconnection Complete shall come right after.
+         */
+        log::info("{} got CIS is in disconnecting state", leAudioDevice->address_);
+      } else {
+        log::error("Unintended CIS establishment event came for group id: {}", group->group_id_);
+        StopStream(group);
+      }
+
       return;
     }
 
@@ -2944,19 +2960,20 @@ private:
           return;
         }
 
+        /* The group is not ready to stream yet as there is still pending CIS Establish event and/or
+         * Data Path setup complete event */
+        if (!group->IsGroupStreamReady()) {
+          log::info("CISes are not yet ready, wait for it.");
+          group->SetNotifyStreamingWhenCisesAreReadyFlag(true);
+          return;
+        }
+
         if (group->GetState() == AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING) {
           /* We are here because of the reconnection of the single device */
           log::info("{}, Ase id: {}, ase state: {}", leAudioDevice->address_, ase->id,
                     bluetooth::common::ToString(ase->state));
           cancel_watchdog_if_needed(group->group_id_);
           state_machine_callbacks_->StatusReportCb(group->group_id_, GroupStreamStatus::STREAMING);
-          return;
-        }
-
-        /* Not all CISes establish events will came */
-        if (!group->IsGroupStreamReady()) {
-          log::info("CISes are not yet ready, wait for it.");
-          group->SetNotifyStreamingWhenCisesAreReadyFlag(true);
           return;
         }
 
