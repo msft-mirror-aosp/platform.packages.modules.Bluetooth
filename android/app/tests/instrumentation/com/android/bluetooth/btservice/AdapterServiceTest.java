@@ -363,7 +363,7 @@ public class AdapterServiceTest {
     }
 
     private List<ProfileService> listOfMockServices() {
-        return Flags.scanManagerRefactor()
+        return Flags.onlyStartScanDuringBleOn()
                 ? List.of(mMockGattService, mMockService, mMockService2)
                 : List.of(mMockService, mMockService2);
     }
@@ -374,7 +374,7 @@ public class AdapterServiceTest {
         syncHandler(AdapterState.BLE_TURN_ON);
         verifyStateChange(STATE_OFF, STATE_BLE_TURNING_ON);
 
-        if (!Flags.scanManagerRefactor()) {
+        if (!Flags.onlyStartScanDuringBleOn()) {
             syncHandler(MESSAGE_PROFILE_SERVICE_REGISTERED);
             syncHandler(MESSAGE_PROFILE_SERVICE_STATE_CHANGED);
         }
@@ -391,7 +391,7 @@ public class AdapterServiceTest {
         syncHandler(AdapterState.USER_TURN_OFF);
         verifyStateChange(STATE_ON, STATE_TURNING_OFF);
 
-        // Stop (if Flags.scanManagerRefactor GATT), PBAP, and PAN services
+        // Stop (if Flags.onlyStartScanDuringBleOn GATT), PBAP, and PAN services
         assertThat(mAdapterService.mSetProfileServiceStateCounter)
                 .isEqualTo(listOfMockServices().size() * 2);
 
@@ -422,7 +422,7 @@ public class AdapterServiceTest {
         syncHandler(AdapterState.USER_TURN_ON);
         verifyStateChange(STATE_BLE_ON, STATE_TURNING_ON);
 
-        // Start Mock (if Flags.scanManagerRefactor GATT), PBAP, and PAN services
+        // Start Mock (if Flags.onlyStartScanDuringBleOn GATT), PBAP, and PAN services
         assertThat(mAdapterService.mSetProfileServiceStateCounter)
                 .isEqualTo(listOfMockServices().size());
 
@@ -466,7 +466,7 @@ public class AdapterServiceTest {
         syncHandler(AdapterState.BLE_TURN_OFF);
         verifyStateChange(STATE_BLE_ON, STATE_BLE_TURNING_OFF, CONTEXT_SWITCH_MS);
 
-        if (!Flags.scanManagerRefactor()) {
+        if (!Flags.onlyStartScanDuringBleOn()) {
             syncHandler(MESSAGE_PROFILE_SERVICE_STATE_CHANGED); // stop GATT
             syncHandler(MESSAGE_PROFILE_SERVICE_UNREGISTERED);
         }

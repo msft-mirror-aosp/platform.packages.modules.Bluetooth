@@ -134,7 +134,7 @@ public class GattService extends ProfileService {
 
     @Nullable public final ScanController mScanController;
 
-    /** This is only used when Flags.scanManagerRefactor() is true. */
+    /** This is only used when Flags.onlyStartScanDuringBleOn() is true. */
     private static GattService sGattService;
 
     /** List of our registered clients. */
@@ -185,7 +185,7 @@ public class GattService extends ProfileService {
 
         mAdvertiseManager = new AdvertiseManager(mAdapterService, mHandlerThread.getLooper());
 
-        if (!Flags.scanManagerRefactor()) {
+        if (!Flags.onlyStartScanDuringBleOn()) {
             mScanController = new ScanController(adapterService);
         } else {
             mScanController = null;
@@ -193,7 +193,7 @@ public class GattService extends ProfileService {
         mDistanceMeasurementManager =
                 GattObjectsFactory.getInstance().createDistanceMeasurementManager(mAdapterService);
 
-        if (Flags.scanManagerRefactor()) {
+        if (Flags.onlyStartScanDuringBleOn()) {
             setGattService(this);
         }
     }
@@ -214,11 +214,11 @@ public class GattService extends ProfileService {
     public void cleanup() {
         Log.i(TAG, "Cleanup Gatt Service");
 
-        if (Flags.scanManagerRefactor() && sGattService == null) {
+        if (Flags.onlyStartScanDuringBleOn() && sGattService == null) {
             Log.w(TAG, "cleanup() called before initialization");
             return;
         }
-        if (Flags.scanManagerRefactor()) {
+        if (Flags.onlyStartScanDuringBleOn()) {
             setGattService(null);
         }
         if (mScanController != null) {
@@ -236,7 +236,7 @@ public class GattService extends ProfileService {
         mHandlerThread.quit();
     }
 
-    /** This is only used when Flags.scanManagerRefactor() is true. */
+    /** This is only used when Flags.onlyStartScanDuringBleOn() is true. */
     public static synchronized GattService getGattService() {
         if (sGattService == null) {
             Log.w(TAG, "getGattService(): service is null");
