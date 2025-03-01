@@ -708,7 +708,6 @@ protected:
     /* Update all stuff on the group when device got connected */
     group->ReloadAudioLocations();
     group->ReloadAudioDirections();
-    group->UpdateAudioContextAvailability();
     group->InvalidateCachedConfigurations();
     group->InvalidateGroupStrategy();
   }
@@ -1053,7 +1052,6 @@ protected:
     if (group) {
       bool group_conf_changed = group->ReloadAudioLocations();
       group_conf_changed |= group->ReloadAudioDirections();
-      group_conf_changed |= group->UpdateAudioContextAvailability();
       if (group_conf_changed) {
         /* All the configurations should be recalculated for the new conditions */
         group->InvalidateCachedConfigurations();
@@ -5611,6 +5609,72 @@ TEST_F(StateMachineTest, testAttachDeviceToTheStreamV2) {
   ASSERT_NE(ase->qos_config.retrans_nb, 0);
 }
 
+TEST_F(StateMachineTest, testStreamingContextMechanism) {
+  const auto context_type = kContextTypeMedia;
+  const auto leaudio_group_id = 6;
+  const auto num_devices = 2;
+
+  ContentControlIdKeeper::GetInstance()->SetCcid(media_context, media_ccid);
+
+  // Prepare multiple fake connected devices in a group
+  auto* group = PrepareSingleTestDeviceGroup(leaudio_group_id, context_type, num_devices);
+  ASSERT_EQ(group->Size(), num_devices);
+
+  PrepareConfigureCodecHandler(group);
+  PrepareConfigureQosHandler(group);
+  PrepareEnableHandler(group);
+  PrepareDisableHandler(group);
+  PrepareReleaseHandler(group);
+
+  auto* leAudioDevice = group->GetFirstDevice();
+  LeAudioDevice* firstDevice = leAudioDevice;
+  LeAudioDevice* lastDevice;
+
+  auto expected_devices_written = 0;
+  while (leAudioDevice) {
+    /* Three Writes:
+     * 1: Codec Config
+     * 2: Codec QoS
+     * 3: Enabling
+     */
+    lastDevice = leAudioDevice;
+    EXPECT_CALL(gatt_queue,
+                WriteCharacteristic(leAudioDevice->conn_id_, leAudioDevice->ctp_hdls_.val_hdl, _,
+                                    GATT_WRITE_NO_RSP, _, _))
+            .Times(AtLeast(3));
+    expected_devices_written++;
+    leAudioDevice = group->GetNextDevice(leAudioDevice);
+  }
+  ASSERT_EQ(expected_devices_written, num_devices);
+
+  EXPECT_CALL(*mock_iso_manager_, CreateCig(_, _)).Times(1);
+  EXPECT_CALL(*mock_iso_manager_, EstablishCis(_)).Times(1);
+  EXPECT_CALL(*mock_iso_manager_, SetupIsoDataPath(_, _)).Times(2);
+
+  InjectInitialIdleNotification(group);
+
+  // Start the configuration and stream Media content
+  LeAudioGroupStateMachine::Get()->StartStream(group, context_type,
+                                               {.sink = types::AudioContexts(context_type),
+                                                .source = types::AudioContexts(context_type)});
+
+  // Check if group has transitioned to a proper state
+  ASSERT_EQ(group->GetState(), types::AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING);
+  testing::Mock::VerifyAndClearExpectations(mock_iso_manager_);
+
+  auto test_context_type = kContextTypeUnspecified | kContextTypeConversational;
+  firstDevice->SetAvailableContexts({.sink = test_context_type, .source = test_context_type});
+  lastDevice->SetAvailableContexts({.sink = test_context_type, .source = test_context_type});
+
+  auto expected_sink_context_type =
+          kContextTypeUnspecified | kContextTypeConversational | kContextTypeMedia;
+  auto expected_source_context_type = kContextTypeUnspecified | kContextTypeConversational;
+
+  ASSERT_EQ(group->GetAvailableContexts(types::kLeAudioDirectionSink), expected_sink_context_type);
+  ASSERT_EQ(group->GetAvailableContexts(types::kLeAudioDirectionSource),
+            expected_source_context_type);
+}
+
 TEST_F(StateMachineTest, testAttachDeviceToTheStreamDeviceNoAvailableContext) {
   const auto context_type = kContextTypeMedia;
   const auto leaudio_group_id = 6;
@@ -6862,7 +6926,6 @@ TEST_F(StateMachineTest, testReconfigureAfterLateDeviceAttached) {
   lastDevice->conn_id_ = 3;
   lastDevice->SetConnectionState(DeviceConnectState::CONNECTED);
 
-  group->UpdateAudioContextAvailability();
   group->UpdateAudioSetConfigurationCache(context_type);
 
   /* Start stream, make sure 2 devices are started. */
@@ -6968,7 +7031,6 @@ TEST_F(StateMachineTest, testReconfigureAfterLateDeviceAttachedConversationalSwb
   lastDevice->conn_id_ = 3;
   lastDevice->SetConnectionState(DeviceConnectState::CONNECTED);
 
-  group->UpdateAudioContextAvailability();
   group->UpdateAudioSetConfigurationCache(context_type);
 
   /* Start stream, make sure 2 devices are started. */
@@ -7080,7 +7142,6 @@ TEST_F(StateMachineTestNoSwb, testReconfigureAfterLateDeviceAttachedConversation
   lastDevice->conn_id_ = 3;
   lastDevice->SetConnectionState(DeviceConnectState::CONNECTED);
 
-  group->UpdateAudioContextAvailability();
   group->UpdateAudioSetConfigurationCache(context_type);
 
   /* Start stream, make sure 2 devices are started. */
@@ -7136,7 +7197,6 @@ TEST_F(StateMachineTest, testStreamToGettingReadyDevice) {
   auto* secondDevice = group->GetNextDevice(firstDevice);
   secondDevice->SetConnectionState(DeviceConnectState::CONNECTED_BY_USER_GETTING_READY);
 
-  group->UpdateAudioContextAvailability();
   group->UpdateAudioSetConfigurationCache(context_type);
 
   ASSERT_EQ(group->Size(), num_devices);

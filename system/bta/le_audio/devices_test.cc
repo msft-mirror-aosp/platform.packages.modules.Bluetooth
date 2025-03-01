@@ -908,9 +908,6 @@ protected:
     BidirectionalPair<AudioContexts> group_audio_locations = {
             .sink = AudioContexts(context_type), .source = AudioContexts(context_type)};
 
-    /* Stimulate update of available context map */
-    group_->UpdateAudioContextAvailability();
-
     ASSERT_EQ(success_expected, group_->Configure(context_type, group_audio_locations));
 
     bool result = true;
@@ -1052,8 +1049,6 @@ protected:
         group_->SetPreferredAudioSetConfiguration(*preferred_codec_config, *preferred_codec_config);
       }
 
-      /* Stimulate update of available context map */
-      group_->UpdateAudioContextAvailability();
       group_->UpdateAudioSetConfigurationCache(context_type);
 
       BidirectionalPair<AudioContexts> group_audio_locations = {
@@ -1199,8 +1194,6 @@ protected:
               success_expected = false;
             }
 
-            /* Stimulate update of available context map */
-            group_->UpdateAudioContextAvailability();
             group_->UpdateAudioSetConfigurationCache(context_type);
             BidirectionalPair<AudioContexts> group_audio_locations = {
                     .sink = AudioContexts(context_type), .source = AudioContexts(context_type)};
@@ -1492,7 +1485,6 @@ TEST_P(LeAudioAseConfigurationTest, test_context_update) {
             remote_snk_avail_contexts | remote_src_avail_contexts | right_bud_only_context);
 
   /* Now add the right earbud contexts - mind the extra context on that bud */
-  group_->UpdateAudioContextAvailability();
   ASSERT_NE(group_->GetAvailableContexts(), left->GetAvailableContexts());
   ASSERT_EQ(group_->GetAvailableContexts(),
             left->GetAvailableContexts() | right->GetAvailableContexts());
@@ -1500,7 +1492,6 @@ TEST_P(LeAudioAseConfigurationTest, test_context_update) {
   /* Since no device is being added or removed from the group this should not
    * change the configuration set.
    */
-  group_->UpdateAudioContextAvailability();
   ASSERT_EQ(group_->GetAvailableContexts(),
             left->GetAvailableContexts() | right->GetAvailableContexts());
 
@@ -1562,7 +1553,6 @@ TEST_P(LeAudioAseConfigurationTest, test_context_update) {
                    ::bluetooth::le_audio::types::kLeAudioDirectionSource)});
 
   /* Right one was changed but the config exist, just not available */
-  group_->UpdateAudioContextAvailability();
   ASSERT_EQ(group_->GetAvailableContexts(),
             left->GetAvailableContexts() | right->GetAvailableContexts());
   ASSERT_FALSE(group_->GetAvailableContexts().test(LeAudioContextType::ALERTS));
@@ -2302,8 +2292,9 @@ TEST_P(LeAudioAseConfigurationTest, test_ase_metadata) {
               (std::vector<uint8_t>{1, 2, 3}));
 
     /* The adidtional metadata appended by the host stack */
-    ASSERT_EQ(ase->metadata.GetAsLeAudioMetadata().streaming_audio_context,
-              (uint16_t)LeAudioContextType::MEDIA);
+    uint16_t streaming_context =
+            ase->metadata.GetAsLeAudioMetadata().streaming_audio_context.value().value();
+    ASSERT_EQ(streaming_context, (uint16_t)LeAudioContextType::MEDIA);
     ASSERT_EQ(ase->metadata.GetAsLeAudioMetadata().ccid_list, (std::vector<uint8_t>{0xC0}));
   }
 }
