@@ -79,7 +79,6 @@ import com.android.bluetooth.Utils;
 import com.android.bluetooth.bass_client.BassConstants;
 import com.android.internal.annotations.VisibleForTesting;
 
-import com.google.common.base.Ascii;
 import com.google.common.hash.BloomFilter;
 import com.google.common.hash.Funnels;
 
@@ -94,6 +93,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 
 /** Class of Bluetooth Metrics */
 public class MetricsLogger {
@@ -592,7 +592,8 @@ public class MetricsLogger {
         // remove more than one spaces in a row
         deviceName = deviceName.trim().replaceAll(" +", " ");
         // remove non alphanumeric characters and spaces, and transform to lower cases.
-        String[] words = Ascii.toLowerCase(deviceName.replaceAll("[^a-zA-Z0-9 ]", "")).split(" ");
+        String[] words =
+                deviceName.replaceAll("[^a-zA-Z0-9 ]", "").toLowerCase(Locale.ROOT).split(" ");
 
         if (words.length > MAX_WORDS_ALLOWED_IN_DEVICE_NAME) {
             // Validity checking here to avoid excessively long sequences

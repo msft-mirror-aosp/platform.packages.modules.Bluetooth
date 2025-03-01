@@ -23,8 +23,6 @@ import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
 
-import com.google.common.base.Ascii;
-
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlSerializer;
@@ -259,7 +257,7 @@ public class BluetoothMapFolderElement implements Comparable<BluetoothMapFolderE
      * @return the subFolder element if found {@code null} otherwise.
      */
     public BluetoothMapFolderElement getSubFolder(String folderName) {
-        return mSubFolders.get(Ascii.toLowerCase(folderName));
+        return mSubFolders.get(folderName.toLowerCase(Locale.ROOT));
     }
 
     public byte[] encode(int offset, int count) {

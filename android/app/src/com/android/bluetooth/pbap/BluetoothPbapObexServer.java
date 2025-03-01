@@ -39,8 +39,6 @@ import com.android.obex.Operation;
 import com.android.obex.ResponseCodes;
 import com.android.obex.ServerRequestHandler;
 
-import com.google.common.base.Ascii;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
@@ -50,6 +48,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 
 // Next tag value for ContentProfileErrorReportUtils.report(): 34
 public class BluetoothPbapObexServer extends ServerRequestHandler {
@@ -1006,7 +1005,7 @@ public class BluetoothPbapObexServer extends ServerRequestHandler {
             List<Integer> savedPosList = new ArrayList<>();
             List<String> selectedNameList = new ArrayList<String>();
             if (appParamValue.searchValue != null) {
-                compareValue = Ascii.toLowerCase(appParamValue.searchValue.trim());
+                compareValue = appParamValue.searchValue.trim().toLowerCase(Locale.ROOT);
             }
 
             for (int pos = 0; pos < listSize; pos++) {
@@ -1018,8 +1017,9 @@ public class BluetoothPbapObexServer extends ServerRequestHandler {
 
                 if (appParamValue.searchValue != null) {
                     if (appParamValue.searchValue.isEmpty()
-                            || Ascii.toLowerCase(currentValue)
-                                    .startsWith(Ascii.toLowerCase(compareValue))) {
+                            || currentValue
+                                    .toLowerCase(Locale.ROOT)
+                                    .startsWith(compareValue.toLowerCase(Locale.ROOT))) {
                         selectedNameList.add(currentValue);
                         savedPosList.add(pos);
                     }
