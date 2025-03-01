@@ -147,13 +147,4 @@ class BassUtils {
     static void printByteArray(byte[] array) {
         log("Entire byte Array as string: " + Arrays.toString(array));
     }
-
-    static void reverse(byte[] address) {
-        int len = address.length;
-        for (int i = 0; i < len / 2; ++i) {
-            byte b = address[i];
-            address[i] = address[len - 1 - i];
-            address[len - 1 - i] = b;
-        }
-    }
 }
