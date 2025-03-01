@@ -24,6 +24,8 @@ import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
 import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
+import static com.android.bluetooth.Utils.joinUninterruptibly;
+
 import static java.util.Objects.requireNonNull;
 
 import android.annotation.RequiresPermission;
@@ -71,8 +73,6 @@ import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.sdp.SdpManagerNativeInterface;
 import com.android.bluetooth.util.DevicePolicyUtils;
 import com.android.internal.annotations.VisibleForTesting;
-
-import com.google.common.util.concurrent.Uninterruptibles;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -745,7 +745,7 @@ public class BluetoothPbapService extends ProfileService implements IObexConnect
         setBluetoothPbapService(null);
         mSessionStatusHandler.sendEmptyMessage(SHUTDOWN);
         mHandlerThread.quitSafely();
-        Uninterruptibles.joinUninterruptibly(mHandlerThread);
+        joinUninterruptibly(mHandlerThread);
         mContactsLoaded = false;
         unregisterReceiver(mPbapReceiver);
         mAdapterService.getContentResolver().unregisterContentObserver(mContactChangeObserver);
