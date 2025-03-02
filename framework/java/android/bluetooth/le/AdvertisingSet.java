@@ -41,7 +41,7 @@ import android.util.Log;
  * @see AdvertiseData
  */
 public final class AdvertisingSet {
-    private static final String TAG = "AdvertisingSet";
+    private static final String TAG = AdvertisingSet.class.getSimpleName();
 
     private final IBluetoothAdvertise mAdvertise;
     private int mAdvertiserId;

@@ -81,6 +81,11 @@ cc_defaults {
     ],
     c_std: "c99",
     cpp_std: "c++20",
+    arch: {
+        riscv64: {
+            ldflags: ["-Wl,--no-relax"],
+        },
+    },
 }
 
 // List of tidy checks that are enabled for cc targets.
@@ -116,6 +121,7 @@ java_defaults {
         javacflags: [
             "-Xep:AlmostJavadoc:ERROR",
             "-Xep:AlreadyChecked:ERROR",
+            "-Xep:ArrayRecordComponent:ERROR",
             "-Xep:BadImport:ERROR",
             "-Xep:CatchAndPrintStackTrace:ERROR",
             "-Xep:CatchFail:ERROR",
@@ -131,7 +137,9 @@ java_defaults {
             "-Xep:EqualsHashCode:ERROR",
             "-Xep:EqualsIncompatibleType:ERROR",
             "-Xep:FallThrough:ERROR",
+            "-Xep:FieldCanBeStatic:ERROR",
             "-Xep:Finalize:ERROR",
+            "-Xep:ForEachIterable:ERROR",
             "-Xep:FutureReturnValueIgnored:ERROR",
             "-Xep:GuardedBy:ERROR",
             "-Xep:HidingField:ERROR",
@@ -146,6 +154,7 @@ java_defaults {
             "-Xep:LockOnNonEnclosingClassLiteral:ERROR",
             "-Xep:LongFloatConversion:ERROR",
             "-Xep:LoopOverCharArray:ERROR",
+            "-Xep:MethodCanBeStatic:ERROR",
             "-Xep:MissingCasesInEnumSwitch:ERROR",
             "-Xep:MixedMutabilityReturnType:ERROR",
             "-Xep:MockNotUsedInProduction:ERROR",
@@ -165,6 +174,7 @@ java_defaults {
             "-Xep:ReferenceEquality:ERROR",
             "-Xep:ReturnAtTheEndOfVoidFunction:ERROR",
             "-Xep:ReturnFromVoid:ERROR",
+            "-Xep:SelfAssertion:ERROR",
             "-Xep:StaticAssignmentInConstructor:ERROR",
             "-Xep:StaticGuardedByInstance:ERROR",
             "-Xep:StringCaseLocaleUsage:ERROR",

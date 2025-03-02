@@ -25,7 +25,7 @@ import com.android.obex.HeaderSet;
 import java.io.IOException;
 
 final class RequestSetMessageStatus extends Request {
-    private static final String TAG = "RequestSetMessageStatus";
+    private static final String TAG = RequestSetMessageStatus.class.getSimpleName();
 
     public enum StatusIndicator {
         READ,

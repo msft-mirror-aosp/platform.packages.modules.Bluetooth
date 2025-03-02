@@ -34,7 +34,7 @@ import com.android.internal.annotations.VisibleForTesting;
  * file.
  */
 public class HeadsetNativeInterface {
-    private static final String TAG = "HeadsetNativeInterface";
+    private static final String TAG = HeadsetNativeInterface.class.getSimpleName();
 
     private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
 
@@ -71,12 +71,12 @@ public class HeadsetNativeInterface {
         }
     }
 
-    private void sendMessageToService(HeadsetStackEvent event) {
+    private static void sendMessageToService(HeadsetStackEvent event) {
         HeadsetService service = HeadsetService.getHeadsetService();
         if (service != null) {
             service.messageFromNative(event);
         } else {
-            // Service must call cleanup() when quiting and native stack shouldn't send any event
+            // Service must call cleanup() when quitting and native stack shouldn't send any event
             // after cleanup() -> cleanupNative() is called.
             Log.w(TAG, "Stack sent event while service is not available: " + event);
         }
@@ -557,8 +557,7 @@ public class HeadsetNativeInterface {
      * @param device current active SCO device
      * @return True on success, False on failure
      */
-    @VisibleForTesting
-    public boolean enableSwb(int swbCodec, boolean enable, BluetoothDevice device) {
+    boolean enableSwb(int swbCodec, boolean enable, BluetoothDevice device) {
         return enableSwbNative(swbCodec, enable, getByteAddress(device));
     }
 

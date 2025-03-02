@@ -39,16 +39,14 @@
 #include "hardware/bt_gatt_types.h"
 #include "has_types.h"
 #include "mock_csis_client.h"
+#include "osi/include/properties.h"
+#include "stack/gatt/gatt_int.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_status.h"
 #include "test/common/mock_functions.h"
 #include "types/bt_transport.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 bool gatt_profile_get_eatt_support(const RawAddress& /*addr*/) { return true; }
-void osi_property_set_bool(const char* key, bool value);
 
 namespace bluetooth {
 namespace has {

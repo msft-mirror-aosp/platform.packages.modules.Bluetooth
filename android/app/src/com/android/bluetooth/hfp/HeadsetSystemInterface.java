@@ -16,10 +16,7 @@
 
 package com.android.bluetooth.hfp;
 
-import static android.Manifest.permission.BLUETOOTH_CONNECT;
-import static android.Manifest.permission.MODIFY_PHONE_STATE;
 
-import android.annotation.RequiresPermission;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothHeadset;
 import android.bluetooth.BluetoothSinkAudioPolicy;
@@ -68,7 +65,7 @@ class HeadsetSystemInterface {
         mTelecomManager = mHeadsetService.getSystemService(TelecomManager.class);
     }
 
-    private BluetoothInCallService getBluetoothInCallServiceInstance() {
+    private static BluetoothInCallService getBluetoothInCallServiceInstance() {
         return BluetoothInCallService.getInstance();
     }
 
@@ -184,10 +181,10 @@ class HeadsetSystemInterface {
      * @param chld index of the call to hold
      */
     @VisibleForTesting
-    public boolean processChld(int chld) {
+    public boolean processChld(HeadsetService headsetService, int chld) {
         BluetoothInCallService bluetoothInCallService = getBluetoothInCallServiceInstance();
         if (bluetoothInCallService != null) {
-            return bluetoothInCallService.processChld(chld);
+            return bluetoothInCallService.processChld(headsetService, chld);
         } else {
             Log.e(TAG, "Handsfree phone proxy null for sending DTMF");
         }
@@ -274,18 +271,17 @@ class HeadsetSystemInterface {
     }
 
     /**
-     * Ask the Telecomm service to list current list of calls through CLCC response {@link
+     * Ask the Telecom service to list current list of calls through CLCC response {@link
      * BluetoothHeadset#clccResponse(int, int, int, int, boolean, String, int)}
      */
     @VisibleForTesting
-    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, MODIFY_PHONE_STATE})
-    public boolean listCurrentCalls() {
+    public boolean listCurrentCalls(HeadsetService headsetService) {
         BluetoothInCallService bluetoothInCallService = getBluetoothInCallServiceInstance();
         if (bluetoothInCallService == null) {
             Log.e(TAG, "listCurrentCalls() failed: mBluetoothInCallService is null");
             return false;
         }
-        return bluetoothInCallService.listCurrentCalls();
+        return bluetoothInCallService.listCurrentCalls(headsetService);
     }
 
     /**
@@ -293,11 +289,10 @@ class HeadsetSystemInterface {
      * through {@link BluetoothHeadset#phoneStateChanged(int, int, int, String, int)}
      */
     @VisibleForTesting
-    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, MODIFY_PHONE_STATE})
-    public void queryPhoneState() {
+    public void queryPhoneState(HeadsetService headsetService) {
         BluetoothInCallService bluetoothInCallService = getBluetoothInCallServiceInstance();
         if (bluetoothInCallService != null) {
-            bluetoothInCallService.queryPhoneState();
+            bluetoothInCallService.queryPhoneState(headsetService);
         } else {
             Log.e(TAG, "Handsfree phone proxy null for query phone state");
         }
@@ -308,8 +303,7 @@ class HeadsetSystemInterface {
      *
      * @return True iff we are in a phone call
      */
-    @VisibleForTesting
-    public boolean isInCall() {
+    boolean isInCall() {
         return ((mHeadsetPhoneState.getNumActiveCall() > 0)
                 || (mHeadsetPhoneState.getNumHeldCall() > 0)
                 || ((mHeadsetPhoneState.getCallState() != HeadsetHalConstants.CALL_STATE_IDLE)

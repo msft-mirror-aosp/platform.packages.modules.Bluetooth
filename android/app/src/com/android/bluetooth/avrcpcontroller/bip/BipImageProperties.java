@@ -58,7 +58,9 @@ import java.util.List;
  * </image-properties>
  */
 public class BipImageProperties {
-    private static final String TAG = "avrcpcontroller.BipImageProperties";
+    private static final String TAG =
+            AvrcpControllerUtils.TAG_PREFIX_AVRCP_CONTROLLER
+                    + BipImageProperties.class.getSimpleName();
 
     private static final String sVersion = "1.0";
 
@@ -276,7 +278,7 @@ public class BipImageProperties {
         }
     }
 
-    private boolean isThumbnailFormat(BipImageFormat format) {
+    private static boolean isThumbnailFormat(BipImageFormat format) {
         if (format == null) return false;
 
         BipEncoding encoding = format.getEncoding();

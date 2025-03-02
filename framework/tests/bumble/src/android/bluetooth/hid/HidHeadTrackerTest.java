@@ -18,6 +18,8 @@ package android.bluetooth.hid;
 
 import static android.bluetooth.BluetoothDevice.TRANSPORT_BREDR;
 import static android.bluetooth.BluetoothDevice.TRANSPORT_LE;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
@@ -317,18 +319,12 @@ public class HidHeadTrackerTest {
 
         // Disable a2dp and HFP connetcion policy
 
-        if (mA2dpService.getConnectionPolicy(mBumbleDevice)
-                == BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
-            assertThat(
-                            mA2dpService.setConnectionPolicy(
-                                    mBumbleDevice, BluetoothProfile.CONNECTION_POLICY_FORBIDDEN))
+        if (mA2dpService.getConnectionPolicy(mBumbleDevice) == CONNECTION_POLICY_ALLOWED) {
+            assertThat(mA2dpService.setConnectionPolicy(mBumbleDevice, CONNECTION_POLICY_FORBIDDEN))
                     .isTrue();
         }
-        if (mHfpService.getConnectionPolicy(mBumbleDevice)
-                == BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
-            assertThat(
-                            mHfpService.setConnectionPolicy(
-                                    mBumbleDevice, BluetoothProfile.CONNECTION_POLICY_FORBIDDEN))
+        if (mHfpService.getConnectionPolicy(mBumbleDevice) == CONNECTION_POLICY_ALLOWED) {
+            assertThat(mHfpService.setConnectionPolicy(mBumbleDevice, CONNECTION_POLICY_FORBIDDEN))
                     .isTrue();
         }
 

@@ -62,7 +62,9 @@ public:
                    bluetooth::common::ToString(state));
       state_ = state;
     }
-
+    void GetCisCount(types::LeAudioContextType context_type, uint8_t& out_cis_count_bidir,
+                     uint8_t& out_cis_count_unidir_sink,
+                     uint8_t& out_cis_count_unidir_source) const;
     void GenerateCisIds(types::LeAudioContextType context_type);
     bool AssignCisIds(LeAudioDevice* leAudioDevice);
     void AssignCisConnHandles(const std::vector<uint16_t>& conn_handles);
@@ -92,8 +94,7 @@ public:
   bool notify_streaming_when_cises_are_ready_;
 
   uint8_t audio_directions_;
-  types::AudioLocations snk_audio_locations_;
-  types::AudioLocations src_audio_locations_;
+  types::BidirectionalPair<std::optional<types::AudioLocations>> audio_locations_;
 
   /* Whether LE Audio is preferred for OUTPUT_ONLY and DUPLEX cases */
   bool is_output_preference_le_audio;
@@ -217,8 +218,8 @@ public:
   void ResetPreferredAudioSetConfiguration(void) const;
   bool ReloadAudioLocations(void);
   bool ReloadAudioDirections(void);
-  types::AudioContexts GetAllSupportedBidirectionalContextTypes(void);
-  types::AudioContexts GetAllSupportedSingleDirectionOnlyContextTypes(uint8_t direction);
+  types::AudioContexts GetAllSupportedBidirectionalContextTypes(void) const;
+  types::AudioContexts GetAllSupportedSingleDirectionOnlyContextTypes(uint8_t direction) const;
   std::shared_ptr<const types::AudioSetConfiguration> GetActiveConfiguration(void) const;
   bool IsPendingConfiguration(void) const;
   std::shared_ptr<const types::AudioSetConfiguration> GetConfiguration(

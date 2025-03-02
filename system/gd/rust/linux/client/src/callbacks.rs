@@ -1473,8 +1473,8 @@ impl IBluetoothMediaCallback for MediaCallback {
         &mut self,
         _direction: u8,
         _group_id: i32,
-        _snk_audio_location: u32,
-        _src_audio_location: u32,
+        _snk_audio_location: i64,
+        _src_audio_location: i64,
         _avail_cont: u16,
     ) {
     }

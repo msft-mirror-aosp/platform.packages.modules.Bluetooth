@@ -135,7 +135,7 @@ class MsftAdvMonitor {
         return mAddress;
     }
 
-    private boolean dataMaskIsEmpty(byte[] mask) {
+    private static boolean dataMaskIsEmpty(byte[] mask) {
         if (mask == null || mask.length == 0) return true;
         if (mask.length == 1 && mask[0] == 0) return true;
         return false;

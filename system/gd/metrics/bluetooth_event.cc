@@ -17,11 +17,9 @@
 
 #include <frameworks/proto_logging/stats/enums/bluetooth/enums.pb.h>
 
+#include "bta/include/bta_hfp_api.h"
 #include "main/shim/helpers.h"
 #include "os/metrics.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 namespace bluetooth {
 namespace metrics {
@@ -169,7 +167,7 @@ State MapErrorCodeToState(ErrorCode reason) {
   }
 }
 
-State MapHCIStatusToState(tHCI_STATUS status) {
+static State MapHCIStatusToState(tHCI_STATUS status) {
   switch (status) {
     case tHCI_STATUS::HCI_SUCCESS:
       return State::SUCCESS;
@@ -260,7 +258,7 @@ State MapHCIStatusToState(tHCI_STATUS status) {
   }
 }
 
-State MapSmpStatusCodeToState(tSMP_STATUS status) {
+static State MapSmpStatusCodeToState(tSMP_STATUS status) {
   switch (status) {
     case tSMP_STATUS::SMP_SUCCESS:
       return State::SUCCESS;
@@ -314,6 +312,29 @@ State MapSmpStatusCodeToState(tSMP_STATUS status) {
       return State::USER_CANCELLATION;
     default:
       return State::STATE_UNKNOWN;
+  }
+}
+
+State MapHfpVersionToState(uint16_t version) {
+  switch (version) {
+    case HSP_VERSION_1_0:
+      return State::VERSION_1_0;
+    case HFP_VERSION_1_1:
+      return State::VERSION_1_1;
+    case HSP_VERSION_1_2:
+      return State::VERSION_1_2;
+    case HFP_VERSION_1_5:
+      return State::VERSION_1_5;
+    case HFP_VERSION_1_6:
+      return State::VERSION_1_6;
+    case HFP_VERSION_1_7:
+      return State::VERSION_1_7;
+    case HFP_VERSION_1_8:
+      return State::VERSION_1_8;
+    case HFP_VERSION_1_9:
+      return State::VERSION_1_9;
+    default:
+      return State::VERSION_UNKNOWN;
   }
 }
 
