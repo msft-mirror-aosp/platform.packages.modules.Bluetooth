@@ -1161,16 +1161,19 @@ public:
     auto ases_pair = leAudioDevice->GetAsesByCisConnHdl(cis_conn_hdl);
     uint8_t value = 0;
 
-    if (ases_pair.sink && ases_pair.sink->data_path_state == DataPathState::CONFIGURED) {
+    if (ases_pair.sink && (ases_pair.sink->data_path_state == DataPathState::CONFIGURED ||
+                           ases_pair.sink->data_path_state == DataPathState::CONFIGURING)) {
       value |= bluetooth::hci::iso_manager::kRemoveIsoDataPathDirectionInput;
       ases_pair.sink->data_path_state = DataPathState::REMOVING;
     }
 
-    if (ases_pair.source && ases_pair.source->data_path_state == DataPathState::CONFIGURED) {
+    if (ases_pair.source && (ases_pair.source->data_path_state == DataPathState::CONFIGURED ||
+                             ases_pair.source->data_path_state == DataPathState::CONFIGURING)) {
       value |= bluetooth::hci::iso_manager::kRemoveIsoDataPathDirectionOutput;
       ases_pair.source->data_path_state = DataPathState::REMOVING;
     } else {
-      if (leAudioDevice->GetDsaDataPathState() == DataPathState::CONFIGURED) {
+      if (leAudioDevice->GetDsaDataPathState() == DataPathState::CONFIGURED ||
+          leAudioDevice->GetDsaDataPathState() == DataPathState::CONFIGURING) {
         value |= bluetooth::hci::iso_manager::kRemoveIsoDataPathDirectionOutput;
         leAudioDevice->SetDsaDataPathState(DataPathState::REMOVING);
       }
