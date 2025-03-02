@@ -385,7 +385,7 @@ public class HfpClientConnectionService extends ConnectionService {
                         .setSupportedUriSchemes(Arrays.asList(PhoneAccount.SCHEME_TEL))
                         .setCapabilities(capabilities)
                         .build();
-        Log.d(TAG, "phoneaccount: " + account);
+        Log.d(TAG, "PhoneAccount: " + account);
         return account;
     }
 

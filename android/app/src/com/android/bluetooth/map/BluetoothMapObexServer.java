@@ -475,7 +475,7 @@ public class BluetoothMapObexServer extends ServerRequestHandler {
                                 + appParams.getStatusIndicator()
                                 + ", StatusValue: "
                                 + appParams.getStatusValue()
-                                + ", ExtentedData: "); // TODO: appParams.getExtendedImData());
+                                + ", ExtendedData: "); // TODO: appParams.getExtendedImData());
                 if (!isUserUnlocked()) {
                     Log.e(TAG, "Storage locked, " + type + " failed");
                     ContentProfileErrorReportUtils.report(
@@ -490,7 +490,7 @@ public class BluetoothMapObexServer extends ServerRequestHandler {
             } else if (type.equals(TYPE_MESSAGE)) {
                 Log.v(
                         TAG,
-                        "TYPE_MESSAGE: Transparet: "
+                        "TYPE_MESSAGE: Transparent: "
                                 + appParams.getTransparent()
                                 + ", retry: "
                                 + appParams.getRetry()
@@ -1186,7 +1186,7 @@ public class BluetoothMapObexServer extends ServerRequestHandler {
                 if (appParams != null) {
                     Log.v(
                             TAG,
-                            "TYPE_MESSAGE (GET): MASInstandeId = " + appParams.getMasInstanceId());
+                            "TYPE_MESSAGE (GET): MASInstanceId = " + appParams.getMasInstanceId());
                 }
                 // Block until all packets have been send.
                 return sendMASInstanceInformationRsp(op, appParams);
@@ -1284,8 +1284,8 @@ public class BluetoothMapObexServer extends ServerRequestHandler {
         }
 
         /* MAP Spec 1.3 introduces the following
-         * Messagehandle filtering:
-         * msgListing (messageHandle=X) -> other allowed filters: parametereMask, subjectMaxLength
+         * messageHandle filtering:
+         * msgListing (messageHandle=X) -> other allowed filters: parameterMask, subjectMaxLength
          * ConversationID filtering:
          * msgListing (convoId empty) -> should work as normal msgListing in valid folders
          * msgListing (convoId=0, no other filters) -> should return all messages in all folders
@@ -1363,8 +1363,8 @@ public class BluetoothMapObexServer extends ServerRequestHandler {
             } else {
                 outAppParams.setNewMessage(0);
             }
-            if ((mRemoteFeatureMask & BluetoothMapUtils.MAP_FEATURE_DATABASE_INDENTIFIER_BIT)
-                    == BluetoothMapUtils.MAP_FEATURE_DATABASE_INDENTIFIER_BIT) {
+            if ((mRemoteFeatureMask & BluetoothMapUtils.MAP_FEATURE_DATABASE_IDENTIFIER_BIT)
+                    == BluetoothMapUtils.MAP_FEATURE_DATABASE_IDENTIFIER_BIT) {
                 outAppParams.setDatabaseIdentifier(0, mMasInstance.getDbIdentifier());
             }
             if ((mRemoteFeatureMask & BluetoothMapUtils.MAP_FEATURE_FOLDER_VERSION_COUNTER_BIT)
@@ -1923,7 +1923,7 @@ public class BluetoothMapObexServer extends ServerRequestHandler {
 
             /* Ensure byte array max length is 200 containing valid UTF-8 characters */
             outBytes =
-                    BluetoothMapUtils.truncateUtf8StringToBytearray(
+                    BluetoothMapUtils.truncateUtf8StringToByteArray(
                             outString, MAS_INSTANCE_INFORMATION_LENGTH);
 
             // Open the OBEX body stream

@@ -2098,7 +2098,7 @@ public class MediaControlGattService implements MediaControlGattServiceInterface
     public long byteArray2ObjId(byte[] buffer) {
         ByteBuffer bb = ByteBuffer.allocate(Long.BYTES).order(ByteOrder.LITTLE_ENDIAN);
         bb.put(buffer, 0, 6);
-        // Move position to beginnng after putting data to buffer
+        // Move position to beginning after putting data to buffer
         bb.position(0);
         return bb.getLong();
     }

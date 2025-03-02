@@ -269,7 +269,7 @@ class AvrcpPlayer {
         /**
          * Set the device that this Player came from
          *
-         * @param device The BleutoothDevice representing the remote device
+         * @param device The BluetoothDevice representing the remote device
          * @return This object, so you can continue building
          */
         public Builder setDevice(BluetoothDevice device) {

@@ -88,7 +88,7 @@ public class AvrcpCoverArtService {
     /**
      * Stop the AVRCP Cover Art Service.
      *
-     * <p>Tear down existing connections, remove ourselved from the SDP record.
+     * <p>Tear down existing connections, remove ourselves from the SDP record.
      */
     public boolean stop() {
         debug("Stopping service");

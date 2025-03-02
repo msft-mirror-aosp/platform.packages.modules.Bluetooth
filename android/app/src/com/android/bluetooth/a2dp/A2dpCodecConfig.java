@@ -103,7 +103,7 @@ class A2dpCodecConfig {
         }
 
         // Check whether the codecConfig would change current codec config.
-        int prioritizedCodecType = getPrioitizedCodecType(newCodecConfig, selectableCodecs);
+        int prioritizedCodecType = getPrioritizedCodecType(newCodecConfig, selectableCodecs);
         BluetoothCodecConfig currentCodecConfig = codecStatus.getCodecConfig();
         if (prioritizedCodecType == currentCodecConfig.getCodecType()
                 && (prioritizedCodecType != newCodecConfig.getCodecType()
@@ -168,7 +168,7 @@ class A2dpCodecConfig {
     }
 
     // Get the codec type of the highest priority of selectableCodecs and codecConfig.
-    private static int getPrioitizedCodecType(
+    private static int getPrioritizedCodecType(
             BluetoothCodecConfig codecConfig, List<BluetoothCodecConfig> selectableCodecs) {
         BluetoothCodecConfig prioritizedCodecConfig = codecConfig;
         for (BluetoothCodecConfig config : selectableCodecs) {

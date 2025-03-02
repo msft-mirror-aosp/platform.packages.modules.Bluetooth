@@ -176,7 +176,7 @@ public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
     private ArrayList<MimePart> mParts = null;
     private String mContentType = null;
     private String mBoundary = null;
-    private boolean mTextonly = false;
+    private boolean mTextOnly = false;
     private boolean mIncludeAttachments;
     private String mMyEncoding = null;
 
@@ -349,11 +349,11 @@ public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
     }
 
     public void setTextOnly(boolean textOnly) {
-        this.mTextonly = textOnly;
+        this.mTextOnly = textOnly;
     }
 
     public boolean getTextOnly() {
-        return mTextonly;
+        return mTextOnly;
     }
 
     public void setIncludeAttachments(boolean includeAttachments) {

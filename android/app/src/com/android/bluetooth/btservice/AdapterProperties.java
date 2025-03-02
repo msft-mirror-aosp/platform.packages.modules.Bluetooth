@@ -689,7 +689,7 @@ class AdapterProperties {
             case STATE_CONNECTING:
                 return BluetoothAdapter.STATE_CONNECTING;
         }
-        Log.e(TAG, "convertToAdapterState, unknow state " + state);
+        Log.e(TAG, "convertToAdapterState, unknown state " + state);
         return -1;
     }
 
