@@ -392,7 +392,7 @@ public class ScanManager {
             }
 
             if (mRegularScanClients.contains(client) || mBatchClients.contains(client)) {
-                Log.e(TAG, "Scan already started");
+                Log.e(TAG, "Scan already started for scanner id: " + client.mScannerId);
                 return;
             }
 
