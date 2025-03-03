@@ -33,7 +33,7 @@ class BaseData {
     private static final int METADATA_LEVEL1 = 1;
     private static final int METADATA_LEVEL2 = 2;
     private static final int METADATA_LEVEL3 = 3;
-    private static final int METADATA_PRESENTATIONDELAY_LENGTH = 3;
+    private static final int METADATA_PRESENTATION_DELAY_LENGTH = 3;
     private static final int METADATA_CODEC_LENGTH = 5;
     private static final int CODEC_CONFIGURATION_SAMPLE_RATE_TYPE = 0x01;
     private static final int CODEC_CONFIGURATION_FRAME_DURATION_TYPE = 0x02;
@@ -125,7 +125,7 @@ class BaseData {
     static BaseData parseBaseData(byte[] serviceData) {
         if (serviceData == null) {
             Log.e(TAG, "Invalid service data for BaseData construction");
-            throw new IllegalArgumentException("Basedata: serviceData is null");
+            throw new IllegalArgumentException("BaseData: serviceData is null");
         }
         BaseInformation levelOne = new BaseInformation();
         List<BaseInformation> levelTwo = new ArrayList<>();
@@ -137,7 +137,7 @@ class BaseData {
         levelOne.level = METADATA_LEVEL1;
         int offset = 0;
         System.arraycopy(serviceData, offset, levelOne.presentationDelay, 0, 3);
-        offset += METADATA_PRESENTATIONDELAY_LENGTH;
+        offset += METADATA_PRESENTATION_DELAY_LENGTH;
         levelOne.numSubGroups = serviceData[offset++];
         levelOne.print();
         log("levelOne subgroups" + levelOne.numSubGroups);
@@ -174,7 +174,7 @@ class BaseData {
                 offset = pair2.second;
             }
         }
-        consolidateBaseofLevelTwo(levelTwo, levelThree);
+        consolidateBaseOfLevelTwo(levelTwo, levelThree);
         return new BaseData(levelOne, levelTwo, levelThree, numOfBISIndices);
     }
 
@@ -269,19 +269,19 @@ class BaseData {
         return new Pair<BaseInformation, Integer>(node, offset);
     }
 
-    static void consolidateBaseofLevelTwo(
+    static void consolidateBaseOfLevelTwo(
             List<BaseInformation> levelTwo, List<BaseInformation> levelThree) {
         int startIdx = 0;
         int children = 0;
         for (int i = 0; i < levelTwo.size(); i++) {
             startIdx = startIdx + children;
             children = children + levelTwo.get(i).numSubGroups;
-            consolidateBaseofLevelThree(
+            consolidateBaseOfLevelThree(
                     levelTwo, levelThree, i, startIdx, levelTwo.get(i).numSubGroups);
         }
     }
 
-    static void consolidateBaseofLevelThree(
+    static void consolidateBaseOfLevelThree(
             List<BaseInformation> levelTwo,
             List<BaseInformation> levelThree,
             int parentSubgroup,
@@ -308,7 +308,7 @@ class BaseData {
         return mLevelThree;
     }
 
-    public byte getNumberOfSubgroupsofBIG() {
+    public byte getNumberOfSubGroupsOfBIG() {
         byte ret = 0;
         if (mLevelOne != null) {
             ret = mLevelOne.numSubGroups;

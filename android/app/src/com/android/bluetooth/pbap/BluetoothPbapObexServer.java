@@ -475,8 +475,8 @@ public class BluetoothPbapObexServer extends ServerRequestHandler {
             return ResponseCodes.OBEX_HTTP_UNAVAILABLE;
         }
 
-        // Accroding to specification,the name header could be omitted such as
-        // sony erriccsonHBH-DS980
+        // According to specification,the name header could be omitted such as
+        // sony ericssonHBH-DS980
 
         // For "x-bt/phonebook" and "x-bt/vcard-listing":
         // if name == null, guess what carkit actually want from current path
@@ -526,7 +526,7 @@ public class BluetoothPbapObexServer extends ServerRequestHandler {
             } else if (isSimEnabled && mCurrentPath.equals(SIM_PB_PATH)) {
                 appParamValue.needTag = ContentType.SIM_PHONEBOOK;
             } else {
-                Log.w(TAG, "mCurrentpath is not valid path!!!");
+                Log.w(TAG, "mCurrentPath is not valid path!!!");
                 ContentProfileErrorReportUtils.report(
                         BluetoothProfile.PBAP,
                         BluetoothProtoEnums.BLUETOOTH_PBAP_OBEX_SERVER,
@@ -671,8 +671,7 @@ public class BluetoothPbapObexServer extends ServerRequestHandler {
 
         // Indicate which sorting order shall be used for the
         // <x-bt/vcard-listing> listing object.
-        // Can be "Alphabetical | Indexed | Phonetical", default value is
-        // "Indexed".
+        // Can be "Alphabetical | Indexed | Phonetic", default value is "Indexed".
         public String order;
 
         public int needTag;
@@ -1088,7 +1087,7 @@ public class BluetoothPbapObexServer extends ServerRequestHandler {
                     BluetoothProtoEnums.BLUETOOTH_PBAP_OBEX_SERVER,
                     BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
                     17);
-            Log.e(TAG, "open/write outputstrem failed" + e.toString());
+            Log.e(TAG, "open/write outputStream failed" + e.toString());
             pushResult = ResponseCodes.OBEX_HTTP_INTERNAL_ERROR;
         }
 
@@ -1174,7 +1173,7 @@ public class BluetoothPbapObexServer extends ServerRequestHandler {
                 setFolderVersionCounters(ap);
             }
             if (needSendCallHistoryVersionCounters) {
-                setCallversionCounters(ap, appParamValue);
+                setCallVersionCounters(ap, appParamValue);
             }
             reply.setHeader(HeaderSet.APPLICATION_PARAMETER, ap.getHeader());
 
@@ -1270,7 +1269,7 @@ public class BluetoothPbapObexServer extends ServerRequestHandler {
         }
 
         if (needSendCallHistoryVersionCounters) {
-            setCallversionCounters(ap, appParamValue);
+            setCallVersionCounters(ap, appParamValue);
             reply.setHeader(HeaderSet.APPLICATION_PARAMETER, ap.getHeader());
             try {
                 op.sendHeaders(reply);
@@ -1631,7 +1630,7 @@ public class BluetoothPbapObexServer extends ServerRequestHandler {
     }
 
     public static boolean closeStream(final OutputStream out, final Operation op) {
-        boolean returnvalue = true;
+        boolean returnValue = true;
         try {
             if (out != null) {
                 out.close();
@@ -1643,7 +1642,7 @@ public class BluetoothPbapObexServer extends ServerRequestHandler {
                     BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
                     31);
             Log.e(TAG, "outputStream close failed" + e.toString());
-            returnvalue = false;
+            returnValue = false;
         }
         try {
             if (op != null) {
@@ -1656,9 +1655,9 @@ public class BluetoothPbapObexServer extends ServerRequestHandler {
                     BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
                     32);
             Log.e(TAG, "operation close failed" + e.toString());
-            returnvalue = false;
+            returnValue = false;
         }
-        return returnvalue;
+        return returnValue;
     }
 
     // Reserved for future use. In case PSE challenge PCE and PCE input wrong
@@ -1773,7 +1772,7 @@ public class BluetoothPbapObexServer extends ServerRequestHandler {
     }
 
     @VisibleForTesting
-    static void setCallversionCounters(ApplicationParameter ap, AppParamValue appParamValue) {
+    static void setCallVersionCounters(ApplicationParameter ap, AppParamValue appParamValue) {
         ap.addTriplet(
                 ApplicationParameter.TRIPLET_TAGID.PRIMARYVERSIONCOUNTER_TAGID,
                 ApplicationParameter.TRIPLET_LENGTH.PRIMARYVERSIONCOUNTER_LENGTH,

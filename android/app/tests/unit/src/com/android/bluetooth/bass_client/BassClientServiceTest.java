@@ -4215,7 +4215,7 @@ public class BassClientServiceTest {
         verifyAddSourceForGroup(meta);
         prepareRemoteSourceState(metaNoBroadcast, /* isPaSynced */ true, /* isBisSynced */ false);
 
-        // Verify getSyncedBroadcastSinks returns empty device list if no broadcst ID
+        // Verify getSyncedBroadcastSinks returns empty device list if no broadcast ID
         assertThat(mBassClientService.getSyncedBroadcastSinks().isEmpty()).isTrue();
         assertThat(mBassClientService.getSyncedBroadcastSinks(TEST_BROADCAST_ID).isEmpty())
                 .isTrue();

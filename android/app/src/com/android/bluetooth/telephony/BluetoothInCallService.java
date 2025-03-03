@@ -449,7 +449,7 @@ public class BluetoothInCallService extends InCallService {
     }
 
     /**
-     * Gets the brearer technology.
+     * Gets the bearer technology.
      *
      * @return bearer technology as defined in Bluetooth Assigned Numbers
      */
@@ -530,7 +530,7 @@ public class BluetoothInCallService extends InCallService {
             mHeadsetUpdatedRecently = false;
 
             if (logQuery) {
-                Log.i(TAG, "listcurrentCalls");
+                Log.i(TAG, "listCurrentCalls");
             }
 
             sendListOfCalls(headsetService, logQuery);

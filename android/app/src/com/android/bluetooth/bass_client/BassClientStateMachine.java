@@ -300,11 +300,11 @@ class BassClientStateMachine extends StateMachine {
             return null;
         }
 
-        BassClientStateMachine BassclientSm =
+        BassClientStateMachine bassClientSm =
                 new BassClientStateMachine(
                         device, svc, adapterService, looper, BassConstants.CONNECT_TIMEOUT_MS);
-        BassclientSm.start();
-        return BassclientSm;
+        bassClientSm.start();
+        return bassClientSm;
     }
 
     static void destroy(BassClientStateMachine stateMachine) {
@@ -1120,9 +1120,9 @@ class BassClientStateMachine extends StateMachine {
             log("onConnectionStateChange : Status=" + status + ", newState=" + newState);
             if (newState == STATE_CONNECTED && getConnectionState() != STATE_CONNECTED) {
                 isStateChanged = true;
-                Log.w(TAG, "Bassclient Connected from Disconnected state: " + mDevice);
+                Log.w(TAG, "BassClient Connected from Disconnected state: " + mDevice);
                 if (mService.okToConnect(mDevice)) {
-                    log("Bassclient Connected to: " + mDevice);
+                    log("BassClient Connected to: " + mDevice);
                     if (mBluetoothGatt != null) {
                         log(
                                 "Attempting to start service discovery:"
@@ -1131,7 +1131,7 @@ class BassClientStateMachine extends StateMachine {
                     }
                 } else if (mBluetoothGatt != null) {
                     // Reject the connection
-                    Log.w(TAG, "Bassclient Connect request rejected: " + mDevice);
+                    Log.w(TAG, "BassClient Connect request rejected: " + mDevice);
                     mBluetoothGatt.disconnect();
                     mBluetoothGatt.close();
                     mBluetoothGatt = null;
@@ -1270,7 +1270,7 @@ class BassClientStateMachine extends StateMachine {
         }
     }
 
-    /** Internal periodc Advertising manager callback */
+    /** Internal periodic Advertising manager callback */
     private final class PACallback extends PeriodicAdvertisingCallback {
         @Override
         public void onSyncTransferred(BluetoothDevice device, int status) {
@@ -2218,7 +2218,7 @@ class BassClientStateMachine extends StateMachine {
                     cancelPendingSourceOperation(broadcastId);
                     break;
                 default:
-                    log("CONNECTEDPROCESSING: not handled message:" + message.what);
+                    log("ConnectedProcessing: not handled message:" + message.what);
                     return NOT_HANDLED;
             }
             return HANDLED;

@@ -190,7 +190,7 @@ public class BluetoothOppManager {
         mAcceptlist.add(new Pair<String, Long>(address, SystemClock.elapsedRealtime()));
     }
 
-    public synchronized boolean isAcceptlisted(String address) {
+    public synchronized boolean isAcceptListed(String address) {
         cleanupAcceptlist();
         for (Pair<String, Long> entry : mAcceptlist) {
             if (entry.first.equals(address)) {

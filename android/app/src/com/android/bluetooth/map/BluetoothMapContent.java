@@ -103,7 +103,7 @@ public class BluetoothMapContent {
     private static final int CONVO_PARAM_MASK_CONVO_READ_STATUS = 0x00000004;
     private static final int CONVO_PARAM_MASK_CONVO_VERSION_COUNTER = 0x00000008;
     private static final int CONVO_PARAM_MASK_CONVO_SUMMARY = 0x00000010;
-    private static final int CONVO_PARAM_MASK_PARTTICIPANTS = 0x00000020;
+    private static final int CONVO_PARAM_MASK_PARTICIPANTS = 0x00000020;
     private static final int CONVO_PARAM_MASK_PART_UCI = 0x00000040;
     private static final int CONVO_PARAM_MASK_PART_DISP_NAME = 0x00000080;
     private static final int CONVO_PARAM_MASK_PART_CHAT_STATE = 0x00000100;
@@ -121,7 +121,7 @@ public class BluetoothMapContent {
     public static final long CONVO_PARAMETER_MASK_ALL_ENABLED = 0xFFFFFFFFL;
     public static final long CONVO_PARAMETER_MASK_DEFAULT =
             CONVO_PARAM_MASK_CONVO_NAME
-                    | CONVO_PARAM_MASK_PARTTICIPANTS
+                    | CONVO_PARAM_MASK_PARTICIPANTS
                     | CONVO_PARAM_MASK_PART_UCI
                     | CONVO_PARAM_MASK_PART_DISP_NAME;
 
@@ -560,9 +560,9 @@ public class BluetoothMapContent {
         } else if (fi.mMsgType == FilterInfo.TYPE_EMAIL || fi.mMsgType == FilterInfo.TYPE_IM) {
             read = c.getInt(fi.mMessageColRead);
         }
-        String setread = null;
+        String setRead = null;
 
-        Log.v(TAG, "setRead: " + setread);
+        Log.v(TAG, "setRead: " + setRead);
         e.setRead((read == 1), ((ap.getParameterMask() & MASK_READ) != 0));
     }
 
@@ -1477,17 +1477,17 @@ public class BluetoothMapContent {
      *
      * @return true if found a match
      */
-    private boolean matchRecipientMms(Cursor c, String recip) {
+    private boolean matchRecipientMms(Cursor c, String recipient) {
         boolean res;
         long id = c.getLong(c.getColumnIndex(BaseColumns._ID));
         String phone = getAddressMms(mResolver, id, MMS_TO);
         if (phone != null && phone.length() > 0) {
-            if (phone.matches(recip)) {
+            if (phone.matches(recipient)) {
                 Log.v(TAG, "matchRecipientMms: match recipient phone = " + phone);
                 res = true;
             } else {
                 String name = getContactNameFromPhone(phone, mResolver);
-                if (name != null && name.length() > 0 && name.matches(recip)) {
+                if (name != null && name.length() > 0 && name.matches(recipient)) {
                     Log.v(TAG, "matchRecipientMms: match recipient name = " + name);
                     res = true;
                 } else {
@@ -1500,16 +1500,16 @@ public class BluetoothMapContent {
         return res;
     }
 
-    private boolean matchRecipientSms(Cursor c, FilterInfo fi, String recip) {
+    private boolean matchRecipientSms(Cursor c, FilterInfo fi, String recipient) {
         boolean res;
         int msgType = c.getInt(c.getColumnIndex(Sms.TYPE));
         if (msgType == 1) {
             String phone = fi.mPhoneNum;
             String name = fi.mPhoneAlphaTag;
-            if (phone != null && phone.length() > 0 && phone.matches(recip)) {
+            if (phone != null && phone.length() > 0 && phone.matches(recipient)) {
                 Log.v(TAG, "matchRecipientSms: match recipient phone = " + phone);
                 res = true;
-            } else if (name != null && name.length() > 0 && name.matches(recip)) {
+            } else if (name != null && name.length() > 0 && name.matches(recipient)) {
                 Log.v(TAG, "matchRecipientSms: match recipient name = " + name);
                 res = true;
             } else {
@@ -1518,12 +1518,12 @@ public class BluetoothMapContent {
         } else {
             String phone = c.getString(c.getColumnIndex(Sms.ADDRESS));
             if (phone != null && phone.length() > 0) {
-                if (phone.matches(recip)) {
+                if (phone.matches(recipient)) {
                     Log.v(TAG, "matchRecipientSms: match recipient phone = " + phone);
                     res = true;
                 } else {
                     String name = getContactNameFromPhone(phone, mResolver);
-                    if (name != null && name.length() > 0 && name.matches(recip)) {
+                    if (name != null && name.length() > 0 && name.matches(recipient)) {
                         Log.v(TAG, "matchRecipientSms: match recipient name = " + name);
                         res = true;
                     } else {
@@ -1539,14 +1539,14 @@ public class BluetoothMapContent {
 
     private boolean matchRecipient(Cursor c, FilterInfo fi, BluetoothMapAppParams ap) {
         boolean res;
-        String recip = ap.getFilterRecipient();
-        if (recip != null && recip.length() > 0) {
-            recip = recip.replace("*", ".*");
-            recip = ".*" + recip + ".*";
+        String recipient = ap.getFilterRecipient();
+        if (recipient != null && recipient.length() > 0) {
+            recipient = recipient.replace("*", ".*");
+            recipient = ".*" + recipient + ".*";
             if (fi.mMsgType == FilterInfo.TYPE_SMS) {
-                res = matchRecipientSms(c, fi, recip);
+                res = matchRecipientSms(c, fi, recipient);
             } else if (fi.mMsgType == FilterInfo.TYPE_MMS) {
-                res = matchRecipientMms(c, recip);
+                res = matchRecipientMms(c, recipient);
             } else {
                 Log.d(TAG, "matchRecipient: Unknown msg type: " + fi.mMsgType);
                 res = false;
@@ -1876,24 +1876,24 @@ public class BluetoothMapContent {
 
     private static String setWhereFilterRecipientEmail(BluetoothMapAppParams ap) {
         String where = "";
-        String recip = ap.getFilterRecipient();
+        String recipient = ap.getFilterRecipient();
 
         /* Be aware of wild cards in the beginning of string, may not be valid? */
-        if (recip != null && recip.length() > 0) {
-            recip = recip.replace("*", "%");
+        if (recipient != null && recipient.length() > 0) {
+            recipient = recipient.replace("*", "%");
             where =
                     " AND ("
                             + BluetoothMapContract.MessageColumns.TO_LIST
                             + " LIKE '%"
-                            + recip
+                            + recipient
                             + "%' OR "
                             + BluetoothMapContract.MessageColumns.CC_LIST
                             + " LIKE '%"
-                            + recip
+                            + recipient
                             + "%' OR "
                             + BluetoothMapContract.MessageColumns.BCC_LIST
                             + " LIKE '%"
-                            + recip
+                            + recipient
                             + "%' )";
         }
         return where;
@@ -2412,7 +2412,7 @@ public class BluetoothMapContent {
             }
         }
 
-        Log.d(TAG, "messagelisting end");
+        Log.d(TAG, "msgListing end");
         return bmList;
     }
 
@@ -3028,7 +3028,7 @@ public class BluetoothMapContent {
 
     /**
      * Refreshes the entire list of SMS/MMS conversation version counters. Use it to generate a new
-     * ConvoListVersinoCounter in mSmsMmsConvoListVersion
+     * ConvoListVersionCounter in mSmsMmsConvoListVersion
      *
      * @return true if a list change has been detected
      */
@@ -3103,7 +3103,7 @@ public class BluetoothMapContent {
                             convoElement.setSummary(summary);
                         }
                         /* If the query returned one row for each contact, skip all the
-                        dublicates */
+                        duplicates */
                         do {
                             nextThreadId = imEmailCursor.getLong(fi.mConvoColConvoId);
                             Log.v(TAG, "  threadId = " + id + " newThreadId = " + nextThreadId);
@@ -3289,7 +3289,7 @@ public class BluetoothMapContent {
             ele.setSummary(summary);
         }
 
-        if ((parameterMask & CONVO_PARAM_MASK_PARTTICIPANTS) != 0) {
+        if ((parameterMask & CONVO_PARAM_MASK_PARTICIPANTS) != 0) {
             if (ap.getFilterRecipient() == null) {
                 // Add contacts only if not already added
                 String idsStr = smsMmsCursor.getString(MMS_SMS_THREAD_COL_RECIPIENT_IDS);
@@ -3337,7 +3337,7 @@ public class BluetoothMapContent {
         }
         // TODO: For optimization, we could avoid joining the contact and convo tables
         //       if we have no filter nor this bit is set.
-        if ((parameterMask & CONVO_PARAM_MASK_PARTTICIPANTS) != 0) {
+        if ((parameterMask & CONVO_PARAM_MASK_PARTICIPANTS) != 0) {
             do {
                 BluetoothMapConvoContactElement c = new BluetoothMapConvoContactElement();
                 if ((parameterMask & CONVO_PARAM_MASK_PART_X_BT_UID) != 0) {

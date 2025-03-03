@@ -425,7 +425,7 @@ class PbapClientStateMachine extends StateMachine {
 
                 case MSG_SDP_FAILED:
                     int failureCode = message.arg1;
-                    info("Connecting: SDP unsuccessful, code=" + sdpCodetoString(failureCode));
+                    info("Connecting: SDP unsuccessful, code=" + sdpCodeToString(failureCode));
                     if (failureCode == SDP_BUSY) {
                         mDevice.sdpSearch(BluetoothUuid.PBAP_PSE);
                     } else {
@@ -1018,7 +1018,7 @@ class PbapClientStateMachine extends StateMachine {
         }
     }
 
-    private static String sdpCodetoString(int code) {
+    private static String sdpCodeToString(int code) {
         switch (code) {
             case SDP_SUCCESS:
                 return "SDP_SUCCESS";
