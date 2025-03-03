@@ -80,7 +80,7 @@ public class BluetoothMapUtils {
     static final int MAP_FEATURE_MESSAGE_FORMAT_V11_BIT = 1 << 8;
     static final int MAP_FEATURE_MESSAGE_LISTING_FORMAT_V11_BIT = 1 << 9;
     static final int MAP_FEATURE_PERSISTENT_MESSAGE_HANDLE_BIT = 1 << 10;
-    static final int MAP_FEATURE_DATABASE_INDENTIFIER_BIT = 1 << 11;
+    static final int MAP_FEATURE_DATABASE_IDENTIFIER_BIT = 1 << 11;
     static final int MAP_FEATURE_FOLDER_VERSION_COUNTER_BIT = 1 << 12;
     static final int MAP_FEATURE_CONVERSATION_VERSION_COUNTER_BIT = 1 << 13;
     static final int MAP_FEATURE_PARTICIPANT_PRESENCE_CHANGE_BIT = 1 << 14;
@@ -424,7 +424,7 @@ public class BluetoothMapUtils {
      * @param maxLength Max length of byte array returned including null termination
      * @return byte array containing valid utf8 characters with max length
      */
-    public static byte[] truncateUtf8StringToBytearray(String utf8String, int maxLength) {
+    public static byte[] truncateUtf8StringToByteArray(String utf8String, int maxLength) {
 
         byte[] utf8Bytes = new byte[utf8String.length() + 1];
         System.arraycopy(
@@ -465,7 +465,7 @@ public class BluetoothMapUtils {
         if (utf8InBytes.length <= maxBytesLength) {
             return utf8InString;
         }
-        // Create a buffer that wildly truncate at desired lengtht.
+        // Create a buffer that wildly truncate at desired length.
         // It may contain invalid utf-8 char.
         ByteBuffer truncatedString = ByteBuffer.wrap(utf8InBytes, 0, maxBytesLength);
         CharBuffer validUtf8Buffer = CharBuffer.allocate(maxBytesLength);
@@ -684,7 +684,7 @@ public class BluetoothMapUtils {
 
     /**
      * Encodes an array of bytes into an array of quoted-printable 7-bit characters. Unsafe
-     * characters are escaped. Simplified version of encoder from QuetedPrintableCodec.java (Apache
+     * characters are escaped. Simplified version of encoder from QuotedPrintableCodec.java (Apache
      * external)
      *
      * @param bytes array of bytes to be encoded

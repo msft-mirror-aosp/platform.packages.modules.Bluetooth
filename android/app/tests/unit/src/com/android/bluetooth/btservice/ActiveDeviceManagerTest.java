@@ -399,7 +399,7 @@ public class ActiveDeviceManagerTest {
         mTestLooper.dispatchAll();
         verify(mHeadsetService).setActiveDevice(mHeadsetDevice);
 
-        // HFP activce device to null. Expect to fallback to LeAudio.
+        // HFP active device to null. Expect to fallback to LeAudio.
         headsetActiveDeviceChanged(null);
         mTestLooper.dispatchAll();
         verify(mLeAudioService, times(2)).setActiveDevice(mLeAudioDevice);
@@ -590,7 +590,7 @@ public class ActiveDeviceManagerTest {
     }
 
     @Test
-    public void a2dpHeadsetActivated_checkFallbackMeachanismOneA2dpOneHeadset() {
+    public void a2dpHeadsetActivated_checkFallbackMechanismOneA2dpOneHeadset() {
         // Active call
         when(mAudioManager.getMode()).thenReturn(AudioManager.MODE_IN_CALL);
 
@@ -1100,7 +1100,7 @@ public class ActiveDeviceManagerTest {
 
         leAudioDisconnected(mLeAudioDevice2);
         mTestLooper.dispatchAll();
-        // Should not encrease a number of this call.
+        // Should not increase a number of this call.
         order.verify(mLeAudioService, never()).setActiveDevice(any());
 
         leAudioDisconnected(mLeAudioDevice);

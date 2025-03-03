@@ -1000,7 +1000,7 @@ public class RemoteDevices {
      * Converts HFP's Battery Charge indicator values of {@code 0 -- 5} to an integer percentage.
      */
     @VisibleForTesting
-    static int batteryChargeIndicatorToPercentge(int indicator) {
+    static int batteryChargeIndicatorToPercentage(int indicator) {
         int percent;
         switch (indicator) {
             case 5:
@@ -1086,7 +1086,7 @@ public class RemoteDevices {
                                 MetricsLogger.getInstance().getWordBreakdownList(newName);
                         if (SdkLevel.isAtLeastU()) {
                             MetricsLogger.getInstance()
-                                    .uploadRestrictedBluetothDeviceName(wordBreakdownList);
+                                    .uploadRestrictedBluetoothDeviceName(wordBreakdownList);
                         }
                         intent = new Intent(BluetoothDevice.ACTION_NAME_CHANGED);
                         intent.putExtra(BluetoothDevice.EXTRA_DEVICE, bdDevice);
@@ -1989,7 +1989,7 @@ public class RemoteDevices {
             return;
         }
         updateBatteryLevel(
-                device, batteryChargeIndicatorToPercentge(batteryLevel), /* isBas= */ false);
+                device, batteryChargeIndicatorToPercentage(batteryLevel), /* isBas= */ false);
     }
 
     private static void errorLog(String msg) {

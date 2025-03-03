@@ -362,7 +362,7 @@ class BluetoothOppNotification {
                                 + item.id
                                 + "; batchID="
                                 + batchID
-                                + "; totoalCurrent"
+                                + "; totalCurrent"
                                 + item.totalCurrent
                                 + "; totalTotal="
                                 + item.totalTotal);

@@ -629,7 +629,7 @@ public class MetricsLogger {
     }
 
     @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
-    protected void uploadRestrictedBluetothDeviceName(List<String> wordBreakdownList) {
+    protected void uploadRestrictedBluetoothDeviceName(List<String> wordBreakdownList) {
         for (String word : wordBreakdownList) {
             BtRestrictedStatsLog.write(RESTRICTED_BLUETOOTH_DEVICE_NAME_REPORTED, word);
         }

@@ -88,7 +88,7 @@ public class AvrcpCoverArtManager {
     }
 
     /**
-     * A thread-safe collection of BIP connection specific imformation meant to be cleared each time
+     * A thread-safe collection of BIP connection specific information meant to be cleared each time
      * a client disconnects from the Target's BIP OBEX server.
      *
      * <p>Currently contains the mapping of image handles seen to assigned UUIDs.

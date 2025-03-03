@@ -450,7 +450,7 @@ public class MediaPlayerList {
                 info.browsable = true;
                 ret.add(info);
             }
-            Log.i(TAG, "getMediaPlayerList: number of mediaplayers: " + mMediaPlayers.size());
+            Log.i(TAG, "getMediaPlayerList: number of mediaPlayers: " + mMediaPlayers.size());
             // Also list non-browsable players, they can be selected if controller supports it.
             for (MediaPlayerWrapper mediaPlayer : mMediaPlayers.values()) {
                 // Skip player if already added as browsable
@@ -473,7 +473,7 @@ public class MediaPlayerList {
             info.name = BLUETOOTH_PLAYER_NAME;
             info.browsable = true;
             if (mBrowsablePlayers.size() == 0) {
-                // Set Bluetooth Player as non-browable if there is not browsable player exist.
+                // Set Bluetooth Player as non-browsable if there is not browsable player exist.
                 info.browsable = false;
             }
             ret.add(info);
@@ -1235,7 +1235,7 @@ public class MediaPlayerList {
 
     /** For testing purposes only, sets the {@link #mAudioPlaybackIsActive} flag. */
     @VisibleForTesting
-    void injectAudioPlaybacActive(boolean isActive) {
+    void injectAudioPlaybackActive(boolean isActive) {
         mAudioPlaybackIsActive = isActive;
         updateMediaForAudioPlayback();
     }
@@ -1339,7 +1339,7 @@ public class MediaPlayerList {
      * MediaSession.FLAG_EXCLUSIVE_GLOBAL_PRIORITY}, the session change shall be ignored as this
      * flag is used only by Telecom to handle wired headsets key events.
      *
-     * <p>It can happen that {@code token} is null, in such case wecan still check if we have a
+     * <p>It can happen that {@code token} is null, in such case we can still check if we have a
      * {@link MediaController} corresponding to {@code packageName} and set it as active.
      */
     @VisibleForTesting

@@ -508,7 +508,7 @@ public class BluetoothMapService extends ProfileService {
                                     BluetoothStatsLog
                                             .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
                                     4);
-                            Log.e(TAG, "ContentObserverRegistarion Failed: " + e);
+                            Log.e(TAG, "ContentObserverRegistration Failed: " + e);
                         }
                     }
                     break;
