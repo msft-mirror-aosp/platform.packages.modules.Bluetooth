@@ -242,7 +242,7 @@ public final class BluetoothKeystoreServiceTest {
     @Test
     public void testParserFileAfterDisableCommonCriteriaMode() {
         // preconfiguration.
-        // need to creat encrypted file.
+        // need to create encrypted file.
         testParserFile();
         // created encrypted file
         assertThat(setEncryptKeyOrRemoveKey(CONFIG_FILE_PREFIX, CONFIG_FILE_HASH)).isTrue();

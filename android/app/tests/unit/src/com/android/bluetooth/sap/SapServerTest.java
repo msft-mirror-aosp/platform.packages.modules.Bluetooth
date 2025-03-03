@@ -430,7 +430,7 @@ public class SapServerTest {
     }
 
     @Test
-    public void handleRfcommReply_statusIndMsg_whenInDisonnectingState_doesNotSendMessage()
+    public void handleRfcommReply_statusIndMsg_whenInDisconnectingState_doesNotSendMessage()
             throws Exception {
         SapMessage msg = mock(SapMessage.class);
         when(msg.getMsgType()).thenReturn(ID_STATUS_IND);

@@ -227,7 +227,7 @@ public class PbapClientStateMachineTest {
     }
 
     @Test
-    public void testConnecting_receivedSdpResultWithFailedStatus_transitiontoDisconnecting() {
+    public void testConnecting_receivedSdpResultWithFailedStatus_transitionToDisconnecting() {
         testDisconnected_receivedConnect_connectionStateChangesToConnecting();
         mPbapClientStateMachine.onSdpResultReceived(
                 SDP_FAILED,
@@ -267,7 +267,7 @@ public class PbapClientStateMachineTest {
     }
 
     @Test
-    public void testConnecting_receivedSdpResultWithUnknownStatus_transitiontoDisconnecting() {
+    public void testConnecting_receivedSdpResultWithUnknownStatus_transitionToDisconnecting() {
         testDisconnected_receivedConnect_connectionStateChangesToConnecting();
         mPbapClientStateMachine.onSdpResultReceived(
                 SDP_UNKNOWN,
@@ -421,7 +421,7 @@ public class PbapClientStateMachineTest {
     }
 
     @Test
-    public void testConnected_receivedDisconnect_transitiontoDisconnecting() {
+    public void testConnected_receivedDisconnect_transitionToDisconnecting() {
         testConnecting_receivedObexConnection_transitionToConnected();
         mPbapClientStateMachine.disconnect();
         mTestLooper.dispatchAll();
@@ -685,7 +685,7 @@ public class PbapClientStateMachineTest {
 
     @Test
     public void testEnterDisconnecting_clientConnected_disconnectIssued() {
-        testConnected_receivedDisconnect_transitiontoDisconnecting();
+        testConnected_receivedDisconnect_transitionToDisconnecting();
         verify(mMockObexClient, times(1)).disconnect();
     }
 

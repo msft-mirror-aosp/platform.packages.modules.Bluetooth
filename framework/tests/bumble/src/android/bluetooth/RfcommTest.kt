@@ -111,10 +111,11 @@ class RfcommTest {
     private val BLE_SCAN_ALWAYS_AVAILABLE = "ble_scan_always_enabled"
 
     init {
-        val intentFilter = IntentFilter().apply {
-            addAction(BluetoothDevice.ACTION_PAIRING_REQUEST)
-            addAction(BluetoothAdapter.ACTION_BLE_STATE_CHANGED)
-        }
+        val intentFilter =
+            IntentFilter().apply {
+                addAction(BluetoothDevice.ACTION_PAIRING_REQUEST)
+                addAction(BluetoothAdapter.ACTION_BLE_STATE_CHANGED)
+            }
         mFlow = intentFlow(mContext, intentFilter, mScope).shareIn(mScope, SharingStarted.Eagerly)
     }
 
@@ -651,10 +652,12 @@ class RfcommTest {
 
             // disable Bluetooth to BLE_ON mode
             mAdapter.disable()
-            waittingBluetoothLeStates(BluetoothAdapter.STATE_BLE_ON)
+            waitingBluetoothLeStates(BluetoothAdapter.STATE_BLE_ON)
 
-            // 1. In Bluetooth disabled state, under BLE_ON mode, it's impossible to determine the device's connection status.
-            // 2. Determine whether the Rfcomm Socket or ACL link has been disconnected based on successful data transmission.
+            // 1. In Bluetooth disabled state, under BLE_ON mode, it's impossible to determine the
+            // device's connection status.
+            // 2. Determine whether the Rfcomm Socket or ACL link has been disconnected based on
+            // successful data transmission.
             val data: ByteArray =
                 "Test data for clientRfcommDeviceDisconnectedOnBleOnMode".toByteArray()
             val socketOs = insecureSocket.outputStream
@@ -668,12 +671,12 @@ class RfcommTest {
     }
 
     // helper to wait for Bluetooth BLE state change
-    private fun waittingBluetoothLeStates(state: Int) {
+    private fun waitingBluetoothLeStates(state: Int) {
         runBlocking(mScope.coroutineContext) {
             withTimeout(STATE_CHANGE_TIMEOUT.toMillis()) {
                 // wait for Bluetooth states
                 launch {
-                    Log.i(TAG, "Waiting for waittingBluetoothLeStates: " + state)
+                    Log.i(TAG, "Waiting for waitingBluetoothLeStates: " + state)
                     mFlow
                         .filter { it.action == BluetoothAdapter.ACTION_BLE_STATE_CHANGED }
                         .filter { it.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1) == state }
