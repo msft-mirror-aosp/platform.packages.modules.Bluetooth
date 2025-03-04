@@ -2297,9 +2297,6 @@ void btm_sec_rmt_name_request_complete(const RawAddress* p_bd_addr, const uint8_
       if (btm_status != tBTM_STATUS::BTM_CMD_STARTED) {
         log::warn("failed ({}) to restart remote name request for pairing, must be already queued",
                   btm_status_text(btm_status));
-        if (!com::android::bluetooth::flags::pairing_name_discovery_addresss_mismatch()) {
-          NotifyBondingChange(*p_dev_rec, HCI_ERR_MEMORY_FULL);
-        }
       }
       return;
     }
