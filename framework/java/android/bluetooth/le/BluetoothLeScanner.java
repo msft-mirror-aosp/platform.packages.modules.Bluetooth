@@ -532,8 +532,7 @@ public final class BluetoothLeScanner {
                 }
                 ;
             }
-            Handler handler = new Handler(Looper.getMainLooper());
-            handler.post(
+            mHandler.post(
                     () -> {
                         if (Log.isLoggable(TAG, Log.DEBUG)) {
                             Log.d(TAG, "onScanResult() - handler run");
@@ -546,8 +545,7 @@ public final class BluetoothLeScanner {
         @Override
         public void onBatchScanResults(final List<ScanResult> results) {
             Attributable.setAttributionSource(results, mAttributionSource);
-            Handler handler = new Handler(Looper.getMainLooper());
-            handler.post(() -> mScanCallback.onBatchScanResults(results));
+            mHandler.post(() -> mScanCallback.onBatchScanResults(results));
         }
 
         @Override
@@ -563,17 +561,11 @@ public final class BluetoothLeScanner {
                     return;
                 }
             }
-            Handler handler = new Handler(Looper.getMainLooper());
-            handler.post(
-                    () -> {
-                        if (onFound) {
-                            mScanCallback.onScanResult(
-                                    ScanSettings.CALLBACK_TYPE_FIRST_MATCH, scanResult);
-                        } else {
-                            mScanCallback.onScanResult(
-                                    ScanSettings.CALLBACK_TYPE_MATCH_LOST, scanResult);
-                        }
-                    });
+            int callbackType =
+                    onFound
+                            ? ScanSettings.CALLBACK_TYPE_FIRST_MATCH
+                            : ScanSettings.CALLBACK_TYPE_MATCH_LOST;
+            mHandler.post(() -> mScanCallback.onScanResult(callbackType, scanResult));
         }
 
         @Override
