@@ -631,6 +631,9 @@ tBTM_STATUS BTM_SetBleDataLength(const RawAddress& bd_addr, uint16_t tx_pdu_leng
           tx_time,
           bluetooth::shim::GetController()->GetLeMaximumDataLength().supported_max_tx_time_);
 
+  log::info("Requesting actual tx_pdu_length:{} and tx_time:{} for bd_addr:{}",
+            tx_pdu_length, tx_time, bd_addr);
+
   btsnd_hcic_ble_set_data_length(hci_handle, tx_pdu_length, tx_time);
   p_dev_rec->set_suggested_tx_octect(tx_pdu_length);
 
