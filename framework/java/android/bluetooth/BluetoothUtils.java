@@ -429,4 +429,8 @@ public final class BluetoothUtils {
     public static void logRemoteException(String tag, RemoteException ex) {
         Log.w(tag, ex.toString() + ": " + inlineStackTrace());
     }
+
+    static boolean isValidDevice(BluetoothDevice device) {
+        return device != null && BluetoothAdapter.checkBluetoothAddress(device.getAddress());
+    }
 }
