@@ -6644,7 +6644,6 @@ public class AdapterService extends Service {
     }
 
     /** Update metadata change to registered listeners */
-    @VisibleForTesting
     public void onMetadataChanged(BluetoothDevice device, int key, byte[] value) {
         mHandler.post(() -> onMetadataChangedInternal(device, key, value));
     }
