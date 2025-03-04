@@ -1570,7 +1570,7 @@ public class LeAudioServiceTest {
     }
 
     /**
-     * Test native interface health base action message handling. It does not much, just chects
+     * Test native interface health base action message handling. It does not much, just checks
      * stack even and that service not crash
      */
     @Test
@@ -2565,7 +2565,7 @@ public class LeAudioServiceTest {
         verify(mNativeInterface, times(0)).groupSetActive(groupId);
         reset(mNativeInterface);
 
-        /* Expect device to be incactive */
+        /* Expect device to be inactive */
         injectAudioConfChanged(mSingleDevice, groupId, 0, direction);
 
         verify(mNativeInterface).groupSetActive(-1);
@@ -2580,7 +2580,7 @@ public class LeAudioServiceTest {
         reset(mNativeInterface);
         reset(mAudioManager);
 
-        /* Expect device to be incactive */
+        /* Expect device to be inactive */
         injectAudioConfChanged(mSingleDevice, groupId, 1, direction);
 
         verify(mNativeInterface).groupSetActive(groupId);
