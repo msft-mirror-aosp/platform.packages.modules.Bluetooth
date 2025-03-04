@@ -16,7 +16,10 @@ use bluetooth_offload_hci as hci;
 
 use crate::arbiter::Arbiter;
 use crate::service::{Service, StreamConfiguration};
-use hci::{Command, Event, EventToBytes, IsoData, Module, ModuleBuilder, ReturnParameters, Status};
+use hci::{
+    Command, CommandToBytes, Event, EventToBytes, IsoData, Module, ModuleBuilder, ReturnParameters,
+    Status,
+};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -197,6 +200,13 @@ impl Module for LeAudioModule {
                 let mut state = self.state.lock().unwrap();
                 let stream = state.stream.get_mut(&c.connection_handle).unwrap();
                 stream.state = StreamState::Enabling;
+
+                // Phase 1 limitation: The controller does not implement HCI Link Feedback event,
+                // and not implement the `DATA_PATH_ID_SOTWARE` to enable it.
+                // Fix the data_path_id to 0 (HCI) waiting for controller implementation.
+                self.next()
+                    .out_cmd(&hci::LeSetupIsoDataPath { data_path_id: 0, ..c.clone() }.to_bytes());
+                return;
             }
 
             _ => (),
