@@ -492,8 +492,7 @@ static bthh_connection_state_t hh_get_state_on_disconnect(tAclLinkSpec& link_spe
 
 static void hh_connect_complete(tBTA_HH_CONN& conn, bthh_connection_state_t state) {
   if (state != BTHH_CONN_STATE_CONNECTED) {
-    if (!com::android::bluetooth::flags::close_hid_only_if_connected() ||
-        conn.status == BTA_HH_OK) {
+    if (conn.status == BTA_HH_OK) {
       BTA_HhClose(conn.handle);
     }
   }
