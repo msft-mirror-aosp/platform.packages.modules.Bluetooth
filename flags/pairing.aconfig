@@ -32,16 +32,6 @@ flag {
 }
 
 flag {
-    name: "name_discovery_for_le_pairing"
-    namespace: "bluetooth"
-    description: "Perform LE name discovery for pairing if device name is not known"
-    bug: "355095011"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "donot_queue_dup_rnr"
     namespace: "bluetooth"
     description: "Avoid queueing second RNR as part of ssp process"

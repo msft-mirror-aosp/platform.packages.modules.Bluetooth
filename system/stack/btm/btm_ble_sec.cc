@@ -103,8 +103,7 @@ void BTM_SecAddBleDevice(const RawAddress& bd_addr, tBT_DEVICE_TYPE dev_type,
     log::debug("Device added, handle=0x{:x}, p_dev_rec={}, bd_addr={}", p_dev_rec->ble_hci_handle,
                std::format_ptr(p_dev_rec), bd_addr);
 
-    if (com::android::bluetooth::flags::name_discovery_for_le_pairing() &&
-        btif_storage_get_stored_remote_name(bd_addr,
+    if (btif_storage_get_stored_remote_name(bd_addr,
                                             reinterpret_cast<char*>(&p_dev_rec->sec_bd_name))) {
       p_dev_rec->sec_rec.sec_flags |= BTM_SEC_NAME_KNOWN;
     }
@@ -118,10 +117,6 @@ void BTM_SecAddBleDevice(const RawAddress& bd_addr, tBT_DEVICE_TYPE dev_type,
       dev_class[0] = (uint8_t)(cod >> 16);
       p_dev_rec->dev_class = dev_class;
     }
-  }
-
-  if (!com::android::bluetooth::flags::name_discovery_for_le_pairing()) {
-    bd_name_clear(p_dev_rec->sec_bd_name);
   }
 
   p_dev_rec->device_type |= dev_type;
@@ -1605,8 +1600,7 @@ void btm_ble_connection_established(const RawAddress& bda) {
   }
 
   // Read device name if it is not known already, we may need it for pairing
-  if (com::android::bluetooth::flags::name_discovery_for_le_pairing() &&
-      !p_dev_rec->sec_rec.is_name_known()) {
+  if (!p_dev_rec->sec_rec.is_name_known()) {
     btm_ble_read_remote_name(bda, nullptr);
   }
 
