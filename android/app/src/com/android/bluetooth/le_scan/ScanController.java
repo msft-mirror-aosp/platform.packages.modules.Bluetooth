@@ -115,13 +115,12 @@ public class ScanController {
                 "0201061AFF4C000215426C7565436861726D426561636F6E730EFE1355C509168020691E0EFE13551109426C7565436861726D5F31363936383500000000",
             };
 
-    static class PendingIntentInfo {
-        public PendingIntent intent;
-        public ScanSettings settings;
-        public List<ScanFilter> filters;
-        public String callingPackage;
-        public int callingUid;
-
+    record PendingIntentInfo(
+            PendingIntent intent,
+            ScanSettings settings,
+            List<ScanFilter> filters,
+            String callingPackage,
+            int callingUid) {
         @Override
         public boolean equals(Object other) {
             if (!(other instanceof PendingIntentInfo)) {
@@ -1291,12 +1290,8 @@ public class ScanController {
         UUID uuid = UUID.randomUUID();
         String callingPackage = attributionSource.getPackageName();
         int callingUid = attributionSource.getUid();
-        PendingIntentInfo piInfo = new PendingIntentInfo();
-        piInfo.intent = pendingIntent;
-        piInfo.settings = settings;
-        piInfo.filters = filters;
-        piInfo.callingPackage = callingPackage;
-        piInfo.callingUid = callingUid;
+        PendingIntentInfo piInfo =
+                new PendingIntentInfo(pendingIntent, settings, filters, callingPackage, callingUid);
         Log.d(
                 TAG,
                 "startScan(PI) -"
@@ -1305,7 +1300,7 @@ public class ScanController {
                         + (" UID=" + callingUid));
 
         // Don't start scan if the Pi scan already in mScannerMap.
-        if (mScannerMap.getByPendingIntentInfo(piInfo) != null) {
+        if (mScannerMap.getByPendingIntentInfo(pendingIntent) != null) {
             Log.d(TAG, "Don't startScan(PI) since the same Pi scan already in mScannerMap.");
             return;
         }
@@ -1436,9 +1431,7 @@ public class ScanController {
 
     /** Intended for internal use within the Bluetooth app. Bypass permission check */
     private void stopScanInternal(PendingIntent intent) {
-        PendingIntentInfo pii = new PendingIntentInfo();
-        pii.intent = intent;
-        ScannerMap.ScannerApp app = mScannerMap.getByPendingIntentInfo(pii);
+        ScannerMap.ScannerApp app = mScannerMap.getByPendingIntentInfo(intent);
         Log.v(TAG, "stopScan(PendingIntent): app found = " + app);
         if (app != null) {
             intent.removeCancelListener(mScanIntentCancelListener);
