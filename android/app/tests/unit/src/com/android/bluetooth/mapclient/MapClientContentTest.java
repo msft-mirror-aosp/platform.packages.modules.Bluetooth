@@ -448,7 +448,7 @@ public class MapClientContentTest {
 
     /** Test that we gracefully exit when there's a problem with the SMS/MMS DB being available */
     @Test
-    public void testInsertSmsFails_messageHandleNotInteractable() {
+    public void testInsertSmsFails_messageHandleNotIntractable() {
         // Try to store an MMS, but make the content resolver fail to insert and provide a null URI
         MissingContentProvider missingContentProvider =
                 Mockito.spy(new MissingContentProvider(mMockContext));
@@ -470,7 +470,7 @@ public class MapClientContentTest {
 
     /** Test that we gracefully exit when there's a problem with the SMS/MMS DB being available */
     @Test
-    public void testInsertMmsPartsSkippedWhenMmsInsertFails_messageHandleNotInteractable() {
+    public void testInsertMmsPartsSkippedWhenMmsInsertFails_messageHandleNotIntractable() {
         // Try to store an MMS, but make the content resolver fail to insert and provide a null URI
         MissingContentProvider missingContentProvider =
                 Mockito.spy(new MissingContentProvider(mMockContext));
