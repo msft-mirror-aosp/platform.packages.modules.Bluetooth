@@ -10,16 +10,6 @@ flag {
 }
 
 flag {
-    name: "suppress_hid_rejection_broadcast"
-    namespace: "bluetooth"
-    description: "Don't generate state change event when an incoming HID connection is rejected"
-    bug: "339018102"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "hid_report_queuing"
     namespace: "bluetooth"
     description: "Queue incoming HID reports if UHID is not ready"
