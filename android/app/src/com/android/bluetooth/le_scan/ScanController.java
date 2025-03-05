@@ -71,7 +71,6 @@ import com.android.internal.annotations.VisibleForTesting;
 
 import libcore.util.HexEncoding;
 
-import com.google.common.primitives.Bytes;
 import com.google.protobuf.ByteString;
 
 import java.util.ArrayDeque;
@@ -874,7 +873,7 @@ public class ScanController {
             byte[] record =
                     extractBytes(batchRecord, i * TRUNCATED_RESULT_SIZE, TRUNCATED_RESULT_SIZE);
             byte[] address = extractBytes(record, 0, 6);
-            Bytes.reverse(address);
+            Utils.reverse(address);
             BluetoothDevice device = mAdapter.getRemoteDevice(address);
             int rssi = record[8];
             long timestampNanos = now - parseTimestampNanos(extractBytes(record, 9, 2));
@@ -900,7 +899,7 @@ public class ScanController {
         while (position < batchRecord.length) {
             byte[] address = extractBytes(batchRecord, position, 6);
             // TODO: remove temp hack.
-            Bytes.reverse(address);
+            Utils.reverse(address);
             BluetoothDevice device = mAdapter.getRemoteDevice(address);
             position += 6;
             // Skip address type.
