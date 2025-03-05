@@ -128,10 +128,10 @@ public class BluetoothMapService extends ProfileService {
     private BluetoothMnsObexClient mBluetoothMnsObexClient = null;
 
     // mMasInstances: A list of the active MasInstances using the MasId for the key
-    private SparseArray<BluetoothMapMasInstance> mMasInstances =
+    private final SparseArray<BluetoothMapMasInstance> mMasInstances =
             new SparseArray<BluetoothMapMasInstance>(1);
     // mMasInstanceMap: A list of the active MasInstances using the account for the key
-    private HashMap<BluetoothMapAccountItem, BluetoothMapMasInstance> mMasInstanceMap =
+    private final HashMap<BluetoothMapAccountItem, BluetoothMapMasInstance> mMasInstanceMap =
             new HashMap<BluetoothMapAccountItem, BluetoothMapMasInstance>(1);
 
     // The remote connected device - protect access

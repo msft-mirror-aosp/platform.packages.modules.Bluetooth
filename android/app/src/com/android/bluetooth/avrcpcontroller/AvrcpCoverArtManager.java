@@ -50,7 +50,7 @@ public class AvrcpCoverArtManager {
 
     private final AvrcpControllerService mService;
     protected final Map<BluetoothDevice, AvrcpBipClient> mClients = new ConcurrentHashMap<>(1);
-    private Map<BluetoothDevice, AvrcpBipSession> mBipSessions = new ConcurrentHashMap<>(1);
+    private final Map<BluetoothDevice, AvrcpBipSession> mBipSessions = new ConcurrentHashMap<>(1);
     private final AvrcpCoverArtStorage mCoverArtStorage;
     private final Callback mCallback;
     private final String mDownloadScheme;
@@ -94,8 +94,8 @@ public class AvrcpCoverArtManager {
      * <p>Currently contains the mapping of image handles seen to assigned UUIDs.
      */
     private static class AvrcpBipSession {
-        private Map<String, String> mUuids = new ConcurrentHashMap<>(1); /* handle -> UUID */
-        private Map<String, String> mHandles = new ConcurrentHashMap<>(1); /* UUID -> handle */
+        private final Map<String, String> mUuids = new ConcurrentHashMap<>(1); // handle -> UUID
+        private final Map<String, String> mHandles = new ConcurrentHashMap<>(1); // UUID -> handle
 
         public String getHandleUuid(String handle) {
             if (!isValidImageHandle(handle)) return null;

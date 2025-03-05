@@ -299,7 +299,7 @@ public class AdapterService extends Service {
     private long mRxTimeTotalMs;
     private long mIdleTimeTotalMs;
     private long mEnergyUsedTotalVoltAmpSecMicro;
-    private HashSet<String> mLeAudioAllowDevices = new HashSet<>();
+    private final HashSet<String> mLeAudioAllowDevices = new HashSet<>();
 
     /* List of pairs of gatt clients which controls AutoActiveMode on the device.*/
     @VisibleForTesting
@@ -319,7 +319,7 @@ public class AdapterService extends Service {
     private boolean mNativeAvailable;
     private boolean mCleaningUp;
     private boolean mQuietmode = false;
-    private Map<String, CallerInfo> mBondAttemptCallerInfo = new HashMap<>();
+    private final Map<String, CallerInfo> mBondAttemptCallerInfo = new HashMap<>();
 
     private BatteryStatsManager mBatteryStatsManager;
     private PowerManager mPowerManager;
@@ -618,7 +618,7 @@ public class AdapterService extends Service {
         // The newly requested preferences
         final Bundle mRequestedPreferences;
         // Reference counter for how many calls are pending completion in the audio framework
-        int mRemainingRequestsToAudioFramework;
+        final int mRemainingRequestsToAudioFramework;
         // The device with which the request was made. Used for sending the callback.
         final BluetoothDevice mDeviceRequested;
 

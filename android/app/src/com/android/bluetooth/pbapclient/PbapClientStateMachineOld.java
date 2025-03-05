@@ -111,14 +111,14 @@ class PbapClientStateMachineOld extends StateMachine {
             PbapSdpRecord.FEATURE_DEFAULT_IMAGE_FORMAT | PbapSdpRecord.FEATURE_DOWNLOADING;
 
     private final Object mLock;
-    private State mDisconnected;
-    private State mConnecting;
-    private State mConnected;
-    private State mDisconnecting;
+    private final State mDisconnected;
+    private final State mConnecting;
+    private final State mConnected;
+    private final State mDisconnecting;
 
     // mCurrentDevice may only be changed in Disconnected State.
     private final BluetoothDevice mCurrentDevice;
-    private PbapClientService mService;
+    private final PbapClientService mService;
     private PbapClientConnectionHandler mConnectionHandler;
     private HandlerThread mHandlerThread = null;
     private UserManager mUserManager = null;

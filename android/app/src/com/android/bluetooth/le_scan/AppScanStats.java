@@ -75,7 +75,7 @@ class AppScanStats {
     @GuardedBy("sLock")
     static long sRadioStartTime = 0;
 
-    private static Object sLock = new Object();
+    private static final Object sLock = new Object();
 
     private static class LastScan {
         public long duration;
@@ -163,7 +163,6 @@ class AppScanStats {
     private int mLowLatencyScan = 0;
     private int mAmbientDiscoveryScan = 0;
     private long startTime = 0;
-    private long stopTime = 0;
     private int results = 0;
 
     AppScanStats(
@@ -336,7 +335,7 @@ class AppScanStats {
             return;
         }
         this.mScansStopped++;
-        stopTime = mTimeProvider.elapsedRealtime();
+        long stopTime = mTimeProvider.elapsedRealtime();
         long scanDuration = stopTime - scan.timestamp;
         scan.duration = scanDuration;
         if (scan.isSuspended) {
@@ -776,7 +775,7 @@ class AppScanStats {
             return;
         }
         scan.isSuspended = false;
-        stopTime = mTimeProvider.elapsedRealtime();
+        long stopTime = mTimeProvider.elapsedRealtime();
         long suspendDuration = stopTime - scan.suspendStartTime;
         scan.suspendDuration += suspendDuration;
         mTotalSuspendTime += suspendDuration;

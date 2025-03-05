@@ -59,7 +59,7 @@ public class BipImageDescriptor {
 
     /** A Builder for an ImageDescriptor object */
     public static class Builder {
-        private BipImageDescriptor mImageDescriptor = new BipImageDescriptor();
+        private final BipImageDescriptor mImageDescriptor = new BipImageDescriptor();
 
         /**
          * Set the encoding for the descriptor you're building using a BipEncoding object

@@ -105,7 +105,7 @@ public class HeadsetStateMachineTest {
     private HandlerThread mHandlerThread;
     private HeadsetStateMachine mHeadsetStateMachine;
     private final BluetoothDevice mDevice = getTestDevice(87);
-    private ArgumentCaptor<Intent> mIntentArgument = ArgumentCaptor.forClass(Intent.class);
+    private final ArgumentCaptor<Intent> mIntentArgument = ArgumentCaptor.forClass(Intent.class);
 
     @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 

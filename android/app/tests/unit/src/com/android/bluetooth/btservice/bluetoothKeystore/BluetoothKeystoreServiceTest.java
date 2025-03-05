@@ -94,7 +94,7 @@ public final class BluetoothKeystoreServiceTest {
 
     private List<String> mConfigData = new ArrayList<>();
 
-    private Map<String, String> mNameDecryptKeyResult = new HashMap<>();
+    private final Map<String, String> mNameDecryptKeyResult = new HashMap<>();
 
     @Before
     public void setUp() {

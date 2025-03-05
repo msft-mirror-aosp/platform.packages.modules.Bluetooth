@@ -40,10 +40,10 @@ import java.util.Objects;
 class A2dpCodecConfig {
     private static final String TAG = A2dpCodecConfig.class.getSimpleName();
 
-    private Context mContext;
-    private A2dpNativeInterface mA2dpNativeInterface;
+    private final Context mContext;
+    private final A2dpNativeInterface mA2dpNativeInterface;
 
-    private BluetoothCodecConfig[] mCodecConfigPriorities;
+    private final BluetoothCodecConfig[] mCodecConfigPriorities;
     private @CodecPriority int mA2dpSourceCodecPrioritySbc =
             BluetoothCodecConfig.CODEC_PRIORITY_DEFAULT;
     private @CodecPriority int mA2dpSourceCodecPriorityAac =

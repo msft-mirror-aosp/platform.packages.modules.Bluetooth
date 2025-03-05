@@ -97,7 +97,7 @@ public class PbapClientStateMachineTest {
     ArgumentCaptor<PbapClientContactsStorage.Callback> mCaptor =
             ArgumentCaptor.forClass(PbapClientContactsStorage.Callback.class);
     private PbapClientContactsStorage.Callback mStorageCallback;
-    private List<Account> mMockedAccounts = new ArrayList<>();
+    private final List<Account> mMockedAccounts = new ArrayList<>();
 
     @Mock private PbapClientObexClient mMockObexClient;
 

@@ -81,8 +81,8 @@ public class MediaPlayerList {
     // string.
     private static final String BROWSE_ID_PATTERN = "\\d\\d.*";
 
-    private Context mContext;
-    private Looper mLooper; // Thread all media player callbacks and timeouts happen on
+    private final Context mContext;
+    private final Looper mLooper; // Thread all media player callbacks and timeouts happen on
     private MediaSessionManager mMediaSessionManager;
     private MediaData mCurrMediaData = null;
     private final AudioManager mAudioManager;
@@ -93,13 +93,13 @@ public class MediaPlayerList {
             new BluetoothEventLogger(
                     AUDIO_PLAYBACK_STATE_LOGGER_SIZE, AUDIO_PLAYBACK_STATE_LOGGER_TITLE);
 
-    private Map<Integer, MediaPlayerWrapper> mMediaPlayers =
+    private final Map<Integer, MediaPlayerWrapper> mMediaPlayers =
             Collections.synchronizedMap(new HashMap<Integer, MediaPlayerWrapper>());
-    private Map<String, Integer> mMediaPlayerIds =
+    private final Map<String, Integer> mMediaPlayerIds =
             Collections.synchronizedMap(new HashMap<String, Integer>());
-    private Map<Integer, BrowsedPlayerWrapper> mBrowsablePlayers =
+    private final Map<Integer, BrowsedPlayerWrapper> mBrowsablePlayers =
             Collections.synchronizedMap(new HashMap<Integer, BrowsedPlayerWrapper>());
-    private Map<Integer, MediaBrowserWrapper> mMediaBrowserWrappers =
+    private final Map<Integer, MediaBrowserWrapper> mMediaBrowserWrappers =
             Collections.synchronizedMap(new HashMap<Integer, MediaBrowserWrapper>());
     private int mActivePlayerId = NO_ACTIVE_PLAYER;
     private int mBrowsingPlayerId = NO_ACTIVE_PLAYER;
