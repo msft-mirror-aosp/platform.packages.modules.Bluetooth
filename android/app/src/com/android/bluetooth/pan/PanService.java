@@ -178,7 +178,12 @@ public class PanService extends ProfileService {
     public void cleanup() {
         Log.i(TAG, "Cleanup Pan Service");
 
-        mTetheringManager.unregisterTetheringEventCallback(mTetheringCallback);
+        try {
+            mTetheringManager.unregisterTetheringEventCallback(mTetheringCallback);
+            // IllegalStateException could be thrown from the manager.
+        } catch (IllegalStateException e) {
+            Log.e(TAG, "cleanup(): failed to unregister tethering event callback");
+        }
         mNativeInterface.cleanup();
         mHandler.removeCallbacksAndMessages(null);
 
