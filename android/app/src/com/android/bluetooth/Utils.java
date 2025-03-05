@@ -27,6 +27,7 @@ import static android.Manifest.permission.NETWORK_SETUP_WIZARD;
 import static android.Manifest.permission.RADIO_SCAN_WITHOUT_LOCATION;
 import static android.Manifest.permission.RENOUNCE_PERMISSIONS;
 import static android.Manifest.permission.WRITE_SMS;
+import static android.bluetooth.BluetoothUtils.RemoteExceptionIgnoringRunnable;
 import static android.bluetooth.BluetoothUtils.USER_HANDLE_NULL;
 import static android.content.pm.PackageManager.GET_PERMISSIONS;
 import static android.content.pm.PackageManager.MATCH_UNINSTALLED_PACKAGES;
@@ -1328,5 +1329,10 @@ public final class Utils {
         public long elapsedRealtime() {
             return android.os.SystemClock.elapsedRealtime();
         }
+    }
+
+    /** Execute a remote callback without propagating the RemoteException of a dead app */
+    public static void callbackToApp(RemoteExceptionIgnoringRunnable callback) {
+        callback.run();
     }
 }
