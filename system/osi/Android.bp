@@ -86,6 +86,7 @@ cc_library_static {
     static_libs: [
         "bluetooth_flags_c_lib",
         "libaconfig_storage_read_api_cc",
+        "libbluetooth_hci_pdl",
         "libbluetooth_log",
         "libbt-platform-protos-lite",
         "libcom.android.sysprop.bluetooth.wrapped",

@@ -103,7 +103,6 @@ cc_library_shared {
         "libFraunhoferAAC",
         "libaconfig_storage_read_api_cc",
         "libbase",
-        "libbluetooth",
         "libbluetooth-types",
         "libbluetooth_core_rs",
         "libbluetooth_core_rs_bridge",
