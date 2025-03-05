@@ -157,6 +157,7 @@ public class GattService extends ProfileService {
      */
     private final HashMap<String, Integer> mPermits = new HashMap<>();
 
+    private final BluetoothAdapter mAdapter;
     private final AdapterService mAdapterService;
     private final AdvertiseManager mAdvertiseManager;
     private final GattNativeInterface mNativeInterface;
@@ -168,6 +169,7 @@ public class GattService extends ProfileService {
 
     public GattService(AdapterService adapterService) {
         super(requireNonNull(adapterService));
+        mAdapter = BluetoothAdapter.getDefaultAdapter();
         mAdapterService = adapterService;
         mActivityManager = requireNonNull(getSystemService(ActivityManager.class));
         mPackageManager = requireNonNull(mAdapterService.getPackageManager());
@@ -231,7 +233,6 @@ public class GattService extends ProfileService {
         mServerMap.clear();
         mHandleMap.clear();
         mReliableQueue.clear();
-
         mNativeInterface.cleanup();
         mAdvertiseManager.cleanup();
         mDistanceMeasurementManager.cleanup();
@@ -1103,15 +1104,7 @@ public class GattService extends ProfileService {
 
         // This callback was called from the jni_workqueue thread. If we make request to the stack
         // on the same thread, it might cause deadlock. Schedule request on a new thread instead.
-        Thread t =
-                new Thread(
-                        new Runnable() {
-                            @Override
-                            public void run() {
-                                mNativeInterface.gattClientGetGattDb(connId);
-                            }
-                        });
-        t.start();
+        new Thread(() -> mNativeInterface.gattClientGetGattDb(connId)).start();
     }
 
     GattDbElement getSampleGattDbElement() {
@@ -1432,7 +1425,6 @@ public class GattService extends ProfileService {
         Map<BluetoothDevice, Integer> deviceStates = new HashMap<>();
 
         // Add paired LE devices
-
         BluetoothDevice[] bondedDevices = mAdapterService.getBondedDevices();
         for (BluetoothDevice device : bondedDevices) {
             if (getDeviceType(device) != AbstractionLayer.BT_DEVICE_TYPE_BREDR) {
@@ -1441,7 +1433,6 @@ public class GattService extends ProfileService {
         }
 
         // Add connected deviceStates
-
         Set<String> connectedDevices = new HashSet<>();
         connectedDevices.addAll(mClientMap.getConnectedDevices());
         connectedDevices.addAll(mServerMap.getConnectedDevices());
@@ -2111,26 +2102,20 @@ public class GattService extends ProfileService {
             return;
         }
 
-        int minInterval;
-        int maxInterval;
-
-        // Peripheral latency
-        int latency;
-
-        // Link supervision timeout is measured in N * 10ms
-        int timeout = 500; // 5s
-
         CompanionManager manager = mAdapterService.getCompanionManager();
 
-        minInterval =
+        int minInterval =
                 manager.getGattConnParameters(
                         address, CompanionManager.GATT_CONN_INTERVAL_MIN, connectionPriority);
-        maxInterval =
+        int maxInterval =
                 manager.getGattConnParameters(
                         address, CompanionManager.GATT_CONN_INTERVAL_MAX, connectionPriority);
-        latency =
+        // Peripheral latency
+        int latency =
                 manager.getGattConnParameters(
                         address, CompanionManager.GATT_CONN_LATENCY, connectionPriority);
+
+        int timeout = 500; // 5s. Link supervision timeout is measured in N * 10ms
 
         Log.d(
                 TAG,
@@ -2199,8 +2184,7 @@ public class GattService extends ProfileService {
         int subrateMax;
         int maxLatency;
         int contNumber;
-        // Link supervision timeout is measured in N * 10ms
-        int supervisionTimeout = 500; // 5s
+        int supervisionTimeout = 500; // 5s. Link supervision timeout is measured in N * 10ms
 
         Resources res = getResources();
 
@@ -2364,11 +2348,9 @@ public class GattService extends ProfileService {
         }
 
         int applicationUid = -1;
-
         try {
             applicationUid =
                     this.getPackageManager().getPackageUid(app.name, PackageInfoFlags.of(0));
-
         } catch (NameNotFoundException e) {
             Log.d(TAG, "onClientConnected() uid_not_found=" + app.name);
         }
@@ -3085,7 +3067,7 @@ public class GattService extends ProfileService {
     }
 
     private void statsLogAppPackage(String address, int applicationUid, int sessionIndex) {
-        BluetoothDevice device = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(address);
+        BluetoothDevice device = mAdapter.getRemoteDevice(address);
         BluetoothStatsLog.write(
                 BluetoothStatsLog.BLUETOOTH_GATT_APP_INFO,
                 sessionIndex,
@@ -3105,7 +3087,7 @@ public class GattService extends ProfileService {
             int sessionIndex,
             int connectionState,
             int connectionStatus) {
-        BluetoothDevice device = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(address);
+        BluetoothDevice device = mAdapter.getRemoteDevice(address);
         BluetoothStatsLog.write(
                 BluetoothStatsLog.BLUETOOTH_CONNECTION_STATE_CHANGED,
                 connectionState,
