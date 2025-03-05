@@ -680,7 +680,8 @@ public class MetricsLogger {
                 scanDurationMillis,
                 numOngoingScan,
                 isScreenOn,
-                isAppDead);
+                isAppDead,
+                0);
     }
 
     /** Logs the radio scan stats with app attribution when the radio scan stopped. */
@@ -702,7 +703,8 @@ public class MetricsLogger {
                 scanIntervalMillis,
                 scanWindowMillis,
                 isScreenOn,
-                scanDurationMillis);
+                scanDurationMillis,
+                0);
     }
 
     /** Logs the advertise stats with app attribution when the advertise state changed. */
@@ -730,7 +732,8 @@ public class MetricsLogger {
                 hasScanResponse,
                 isExtendedAdv,
                 instanceCount,
-                advDurationMs);
+                advDurationMs,
+                0);
     }
 
     protected String getAllowlistedDeviceNameHash(
