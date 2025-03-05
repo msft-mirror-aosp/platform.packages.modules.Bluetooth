@@ -1382,8 +1382,7 @@ bool L2CA_RemoveFixedChnl(uint16_t fixed_cid, const RawAddress& rem_bda) {
    * exist */
   tL2C_CCB* p_ccb = p_lcb->p_fixed_ccbs[fixed_cid - L2CAP_FIRST_FIXED_CHNL];
 
-  if (com::android::bluetooth::flags::transmit_smp_packets_before_release() && p_ccb->in_use &&
-      !fixed_queue_is_empty(p_ccb->xmit_hold_q)) {
+  if (p_ccb->in_use && !fixed_queue_is_empty(p_ccb->xmit_hold_q)) {
     if (l2cu_fixed_channel_suspended(p_lcb, fixed_cid)) {
       log::warn("Removal of BDA: {} CID: 0x{:04x} already pending", rem_bda, fixed_cid);
     } else {
