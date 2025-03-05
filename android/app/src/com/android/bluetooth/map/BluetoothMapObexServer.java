@@ -331,69 +331,46 @@ public class BluetoothMapObexServer extends ServerRequestHandler {
         // always assume version 1.0 to start with
         mMessageVersion = BluetoothMapUtils.MAP_V10_STR;
         notifyUpdateWakeLock();
-        Long threadedMailKey = null;
-        try {
-            byte[] uuid = (byte[]) request.getHeader(HeaderSet.TARGET);
-            threadedMailKey = (Long) request.getHeader(THREADED_MAIL_HEADER_ID);
-            if (uuid == null) {
-                return ResponseCodes.OBEX_HTTP_NOT_ACCEPTABLE;
-            }
-            Log.d(TAG, "onConnect(): uuid=" + Arrays.toString(uuid));
+        byte[] uuid = (byte[]) request.getHeader(HeaderSet.TARGET);
+        Long threadedMailKey = (Long) request.getHeader(THREADED_MAIL_HEADER_ID);
+        if (uuid == null) {
+            return ResponseCodes.OBEX_HTTP_NOT_ACCEPTABLE;
+        }
+        Log.d(TAG, "onConnect(): uuid=" + Arrays.toString(uuid));
 
-            if (uuid.length != UUID_LENGTH) {
-                Log.w(TAG, "Wrong UUID length");
+        if (uuid.length != UUID_LENGTH) {
+            Log.w(TAG, "Wrong UUID length");
+            ContentProfileErrorReportUtils.report(
+                    BluetoothProfile.MAP,
+                    BluetoothProtoEnums.BLUETOOTH_MAP_OBEX_SERVER,
+                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
+                    0);
+            return ResponseCodes.OBEX_HTTP_NOT_ACCEPTABLE;
+        }
+        for (int i = 0; i < UUID_LENGTH; i++) {
+            if (uuid[i] != MAP_TARGET[i]) {
+                Log.w(TAG, "Wrong UUID");
                 ContentProfileErrorReportUtils.report(
                         BluetoothProfile.MAP,
                         BluetoothProtoEnums.BLUETOOTH_MAP_OBEX_SERVER,
                         BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
-                        0);
+                        1);
                 return ResponseCodes.OBEX_HTTP_NOT_ACCEPTABLE;
             }
-            for (int i = 0; i < UUID_LENGTH; i++) {
-                if (uuid[i] != MAP_TARGET[i]) {
-                    Log.w(TAG, "Wrong UUID");
-                    ContentProfileErrorReportUtils.report(
-                            BluetoothProfile.MAP,
-                            BluetoothProtoEnums.BLUETOOTH_MAP_OBEX_SERVER,
-                            BluetoothStatsLog
-                                    .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
-                            1);
-                    return ResponseCodes.OBEX_HTTP_NOT_ACCEPTABLE;
-                }
-            }
-            reply.setHeader(HeaderSet.WHO, uuid);
-        } catch (IOException e) {
-            ContentProfileErrorReportUtils.report(
-                    BluetoothProfile.MAP,
-                    BluetoothProtoEnums.BLUETOOTH_MAP_OBEX_SERVER,
-                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                    2);
-            Log.e(TAG, "Exception during onConnect:", e);
-            return ResponseCodes.OBEX_HTTP_INTERNAL_ERROR;
         }
+        reply.setHeader(HeaderSet.WHO, uuid);
 
-        try {
-            byte[] remote = (byte[]) request.getHeader(HeaderSet.WHO);
-            if (remote != null) {
-                Log.d(TAG, "onConnect(): remote=" + Arrays.toString(remote));
-                reply.setHeader(HeaderSet.TARGET, remote);
-            }
-            if (threadedMailKey != null && threadedMailKey.longValue() == THREAD_MAIL_KEY) {
-                /* If the client provides the correct key we enable threaded e-mail support
-                 * and reply to the client that we support the requested feature.
-                 * This is currently an Android only feature. */
-                mThreadIdSupport = true;
-                reply.setHeader(THREADED_MAIL_HEADER_ID, THREAD_MAIL_KEY);
-            }
-        } catch (IOException e) {
-            ContentProfileErrorReportUtils.report(
-                    BluetoothProfile.MAP,
-                    BluetoothProtoEnums.BLUETOOTH_MAP_OBEX_SERVER,
-                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                    3);
-            Log.e(TAG, "Exception during onConnect:", e);
-            mThreadIdSupport = false;
-            return ResponseCodes.OBEX_HTTP_INTERNAL_ERROR;
+        byte[] remote = (byte[]) request.getHeader(HeaderSet.WHO);
+        if (remote != null) {
+            Log.d(TAG, "onConnect(): remote=" + Arrays.toString(remote));
+            reply.setHeader(HeaderSet.TARGET, remote);
+        }
+        if (threadedMailKey != null && threadedMailKey.longValue() == THREAD_MAIL_KEY) {
+            /* If the client provides the correct key we enable threaded e-mail support
+             * and reply to the client that we support the requested feature.
+             * This is currently an Android only feature. */
+            mThreadIdSupport = true;
+            reply.setHeader(THREADED_MAIL_HEADER_ID, THREAD_MAIL_KEY);
         }
 
         if ((mRemoteFeatureMask & BluetoothMapUtils.MAP_FEATURE_MESSAGE_LISTING_FORMAT_V11_BIT)
@@ -498,7 +475,7 @@ public class BluetoothMapObexServer extends ServerRequestHandler {
                                 + appParams.getStatusIndicator()
                                 + ", StatusValue: "
                                 + appParams.getStatusValue()
-                                + ", ExtentedData: "); // TODO: appParams.getExtendedImData());
+                                + ", ExtendedData: "); // TODO: appParams.getExtendedImData());
                 if (!isUserUnlocked()) {
                     Log.e(TAG, "Storage locked, " + type + " failed");
                     ContentProfileErrorReportUtils.report(
@@ -513,7 +490,7 @@ public class BluetoothMapObexServer extends ServerRequestHandler {
             } else if (type.equals(TYPE_MESSAGE)) {
                 Log.v(
                         TAG,
-                        "TYPE_MESSAGE: Transparet: "
+                        "TYPE_MESSAGE: Transparent: "
                                 + appParams.getTransparent()
                                 + ", retry: "
                                 + appParams.getRetry()
@@ -1209,7 +1186,7 @@ public class BluetoothMapObexServer extends ServerRequestHandler {
                 if (appParams != null) {
                     Log.v(
                             TAG,
-                            "TYPE_MESSAGE (GET): MASInstandeId = " + appParams.getMasInstanceId());
+                            "TYPE_MESSAGE (GET): MASInstanceId = " + appParams.getMasInstanceId());
                 }
                 // Block until all packets have been send.
                 return sendMASInstanceInformationRsp(op, appParams);
@@ -1307,8 +1284,8 @@ public class BluetoothMapObexServer extends ServerRequestHandler {
         }
 
         /* MAP Spec 1.3 introduces the following
-         * Messagehandle filtering:
-         * msgListing (messageHandle=X) -> other allowed filters: parametereMask, subjectMaxLength
+         * messageHandle filtering:
+         * msgListing (messageHandle=X) -> other allowed filters: parameterMask, subjectMaxLength
          * ConversationID filtering:
          * msgListing (convoId empty) -> should work as normal msgListing in valid folders
          * msgListing (convoId=0, no other filters) -> should return all messages in all folders
@@ -1386,8 +1363,8 @@ public class BluetoothMapObexServer extends ServerRequestHandler {
             } else {
                 outAppParams.setNewMessage(0);
             }
-            if ((mRemoteFeatureMask & BluetoothMapUtils.MAP_FEATURE_DATABASE_INDENTIFIER_BIT)
-                    == BluetoothMapUtils.MAP_FEATURE_DATABASE_INDENTIFIER_BIT) {
+            if ((mRemoteFeatureMask & BluetoothMapUtils.MAP_FEATURE_DATABASE_IDENTIFIER_BIT)
+                    == BluetoothMapUtils.MAP_FEATURE_DATABASE_IDENTIFIER_BIT) {
                 outAppParams.setDatabaseIdentifier(0, mMasInstance.getDbIdentifier());
             }
             if ((mRemoteFeatureMask & BluetoothMapUtils.MAP_FEATURE_FOLDER_VERSION_COUNTER_BIT)
@@ -1946,7 +1923,7 @@ public class BluetoothMapObexServer extends ServerRequestHandler {
 
             /* Ensure byte array max length is 200 containing valid UTF-8 characters */
             outBytes =
-                    BluetoothMapUtils.truncateUtf8StringToBytearray(
+                    BluetoothMapUtils.truncateUtf8StringToByteArray(
                             outString, MAS_INSTANCE_INFORMATION_LENGTH);
 
             // Open the OBEX body stream

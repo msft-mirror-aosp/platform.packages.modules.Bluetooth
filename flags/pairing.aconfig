@@ -280,3 +280,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "reset_security_flags_on_pairing_failure"
+    namespace: "bluetooth"
+    description: "Reset security flags on pairing failure"
+    bug: "400586238"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

@@ -117,7 +117,7 @@ public class MasClient {
             } else {
                 Log.d(
                         TAG,
-                        "Connecting to OBEX on RFCOM channel "
+                        "Connecting to OBEX on RFCOMM channel "
                                 + mSdpMasRecord.getRfcommCannelNumber());
                 mSocket = mRemoteDevice.createRfcommSocket(mSdpMasRecord.getRfcommCannelNumber());
             }

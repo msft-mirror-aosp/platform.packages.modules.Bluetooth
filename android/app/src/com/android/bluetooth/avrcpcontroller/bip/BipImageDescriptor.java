@@ -132,7 +132,7 @@ public class BipImageDescriptor {
         /**
          * Set the max file size of the image for the descriptor you're building
          *
-         * @param size The maxe image size in bytes
+         * @param size The max image size in bytes
          * @return This object so you can continue building
          */
         public Builder setMaxFileSize(int size) {

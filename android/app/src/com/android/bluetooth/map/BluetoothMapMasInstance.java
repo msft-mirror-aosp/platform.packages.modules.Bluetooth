@@ -90,7 +90,7 @@ public class BluetoothMapMasInstance implements IObexConnectionHandler {
     private boolean mEnableSmsMms = false;
     BluetoothMapContentObserver mObserver;
     private BluetoothMapObexServer mMapServer;
-    private AtomicLong mDbIndetifier = new AtomicLong();
+    private AtomicLong mDbIdentifier = new AtomicLong();
     private AtomicLong mFolderVersionCounter = new AtomicLong(0);
     private AtomicLong mSmsMmsConvoListVersionCounter = new AtomicLong(0);
     private AtomicLong mImEmailConvoListVersionCounter = new AtomicLong(0);
@@ -143,7 +143,7 @@ public class BluetoothMapMasInstance implements IObexConnectionHandler {
                             + ", SDP handle: "
                             + mSdpHandle);
             boolean status = nativeInterface.removeSdpRecord(mSdpHandle);
-            debug("RemoveSDPrecord returns " + status);
+            debug("RemoveSDPRecord returns " + status);
             mSdpHandle = -1;
         }
     }
@@ -168,7 +168,7 @@ public class BluetoothMapMasInstance implements IObexConnectionHandler {
      */
     @SuppressWarnings("JavaUtilDate") // TODO: b/365629730 -- prefer Instant or LocalDate
     private void updateDbIdentifier() {
-        mDbIndetifier.set(Calendar.getInstance().getTime().getTime());
+        mDbIdentifier.set(Calendar.getInstance().getTime().getTime());
     }
 
     /**
@@ -246,7 +246,7 @@ public class BluetoothMapMasInstance implements IObexConnectionHandler {
 
     /* package*/
     long getDbIdentifier() {
-        return mDbIndetifier.get();
+        return mDbIdentifier.get();
     }
 
     /* package*/

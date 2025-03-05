@@ -589,8 +589,8 @@ static const btgatt_client_callbacks_t sGattClientCallbacks = {
 static void btgatts_register_app_cb(int status, int server_if, const Uuid& uuid) {
   // TODO(b/356462170): Remove this when we have fixed the bug
   if (!is_module_started(&rust_module)) {
-    log::error("Rust module isn't started! scan_manager_refactor={}",
-               com::android::bluetooth::flags::scan_manager_refactor());
+    log::error("Rust module isn't started! only_start_scan_during_ble_on={}",
+               com::android::bluetooth::flags::only_start_scan_during_ble_on());
   }
   bluetooth::gatt::open_server(server_if);
   std::shared_lock<std::shared_mutex> lock(callbacks_mutex);
@@ -1233,7 +1233,7 @@ static void initializeNative(JNIEnv* env, jobject object) {
     return;
   }
 
-  if (com::android::bluetooth::flags::scan_manager_refactor()) {
+  if (com::android::bluetooth::flags::only_start_scan_during_ble_on()) {
     log::info("Starting rust module");
     btIf->start_rust_module();
   }
@@ -1252,7 +1252,7 @@ static void cleanupNative(JNIEnv* env, jobject /* object */) {
     return;
   }
 
-  if (com::android::bluetooth::flags::scan_manager_refactor()) {
+  if (com::android::bluetooth::flags::only_start_scan_during_ble_on()) {
     log::info("Stopping rust module");
     btIf->stop_rust_module();
   }

@@ -16,8 +16,7 @@ use bluetooth_offload_hci as hci;
 
 use crate::arbiter::Arbiter;
 use crate::service::{Service, StreamConfiguration};
-use hci::{Command, Event, EventToBytes, IsoData, ReturnParameters, Status};
-use hci::{Module, ModuleBuilder};
+use hci::{Command, Event, EventToBytes, IsoData, Module, ModuleBuilder, ReturnParameters, Status};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -82,19 +81,22 @@ impl Stream {
     fn new_cis(cig: &CigParameters, e: &hci::LeCisEstablished) -> Self {
         let iso_interval_us = (e.iso_interval as u32) * 1250;
 
-        assert_eq!(iso_interval_us % cig.sdu_interval_c_to_p, 0, "Framing mode not supported");
-        assert_eq!(iso_interval_us % cig.sdu_interval_p_to_c, 0, "Framing mode not supported");
-
-        assert_eq!(
-            iso_interval_us / cig.sdu_interval_c_to_p,
-            e.bn_c_to_p.into(),
-            "SDU fragmentation not supported"
-        );
-        assert_eq!(
-            iso_interval_us / cig.sdu_interval_p_to_c,
-            e.bn_p_to_c.into(),
-            "SDU fragmentation not supported"
-        );
+        if cig.sdu_interval_c_to_p != 0 {
+            assert_eq!(iso_interval_us % cig.sdu_interval_c_to_p, 0, "Framing mode not supported");
+            assert_eq!(
+                iso_interval_us / cig.sdu_interval_c_to_p,
+                e.bn_c_to_p.into(),
+                "SDU fragmentation not supported"
+            );
+        }
+        if cig.sdu_interval_p_to_c != 0 {
+            assert_eq!(iso_interval_us % cig.sdu_interval_p_to_c, 0, "Framing mode not supported");
+            assert_eq!(
+                iso_interval_us / cig.sdu_interval_p_to_c,
+                e.bn_p_to_c.into(),
+                "SDU fragmentation not supported"
+            );
+        }
 
         Self {
             state: StreamState::Disabled,

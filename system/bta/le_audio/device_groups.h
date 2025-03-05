@@ -121,10 +121,9 @@ public:
         metadata_context_type_(
                 {.sink = types::AudioContexts(types::LeAudioContextType::UNINITIALIZED),
                  .source = types::AudioContexts(types::LeAudioContextType::UNINITIALIZED)}),
-        group_available_contexts_(
+        streaming_metadata_context_type_(
                 {.sink = types::AudioContexts(types::LeAudioContextType::UNINITIALIZED),
                  .source = types::AudioContexts(types::LeAudioContextType::UNINITIALIZED)}),
-        pending_group_available_contexts_change_(types::LeAudioContextType::UNINITIALIZED),
         group_user_allowed_context_mask_(
                 {.sink = types::AudioContexts(types::kLeAudioContextAllTypes),
                  .source = types::AudioContexts(types::kLeAudioContextAllTypes)}),
@@ -177,6 +176,7 @@ public:
   LeAudioDevice* GetNextActiveDeviceByCisAndDataPathState(
           LeAudioDevice* leAudioDevice, types::CisState cis_state,
           types::DataPathState data_path_state) const;
+  int GetNumOfActiveDevices(void) const;
   bool IsDeviceInTheGroup(LeAudioDevice* leAudioDevice) const;
   bool HaveAllActiveDevicesAsesTheSameState(types::AseState state) const;
   bool HaveAnyActiveDeviceInStreamingState() const;
@@ -206,7 +206,6 @@ public:
   uint8_t GetTargetPhy(uint8_t direction) const;
   bool GetPresentationDelay(uint32_t* delay, uint8_t direction) const;
   uint16_t GetRemoteDelay(uint8_t direction) const;
-  bool UpdateAudioContextAvailability(void);
   bool UpdateAudioSetConfigurationCache(types::LeAudioContextType ctx_type,
                                         bool use_preferred = false) const;
   CodecManager::UnicastConfigurationRequirements GetAudioSetConfigurationRequirements(
@@ -286,20 +285,6 @@ public:
     log::info("In transition flag  = {}", in_transition_);
   }
 
-  /* Returns context types for which support was recently added or removed */
-  inline types::AudioContexts GetPendingAvailableContextsChange() const {
-    return pending_group_available_contexts_change_;
-  }
-
-  /* Set which context types were recently added or removed */
-  inline void SetPendingAvailableContextsChange(types::AudioContexts audio_contexts) {
-    pending_group_available_contexts_change_ = audio_contexts;
-  }
-
-  inline void ClearPendingAvailableContextsChange() {
-    pending_group_available_contexts_change_.clear();
-  }
-
   inline void SetConfigurationContextType(types::LeAudioContextType context_type) {
     configuration_context_type_ = context_type;
   }
@@ -318,22 +303,46 @@ public:
     return metadata_context_type_;
   }
 
-  inline void SetAvailableContexts(types::BidirectionalPair<types::AudioContexts> new_contexts) {
-    group_available_contexts_ = new_contexts;
-    log::debug("group id: {}, available contexts sink: {}, available contexts source: {}",
-               group_id_, group_available_contexts_.sink.to_string(),
-               group_available_contexts_.source.to_string());
+  inline void SetStreamingMetadataContexts(types::AudioContexts& metadata, int remote_direction) {
+    log::debug("group_id: {}, direction: {}, metadata: {}", group_id_,
+               remote_direction == types::kLeAudioDirectionSink ? "sink" : "source",
+               common::ToString(metadata));
+    streaming_metadata_context_type_.get(remote_direction) = metadata;
+  }
+
+  inline types::BidirectionalPair<types::AudioContexts> GetStreamingMetadataContexts() const {
+    log::debug("group_id: {}, sink: {}, source: {}", group_id_,
+               common::ToString(streaming_metadata_context_type_.sink),
+               common::ToString(streaming_metadata_context_type_.source));
+    return streaming_metadata_context_type_;
+  }
+
+  inline void ClearStreamingMetadataContexts() {
+    log::debug("group_id: {}", group_id_);
+    streaming_metadata_context_type_.sink.clear();
+    streaming_metadata_context_type_.source.clear();
   }
 
   types::AudioContexts GetAvailableContexts(int direction = types::kLeAudioDirectionBoth) const {
     log::assert_that(direction <= (types::kLeAudioDirectionBoth), "Invalid direction used.");
+
+    auto streaming_metadata = GetStreamingMetadataContexts();
+    types::BidirectionalPair<types::AudioContexts> available_contexts =
+            GetLatestAvailableContexts();
+
+    log::debug(
+            "group id: {}, streaming contexts sink: {}, streaming contexts source: {}, available "
+            "contexts sink: {}, available contexts source: {}",
+            group_id_, streaming_metadata.sink.to_string(), streaming_metadata.source.to_string(),
+            available_contexts.sink.to_string(), available_contexts.source.to_string());
+
+    available_contexts.sink |= streaming_metadata.sink;
+    available_contexts.source |= streaming_metadata.source;
+
     if (direction < types::kLeAudioDirectionBoth) {
-      log::debug("group id: {}, available contexts sink: {}, available contexts source: {}",
-                 group_id_, group_available_contexts_.sink.to_string(),
-                 group_available_contexts_.source.to_string());
-      return group_available_contexts_.get(direction);
+      return available_contexts.get(direction);
     } else {
-      return types::get_bidirectional(group_available_contexts_);
+      return types::get_bidirectional(available_contexts);
     }
   }
 
@@ -444,18 +453,7 @@ private:
   /* Current configuration and metadata context types */
   types::LeAudioContextType configuration_context_type_;
   types::BidirectionalPair<types::AudioContexts> metadata_context_type_;
-
-  /* Mask of contexts that the whole group can handle at its current state
-   * It's being updated each time group members connect, disconnect or their
-   * individual available audio contexts are changed.
-   */
-  types::BidirectionalPair<types::AudioContexts> group_available_contexts_;
-
-  /* A temporary mask for bits which were either added or removed when the
-   * group available context type changes. It usually means we should refresh
-   * our group configuration capabilities to clear this.
-   */
-  types::AudioContexts pending_group_available_contexts_change_;
+  types::BidirectionalPair<types::AudioContexts> streaming_metadata_context_type_;
 
   /* Mask of currently allowed context types. Not set a value not set will
    * result in streaming rejection.

@@ -1000,7 +1000,7 @@ public class RemoteDevices {
      * Converts HFP's Battery Charge indicator values of {@code 0 -- 5} to an integer percentage.
      */
     @VisibleForTesting
-    static int batteryChargeIndicatorToPercentge(int indicator) {
+    static int batteryChargeIndicatorToPercentage(int indicator) {
         int percent;
         switch (indicator) {
             case 5:
@@ -1086,7 +1086,7 @@ public class RemoteDevices {
                                 MetricsLogger.getInstance().getWordBreakdownList(newName);
                         if (SdkLevel.isAtLeastU()) {
                             MetricsLogger.getInstance()
-                                    .uploadRestrictedBluetothDeviceName(wordBreakdownList);
+                                    .uploadRestrictedBluetoothDeviceName(wordBreakdownList);
                         }
                         intent = new Intent(BluetoothDevice.ACTION_NAME_CHANGED);
                         intent.putExtra(BluetoothDevice.EXTRA_DEVICE, bdDevice);
@@ -1558,6 +1558,19 @@ public class RemoteDevices {
                                     Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT
                                             | Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
 
+            // Log transition to key missing state, if the key missing count is 0 which indicates
+            //  that the device is bonded until now.
+            if (mAdapterService.getDatabase().getKeyMissingCount(bluetoothDevice) == 0) {
+                MetricsLogger.getInstance()
+                        .logBluetoothEvent(
+                                bluetoothDevice,
+                                BluetoothStatsLog
+                                        .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__TRANSITION,
+                                BluetoothStatsLog
+                                        .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__STATE__BOND_BONDED_TO_ACTION_KEY_MISSING,
+                                0);
+            }
+
             // Bond loss detected, add to the count.
             mAdapterService.getDatabase().updateKeyMissingCount(bluetoothDevice, true);
 
@@ -1635,8 +1648,21 @@ public class RemoteDevices {
                 algorithm = BluetoothDevice.ENCRYPTION_ALGORITHM_E0;
             }
 
-            // Successful bond detected, reset the count.
-            mAdapterService.getDatabase().updateKeyMissingCount(bluetoothDevice, false);
+            // Log transition to encryption change state (bonded), if the key missing count is > 0
+            //  which indicates that the device is in key missing state.
+            if (mAdapterService.getDatabase().getKeyMissingCount(bluetoothDevice) > 0) {
+                MetricsLogger.getInstance()
+                        .logBluetoothEvent(
+                                bluetoothDevice,
+                                BluetoothStatsLog
+                                        .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__TRANSITION,
+                                BluetoothStatsLog
+                                        .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__STATE__ACTION_KEY_MISSING_TO_ENCRYPTION_CHANGE,
+                                0);
+
+                // Successful bond detected, reset the count.
+                mAdapterService.getDatabase().updateKeyMissingCount(bluetoothDevice, false);
+            }
         }
 
         Intent intent =
@@ -1963,7 +1989,7 @@ public class RemoteDevices {
             return;
         }
         updateBatteryLevel(
-                device, batteryChargeIndicatorToPercentge(batteryLevel), /* isBas= */ false);
+                device, batteryChargeIndicatorToPercentage(batteryLevel), /* isBas= */ false);
     }
 
     private static void errorLog(String msg) {

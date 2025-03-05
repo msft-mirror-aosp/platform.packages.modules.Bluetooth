@@ -1719,7 +1719,7 @@ public class BassClientStateMachineTest {
 
         BaseData data = Mockito.mock(BaseData.class);
         when(mBassClientService.getBase(anyInt())).thenReturn(data);
-        when(data.getNumberOfSubgroupsofBIG()).thenReturn((byte) 1);
+        when(data.getNumberOfSubGroupsOfBIG()).thenReturn((byte) 1);
         Mockito.clearInvocations(callbacks);
 
         mBassClientStateMachine.sendMessage(UPDATE_BCAST_SOURCE, sourceId, paSync, metadata);
