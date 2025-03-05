@@ -110,7 +110,7 @@ public class BluetoothPbap implements BluetoothProfile {
      */
     public static final int RESULT_CANCELED = 2;
 
-    private BluetoothAdapter mAdapter;
+    private final BluetoothAdapter mAdapter;
 
     private IBluetoothPbap mService;
 

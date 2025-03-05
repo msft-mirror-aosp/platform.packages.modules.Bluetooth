@@ -361,7 +361,7 @@ public class BluetoothOppService extends ProfileService implements IObexConnecti
 
     private static final int STOP_LISTENER = 200;
 
-    private Handler mHandler =
+    private final Handler mHandler =
             new Handler() {
                 @Override
                 public void handleMessage(Message msg) {
@@ -1269,14 +1269,10 @@ public class BluetoothOppService extends ProfileService implements IObexConnecti
     }
 
     private static class MediaScannerNotifier implements MediaScannerConnectionClient {
-
-        private MediaScannerConnection mConnection;
-
-        private BluetoothOppShareInfo mInfo;
-
-        private Context mContext;
-
-        private Handler mCallback;
+        private final MediaScannerConnection mConnection;
+        private final BluetoothOppShareInfo mInfo;
+        private final Context mContext;
+        private final Handler mCallback;
 
         MediaScannerNotifier(Context context, BluetoothOppShareInfo info, Handler handler) {
             mContext = context;

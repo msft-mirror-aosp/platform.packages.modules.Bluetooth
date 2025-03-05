@@ -68,13 +68,13 @@ public class BluetoothMapSmsPdu {
      */
     public static class SmsPdu {
         private byte[] mData;
-        private byte[] mScAddress = {0};
+        private final byte[] mScAddress = {0};
         // At the moment we do not use the scAddress, hence set the length to 0.
         private int mUserDataMsgOffset = 0;
         private int mEncoding;
         private int mLanguageTable;
         private int mLanguageShiftTable;
-        private int mType;
+        private final int mType;
 
         /* Members used for pdu decoding */
         private int mUserDataSeptetPadding = INVALID_VALUE;

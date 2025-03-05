@@ -65,7 +65,7 @@ public final class BluetoothSap implements BluetoothProfile, AutoCloseable {
     private static final boolean DBG = true;
     private static final boolean VDBG = false;
 
-    private CloseGuard mCloseGuard;
+    private final CloseGuard mCloseGuard;
 
     /**
      * Intent used to broadcast the change in connection state of the profile.

@@ -159,7 +159,7 @@ public class HeadsetService extends ProfileService {
     private VoiceRecognitionTimeoutEvent mVoiceRecognitionTimeoutEvent;
     // Timeout when voice recognition is started by remote device
     @VisibleForTesting static int sStartVrTimeoutMs = 5000;
-    private ArrayList<StateMachineTask> mPendingClccResponses = new ArrayList<>();
+    private final ArrayList<StateMachineTask> mPendingClccResponses = new ArrayList<>();
     private final AudioManagerAudioDeviceCallback mAudioManagerAudioDeviceCallback =
             new AudioManagerAudioDeviceCallback();
     private static HeadsetService sHeadsetService;

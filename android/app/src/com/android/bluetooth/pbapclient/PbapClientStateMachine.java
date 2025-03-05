@@ -198,7 +198,7 @@ class PbapClientStateMachine extends StateMachine {
     private final Context mContext;
     private PbapSdpRecord mSdpRecord = null;
     private final Account mAccount;
-    private Map<String, Phonebook> mPhonebooks = new HashMap<String, Phonebook>();
+    private final Map<String, Phonebook> mPhonebooks = new HashMap<String, Phonebook>();
     private final PbapClientObexClient mObexClient;
     private final PbapClientContactsStorage mContactsStorage;
 

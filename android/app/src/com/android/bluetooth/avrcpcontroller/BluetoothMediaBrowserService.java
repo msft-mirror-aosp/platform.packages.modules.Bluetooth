@@ -65,7 +65,7 @@ public class BluetoothMediaBrowserService extends MediaBrowserServiceCompat {
     private MediaSessionCompat mSession;
 
     // Browsing related structures.
-    private List<MediaSessionCompat.QueueItem> mMediaQueue = new ArrayList<>();
+    private final List<MediaSessionCompat.QueueItem> mMediaQueue = new ArrayList<>();
 
     // Media Framework Content Style constants
     private static final String CONTENT_STYLE_SUPPORTED =
@@ -194,7 +194,7 @@ public class BluetoothMediaBrowserService extends MediaBrowserServiceCompat {
         public static final byte ERROR_MEDIA_ID_INVALID = 0x03;
         public static final byte ERROR_NO_AVRCP_SERVICE = 0x04;
 
-        private List<MediaItem> mResults;
+        private final List<MediaItem> mResults;
         private final byte mStatus;
 
         List<MediaItem> getResults() {

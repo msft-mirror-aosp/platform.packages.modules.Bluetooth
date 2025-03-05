@@ -26,8 +26,8 @@ import java.util.Objects;
  */
 public class SignedLongLong implements Comparable<SignedLongLong> {
 
-    private long mMostSigBits;
-    private long mLeastSigBits;
+    private final long mMostSigBits;
+    private final long mLeastSigBits;
 
     public SignedLongLong(long leastSigBits, long mostSigBits) {
         this.mMostSigBits = mostSigBits;
