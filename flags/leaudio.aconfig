@@ -344,3 +344,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "do_not_hardcode_tmap_role_mask"
+    namespace: "bluetooth"
+    description: "When initializing TMAP role mask in LeAudioService, make it a function of enabled services"
+    bug: "399410612"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
