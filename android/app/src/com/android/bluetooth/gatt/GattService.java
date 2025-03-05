@@ -1098,15 +1098,6 @@ public class GattService extends ProfileService {
         app.callback.onSubrateChange(address, subrateFactor, latency, contNum, timeout, status);
     }
 
-    void onSearchCompleted(int connId, int status) throws RemoteException {
-        Log.d(TAG, "onSearchCompleted() - connId=" + connId + ", status=" + status);
-        // Gatt DB is ready!
-
-        // This callback was called from the jni_workqueue thread. If we make request to the stack
-        // on the same thread, it might cause deadlock. Schedule request on a new thread instead.
-        new Thread(() -> mNativeInterface.gattClientGetGattDb(connId)).start();
-    }
-
     GattDbElement getSampleGattDbElement() {
         return new GattDbElement();
     }
