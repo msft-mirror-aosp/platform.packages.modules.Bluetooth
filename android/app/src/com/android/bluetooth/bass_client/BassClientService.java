@@ -212,7 +212,6 @@ public class BassClientService extends ProfileService {
     private static final int LOG_NB_EVENTS = 100;
     private static final BluetoothEventLogger sEventLogger =
             new BluetoothEventLogger(LOG_NB_EVENTS, TAG + " event log");
-    ;
 
     @VisibleForTesting ServiceFactory mServiceFactory = new ServiceFactory();
 

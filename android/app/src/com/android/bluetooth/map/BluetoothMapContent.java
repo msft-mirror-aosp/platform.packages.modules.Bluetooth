@@ -51,7 +51,6 @@ import com.android.internal.annotations.VisibleForTesting;
 
 import com.google.android.mms.pdu.CharacterSets;
 import com.google.android.mms.pdu.PduHeaders;
-import com.google.common.base.Ascii;
 
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
@@ -64,6 +63,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -3889,7 +3889,7 @@ public class BluetoothMapContent {
                     // according to spec, "charset" should not be set. However, if the attachment
                     // is replaced with a text string, the bMessage now contains text and should
                     // have charset set to UTF-8 according to spec.
-                    if (!Ascii.toUpperCase(part.mContentType).contains("TEXT")
+                    if (!part.mContentType.toUpperCase(Locale.ROOT).contains("TEXT")
                             && !message.getIncludeAttachments()) {
                         StringBuilder sb = new StringBuilder();
                         part.encodePlainText(sb);
