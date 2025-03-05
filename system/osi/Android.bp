@@ -29,7 +29,6 @@ filegroup {
 cc_library_static {
     name: "libosi",
     visibility: [
-        "//packages/apps/Test/connectivity/sl4n",
         "//packages/modules/Bluetooth:__subpackages__",
     ],
     export_include_dirs: [
