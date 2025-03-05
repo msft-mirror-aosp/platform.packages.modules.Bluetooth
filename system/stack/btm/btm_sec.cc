@@ -667,6 +667,7 @@ tBTM_STATUS btm_sec_bond_by_transport(const RawAddress& bd_addr, tBLE_ADDR_TYPE 
 
   /* Finished if connection is active and already paired */
   if (((p_dev_rec->hci_handle != HCI_INVALID_HANDLE) && transport == BT_TRANSPORT_BR_EDR &&
+       (btm_get_bond_type_dev(bd_addr) == BOND_TYPE_PERSISTENT) &&
        (p_dev_rec->sec_rec.sec_flags & BTM_SEC_AUTHENTICATED)) ||
       ((p_dev_rec->ble_hci_handle != HCI_INVALID_HANDLE) && transport == BT_TRANSPORT_LE &&
        (p_dev_rec->sec_rec.sec_flags & BTM_SEC_LE_AUTHENTICATED))) {
