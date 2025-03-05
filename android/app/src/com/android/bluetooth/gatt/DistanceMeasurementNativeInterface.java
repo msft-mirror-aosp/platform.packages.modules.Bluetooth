@@ -26,13 +26,6 @@ import com.android.internal.annotations.VisibleForTesting;
 public class DistanceMeasurementNativeInterface {
     private static final String TAG = DistanceMeasurementNativeInterface.class.getSimpleName();
 
-    @GuardedBy("INSTANCE_LOCK")
-    private static DistanceMeasurementNativeInterface sInstance;
-
-    private static final Object INSTANCE_LOCK = new Object();
-
-    private DistanceMeasurementManager mDistanceMeasurementManager;
-
     /**
      * Do not modify without updating distance_measurement_manager.h match up with
      * DistanceMeasurementErrorCode enum of distance_measurement_manager.h
@@ -46,6 +39,13 @@ public class DistanceMeasurementNativeInterface {
     private static final int REASON_NO_LE_CONNECTION = 5;
     private static final int REASON_INVALID_PARAMETERS = 6;
     private static final int REASON_INTERNAL_ERROR = 7;
+
+    private static final Object INSTANCE_LOCK = new Object();
+
+    @GuardedBy("INSTANCE_LOCK")
+    private static DistanceMeasurementNativeInterface sInstance;
+
+    private DistanceMeasurementManager mDistanceMeasurementManager;
 
     private DistanceMeasurementNativeInterface() {}
 
