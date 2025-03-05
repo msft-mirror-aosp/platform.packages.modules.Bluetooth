@@ -1697,11 +1697,7 @@ static bt_status_t connect(RawAddress* bd_addr, tBLE_ADDR_TYPE addr_type, tBT_TR
 
   BTHH_LOG_LINK(link_spec);
 
-  if (!com::android::bluetooth::flags::initiate_multiple_hid_connections() &&
-      !btif_hh_cb.new_connection_requests.empty()) {
-    log::warn("HH status = {}", btif_hh_status_text(btif_hh_cb.status));
-    return BT_STATUS_BUSY;
-  } else if (btif_hh_cb.status == BTIF_HH_DISABLED || btif_hh_cb.status == BTIF_HH_DISABLING) {
+  if (btif_hh_cb.status == BTIF_HH_DISABLED || btif_hh_cb.status == BTIF_HH_DISABLING) {
     log::warn("HH status = {}", btif_hh_status_text(btif_hh_cb.status));
     return BT_STATUS_NOT_READY;
   }
@@ -1767,8 +1763,7 @@ static bt_status_t disconnect(RawAddress* bd_addr, tBLE_ADDR_TYPE addr_type,
         btif_hh_cb.new_connection_requests.remove(link_spec);
       }
       return BT_STATUS_DONE;
-    } else if (com::android::bluetooth::flags::initiate_multiple_hid_connections() &&
-               std::find(btif_hh_cb.new_connection_requests.begin(),
+    } else if (std::find(btif_hh_cb.new_connection_requests.begin(),
                          btif_hh_cb.new_connection_requests.end(),
                          link_spec) != btif_hh_cb.new_connection_requests.end()) {
       btif_hh_cb.new_connection_requests.remove(link_spec);

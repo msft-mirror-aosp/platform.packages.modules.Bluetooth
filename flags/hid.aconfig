@@ -10,16 +10,6 @@ flag {
 }
 
 flag {
-    name: "initiate_multiple_hid_connections"
-    namespace: "bluetooth"
-    description: "Allow HID host to initiate multiple HID connections at a time"
-    bug: "356141637"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "close_hid_if_uhid_ready_too_slow"
     namespace: "bluetooth"
     description: "Close HID if UHID takes too long to be ready"
