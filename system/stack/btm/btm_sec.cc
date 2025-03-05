@@ -3871,13 +3871,10 @@ void btm_sec_disconnected(uint16_t handle, tHCI_REASON reason, std::string comme
   const tBT_TRANSPORT transport =
           (handle == p_dev_rec->hci_handle) ? BT_TRANSPORT_BR_EDR : BT_TRANSPORT_LE;
 
-  bool pairing_transport_matches = true;
-  if (com::android::bluetooth::flags::cancel_pairing_only_on_disconnected_transport()) {
-    tBT_TRANSPORT pairing_transport = (btm_sec_cb.pairing_flags & BTM_PAIR_FLAGS_LE_ACTIVE) == 0
-                                              ? BT_TRANSPORT_BR_EDR
-                                              : BT_TRANSPORT_LE;
-    pairing_transport_matches = (transport == pairing_transport);
-  }
+  tBT_TRANSPORT pairing_transport = (btm_sec_cb.pairing_flags & BTM_PAIR_FLAGS_LE_ACTIVE) == 0
+                                            ? BT_TRANSPORT_BR_EDR
+                                            : BT_TRANSPORT_LE;
+  bool pairing_transport_matches = (transport == pairing_transport);
 
   /* clear unused flags */
   p_dev_rec->sm4 &= BTM_SM4_TRUE;
@@ -3981,24 +3978,22 @@ void btm_sec_disconnected(uint16_t handle, tHCI_REASON reason, std::string comme
     return;
   }
 
-  if (com::android::bluetooth::flags::cancel_pairing_only_on_disconnected_transport()) {
-    if (btm_sec_cb.pairing_state != BTM_PAIR_STATE_IDLE &&
-        btm_sec_cb.pairing_bda == p_dev_rec->bd_addr && !pairing_transport_matches) {
-      log::debug("Disconnection on the other transport while pairing");
-      return;
-    }
+  if (btm_sec_cb.pairing_state != BTM_PAIR_STATE_IDLE &&
+      btm_sec_cb.pairing_bda == p_dev_rec->bd_addr && !pairing_transport_matches) {
+    log::debug("Disconnection on the other transport while pairing");
+    return;
+  }
 
-    if (p_dev_rec->sec_rec.le_link == tSECURITY_STATE::ENCRYPTING && transport != BT_TRANSPORT_LE) {
-      log::debug("Disconnection on the other transport while encrypting LE");
-      return;
-    }
+  if (p_dev_rec->sec_rec.le_link == tSECURITY_STATE::ENCRYPTING && transport != BT_TRANSPORT_LE) {
+    log::debug("Disconnection on the other transport while encrypting LE");
+    return;
+  }
 
-    if ((p_dev_rec->sec_rec.classic_link == tSECURITY_STATE::AUTHENTICATING ||
-         p_dev_rec->sec_rec.classic_link == tSECURITY_STATE::ENCRYPTING) &&
-        transport != BT_TRANSPORT_BR_EDR) {
-      log::debug("Disconnection on the other transport while encrypting BR/EDR");
-      return;
-    }
+  if ((p_dev_rec->sec_rec.classic_link == tSECURITY_STATE::AUTHENTICATING ||
+       p_dev_rec->sec_rec.classic_link == tSECURITY_STATE::ENCRYPTING) &&
+      transport != BT_TRANSPORT_BR_EDR) {
+    log::debug("Disconnection on the other transport while encrypting BR/EDR");
+    return;
   }
 
   p_dev_rec->sec_rec.classic_link = tSECURITY_STATE::IDLE;
