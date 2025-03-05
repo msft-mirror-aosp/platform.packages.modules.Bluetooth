@@ -643,10 +643,6 @@ static void hh_open_handler(tBTA_HH_CONN& conn) {
       p_dev->dev_status = BTHH_CONN_STATE_DISCONNECTED;
     }
 
-    if (!com::android::bluetooth::flags::suppress_hid_rejection_broadcast()) {
-      hh_connect_complete(conn, BTHH_CONN_STATE_DISCONNECTED);
-      return;
-    }
     BTA_HhClose(conn.handle);
     return;
   }
