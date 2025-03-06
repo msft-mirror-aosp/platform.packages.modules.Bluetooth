@@ -521,10 +521,10 @@ public class AdapterService extends Service {
                         Log.e(
                                 TAG,
                                 "Preferred audio profiles change audio framework timeout for "
-                                        + ("device " + request.mDeviceRequested));
+                                        + ("device " + request.device));
                         sendPreferredAudioProfilesCallbackToApps(
-                                request.mDeviceRequested,
-                                request.mRequestedPreferences,
+                                request.device,
+                                request.preferences,
                                 BluetoothStatusCodes.ERROR_TIMEOUT);
                     }
                     break;
@@ -615,29 +615,13 @@ public class AdapterService extends Service {
      * Stores information about requests made to the audio framework arising from calls to {@link
      * BluetoothAdapter#setPreferredAudioProfiles(BluetoothDevice, Bundle)}.
      */
-    private static class PendingAudioProfilePreferenceRequest {
-        // The newly requested preferences
-        final Bundle mRequestedPreferences;
-        // Reference counter for how many calls are pending completion in the audio framework
-        final int mRemainingRequestsToAudioFramework;
-        // The device with which the request was made. Used for sending the callback.
-        final BluetoothDevice mDeviceRequested;
-
-        /**
-         * Constructs an entity to store information about pending preferred audio profile changes.
-         *
-         * @param preferences newly requested preferences
-         * @param numRequestsToAudioFramework how many active device changed requests are sent to
-         *     the audio framework
-         * @param device the device with which the request was made
-         */
-        PendingAudioProfilePreferenceRequest(
-                Bundle preferences, int numRequestsToAudioFramework, BluetoothDevice device) {
-            mRequestedPreferences = preferences;
-            mRemainingRequestsToAudioFramework = numRequestsToAudioFramework;
-            mDeviceRequested = device;
-        }
-    }
+    private record PendingAudioProfilePreferenceRequest(
+            // The newly requested preferences
+            Bundle preferences,
+            // Reference counter for how many calls are pending completion in the audio framework
+            int numberOfRemainingRequestsToAudioFramework,
+            // The device with which the request was made. Used for sending the callback.
+            BluetoothDevice device) {}
 
     final @NonNull <T> T getNonNullSystemService(@NonNull Class<T> clazz) {
         return requireNonNull(getSystemService(clazz));
@@ -2023,7 +2007,7 @@ public class AdapterService extends Service {
             return BluetoothStatusCodes.RFCOMM_LISTENER_OPERATION_FAILED_NO_MATCHING_SERVICE_RECORD;
         }
 
-        if (source.getUid() != listenerData.mAttributionSource.getUid()) {
+        if (source.getUid() != listenerData.source.getUid()) {
             return BluetoothStatusCodes.RFCOMM_LISTENER_OPERATION_FAILED_DIFFERENT_APP;
         }
 
@@ -2047,12 +2031,12 @@ public class AdapterService extends Service {
             return socketInfo;
         }
 
-        if (source.getUid() != listenerData.mAttributionSource.getUid()) {
+        if (source.getUid() != listenerData.source.getUid()) {
             socketInfo.status = BluetoothStatusCodes.RFCOMM_LISTENER_OPERATION_FAILED_DIFFERENT_APP;
             return socketInfo;
         }
 
-        BluetoothSocket socket = listenerData.mPendingSockets.poll();
+        BluetoothSocket socket = listenerData.pendingSockets.poll();
 
         if (socket == null) {
             socketInfo.status = BluetoothStatusCodes.RFCOMM_LISTENER_NO_SOCKET_AVAILABLE;
@@ -2074,20 +2058,20 @@ public class AdapterService extends Service {
         while (true) {
             BluetoothSocket socket;
             try {
-                socket = listenerData.mServerSocket.accept();
+                socket = listenerData.serverSocket.accept();
             } catch (IOException e) {
                 if (mBluetoothServerSockets.containsKey(uuid)) {
                     // The uuid still being in the map indicates that the accept failure is
                     // unexpected. Try and restart the listener.
-                    Log.e(TAG, "Failed to accept socket on " + listenerData.mServerSocket, e);
+                    Log.e(TAG, "Failed to accept socket on " + listenerData.serverSocket, e);
                     restartRfcommListener(listenerData, uuid);
                 }
                 return;
             }
 
-            listenerData.mPendingSockets.add(socket);
+            listenerData.pendingSockets.add(socket);
             try {
-                listenerData.mPendingIntent.send();
+                listenerData.pendingIntent.send();
             } catch (PendingIntent.CanceledException e) {
                 Log.e(TAG, "PendingIntent for RFCOMM socket notifications cancelled.", e);
                 // The pending intent was cancelled, close the server as there is no longer any way
@@ -2109,10 +2093,7 @@ public class AdapterService extends Service {
         listenerData.closeServerAndPendingSockets(mHandler);
         try {
             startRfcommListenerInternal(
-                    listenerData.mName,
-                    uuid,
-                    listenerData.mPendingIntent,
-                    listenerData.mAttributionSource);
+                    listenerData.name, uuid, listenerData.pendingIntent, listenerData.source);
         } catch (IOException e) {
             Log.e(TAG, "Failed to recreate rfcomm server socket", e);
 
@@ -2122,7 +2103,7 @@ public class AdapterService extends Service {
 
     private static void pendingSocketTimeoutRunnable(
             RfcommListenerData listenerData, BluetoothSocket socket) {
-        boolean socketFound = listenerData.mPendingSockets.remove(socket);
+        boolean socketFound = listenerData.pendingSockets.remove(socket);
         if (socketFound) {
             try {
                 socket.close();
@@ -2141,7 +2122,8 @@ public class AdapterService extends Service {
                 mAdapter.listenUsingRfcommWithServiceRecord(name, uuid);
 
         RfcommListenerData listenerData =
-                new RfcommListenerData(bluetoothServerSocket, name, intent, source);
+                new RfcommListenerData(
+                        bluetoothServerSocket, name, intent, source, new ConcurrentLinkedQueue<>());
 
         mBluetoothServerSockets.put(uuid, listenerData);
 
@@ -2157,40 +2139,27 @@ public class AdapterService extends Service {
         }
     }
 
-    private static class RfcommListenerData {
-        final BluetoothServerSocket mServerSocket;
-        // Service record name
-        final String mName;
-        // The Intent which contains the Service info to which the incoming socket connections are
-        // handed off to.
-        final PendingIntent mPendingIntent;
-        // AttributionSource for the requester of the RFCOMM listener
-        final AttributionSource mAttributionSource;
-        // Contains the connected sockets which are pending transfer to the app which requested the
-        // listener.
-        final ConcurrentLinkedQueue<BluetoothSocket> mPendingSockets =
-                new ConcurrentLinkedQueue<>();
-
-        RfcommListenerData(
-                BluetoothServerSocket serverSocket,
-                String name,
-                PendingIntent pendingIntent,
-                AttributionSource source) {
-            mServerSocket = serverSocket;
-            mName = name;
-            mPendingIntent = pendingIntent;
-            mAttributionSource = source;
-        }
+    private record RfcommListenerData(
+            BluetoothServerSocket serverSocket,
+            // Service record name
+            String name,
+            // Contains the Service info to which the incoming socket connections are handed off to
+            PendingIntent pendingIntent,
+            // AttributionSource for the requester of the RFCOMM listener
+            AttributionSource source,
+            // Contains the connected sockets which are pending transfer to the app which requested
+            // the listener.
+            ConcurrentLinkedQueue<BluetoothSocket> pendingSockets) {
 
         int closeServerAndPendingSockets(Handler handler) {
             int result = BluetoothStatusCodes.SUCCESS;
             try {
-                mServerSocket.close();
+                serverSocket.close();
             } catch (IOException e) {
                 Log.e(TAG, "Failed to call close on rfcomm server socket", e);
                 result = BluetoothStatusCodes.RFCOMM_LISTENER_FAILED_TO_CLOSE_SERVER_SOCKET;
             }
-            mPendingSockets.forEach(
+            pendingSockets.forEach(
                     pendingSocket -> {
                         handler.removeCallbacksAndMessages(pendingSocket);
                         try {
@@ -2199,8 +2168,7 @@ public class AdapterService extends Service {
                             Log.e(TAG, "Failed to close socket", e);
                         }
                     });
-            mPendingSockets.clear();
-
+            pendingSockets.clear();
             return result;
         }
     }
@@ -4760,36 +4728,36 @@ public class AdapterService extends Service {
                     mCsipGroupsPendingAudioProfileChanges.get(groupId);
 
             // If this is the final audio framework request, send callback to apps
-            if (pendingRequest.mRemainingRequestsToAudioFramework == 1) {
+            if (pendingRequest.numberOfRemainingRequestsToAudioFramework == 1) {
                 Log.i(
                         TAG,
                         "notifyActiveDeviceChangeApplied: Complete for device "
-                                + pendingRequest.mDeviceRequested);
+                                + pendingRequest.device);
                 sendPreferredAudioProfilesCallbackToApps(
-                        pendingRequest.mDeviceRequested,
-                        pendingRequest.mRequestedPreferences,
+                        pendingRequest.device,
+                        pendingRequest.preferences,
                         BluetoothStatusCodes.SUCCESS);
                 // Removes the timeout from the handler
                 mHandler.removeMessages(
                         MESSAGE_PREFERRED_AUDIO_PROFILES_AUDIO_FRAMEWORK_TIMEOUT, groupId);
-            } else if (pendingRequest.mRemainingRequestsToAudioFramework > 1) {
+            } else if (pendingRequest.numberOfRemainingRequestsToAudioFramework > 1) {
                 PendingAudioProfilePreferenceRequest updatedPendingRequest =
                         new PendingAudioProfilePreferenceRequest(
-                                pendingRequest.mRequestedPreferences,
-                                pendingRequest.mRemainingRequestsToAudioFramework - 1,
-                                pendingRequest.mDeviceRequested);
+                                pendingRequest.preferences,
+                                pendingRequest.numberOfRemainingRequestsToAudioFramework - 1,
+                                pendingRequest.device);
                 Log.i(
                         TAG,
                         "notifyActiveDeviceChangeApplied: Updating device "
-                                + updatedPendingRequest.mDeviceRequested
+                                + updatedPendingRequest.device
                                 + " with new remaining requests count="
-                                + updatedPendingRequest.mRemainingRequestsToAudioFramework);
+                                + updatedPendingRequest.numberOfRemainingRequestsToAudioFramework);
                 mCsipGroupsPendingAudioProfileChanges.put(groupId, updatedPendingRequest);
             } else {
                 Log.i(
                         TAG,
                         "notifyActiveDeviceChangeApplied: "
-                                + pendingRequest.mDeviceRequested
+                                + pendingRequest.device
                                 + " has no remaining requests to audio framework, but is still"
                                 + " present in mCsipGroupsPendingAudioProfileChanges");
             }
@@ -5005,10 +4973,7 @@ public class AdapterService extends Service {
         return new BluetoothAddress(identityAddress, identityAddressType);
     }
 
-    private static class CallerInfo {
-        public String callerPackageName;
-        public UserHandle user;
-    }
+    private record CallerInfo(String callerPackageName, UserHandle user) {}
 
     boolean createBond(
             BluetoothDevice device,
@@ -5031,9 +4996,7 @@ public class AdapterService extends Service {
             return false;
         }
 
-        CallerInfo createBondCaller = new CallerInfo();
-        createBondCaller.callerPackageName = callingPackage;
-        createBondCaller.user = Binder.getCallingUserHandle();
+        CallerInfo createBondCaller = new CallerInfo(callingPackage, Binder.getCallingUserHandle());
         mBondAttemptCallerInfo.put(device.getAddress(), createBondCaller);
 
         mRemoteDevices.setBondingInitiatedLocally(Utils.getByteAddress(device));
