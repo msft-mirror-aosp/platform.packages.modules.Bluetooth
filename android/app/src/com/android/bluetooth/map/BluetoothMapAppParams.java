@@ -1137,8 +1137,8 @@ public class BluetoothMapAppParams {
         if (getFilterConvoId() != null) {
             appParamBuf.put((byte) FILTER_CONVO_ID);
             appParamBuf.put((byte) FILTER_CONVO_ID_LEN);
-            appParamBuf.putLong(getFilterConvoId().getMostSignificantBits());
-            appParamBuf.putLong(getFilterConvoId().getLeastSignificantBits());
+            appParamBuf.putLong(getFilterConvoId().mostSignificantBits());
+            appParamBuf.putLong(getFilterConvoId().leastSignificantBits());
         }
         if (getConvoListingSize() != INVALID_VALUE_PARAMETER) {
             appParamBuf.put((byte) CONVO_LISTING_SIZE);
@@ -1158,8 +1158,8 @@ public class BluetoothMapAppParams {
         if (getChatStateConvoId() != null) {
             appParamBuf.put((byte) CHAT_STATE_CONVO_ID);
             appParamBuf.put((byte) CHAT_STATE_CONVO_ID_LEN);
-            appParamBuf.putLong(getChatStateConvoId().getMostSignificantBits());
-            appParamBuf.putLong(getChatStateConvoId().getLeastSignificantBits());
+            appParamBuf.putLong(getChatStateConvoId().mostSignificantBits());
+            appParamBuf.putLong(getChatStateConvoId().leastSignificantBits());
         }
         if (getFolderVerCounter() != null) {
             appParamBuf.put((byte) FOLDER_VER_COUNTER);
@@ -1403,8 +1403,8 @@ public class BluetoothMapAppParams {
     public byte[] getChatStateConvoIdByteArray() {
         if (mChatStateConvoId != null) {
             ByteBuffer ret = ByteBuffer.allocate(16);
-            ret.putLong(mChatStateConvoId.getMostSignificantBits());
-            ret.putLong(mChatStateConvoId.getLeastSignificantBits());
+            ret.putLong(mChatStateConvoId.mostSignificantBits());
+            ret.putLong(mChatStateConvoId.leastSignificantBits());
             return ret.array();
         } else {
             return null;
@@ -1472,7 +1472,7 @@ public class BluetoothMapAppParams {
     public String getFilterConvoIdString() {
         String str = null;
         if (mFilterConvoId != null) {
-            str = BluetoothMapUtils.getLongAsString(mFilterConvoId.getLeastSignificantBits());
+            str = BluetoothMapUtils.getLongAsString(mFilterConvoId.leastSignificantBits());
         }
         return str;
     }
