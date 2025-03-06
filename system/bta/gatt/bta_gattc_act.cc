@@ -1591,6 +1591,8 @@ static bool bta_gattc_process_srvc_chg_ind(tCONN_ID conn_id, tBTA_GATTC_RCB* p_c
       /* request read db hash first */
       p_srcb->srvc_hdl_db_hash = true;
       bta_gattc_sm_execute(p_clcb, BTA_GATTC_INT_DISCOVER_EVT, NULL);
+    } else {
+      log::warn("No clcb is available to handle service change indication");
     }
   }
 
