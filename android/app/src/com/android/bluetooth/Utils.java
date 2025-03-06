@@ -575,16 +575,16 @@ public final class Utils {
     private static boolean checkPermissionForDataDelivery(
             Context context,
             @PermissionName String permission,
-            AttributionSource attributionSource,
+            AttributionSource source,
             String message) {
         if (isInstrumentationTestMode()) {
             return true;
         }
         // STOPSHIP(b/188391719): enable this security enforcement
-        // attributionSource.enforceCallingUid();
+        // source.enforceCallingUid();
         AttributionSource currentAttribution =
                 new AttributionSource.Builder(context.getAttributionSource())
-                        .setNext(requireNonNull(attributionSource))
+                        .setNext(requireNonNull(source))
                         .build();
         PermissionManager pm = context.getSystemService(PermissionManager.class);
         if (pm == null) {
@@ -631,9 +631,8 @@ public final class Utils {
     @SuppressLint("AndroidFrameworkRequiresPermission") // This method enforce the permission
     @RequiresPermission(BLUETOOTH_CONNECT)
     public static boolean checkConnectPermissionForDataDelivery(
-            Context context, AttributionSource attributionSource, String message) {
-        return checkPermissionForDataDelivery(
-                context, BLUETOOTH_CONNECT, attributionSource, message);
+            Context context, AttributionSource source, String message) {
+        return checkPermissionForDataDelivery(context, BLUETOOTH_CONNECT, source, message);
     }
 
     /**
@@ -658,8 +657,8 @@ public final class Utils {
     @SuppressLint("AndroidFrameworkRequiresPermission") // This method enforce the permission
     @RequiresPermission(BLUETOOTH_SCAN)
     public static boolean checkScanPermissionForDataDelivery(
-            Context context, AttributionSource attributionSource, String message) {
-        return checkPermissionForDataDelivery(context, BLUETOOTH_SCAN, attributionSource, message);
+            Context context, AttributionSource source, String message) {
+        return checkPermissionForDataDelivery(context, BLUETOOTH_SCAN, source, message);
     }
 
     /**
@@ -686,9 +685,8 @@ public final class Utils {
     @SuppressLint("AndroidFrameworkRequiresPermission") // This method enforce the permission
     @RequiresPermission(BLUETOOTH_ADVERTISE)
     public static boolean checkAdvertisePermissionForDataDelivery(
-            Context context, AttributionSource attributionSource, String message) {
-        return checkPermissionForDataDelivery(
-                context, BLUETOOTH_ADVERTISE, attributionSource, message);
+            Context context, AttributionSource source, String message) {
+        return checkPermissionForDataDelivery(context, BLUETOOTH_ADVERTISE, source, message);
     }
 
     /**
@@ -699,11 +697,11 @@ public final class Utils {
     // Suppressed since we're not actually enforcing here
     @SuppressLint("AndroidFrameworkRequiresPermission")
     public static boolean hasDisavowedLocationForScan(
-            Context context, AttributionSource attributionSource, boolean inTestMode) {
+            Context context, AttributionSource source, boolean inTestMode) {
 
         // Check every step along the attribution chain for a renouncement.
         // If location has been renounced anywhere in the chain we treat it as a disavowal.
-        AttributionSource currentAttrib = attributionSource;
+        AttributionSource currentAttrib = source;
         while (true) {
             if (currentAttrib.getRenouncedPermissions().contains(ACCESS_FINE_LOCATION)
                     && (inTestMode
@@ -858,17 +856,17 @@ public final class Utils {
     // Suppressed since we're not actually enforcing here
     @SuppressLint("AndroidFrameworkRequiresPermission")
     public static boolean checkCallerHasCoarseLocation(
-            Context context, AttributionSource attributionSource, UserHandle userHandle) {
+            Context context, AttributionSource source, UserHandle userHandle) {
         if (blockedByLocationOff(context, userHandle)) {
             Log.e(TAG, "Permission denial: Location is off.");
             return false;
         }
         AttributionSource currentAttribution =
                 new AttributionSource.Builder(context.getAttributionSource())
-                        .setNext(requireNonNull(attributionSource))
+                        .setNext(requireNonNull(source))
                         .build();
         // STOPSHIP(b/188391719): enable this security enforcement
-        // attributionSource.enforceCallingUid();
+        // source.enforceCallingUid();
         PermissionManager pm = context.getSystemService(PermissionManager.class);
         if (pm == null) {
             return false;
@@ -890,7 +888,7 @@ public final class Utils {
     // Suppressed since we're not actually enforcing here
     @SuppressLint("AndroidFrameworkRequiresPermission")
     public static boolean checkCallerHasCoarseOrFineLocation(
-            Context context, AttributionSource attributionSource, UserHandle userHandle) {
+            Context context, AttributionSource source, UserHandle userHandle) {
         if (blockedByLocationOff(context, userHandle)) {
             Log.e(TAG, "Permission denial: Location is off.");
             return false;
@@ -898,10 +896,10 @@ public final class Utils {
 
         final AttributionSource currentAttribution =
                 new AttributionSource.Builder(context.getAttributionSource())
-                        .setNext(requireNonNull(attributionSource))
+                        .setNext(requireNonNull(source))
                         .build();
         // STOPSHIP(b/188391719): enable this security enforcement
-        // attributionSource.enforceCallingUid();
+        // source.enforceCallingUid();
         PermissionManager pm = context.getSystemService(PermissionManager.class);
         if (pm == null) {
             return false;
@@ -929,7 +927,7 @@ public final class Utils {
     // Suppressed since we're not actually enforcing here
     @SuppressLint("AndroidFrameworkRequiresPermission")
     public static boolean checkCallerHasFineLocation(
-            Context context, AttributionSource attributionSource, UserHandle userHandle) {
+            Context context, AttributionSource source, UserHandle userHandle) {
         if (blockedByLocationOff(context, userHandle)) {
             Log.e(TAG, "Permission denial: Location is off.");
             return false;
@@ -937,10 +935,10 @@ public final class Utils {
 
         AttributionSource currentAttribution =
                 new AttributionSource.Builder(context.getAttributionSource())
-                        .setNext(requireNonNull(attributionSource))
+                        .setNext(requireNonNull(source))
                         .build();
         // STOPSHIP(b/188391719): enable this security enforcement
-        // attributionSource.enforceCallingUid();
+        // source.enforceCallingUid();
         PermissionManager pm = context.getSystemService(PermissionManager.class);
         if (pm == null) {
             return false;
@@ -1244,6 +1242,19 @@ public final class Utils {
         PackageManager pm = context.getPackageManager();
         return pm.hasSystemFeature(PackageManager.FEATURE_TELEVISION)
                 || pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK);
+    }
+
+    /**
+     * Reverses the elements of {@code array}. This is equivalent to {@code
+     * Collections.reverse(Bytes.asList(array))}, but is likely to be more efficient.
+     */
+    public static void reverse(byte[] array) {
+        requireNonNull(array);
+        for (int i = 0, j = array.length - 1; i < j; i++, j--) {
+            byte tmp = array[i];
+            array[i] = array[j];
+            array[j] = tmp;
+        }
     }
 
     /** A {@link Consumer} that automatically ignores any {@link RemoteException}s. */

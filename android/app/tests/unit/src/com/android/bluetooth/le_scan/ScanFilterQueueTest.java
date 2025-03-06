@@ -54,8 +54,6 @@ public class ScanFilterQueueTest {
         byte[] irk = new byte[] {0x02};
         queue.addDeviceAddress(address, type, irk);
 
-        queue.addServiceChanged();
-
         UUID uuid = UUID.randomUUID();
         queue.addUuid(uuid);
 
@@ -87,7 +85,7 @@ public class ScanFilterQueueTest {
         queue.addAdvertisingDataType(adType, adData, adDataMask);
 
         ScanFilterQueue.Entry[] entries = queue.toArray();
-        int entriesLength = 10;
+        int entriesLength = 9;
         assertThat(entries.length).isEqualTo(entriesLength);
 
         for (ScanFilterQueue.Entry entry : entries) {

@@ -407,8 +407,8 @@ bool BTM_IsLinkKeyAuthed(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
   return btm_sec_cb.IsLinkKeyAuthenticated(bd_addr, transport);
 }
 
-bool BTM_IsLinkKeyKnown(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
-  return btm_sec_cb.IsLinkKeyKnown(bd_addr, transport);
+bool BTM_IsBonded(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
+  return btm_sec_cb.IsDeviceBonded(bd_addr, transport);
 }
 
 bool BTM_IsAuthenticated(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
@@ -667,6 +667,7 @@ tBTM_STATUS btm_sec_bond_by_transport(const RawAddress& bd_addr, tBLE_ADDR_TYPE 
 
   /* Finished if connection is active and already paired */
   if (((p_dev_rec->hci_handle != HCI_INVALID_HANDLE) && transport == BT_TRANSPORT_BR_EDR &&
+       (btm_get_bond_type_dev(bd_addr) == BOND_TYPE_PERSISTENT) &&
        (p_dev_rec->sec_rec.sec_flags & BTM_SEC_AUTHENTICATED)) ||
       ((p_dev_rec->ble_hci_handle != HCI_INVALID_HANDLE) && transport == BT_TRANSPORT_LE &&
        (p_dev_rec->sec_rec.sec_flags & BTM_SEC_LE_AUTHENTICATED))) {
@@ -797,8 +798,15 @@ tBTM_STATUS BTM_SecBond(const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type,
                         tBT_TRANSPORT transport, tBT_DEVICE_TYPE /* device_type */) {
   if (transport == BT_TRANSPORT_AUTO) {
     if (addr_type == BLE_ADDR_PUBLIC) {
-      transport = get_btm_client_interface().ble.BTM_UseLeLink(bd_addr) ? BT_TRANSPORT_LE
-                                                                        : BT_TRANSPORT_BR_EDR;
+      bool is_discovered_over_le_only = false;
+      tBTM_INQ_INFO* p_inq_info = BTM_InqDbRead(bd_addr);
+      if (p_inq_info != nullptr && com::android::bluetooth::flags::auto_transport_pairing()) {
+        uint8_t inq_result_type = 0;
+        inq_result_type = p_inq_info->results.inq_result_type;
+        is_discovered_over_le_only = (inq_result_type == BT_DEVICE_TYPE_BLE);
+      }
+      transport = (get_btm_client_interface().ble.BTM_UseLeLink(bd_addr) ||
+                   is_discovered_over_le_only) ? BT_TRANSPORT_LE: BT_TRANSPORT_BR_EDR;
     } else {
       log::info("Forcing transport LE (was auto) because of the address type");
       transport = BT_TRANSPORT_LE;
@@ -2290,9 +2298,6 @@ void btm_sec_rmt_name_request_complete(const RawAddress* p_bd_addr, const uint8_
       if (btm_status != tBTM_STATUS::BTM_CMD_STARTED) {
         log::warn("failed ({}) to restart remote name request for pairing, must be already queued",
                   btm_status_text(btm_status));
-        if (!com::android::bluetooth::flags::pairing_name_discovery_addresss_mismatch()) {
-          NotifyBondingChange(*p_dev_rec, HCI_ERR_MEMORY_FULL);
-        }
       }
       return;
     }
@@ -3853,13 +3858,10 @@ void btm_sec_disconnected(uint16_t handle, tHCI_REASON reason, std::string comme
   const tBT_TRANSPORT transport =
           (handle == p_dev_rec->hci_handle) ? BT_TRANSPORT_BR_EDR : BT_TRANSPORT_LE;
 
-  bool pairing_transport_matches = true;
-  if (com::android::bluetooth::flags::cancel_pairing_only_on_disconnected_transport()) {
-    tBT_TRANSPORT pairing_transport = (btm_sec_cb.pairing_flags & BTM_PAIR_FLAGS_LE_ACTIVE) == 0
-                                              ? BT_TRANSPORT_BR_EDR
-                                              : BT_TRANSPORT_LE;
-    pairing_transport_matches = (transport == pairing_transport);
-  }
+  tBT_TRANSPORT pairing_transport = (btm_sec_cb.pairing_flags & BTM_PAIR_FLAGS_LE_ACTIVE) == 0
+                                            ? BT_TRANSPORT_BR_EDR
+                                            : BT_TRANSPORT_LE;
+  bool pairing_transport_matches = (transport == pairing_transport);
 
   /* clear unused flags */
   p_dev_rec->sm4 &= BTM_SM4_TRUE;
@@ -3963,29 +3965,31 @@ void btm_sec_disconnected(uint16_t handle, tHCI_REASON reason, std::string comme
     return;
   }
 
-  if (com::android::bluetooth::flags::cancel_pairing_only_on_disconnected_transport()) {
-    if (btm_sec_cb.pairing_state != BTM_PAIR_STATE_IDLE &&
-        btm_sec_cb.pairing_bda == p_dev_rec->bd_addr && !pairing_transport_matches) {
-      log::debug("Disconnection on the other transport while pairing");
-      return;
-    }
+  if (btm_sec_cb.pairing_state != BTM_PAIR_STATE_IDLE &&
+      btm_sec_cb.pairing_bda == p_dev_rec->bd_addr && !pairing_transport_matches) {
+    log::debug("Disconnection on the other transport while pairing");
+    return;
+  }
 
-    if (p_dev_rec->sec_rec.le_link == tSECURITY_STATE::ENCRYPTING && transport != BT_TRANSPORT_LE) {
-      log::debug("Disconnection on the other transport while encrypting LE");
-      return;
-    }
+  if (p_dev_rec->sec_rec.le_link == tSECURITY_STATE::ENCRYPTING && transport != BT_TRANSPORT_LE) {
+    log::debug("Disconnection on the other transport while encrypting LE");
+    return;
+  }
 
-    if ((p_dev_rec->sec_rec.classic_link == tSECURITY_STATE::AUTHENTICATING ||
-         p_dev_rec->sec_rec.classic_link == tSECURITY_STATE::ENCRYPTING) &&
-        transport != BT_TRANSPORT_BR_EDR) {
-      log::debug("Disconnection on the other transport while encrypting BR/EDR");
-      return;
-    }
+  if ((p_dev_rec->sec_rec.classic_link == tSECURITY_STATE::AUTHENTICATING ||
+       p_dev_rec->sec_rec.classic_link == tSECURITY_STATE::ENCRYPTING) &&
+      transport != BT_TRANSPORT_BR_EDR) {
+    log::debug("Disconnection on the other transport while encrypting BR/EDR");
+    return;
   }
 
   p_dev_rec->sec_rec.classic_link = tSECURITY_STATE::IDLE;
   p_dev_rec->sec_rec.le_link = tSECURITY_STATE::IDLE;
   p_dev_rec->sec_rec.security_required = BTM_SEC_NONE;
+  if (com::android::bluetooth::flags::reset_security_flags_on_pairing_failure() &&
+      !btm_sec_is_a_bonded_dev(p_dev_rec->bd_addr)) {
+    p_dev_rec->sec_rec.sec_flags = 0;
+  }
 
   if (p_dev_rec->sec_rec.p_callback != nullptr) {
     tBTM_SEC_CALLBACK* p_callback = p_dev_rec->sec_rec.p_callback;

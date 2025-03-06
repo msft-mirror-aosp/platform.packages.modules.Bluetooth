@@ -56,16 +56,16 @@ static RawAddress GetTestAddress(int index) {
 class VolumeControlDevicesTest : public ::testing::Test {
 protected:
   void SetUp() override {
-    com::android::bluetooth::flags::provider_->leaudio_add_aics_support(true);
     __android_log_set_minimum_priority(ANDROID_LOG_VERBOSE);
+    com::android::bluetooth::flags::provider_->reset_flags();
+
+    com::android::bluetooth::flags::provider_->leaudio_add_aics_support(true);
     devices_ = new VolumeControlDevices();
     gatt::SetMockBtaGattInterface(&gatt_interface);
     gatt::SetMockBtaGattQueue(&gatt_queue);
   }
 
   void TearDown() override {
-    com::android::bluetooth::flags::provider_->reset_flags();
-
     gatt::SetMockBtaGattQueue(nullptr);
     gatt::SetMockBtaGattInterface(nullptr);
     delete devices_;
@@ -219,8 +219,10 @@ TEST_F(VolumeControlDevicesTest, test_control_point_skip_not_connected) {
 class VolumeControlDeviceTest : public ::testing::Test {
 protected:
   void SetUp() override {
-    com::android::bluetooth::flags::provider_->leaudio_add_aics_support(true);
     __android_log_set_minimum_priority(ANDROID_LOG_VERBOSE);
+    com::android::bluetooth::flags::provider_->reset_flags();
+
+    com::android::bluetooth::flags::provider_->leaudio_add_aics_support(true);
     device = new VolumeControlDevice(GetTestAddress(1), true);
     gatt::SetMockBtaGattInterface(&gatt_interface);
     gatt::SetMockBtaGattQueue(&gatt_queue);
@@ -259,7 +261,6 @@ protected:
   }
 
   void TearDown() override {
-    com::android::bluetooth::flags::provider_->reset_flags();
     bluetooth::manager::SetMockBtmInterface(nullptr);
     gatt::SetMockBtaGattQueue(nullptr);
     gatt::SetMockBtaGattInterface(nullptr);

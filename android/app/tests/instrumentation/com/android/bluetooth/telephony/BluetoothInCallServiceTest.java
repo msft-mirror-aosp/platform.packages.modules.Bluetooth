@@ -18,6 +18,8 @@ package com.android.bluetooth.telephony;
 
 import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.mockGetSystemService;
+import static com.android.bluetooth.telephony.BluetoothInCallService.Result;
+import static com.android.bluetooth.telephony.BluetoothInCallService.TerminationReason;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -25,7 +27,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothLeCallControl;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.ContextWrapper;
@@ -1724,46 +1725,46 @@ public class BluetoothInCallServiceTest {
         BluetoothCall call = getMockCall(UUID.randomUUID());
 
         assertThat(mBluetoothInCallService.getTbsTerminationReason(call))
-                .isEqualTo(BluetoothLeCallControl.TERMINATION_REASON_FAIL);
+                .isEqualTo(TerminationReason.FAIL);
 
         DisconnectCause cause = new DisconnectCause(DisconnectCause.BUSY, null, null, null, 1);
         doReturn(cause).when(call).getDisconnectCause();
         assertThat(mBluetoothInCallService.getTbsTerminationReason(call))
-                .isEqualTo(BluetoothLeCallControl.TERMINATION_REASON_LINE_BUSY);
+                .isEqualTo(TerminationReason.LINE_BUSY);
 
         cause = new DisconnectCause(DisconnectCause.REJECTED, null, null, null, 1);
         doReturn(cause).when(call).getDisconnectCause();
         assertThat(mBluetoothInCallService.getTbsTerminationReason(call))
-                .isEqualTo(BluetoothLeCallControl.TERMINATION_REASON_REMOTE_HANGUP);
+                .isEqualTo(TerminationReason.REMOTE_HANGUP);
 
         cause = new DisconnectCause(DisconnectCause.LOCAL, null, null, null, 1);
         doReturn(cause).when(call).getDisconnectCause();
         mBluetoothInCallService.mIsTerminatedByClient = false;
         assertThat(mBluetoothInCallService.getTbsTerminationReason(call))
-                .isEqualTo(BluetoothLeCallControl.TERMINATION_REASON_SERVER_HANGUP);
+                .isEqualTo(TerminationReason.SERVER_HANGUP);
 
         cause = new DisconnectCause(DisconnectCause.LOCAL, null, null, null, 1);
         doReturn(cause).when(call).getDisconnectCause();
         mBluetoothInCallService.mIsTerminatedByClient = true;
         assertThat(mBluetoothInCallService.getTbsTerminationReason(call))
-                .isEqualTo(BluetoothLeCallControl.TERMINATION_REASON_CLIENT_HANGUP);
+                .isEqualTo(TerminationReason.CLIENT_HANGUP);
 
         cause = new DisconnectCause(DisconnectCause.ERROR, null, null, null, 1);
         doReturn(cause).when(call).getDisconnectCause();
         assertThat(mBluetoothInCallService.getTbsTerminationReason(call))
-                .isEqualTo(BluetoothLeCallControl.TERMINATION_REASON_NETWORK_CONGESTION);
+                .isEqualTo(TerminationReason.NETWORK_CONGESTION);
 
         cause =
                 new DisconnectCause(
                         DisconnectCause.CONNECTION_MANAGER_NOT_SUPPORTED, null, null, null, 1);
         doReturn(cause).when(call).getDisconnectCause();
         assertThat(mBluetoothInCallService.getTbsTerminationReason(call))
-                .isEqualTo(BluetoothLeCallControl.TERMINATION_REASON_INVALID_URI);
+                .isEqualTo(TerminationReason.INVALID_URI);
 
         cause = new DisconnectCause(DisconnectCause.ERROR, null, null, null, 1);
         doReturn(cause).when(call).getDisconnectCause();
         assertThat(mBluetoothInCallService.getTbsTerminationReason(call))
-                .isEqualTo(BluetoothLeCallControl.TERMINATION_REASON_NETWORK_CONGESTION);
+                .isEqualTo(TerminationReason.NETWORK_CONGESTION);
     }
 
     @Test
@@ -1782,8 +1783,7 @@ public class BluetoothInCallServiceTest {
         mBluetoothInCallService.mBluetoothLeCallControlCallback.onAcceptCall(
                 requestId, unknownCallId);
 
-        verify(mLeCallControl)
-                .requestResult(requestId, BluetoothLeCallControl.RESULT_ERROR_UNKNOWN_CALL_ID);
+        verify(mLeCallControl).requestResult(requestId, Result.ERROR_UNKNOWN_CALL_ID);
     }
 
     @Test
@@ -1793,8 +1793,7 @@ public class BluetoothInCallServiceTest {
         mBluetoothInCallService.mBluetoothLeCallControlCallback.onTerminateCall(
                 requestId, unknownCallId);
 
-        verify(mLeCallControl)
-                .requestResult(requestId, BluetoothLeCallControl.RESULT_ERROR_UNKNOWN_CALL_ID);
+        verify(mLeCallControl).requestResult(requestId, Result.ERROR_UNKNOWN_CALL_ID);
     }
 
     @Test
@@ -1804,8 +1803,7 @@ public class BluetoothInCallServiceTest {
         mBluetoothInCallService.mBluetoothLeCallControlCallback.onHoldCall(
                 requestId, unknownCallId);
 
-        verify(mLeCallControl)
-                .requestResult(requestId, BluetoothLeCallControl.RESULT_ERROR_UNKNOWN_CALL_ID);
+        verify(mLeCallControl).requestResult(requestId, Result.ERROR_UNKNOWN_CALL_ID);
     }
 
     @Test
@@ -1815,8 +1813,7 @@ public class BluetoothInCallServiceTest {
         mBluetoothInCallService.mBluetoothLeCallControlCallback.onUnholdCall(
                 requestId, unknownCallId);
 
-        verify(mLeCallControl)
-                .requestResult(requestId, BluetoothLeCallControl.RESULT_ERROR_UNKNOWN_CALL_ID);
+        verify(mLeCallControl).requestResult(requestId, Result.ERROR_UNKNOWN_CALL_ID);
     }
 
     @Test
@@ -1851,7 +1848,7 @@ public class BluetoothInCallServiceTest {
 
         mBluetoothInCallService.mBluetoothLeCallControlCallback.onJoinCalls(requestId, uuids);
 
-        verify(mLeCallControl).requestResult(requestId, BluetoothLeCallControl.RESULT_SUCCESS);
+        verify(mLeCallControl).requestResult(requestId, Result.SUCCESS);
         verify(baseCall, times(2)).conference(any(BluetoothCall.class));
     }
 
@@ -1881,7 +1878,7 @@ public class BluetoothInCallServiceTest {
 
         mBluetoothInCallService.mBluetoothLeCallControlCallback.onJoinCalls(requestId, uuids);
 
-        verify(mLeCallControl).requestResult(requestId, BluetoothLeCallControl.RESULT_SUCCESS);
+        verify(mLeCallControl).requestResult(requestId, Result.SUCCESS);
         verify(baseCall).conference(any(BluetoothCall.class));
     }
 
@@ -1917,7 +1914,7 @@ public class BluetoothInCallServiceTest {
 
         mBluetoothInCallService.mBluetoothLeCallControlCallback.onJoinCalls(requestId, uuids);
 
-        verify(mLeCallControl).requestResult(requestId, BluetoothLeCallControl.RESULT_SUCCESS);
+        verify(mLeCallControl).requestResult(requestId, Result.SUCCESS);
         verify(firstCall).conference(any(BluetoothCall.class));
     }
 

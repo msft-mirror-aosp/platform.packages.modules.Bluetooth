@@ -251,6 +251,8 @@ public:
 class BroadcasterTest : public Test {
 protected:
   void SetUp() override {
+    com::android::bluetooth::flags::provider_->reset_flags();
+
     test::mock::osi_alarm::alarm_free.body = [](alarm_t* alarm) {
       if (alarm) {
         delete alarm;
@@ -348,7 +350,6 @@ protected:
   }
 
   void TearDown() override {
-    com::android::bluetooth::flags::provider_->reset_flags();
     // Message loop cleanup should wait for all the 'till now' scheduled calls
     // so it should be called right at the very begginning of teardown.
     cleanup_message_loop_thread();

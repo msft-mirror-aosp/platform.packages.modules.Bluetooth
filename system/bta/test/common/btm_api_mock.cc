@@ -61,9 +61,9 @@ void bluetooth::manager::SetMockBtmInterface(MockBtmInterface* mock_btm_interfac
   };
 }
 
-bool BTM_IsLinkKeyKnown(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
+bool BTM_IsBonded(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
   log::assert_that(btm_interface != nullptr, "Mock btm interface not set!");
-  return btm_interface->IsLinkKeyKnown(bd_addr, transport);
+  return btm_interface->IsDeviceBonded(bd_addr, transport);
 }
 
 bool BTM_IsEncrypted(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
@@ -108,11 +108,6 @@ std::optional<Octet16> BTM_BleGetPeerLTK(const RawAddress address) {
 std::optional<Octet16> BTM_BleGetPeerIRK(const RawAddress address) {
   log::assert_that(btm_interface != nullptr, "Mock btm interface not set!");
   return btm_interface->BTM_BleGetPeerIRK(address);
-}
-
-bool BTM_BleIsLinkKeyKnown(const RawAddress address) {
-  log::assert_that(btm_interface != nullptr, "Mock btm interface not set!");
-  return btm_interface->BTM_BleIsLinkKeyKnown(address);
 }
 
 std::optional<tBLE_BD_ADDR> BTM_BleGetIdentityAddress(const RawAddress address) {

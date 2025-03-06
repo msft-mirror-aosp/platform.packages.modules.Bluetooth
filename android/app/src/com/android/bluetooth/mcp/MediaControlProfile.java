@@ -82,10 +82,10 @@ public class MediaControlProfile implements MediaControlServiceCallbacks {
     // MCP service instance
     private MediaControlGattServiceInterface mGMcsService;
 
-    // MCP Service requests for stete fields needed to fill the characteristic values
+    // MCP Service requests for state fields needed to fill the characteristic values
     private List<PlayerStateField> mPendingStateRequest;
 
-    private MediaPlayerWrapper mLastActivePlayer = null;
+    private final MediaPlayerWrapper mLastActivePlayer = null;
 
     // Same base feature set as the player item features defined in `avrcp/get_foder_items.cc`
     private static final long BASE_PLAYER_ACTION_SET =
@@ -99,7 +99,7 @@ public class MediaControlProfile implements MediaControlServiceCallbacks {
 
     @VisibleForTesting
     long getCurrentPlayerSupportedActions() {
-        // Notice: Stay compatible with the currently hard-codded ACRVP supported player features
+        // Notice: Stay compatible with the currently hard-codded AVRCP supported player features
         if (mCurrentData != null && mCurrentData.state != null) {
             return Long.valueOf(mCurrentData.state.getActions() | BASE_PLAYER_ACTION_SET);
         }

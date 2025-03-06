@@ -65,8 +65,8 @@ public final class BluetoothUtils {
         }
     }
 
-    // Helper method to extract bytes from byte array.
-    private static byte[] extractBytes(byte[] rawBytes, int start, int length) {
+    /** Helper method to extract bytes from byte array. */
+    public static byte[] extractBytes(byte[] rawBytes, int start, int length) {
         int remainingLength = rawBytes.length - start;
         if (remainingLength < length) {
             Log.w(
@@ -428,5 +428,9 @@ public final class BluetoothUtils {
     /** Gracefully print a RemoteException as a one line warning @hide */
     public static void logRemoteException(String tag, RemoteException ex) {
         Log.w(tag, ex.toString() + ": " + inlineStackTrace());
+    }
+
+    static boolean isValidDevice(BluetoothDevice device) {
+        return device != null && BluetoothAdapter.checkBluetoothAddress(device.getAddress());
     }
 }

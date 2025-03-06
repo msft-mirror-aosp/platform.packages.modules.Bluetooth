@@ -83,7 +83,7 @@ public class ScanObjectsFactory {
                 adapterService, scanController, bluetoothAdapterProxy, looper, getSystemClock());
     }
 
-    public PeriodicScanManager createPeriodicScanManager(AdapterService adapterService) {
-        return new PeriodicScanManager(adapterService);
+    public PeriodicScanManager createPeriodicScanManager() {
+        return new PeriodicScanManager();
     }
 }

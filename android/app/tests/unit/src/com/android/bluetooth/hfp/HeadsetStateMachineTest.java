@@ -105,7 +105,7 @@ public class HeadsetStateMachineTest {
     private HandlerThread mHandlerThread;
     private HeadsetStateMachine mHeadsetStateMachine;
     private final BluetoothDevice mDevice = getTestDevice(87);
-    private ArgumentCaptor<Intent> mIntentArgument = ArgumentCaptor.forClass(Intent.class);
+    private final ArgumentCaptor<Intent> mIntentArgument = ArgumentCaptor.forClass(Intent.class);
 
     @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
@@ -433,7 +433,7 @@ public class HeadsetStateMachineTest {
      * message
      */
     @Test
-    public void testStateTransition_DisconnectingToConnected_StackSlcCconnected() {
+    public void testStateTransition_DisconnectingToConnected_StackSlcConnected() {
         int numBroadcastsSent = setUpDisconnectingState();
         // Send StackEvent.SLC_CONNECTED message
         numBroadcastsSent++;
@@ -555,7 +555,7 @@ public class HeadsetStateMachineTest {
      * ScoManagedByAudioEnabled
      */
     @Test
-    public void testStateTransition_ConnectedToAudioConnecting_ConnectAudio_ScoManagedbyAudio() {
+    public void testStateTransition_ConnectedToAudioConnecting_ConnectAudio_ScoManagedByAudio() {
         mSetFlagsRule.enableFlags(Flags.FLAG_IS_SCO_MANAGED_BY_AUDIO);
         Utils.setIsScoManagedByAudioEnabled(true);
 

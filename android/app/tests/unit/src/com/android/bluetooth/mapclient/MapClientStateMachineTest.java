@@ -155,7 +155,7 @@ public class MapClientStateMachineTest {
     private InOrder mInOrder;
 
     private static class SentDeliveryReceiver extends BroadcastReceiver {
-        private CountDownLatch mActionReceivedLatch;
+        private final CountDownLatch mActionReceivedLatch;
 
         SentDeliveryReceiver() {
             mActionReceivedLatch = new CountDownLatch(1);
@@ -943,7 +943,7 @@ public class MapClientStateMachineTest {
     }
 
     private static class MockSmsContentProvider extends MockContentProvider {
-        Map<Uri, ContentValues> mContentValues = new HashMap<>();
+        final Map<Uri, ContentValues> mContentValues = new HashMap<>();
         int mInsertOperationCount = 0;
 
         @Override

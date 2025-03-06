@@ -127,6 +127,7 @@ import android.util.Log;
 import android.util.Pair;
 import android.util.SparseArray;
 
+import com.android.bluetooth.BluetoothEventLogger;
 import com.android.bluetooth.BluetoothMetricsProto;
 import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.R;
@@ -175,8 +176,6 @@ import com.android.modules.utils.BytesMatcher;
 
 import libcore.util.SneakyThrow;
 
-import com.google.common.base.Ascii;
-import com.google.common.collect.EvictingQueue;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import java.io.FileDescriptor;
@@ -199,6 +198,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -284,7 +284,8 @@ public class AdapterService extends Service {
     private final RemoteCallbackList<IBluetoothConnectionCallback> mBluetoothConnectionCallbacks =
             new RemoteCallbackList<>();
 
-    private final EvictingQueue<String> mScanModeChanges = EvictingQueue.create(10);
+    private final BluetoothEventLogger mScanModeChanges =
+            new BluetoothEventLogger(10, "Scan Mode Changes");
 
     private final DeviceConfigListener mDeviceConfigListener = new DeviceConfigListener();
 
@@ -299,7 +300,7 @@ public class AdapterService extends Service {
     private long mRxTimeTotalMs;
     private long mIdleTimeTotalMs;
     private long mEnergyUsedTotalVoltAmpSecMicro;
-    private HashSet<String> mLeAudioAllowDevices = new HashSet<>();
+    private final HashSet<String> mLeAudioAllowDevices = new HashSet<>();
 
     /* List of pairs of gatt clients which controls AutoActiveMode on the device.*/
     @VisibleForTesting
@@ -319,7 +320,7 @@ public class AdapterService extends Service {
     private boolean mNativeAvailable;
     private boolean mCleaningUp;
     private boolean mQuietmode = false;
-    private Map<String, CallerInfo> mBondAttemptCallerInfo = new HashMap<>();
+    private final Map<String, CallerInfo> mBondAttemptCallerInfo = new HashMap<>();
 
     private BatteryStatsManager mBatteryStatsManager;
     private PowerManager mPowerManager;
@@ -561,7 +562,7 @@ public class AdapterService extends Service {
                     // TODO(b/228875190): GATT is assumed supported. GATT starting triggers hardware
                     // initialization. Configuring a device without GATT causes start up failures.
                     if (GattService.class.getSimpleName().equals(profile.getName())
-                            && !Flags.scanManagerRefactor()) {
+                            && !Flags.onlyStartScanDuringBleOn()) {
                         mNativeInterface.enable();
                     } else if (mRegisteredProfiles.size() == Config.getSupportedProfiles().length
                             && mRegisteredProfiles.size() == mRunningProfiles.size()) {
@@ -586,7 +587,7 @@ public class AdapterService extends Service {
                     }
                     mRunningProfiles.remove(profile);
 
-                    if (Flags.scanManagerRefactor()) {
+                    if (Flags.onlyStartScanDuringBleOn()) {
                         if (mRunningProfiles.size() == 0) {
                             mAdapterStateMachine.sendMessage(AdapterState.BREDR_STOPPED);
                         }
@@ -618,7 +619,7 @@ public class AdapterService extends Service {
         // The newly requested preferences
         final Bundle mRequestedPreferences;
         // Reference counter for how many calls are pending completion in the audio framework
-        int mRemainingRequestsToAudioFramework;
+        final int mRemainingRequestsToAudioFramework;
         // The device with which the request was made. Used for sending the callback.
         final BluetoothDevice mDeviceRequested;
 
@@ -646,7 +647,7 @@ public class AdapterService extends Service {
     public void onCreate() {
         super.onCreate();
         Log.d(TAG, "onCreate()");
-        // OnCreate must perform the minimum of infaillible and mandatory initialization
+        // OnCreate must perform the minimum of infallible and mandatory initialization
         mRemoteDevices = new RemoteDevices(this, mLooper);
         mAdapterProperties = new AdapterProperties(this, mRemoteDevices, mLooper);
         mAdapterStateMachine = new AdapterState(this, mLooper);
@@ -994,7 +995,7 @@ public class AdapterService extends Service {
                     TAG,
                     "GATT is configured off but the stack assumes it to be enabled. Start anyway.");
         }
-        if (Flags.scanManagerRefactor()) {
+        if (Flags.onlyStartScanDuringBleOn()) {
             startScanController();
         } else {
             startGattProfileService();
@@ -1002,7 +1003,7 @@ public class AdapterService extends Service {
     }
 
     void bringDownBle() {
-        if (Flags.scanManagerRefactor()) {
+        if (Flags.onlyStartScanDuringBleOn()) {
             stopScanController();
         } else {
             stopGattProfileService();
@@ -1023,7 +1024,7 @@ public class AdapterService extends Service {
     void startProfileServices() {
         Log.d(TAG, "startCoreServices()");
         int[] supportedProfileServices = Config.getSupportedProfiles();
-        if (Flags.scanManagerRefactor()) {
+        if (Flags.onlyStartScanDuringBleOn()) {
             // Scanning is always supported, started separately, and is not a profile service.
             // This will check other profile services.
             if (supportedProfileServices.length == 0) {
@@ -1056,7 +1057,7 @@ public class AdapterService extends Service {
         setScanMode(SCAN_MODE_NONE, "StopProfileServices");
 
         int[] supportedProfileServices = Config.getSupportedProfiles();
-        if (Flags.scanManagerRefactor()) {
+        if (Flags.onlyStartScanDuringBleOn()) {
             // Scanning is always supported, started separately, and is not a profile service.
             // This will check other profile services.
             if (supportedProfileServices.length == 0) {
@@ -1576,10 +1577,10 @@ public class AdapterService extends Service {
             mStartedProfiles.put(profileId, profileService);
             addProfile(profileService);
             profileService.setAvailable(true);
-            // With `Flags.scanManagerRefactor()` GattService initialization is pushed back to
+            // With `Flags.onlyStartScanDuringBleOn()` GattService initialization is pushed back to
             // `ON` state instead of `BLE_ON`. Here we ensure mGattService is set prior
             // to other Profiles using it.
-            if (profileId == BluetoothProfile.GATT && Flags.scanManagerRefactor()) {
+            if (profileId == BluetoothProfile.GATT && Flags.onlyStartScanDuringBleOn()) {
                 mGattService = GattService.getGattService();
             }
             onProfileServiceStateChanged(profileService, BluetoothAdapter.STATE_ON);
@@ -1604,7 +1605,7 @@ public class AdapterService extends Service {
 
     private void setAllProfileServiceStates(int[] profileIds, int state) {
         for (int profileId : profileIds) {
-            if (!Flags.scanManagerRefactor()) {
+            if (!Flags.onlyStartScanDuringBleOn()) {
                 // TODO(b/228875190): GATT is assumed supported and treated differently as part of
                 //  the "BLE ON" state, despite GATT not being BLE specific.
                 if (profileId == BluetoothProfile.GATT) {
@@ -4956,7 +4957,8 @@ public class AdapterService extends Service {
 
     public String getIdentityAddress(String address) {
         BluetoothDevice device =
-                BluetoothAdapter.getDefaultAdapter().getRemoteDevice(Ascii.toUpperCase(address));
+                BluetoothAdapter.getDefaultAdapter()
+                        .getRemoteDevice(address.toUpperCase(Locale.ROOT));
         DeviceProperties deviceProp = mRemoteDevices.getDeviceProperties(device);
         if (deviceProp != null && deviceProp.getIdentityAddress() != null) {
             return deviceProp.getIdentityAddress();
@@ -4980,7 +4982,8 @@ public class AdapterService extends Service {
     @NonNull
     public BluetoothAddress getIdentityAddressWithType(@NonNull String address) {
         BluetoothDevice device =
-                BluetoothAdapter.getDefaultAdapter().getRemoteDevice(Ascii.toUpperCase(address));
+                BluetoothAdapter.getDefaultAdapter()
+                        .getRemoteDevice(address.toUpperCase(Locale.ROOT));
         DeviceProperties deviceProp = mRemoteDevices.getDeviceProperties(device);
 
         String identityAddress = null;
@@ -5327,7 +5330,7 @@ public class AdapterService extends Service {
         if (isAutoActiveModeDisabled && ((getConnectionState(device) & leConnectedState) != 0)) {
             for (BluetoothDevice dev : mLeAudioService.getGroupDevices(groupId)) {
                 /* Need to disconnect all the devices from the group as those might be connected
-                 * as well especially those which migh keep the connection
+                 * as well especially those which might keep the connection
                  */
                 if ((getConnectionState(dev) & leConnectedState) != 0) {
                     mNativeInterface.disconnectAcl(dev, BluetoothDevice.TRANSPORT_LE);
@@ -5340,7 +5343,7 @@ public class AdapterService extends Service {
      * Notify AdapterService about failed GATT connection attempt.
      *
      * @param clientIf ClientIf which was doing GATT connection attempt
-     * @param device Remote device to which connection attpemt failed
+     * @param device Remote device to which connection attempt failed
      */
     public void notifyGattClientConnectFailed(int clientIf, BluetoothDevice device) {
         if (mLeAudioService != null) {
@@ -5411,7 +5414,7 @@ public class AdapterService extends Service {
     }
 
     /**
-     * Checks whether the device was recently associated with the comapnion app that called {@link
+     * Checks whether the device was recently associated with the companion app that called {@link
      * BluetoothDevice#createBond}. This allows these devices to skip the pairing dialog if their
      * pairing variant is {@link BluetoothDevice#PAIRING_VARIANT_CONSENT}.
      *
@@ -5654,7 +5657,7 @@ public class AdapterService extends Service {
             return BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED;
         }
 
-        // Checks if any profiles are enablde or disabled and if so, only connect enabled profiles
+        // Checks if any profiles are enabled or disabled and if so, only connect enabled profiles
         if (!isAllProfilesUnknown(device)) {
             return connectEnabledProfiles(device);
         }
@@ -5978,7 +5981,7 @@ public class AdapterService extends Service {
             case /*HCI_ERR_ENCRY_MODE_NOT_ACCEPTABLE*/ 0x25:
             case /*HCI_ERR_UNIT_KEY_USED*/ 0x26:
             case /*HCI_ERR_PAIRING_WITH_UNIT_KEY_NOT_SUPPORTED*/ 0x29:
-            case /*HCI_ERR_INSUFFCIENT_SECURITY*/ 0x2F:
+            case /*HCI_ERR_INSUFFICIENT_SECURITY*/ 0x2F:
             case /*HCI_ERR_HOST_BUSY_PAIRING*/ 0x38:
                 return BluetoothStatusCodes.ERROR_DISCONNECT_REASON_SECURITY;
             case /*HCI_ERR_MEMORY_FULL*/ 0x07:
@@ -6237,7 +6240,7 @@ public class AdapterService extends Service {
     }
 
     private boolean setScanMode(int mode, String from) {
-        mScanModeChanges.add(Utils.getLocalTimeString() + " (" + from + ") " + dumpScanMode(mode));
+        mScanModeChanges.add(from + ": " + scanModeName(mode));
         if (!mNativeInterface.setScanMode(convertScanModeToHal(mode))) {
             return false;
         }
@@ -6327,7 +6330,7 @@ public class AdapterService extends Service {
 
     @Nullable
     public ScanController getBluetoothScanController() {
-        if (Flags.scanManagerRefactor()) {
+        if (Flags.onlyStartScanDuringBleOn()) {
             return mScanController;
         } else {
             return mGattService == null ? null : mGattService.getScanController();
@@ -6644,7 +6647,6 @@ public class AdapterService extends Service {
     }
 
     /** Update metadata change to registered listeners */
-    @VisibleForTesting
     public void onMetadataChanged(BluetoothDevice device, int key, byte[] value) {
         mHandler.post(() -> onMetadataChangedInternal(device, key, value));
     }
@@ -6694,17 +6696,13 @@ public class AdapterService extends Service {
         return mRemoteDevices;
     }
 
-    private static String dumpScanMode(int scanMode) {
-        switch (scanMode) {
-            case SCAN_MODE_NONE:
-                return "SCAN_MODE_NONE";
-            case SCAN_MODE_CONNECTABLE:
-                return "SCAN_MODE_CONNECTABLE";
-            case SCAN_MODE_CONNECTABLE_DISCOVERABLE:
-                return "SCAN_MODE_CONNECTABLE_DISCOVERABLE";
-            default:
-                return "Unknown Scan Mode " + scanMode;
-        }
+    private static String scanModeName(int scanMode) {
+        return switch (scanMode) {
+            case SCAN_MODE_NONE -> "SCAN_MODE_NONE";
+            case SCAN_MODE_CONNECTABLE -> "SCAN_MODE_CONNECTABLE";
+            case SCAN_MODE_CONNECTABLE_DISCOVERABLE -> "SCAN_MODE_CONNECTABLE_DISCOVERABLE";
+            default -> "Unknown Scan Mode " + scanMode;
+        };
     }
 
     @Override
@@ -6720,7 +6718,7 @@ public class AdapterService extends Service {
             for (ProfileService profile : mRunningProfiles) {
                 profile.setTestModeEnabled(testModeEnabled);
             }
-            if (Flags.scanManagerRefactor() && mScanController != null) {
+            if (Flags.onlyStartScanDuringBleOn() && mScanController != null) {
                 mScanController.setTestModeEnabled(testModeEnabled);
             }
             mTestModeEnabled = testModeEnabled;
@@ -6736,11 +6734,10 @@ public class AdapterService extends Service {
         writer.println();
         mAdapterProperties.dump(fd, writer, args);
 
-        writer.println("ScanMode: " + dumpScanMode(getScanMode()));
-        writer.println("Scan Mode Changes:");
-        for (String log : mScanModeChanges) {
-            writer.println("    " + log);
-        }
+        writer.println("ScanMode: " + scanModeName(getScanMode()));
+        StringBuilder sb = new StringBuilder();
+        mScanModeChanges.dump(sb);
+        writer.println(sb.toString());
         writer.println();
         writer.println("sSnoopLogSettingAtEnable = " + sSnoopLogSettingAtEnable);
         writer.println("sDefaultSnoopLogSettingAtEnable = " + sDefaultSnoopLogSettingAtEnable);
@@ -6760,22 +6757,23 @@ public class AdapterService extends Service {
 
         mAdapterStateMachine.dump(fd, writer, args);
 
-        StringBuilder sb = new StringBuilder();
+        sb = new StringBuilder();
+
+        mSilenceDeviceManager.dump(sb);
+        mDatabaseManager.dump(sb);
+
         for (ProfileService profile : mRegisteredProfiles) {
             profile.dump(sb);
         }
-        if (Flags.scanManagerRefactor()) {
+        if (Flags.onlyStartScanDuringBleOn()) {
             ScanController scanController = mScanController;
             if (scanController != null) {
                 scanController.dumpRegisterId(sb);
                 scanController.dump(sb);
             }
         }
-        mSilenceDeviceManager.dump(fd, writer, args);
-        mDatabaseManager.dump(writer);
 
         writer.write(sb.toString());
-        writer.flush();
 
         final int currentState = mAdapterProperties.getState();
         if (currentState == BluetoothAdapter.STATE_OFF
@@ -6787,7 +6785,9 @@ public class AdapterService extends Service {
                     "Impossible to dump native stack. state="
                             + BluetoothAdapter.nameForState(currentState));
             writer.println();
+            writer.flush();
         } else {
+            writer.flush();
             mNativeInterface.dump(fd, args);
         }
     }
@@ -6810,7 +6810,7 @@ public class AdapterService extends Service {
         for (ProfileService profile : mRegisteredProfiles) {
             profile.dumpProto(metricsBuilder);
         }
-        if (Flags.scanManagerRefactor()) {
+        if (Flags.onlyStartScanDuringBleOn()) {
             ScanController scanController = mScanController;
             if (scanController != null) {
                 scanController.dumpProto(metricsBuilder);

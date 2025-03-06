@@ -87,10 +87,10 @@ class MapClientContent {
     ContentObserver mContentObserver;
     String mPhoneNumber = null;
     private int mSubscriptionId = SubscriptionManager.INVALID_SUBSCRIPTION_ID;
-    private SubscriptionManager mSubscriptionManager;
-    private TelephonyManager mTelephonyManager;
-    private HashMap<String, Uri> mHandleToUriMap = new HashMap<>();
-    private HashMap<Uri, MessageStatus> mUriToHandleMap = new HashMap<>();
+    private final SubscriptionManager mSubscriptionManager;
+    private final TelephonyManager mTelephonyManager;
+    private final HashMap<String, Uri> mHandleToUriMap = new HashMap<>();
+    private final HashMap<Uri, MessageStatus> mUriToHandleMap = new HashMap<>();
 
     /** Callbacks API to notify about statusChanges as observed from the content provider */
     interface Callbacks {
@@ -887,11 +887,11 @@ class MapClientContent {
     }
 
     private static class MessageDumpElement implements Comparable<MessageDumpElement> {
-        private String mMessageHandle;
-        private long mTimestamp;
-        private Type mType;
-        private long mThreadId;
-        private Uri mUri;
+        private final String mMessageHandle;
+        private final long mTimestamp;
+        private final Type mType;
+        private final long mThreadId;
+        private final Uri mUri;
 
         MessageDumpElement(String handle, Uri uri, long timestamp, long threadId, Type type) {
             mMessageHandle = handle;

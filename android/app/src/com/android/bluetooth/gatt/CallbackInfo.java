@@ -26,8 +26,8 @@ public class CallbackInfo {
     public byte[] value;
 
     static class Builder {
-        private String mAddress;
-        private int mStatus;
+        private final String mAddress;
+        private final int mStatus;
         private int mHandle;
         private byte[] mValue;
 
