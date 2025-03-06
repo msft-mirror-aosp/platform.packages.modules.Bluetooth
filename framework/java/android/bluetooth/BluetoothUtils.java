@@ -346,6 +346,22 @@ public final class BluetoothUtils {
         }
     }
 
+    /** A {@link Runnable} that automatically logs {@link RemoteException} @hide */
+    @FunctionalInterface
+    public interface RemoteExceptionIgnoringRunnable {
+        /** Called by {@code accept}. */
+        void runOrThrow() throws RemoteException;
+
+        @RequiresNoPermission
+        default void run() {
+            try {
+                runOrThrow();
+            } catch (RemoteException ex) {
+                logRemoteException(TAG, ex);
+            }
+        }
+    }
+
     /** A {@link Consumer} that automatically logs {@link RemoteException} @hide */
     @FunctionalInterface
     public interface RemoteExceptionIgnoringConsumer<T> {
