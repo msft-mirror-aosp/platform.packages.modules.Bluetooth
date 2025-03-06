@@ -23,6 +23,7 @@ import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 import static android.bluetooth.BluetoothUtils.toAnonymizedAddress;
 
+import static com.android.bluetooth.Utils.callbackToApp;
 import static com.android.bluetooth.Utils.callerIsSystemOrActiveOrManagedUser;
 import static com.android.bluetooth.Utils.checkCallerTargetSdk;
 import static com.android.bluetooth.util.AttributionSourceUtil.getLastAttributionTag;
@@ -56,7 +57,6 @@ import android.os.Build;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.ParcelUuid;
-import android.os.RemoteException;
 import android.provider.Settings;
 import android.sysprop.BluetoothProperties;
 import android.util.Log;
@@ -806,23 +806,23 @@ public class GattService extends ProfileService {
      * Callback functions - CLIENT
      *************************************************************************/
 
-    void onClientRegistered(int status, int clientIf, long uuidLsb, long uuidMsb)
-            throws RemoteException {
+    void onClientRegistered(int status, int clientIf, long uuidLsb, long uuidMsb) {
         UUID uuid = new UUID(uuidMsb, uuidLsb);
         Log.d(TAG, "onClientRegistered() - UUID=" + uuid + ", clientIf=" + clientIf);
         ContextMap<IBluetoothGattCallback>.App app = mClientMap.getByUuid(uuid);
-        if (app != null) {
-            if (status == 0) {
-                app.id = clientIf;
-                app.linkToDeath(new ClientDeathRecipient(clientIf, app.name));
-            } else {
-                mClientMap.remove(uuid, ContextMap.RemoveReason.REASON_REGISTER_FAILED);
-            }
-            app.callback.onClientRegistered(status, clientIf);
+        if (app == null) {
+            return;
         }
+        if (status != 0) {
+            mClientMap.remove(uuid, ContextMap.RemoveReason.REASON_REGISTER_FAILED);
+        } else {
+            app.id = clientIf;
+            app.linkToDeath(new ClientDeathRecipient(clientIf, app.name));
+        }
+        callbackToApp(() -> app.callback.onClientRegistered(status, clientIf));
     }
 
-    void onConnected(int clientIf, int connId, int status, String address) throws RemoteException {
+    void onConnected(int clientIf, int connId, int status, String address) {
         Log.d(
                 TAG,
                 "onConnected() - clientIf="
@@ -834,7 +834,9 @@ public class GattService extends ProfileService {
                         + ", status="
                         + status);
         int connectionState = BluetoothProtoEnums.CONNECTION_STATE_DISCONNECTED;
-        if (status == 0) {
+        if (status != 0) {
+            mAdapterService.notifyGattClientConnectFailed(clientIf, getDevice(address));
+        } else {
             mClientMap.addConnection(clientIf, connId, address);
 
             // Allow one writeCharacteristic operation at a time for each connected remote device.
@@ -846,28 +848,27 @@ public class GattService extends ProfileService {
                 mPermits.putIfAbsent(address, -1);
             }
             connectionState = BluetoothProtoEnums.CONNECTION_STATE_CONNECTED;
-        } else {
-            mAdapterService.notifyGattClientConnectFailed(clientIf, getDevice(address));
         }
 
         ContextMap<IBluetoothGattCallback>.App app = mClientMap.getById(clientIf);
-        if (app != null) {
-            app.callback.onClientConnectionState(
-                    status, clientIf, (status == BluetoothGatt.GATT_SUCCESS), address);
-            MetricsLogger.getInstance()
-                    .logBluetoothEvent(
-                            getDevice(address),
-                            BluetoothStatsLog
-                                    .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__GATT_CONNECT_JAVA,
-                            connectionStatusToState(status),
-                            app.appUid);
-        }
         statsLogGattConnectionStateChange(
                 BluetoothProfile.GATT, address, clientIf, connectionState, status);
+        if (app == null) {
+            return;
+        }
+        boolean connected = status == BluetoothGatt.GATT_SUCCESS;
+        callbackToApp(
+                () -> app.callback.onClientConnectionState(status, clientIf, connected, address));
+        MetricsLogger.getInstance()
+                .logBluetoothEvent(
+                        getDevice(address),
+                        BluetoothStatsLog
+                                .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__GATT_CONNECT_JAVA,
+                        connectionStatusToState(status),
+                        app.appUid);
     }
 
-    void onDisconnected(int clientIf, int connId, int status, String address)
-            throws RemoteException {
+    void onDisconnected(int clientIf, int connId, int status, String address) {
         Log.d(
                 TAG,
                 "onDisconnected() - clientIf="
@@ -905,34 +906,40 @@ public class GattService extends ProfileService {
             }
         }
 
-        if (app != null) {
-            int disconnectStatus = status;
-            if (status == 0x16 /* HCI_ERR_CONN_CAUSE_LOCAL_HOST */
-                    && mAdapterService.getDatabase().getKeyMissingCount(device) > 0) {
-                // Native stack disconnects the link on detecting the bond loss. Native GATT would
-                // return HCI_ERR_CONN_CAUSE_LOCAL_HOST in such case, but the apps should see
-                // HCI_ERR_AUTH_FAILURE.
-                Log.d(TAG, "onDisconnected() - disconnected due to bond loss for device=" + device);
-                disconnectStatus = 0x05 /* HCI_ERR_AUTH_FAILURE */;
-            }
-            app.callback.onClientConnectionState(disconnectStatus, clientIf, false, address);
-            MetricsLogger.getInstance()
-                    .logBluetoothEvent(
-                            device,
-                            BluetoothStatsLog
-                                    .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__GATT_DISCONNECT_JAVA,
-                            BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__STATE__SUCCESS,
-                            app.appUid);
-        }
         statsLogGattConnectionStateChange(
                 BluetoothProfile.GATT,
                 address,
                 clientIf,
                 BluetoothProtoEnums.CONNECTION_STATE_DISCONNECTED,
                 status);
+        if (app == null) {
+            return;
+        }
+        final int disconnectStatus;
+        if (status == 0x16 // HCI_ERR_CONN_CAUSE_LOCAL_HOST
+                && mAdapterService.getDatabase().getKeyMissingCount(device) > 0) {
+            // Native stack disconnects the link on detecting the bond loss. Native GATT would
+            // return HCI_ERR_CONN_CAUSE_LOCAL_HOST in such case, but the apps should see
+            // HCI_ERR_AUTH_FAILURE.
+            Log.d(TAG, "onDisconnected() - disconnected due to bond loss for device=" + device);
+            disconnectStatus = 0x05 /* HCI_ERR_AUTH_FAILURE */;
+        } else {
+            disconnectStatus = status;
+        }
+        callbackToApp(
+                () ->
+                        app.callback.onClientConnectionState(
+                                disconnectStatus, clientIf, false, address));
+        MetricsLogger.getInstance()
+                .logBluetoothEvent(
+                        device,
+                        BluetoothStatsLog
+                                .BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__EVENT_TYPE__GATT_DISCONNECT_JAVA,
+                        BluetoothStatsLog.BLUETOOTH_CROSS_LAYER_EVENT_REPORTED__STATE__SUCCESS,
+                        app.appUid);
     }
 
-    void onClientPhyUpdate(int connId, int txPhy, int rxPhy, int status) throws RemoteException {
+    void onClientPhyUpdate(int connId, int txPhy, int rxPhy, int status) {
         Log.d(TAG, "onClientPhyUpdate() - connId=" + connId + ", status=" + status);
 
         String address = mClientMap.addressByConnId(connId);
@@ -945,11 +952,10 @@ public class GattService extends ProfileService {
             return;
         }
 
-        app.callback.onPhyUpdate(address, txPhy, rxPhy, status);
+        callbackToApp(() -> app.callback.onPhyUpdate(address, txPhy, rxPhy, status));
     }
 
-    void onClientPhyRead(int clientIf, String address, int txPhy, int rxPhy, int status)
-            throws RemoteException {
+    void onClientPhyRead(int clientIf, String address, int txPhy, int rxPhy, int status) {
         Log.d(
                 TAG,
                 "onClientPhyRead() - address="
@@ -970,11 +976,10 @@ public class GattService extends ProfileService {
             return;
         }
 
-        app.callback.onPhyRead(address, txPhy, rxPhy, status);
+        callbackToApp(() -> app.callback.onPhyRead(address, txPhy, rxPhy, status));
     }
 
-    void onClientConnUpdate(int connId, int interval, int latency, int timeout, int status)
-            throws RemoteException {
+    void onClientConnUpdate(int connId, int interval, int latency, int timeout, int status) {
         Log.d(TAG, "onClientConnUpdate() - connId=" + connId + ", status=" + status);
 
         String address = mClientMap.addressByConnId(connId);
@@ -987,10 +992,13 @@ public class GattService extends ProfileService {
             return;
         }
 
-        app.callback.onConnectionUpdated(address, interval, latency, timeout, status);
+        callbackToApp(
+                () ->
+                        app.callback.onConnectionUpdated(
+                                address, interval, latency, timeout, status));
     }
 
-    void onServiceChanged(int connId) throws RemoteException {
+    void onServiceChanged(int connId) {
         Log.d(TAG, "onServiceChanged - connId=" + connId);
 
         String address = mClientMap.addressByConnId(connId);
@@ -1003,12 +1011,11 @@ public class GattService extends ProfileService {
             return;
         }
 
-        app.callback.onServiceChanged(address);
+        callbackToApp(() -> app.callback.onServiceChanged(address));
     }
 
     void onClientSubrateChange(
-            int connId, int subrateFactor, int latency, int contNum, int timeout, int status)
-            throws RemoteException {
+            int connId, int subrateFactor, int latency, int contNum, int timeout, int status) {
         Log.d(TAG, "onClientSubrateChange() - connId=" + connId + ", status=" + status);
 
         String address = mClientMap.addressByConnId(connId);
@@ -1021,10 +1028,13 @@ public class GattService extends ProfileService {
             return;
         }
 
-        app.callback.onSubrateChange(address, subrateFactor, latency, contNum, timeout, status);
+        callbackToApp(
+                () ->
+                        app.callback.onSubrateChange(
+                                address, subrateFactor, latency, contNum, timeout, status));
     }
 
-    void onServerPhyUpdate(int connId, int txPhy, int rxPhy, int status) throws RemoteException {
+    void onServerPhyUpdate(int connId, int txPhy, int rxPhy, int status) {
         Log.d(TAG, "onServerPhyUpdate() - connId=" + connId + ", status=" + status);
 
         String address = mServerMap.addressByConnId(connId);
@@ -1037,11 +1047,10 @@ public class GattService extends ProfileService {
             return;
         }
 
-        app.callback.onPhyUpdate(address, txPhy, rxPhy, status);
+        callbackToApp(() -> app.callback.onPhyUpdate(address, txPhy, rxPhy, status));
     }
 
-    void onServerPhyRead(int serverIf, String address, int txPhy, int rxPhy, int status)
-            throws RemoteException {
+    void onServerPhyRead(int serverIf, String address, int txPhy, int rxPhy, int status) {
         Log.d(
                 TAG,
                 "onServerPhyRead() - address="
@@ -1060,11 +1069,10 @@ public class GattService extends ProfileService {
             return;
         }
 
-        app.callback.onPhyRead(address, txPhy, rxPhy, status);
+        callbackToApp(() -> app.callback.onPhyRead(address, txPhy, rxPhy, status));
     }
 
-    void onServerConnUpdate(int connId, int interval, int latency, int timeout, int status)
-            throws RemoteException {
+    void onServerConnUpdate(int connId, int interval, int latency, int timeout, int status) {
         Log.d(TAG, "onServerConnUpdate() - connId=" + connId + ", status=" + status);
 
         String address = mServerMap.addressByConnId(connId);
@@ -1077,12 +1085,14 @@ public class GattService extends ProfileService {
             return;
         }
 
-        app.callback.onConnectionUpdated(address, interval, latency, timeout, status);
+        callbackToApp(
+                () ->
+                        app.callback.onConnectionUpdated(
+                                address, interval, latency, timeout, status));
     }
 
     void onServerSubrateChange(
-            int connId, int subrateFactor, int latency, int contNum, int timeout, int status)
-            throws RemoteException {
+            int connId, int subrateFactor, int latency, int contNum, int timeout, int status) {
         Log.d(TAG, "onServerSubrateChange() - connId=" + connId + ", status=" + status);
 
         String address = mServerMap.addressByConnId(connId);
@@ -1095,14 +1105,17 @@ public class GattService extends ProfileService {
             return;
         }
 
-        app.callback.onSubrateChange(address, subrateFactor, latency, contNum, timeout, status);
+        callbackToApp(
+                () ->
+                        app.callback.onSubrateChange(
+                                address, subrateFactor, latency, contNum, timeout, status));
     }
 
     GattDbElement getSampleGattDbElement() {
         return new GattDbElement();
     }
 
-    void onGetGattDb(int connId, List<GattDbElement> db) throws RemoteException {
+    void onGetGattDb(int connId, List<GattDbElement> db) {
         String address = mClientMap.addressByConnId(connId);
 
         Log.d(TAG, "onGetGattDb() - address=" + toAnonymizedAddress(address));
@@ -1187,7 +1200,7 @@ public class GattService extends ProfileService {
             mRestrictedHandles.put(connId, restrictedIds);
         }
         // Search is complete when there was error, or nothing more to process
-        app.callback.onSearchComplete(address, dbOut, 0 /* status */);
+        callbackToApp(() -> app.callback.onSearchComplete(address, dbOut, 0 /* status */));
     }
 
     void onRegisterForNotifications(int connId, int status, int registered, int handle) {
@@ -1205,8 +1218,7 @@ public class GattService extends ProfileService {
                         + handle);
     }
 
-    void onNotify(int connId, String address, int handle, boolean isNotify, byte[] data)
-            throws RemoteException {
+    void onNotify(int connId, String address, int handle, boolean isNotify, byte[] data) {
 
         Log.v(
                 TAG,
@@ -1218,23 +1230,23 @@ public class GattService extends ProfileService {
                         + data.length);
 
         ContextMap<IBluetoothGattCallback>.App app = mClientMap.getByConnId(connId);
-        if (app != null) {
-            try {
-                permissionCheck(connId, handle);
-            } catch (SecurityException ex) {
-                // Only throws on apps with target SDK T+ as this old API did not throw prior to T
-                if (checkCallerTargetSdk(this, app.name, Build.VERSION_CODES.TIRAMISU)) {
-                    throw ex;
-                }
-                Log.w(TAG, "onNotify() - permission check failed!");
-                return;
-            }
-            app.callback.onNotify(address, handle, data);
+        if (app == null) {
+            return;
         }
+        try {
+            permissionCheck(connId, handle);
+        } catch (SecurityException ex) {
+            // Only throws on apps with target SDK T+ as this old API did not throw prior to T
+            if (checkCallerTargetSdk(this, app.name, Build.VERSION_CODES.TIRAMISU)) {
+                throw ex;
+            }
+            Log.w(TAG, "onNotify() - permission check failed!");
+            return;
+        }
+        callbackToApp(() -> app.callback.onNotify(address, handle, data));
     }
 
-    void onReadCharacteristic(int connId, int status, int handle, byte[] data)
-            throws RemoteException {
+    void onReadCharacteristic(int connId, int status, int handle, byte[] data) {
         String address = mClientMap.addressByConnId(connId);
 
         Log.v(
@@ -1247,13 +1259,13 @@ public class GattService extends ProfileService {
                         + data.length);
 
         ContextMap<IBluetoothGattCallback>.App app = mClientMap.getByConnId(connId);
-        if (app != null) {
-            app.callback.onCharacteristicRead(address, status, handle, data);
+        if (app == null) {
+            return;
         }
+        callbackToApp(() -> app.callback.onCharacteristicRead(address, status, handle, data));
     }
 
-    void onWriteCharacteristic(int connId, int status, int handle, byte[] data)
-            throws RemoteException {
+    void onWriteCharacteristic(int connId, int status, int handle, byte[] data) {
         String address = mClientMap.addressByConnId(connId);
         synchronized (mPermits) {
             Log.d(
@@ -1278,13 +1290,14 @@ public class GattService extends ProfileService {
         }
 
         if (!app.isCongested) {
-            app.callback.onCharacteristicWrite(address, status, handle, data);
+            callbackToApp(() -> app.callback.onCharacteristicWrite(address, status, handle, data));
         } else {
-            if (status == BluetoothGatt.GATT_CONNECTION_CONGESTED) {
-                status = BluetoothGatt.GATT_SUCCESS;
+            int queuedStatus = status;
+            if (queuedStatus == BluetoothGatt.GATT_CONNECTION_CONGESTED) {
+                queuedStatus = BluetoothGatt.GATT_SUCCESS;
             }
             CallbackInfo callbackInfo =
-                    new CallbackInfo.Builder(address, status)
+                    new CallbackInfo.Builder(address, queuedStatus)
                             .setHandle(handle)
                             .setValue(data)
                             .build();
@@ -1292,7 +1305,7 @@ public class GattService extends ProfileService {
         }
     }
 
-    void onExecuteCompleted(int connId, int status) throws RemoteException {
+    void onExecuteCompleted(int connId, int status) {
         String address = mClientMap.addressByConnId(connId);
         Log.v(
                 TAG,
@@ -1302,12 +1315,13 @@ public class GattService extends ProfileService {
                         + status);
 
         ContextMap<IBluetoothGattCallback>.App app = mClientMap.getByConnId(connId);
-        if (app != null) {
-            app.callback.onExecuteWrite(address, status);
+        if (app == null) {
+            return;
         }
+        callbackToApp(() -> app.callback.onExecuteWrite(address, status));
     }
 
-    void onReadDescriptor(int connId, int status, int handle, byte[] data) throws RemoteException {
+    void onReadDescriptor(int connId, int status, int handle, byte[] data) {
         String address = mClientMap.addressByConnId(connId);
 
         Log.v(
@@ -1320,12 +1334,13 @@ public class GattService extends ProfileService {
                         + data.length);
 
         ContextMap<IBluetoothGattCallback>.App app = mClientMap.getByConnId(connId);
-        if (app != null) {
-            app.callback.onDescriptorRead(address, status, handle, data);
+        if (app == null) {
+            return;
         }
+        callbackToApp(() -> app.callback.onDescriptorRead(address, status, handle, data));
     }
 
-    void onWriteDescriptor(int connId, int status, int handle, byte[] data) throws RemoteException {
+    void onWriteDescriptor(int connId, int status, int handle, byte[] data) {
         String address = mClientMap.addressByConnId(connId);
 
         Log.v(
@@ -1338,13 +1353,13 @@ public class GattService extends ProfileService {
                         + data.length);
 
         ContextMap<IBluetoothGattCallback>.App app = mClientMap.getByConnId(connId);
-        if (app != null) {
-            app.callback.onDescriptorWrite(address, status, handle, data);
+        if (app == null) {
+            return;
         }
+        callbackToApp(() -> app.callback.onDescriptorWrite(address, status, handle, data));
     }
 
-    void onReadRemoteRssi(int clientIf, String address, int rssi, int status)
-            throws RemoteException {
+    void onReadRemoteRssi(int clientIf, String address, int rssi, int status) {
         Log.d(
                 TAG,
                 "onReadRemoteRssi() - clientIf="
@@ -1357,12 +1372,13 @@ public class GattService extends ProfileService {
                         + status);
 
         ContextMap<IBluetoothGattCallback>.App app = mClientMap.getById(clientIf);
-        if (app != null) {
-            app.callback.onReadRemoteRssi(address, rssi, status);
+        if (app == null) {
+            return;
         }
+        callbackToApp(() -> app.callback.onReadRemoteRssi(address, rssi, status));
     }
 
-    void onConfigureMTU(int connId, int status, int mtu) throws RemoteException {
+    void onConfigureMTU(int connId, int status, int mtu) {
         String address = mClientMap.addressByConnId(connId);
 
         Log.d(
@@ -1375,30 +1391,34 @@ public class GattService extends ProfileService {
                         + mtu);
 
         ContextMap<IBluetoothGattCallback>.App app = mClientMap.getByConnId(connId);
-        if (app != null) {
-            app.callback.onConfigureMTU(address, mtu, status);
+        if (app == null) {
+            return;
         }
+        callbackToApp(() -> app.callback.onConfigureMTU(address, mtu, status));
     }
 
-    void onClientCongestion(int connId, boolean congested) throws RemoteException {
+    void onClientCongestion(int connId, boolean congested) {
         Log.v(TAG, "onClientCongestion() - connId=" + connId + ", congested=" + congested);
 
         ContextMap<IBluetoothGattCallback>.App app = mClientMap.getByConnId(connId);
 
-        if (app != null) {
+        if (app == null) {
+            return;
+        }
             app.isCongested = congested;
             while (!app.isCongested) {
                 CallbackInfo callbackInfo = app.popQueuedCallback();
                 if (callbackInfo == null) {
                     return;
                 }
-                app.callback.onCharacteristicWrite(
-                        callbackInfo.address,
-                        callbackInfo.status,
-                        callbackInfo.handle,
-                        callbackInfo.value);
+            callbackToApp(
+                    () ->
+                            app.callback.onCharacteristicWrite(
+                                    callbackInfo.address,
+                                    callbackInfo.status,
+                                    callbackInfo.handle,
+                                    callbackInfo.value));
             }
-        }
     }
 
     /**************************************************************************
@@ -1481,11 +1501,7 @@ public class GattService extends ProfileService {
         if (Flags.gattClientDynamicAllocation()
                 && mClientMap.countByAppUid(Binder.getCallingUid()) >= GATT_CLIENT_LIMIT_PER_APP) {
             Log.w(TAG, "registerClient() - failed due to too many clients");
-            try {
-                callback.onClientRegistered(BluetoothGatt.GATT_FAILURE, 0);
-            } catch (RemoteException e) {
-                // do nothing
-            }
+            callbackToApp(() -> callback.onClientRegistered(BluetoothGatt.GATT_FAILURE, 0));
             return;
         }
 
@@ -2225,21 +2241,20 @@ public class GattService extends ProfileService {
      * Callback functions - SERVER
      *************************************************************************/
 
-    void onServerRegistered(int status, int serverIf, long uuidLsb, long uuidMsb)
-            throws RemoteException {
+    void onServerRegistered(int status, int serverIf, long uuidLsb, long uuidMsb) {
 
         UUID uuid = new UUID(uuidMsb, uuidLsb);
         Log.d(TAG, "onServerRegistered() - UUID=" + uuid + ", serverIf=" + serverIf);
         ContextMap<IBluetoothGattServerCallback>.App app = mServerMap.getByUuid(uuid);
-        if (app != null) {
-            app.id = serverIf;
-            app.linkToDeath(new ServerDeathRecipient(serverIf, app.name));
-            app.callback.onServerRegistered(status, serverIf);
+        if (app == null) {
+            return;
         }
+        app.id = serverIf;
+        app.linkToDeath(new ServerDeathRecipient(serverIf, app.name));
+        callbackToApp(() -> app.callback.onServerRegistered(status, serverIf));
     }
 
-    void onServiceAdded(int status, int serverIf, List<GattDbElement> service)
-            throws RemoteException {
+    void onServiceAdded(int status, int serverIf, List<GattDbElement> service) {
         Log.d(TAG, "onServiceAdded(), status=" + status);
 
         if (status != 0) {
@@ -2295,12 +2310,14 @@ public class GattService extends ProfileService {
         mHandleMap.setStarted(serverIf, srvcHandle, true);
 
         ContextMap<IBluetoothGattServerCallback>.App app = mServerMap.getById(serverIf);
-        if (app != null) {
-            app.callback.onServiceAdded(status, svc);
+        if (app == null) {
+            return;
         }
+        final BluetoothGattService serviceAdded = svc;
+        callbackToApp(() -> app.callback.onServiceAdded(status, serviceAdded));
     }
 
-    void onServiceStopped(int status, int serverIf, int srvcHandle) throws RemoteException {
+    void onServiceStopped(int status, int serverIf, int srvcHandle) {
         Log.d(TAG, "onServiceStopped() srvcHandle=" + srvcHandle + ", status=" + status);
         if (status == 0) {
             mHandleMap.setStarted(serverIf, srvcHandle, false);
@@ -2313,8 +2330,7 @@ public class GattService extends ProfileService {
         mHandleMap.deleteService(serverIf, srvcHandle);
     }
 
-    void onClientConnected(String address, boolean connected, int connId, int serverIf)
-            throws RemoteException {
+    void onClientConnected(String address, boolean connected, int connId, int serverIf) {
 
         Log.d(
                 TAG,
@@ -2346,15 +2362,15 @@ public class GattService extends ProfileService {
             Log.d(TAG, "onClientConnected() uid_not_found=" + app.name);
         }
 
-        app.callback.onServerConnectionState((byte) 0, serverIf, connected, address);
+        callbackToApp(
+                () -> app.callback.onServerConnectionState((byte) 0, serverIf, connected, address));
         statsLogAppPackage(address, applicationUid, serverIf);
         statsLogGattConnectionStateChange(
                 BluetoothProfile.GATT_SERVER, address, serverIf, connectionState, -1);
     }
 
     void onServerReadCharacteristic(
-            String address, int connId, int transId, int handle, int offset, boolean isLong)
-            throws RemoteException {
+            String address, int connId, int transId, int handle, int offset, boolean isLong) {
         Log.v(
                 TAG,
                 "onServerReadCharacteristic() connId="
@@ -2380,12 +2396,14 @@ public class GattService extends ProfileService {
             return;
         }
 
-        app.callback.onCharacteristicReadRequest(address, transId, offset, isLong, handle);
+        callbackToApp(
+                () ->
+                        app.callback.onCharacteristicReadRequest(
+                                address, transId, offset, isLong, handle));
     }
 
     void onServerReadDescriptor(
-            String address, int connId, int transId, int handle, int offset, boolean isLong)
-            throws RemoteException {
+            String address, int connId, int transId, int handle, int offset, boolean isLong) {
         Log.v(
                 TAG,
                 "onServerReadDescriptor() connId="
@@ -2411,7 +2429,10 @@ public class GattService extends ProfileService {
             return;
         }
 
-        app.callback.onDescriptorReadRequest(address, transId, offset, isLong, handle);
+        callbackToApp(
+                () ->
+                        app.callback.onDescriptorReadRequest(
+                                address, transId, offset, isLong, handle));
     }
 
     void onServerWriteCharacteristic(
@@ -2423,8 +2444,7 @@ public class GattService extends ProfileService {
             int length,
             boolean needRsp,
             boolean isPrep,
-            byte[] data)
-            throws RemoteException {
+            byte[] data) {
         Log.v(
                 TAG,
                 "onServerWriteCharacteristic() connId="
@@ -2452,8 +2472,10 @@ public class GattService extends ProfileService {
             return;
         }
 
-        app.callback.onCharacteristicWriteRequest(
-                address, transId, offset, length, isPrep, needRsp, handle, data);
+        callbackToApp(
+                () ->
+                        app.callback.onCharacteristicWriteRequest(
+                                address, transId, offset, length, isPrep, needRsp, handle, data));
     }
 
     void onServerWriteDescriptor(
@@ -2465,8 +2487,7 @@ public class GattService extends ProfileService {
             int length,
             boolean needRsp,
             boolean isPrep,
-            byte[] data)
-            throws RemoteException {
+            byte[] data) {
         Log.v(
                 TAG,
                 "onAttributeWrite() connId="
@@ -2494,12 +2515,13 @@ public class GattService extends ProfileService {
             return;
         }
 
-        app.callback.onDescriptorWriteRequest(
-                address, transId, offset, length, isPrep, needRsp, handle, data);
+        callbackToApp(
+                () ->
+                        app.callback.onDescriptorWriteRequest(
+                                address, transId, offset, length, isPrep, needRsp, handle, data));
     }
 
-    void onExecuteWrite(String address, int connId, int transId, int execWrite)
-            throws RemoteException {
+    void onExecuteWrite(String address, int connId, int transId, int execWrite) {
         Log.d(
                 TAG,
                 "onExecuteWrite() connId="
@@ -2514,14 +2536,14 @@ public class GattService extends ProfileService {
             return;
         }
 
-        app.callback.onExecuteWrite(address, transId, execWrite == 1);
+        callbackToApp(() -> app.callback.onExecuteWrite(address, transId, execWrite == 1));
     }
 
     void onResponseSendCompleted(int status, int attrHandle) {
         Log.d(TAG, "onResponseSendCompleted() handle=" + attrHandle);
     }
 
-    void onNotificationSent(int connId, int status) throws RemoteException {
+    void onNotificationSent(int connId, int status) {
         Log.v(TAG, "onNotificationSent() connId=" + connId + ", status=" + status);
 
         String address = mServerMap.addressByConnId(connId);
@@ -2535,16 +2557,17 @@ public class GattService extends ProfileService {
         }
 
         if (!app.isCongested) {
-            app.callback.onNotificationSent(address, status);
+            callbackToApp(() -> app.callback.onNotificationSent(address, status));
         } else {
-            if (status == BluetoothGatt.GATT_CONNECTION_CONGESTED) {
-                status = BluetoothGatt.GATT_SUCCESS;
+            int queuedStatus = status;
+            if (queuedStatus == BluetoothGatt.GATT_CONNECTION_CONGESTED) {
+                queuedStatus = BluetoothGatt.GATT_SUCCESS;
             }
-            app.queueCallback(new CallbackInfo.Builder(address, status).build());
+            app.queueCallback(new CallbackInfo.Builder(address, queuedStatus).build());
         }
     }
 
-    void onServerCongestion(int connId, boolean congested) throws RemoteException {
+    void onServerCongestion(int connId, boolean congested) {
         Log.d(TAG, "onServerCongestion() - connId=" + connId + ", congested=" + congested);
 
         ContextMap<IBluetoothGattServerCallback>.App app = mServerMap.getByConnId(connId);
@@ -2558,11 +2581,14 @@ public class GattService extends ProfileService {
             if (callbackInfo == null) {
                 return;
             }
-            app.callback.onNotificationSent(callbackInfo.address, callbackInfo.status);
+            callbackToApp(
+                    () ->
+                            app.callback.onNotificationSent(
+                                    callbackInfo.address, callbackInfo.status));
         }
     }
 
-    void onMtuChanged(int connId, int mtu) throws RemoteException {
+    void onMtuChanged(int connId, int mtu) {
         Log.d(TAG, "onMtuChanged() - connId=" + connId + ", mtu=" + mtu);
 
         String address = mServerMap.addressByConnId(connId);
@@ -2575,7 +2601,7 @@ public class GattService extends ProfileService {
             return;
         }
 
-        app.callback.onMtuChanged(address, mtu);
+        callbackToApp(() -> app.callback.onMtuChanged(address, mtu));
     }
 
     /**************************************************************************
@@ -2965,21 +2991,22 @@ public class GattService extends ProfileService {
         }
     }
 
-    private void stopNextService(int serverIf, int status) throws RemoteException {
+    private void stopNextService(int serverIf, int status) {
         Log.d(TAG, "stopNextService() - serverIf=" + serverIf + ", status=" + status);
 
-        if (status == 0) {
-            List<HandleMap.Entry> entries = mHandleMap.getEntries();
-            for (HandleMap.Entry entry : entries) {
-                if (entry.type != HandleMap.TYPE_SERVICE
-                        || entry.serverIf != serverIf
-                        || !entry.started) {
-                    continue;
-                }
-
-                mNativeInterface.gattServerStopService(serverIf, entry.handle);
-                return;
+        if (status != 0) {
+            return;
+        }
+        List<HandleMap.Entry> entries = mHandleMap.getEntries();
+        for (HandleMap.Entry entry : entries) {
+            if (entry.type != HandleMap.TYPE_SERVICE
+                    || entry.serverIf != serverIf
+                    || !entry.started) {
+                continue;
             }
+
+            mNativeInterface.gattServerStopService(serverIf, entry.handle);
+            return;
         }
     }
 
