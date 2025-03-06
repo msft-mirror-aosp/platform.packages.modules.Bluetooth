@@ -21,6 +21,7 @@ import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static android.Manifest.permission.BLUETOOTH_SCAN;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
+import static android.bluetooth.BluetoothUtils.RemoteExceptionIgnoringConsumer;
 
 import static com.android.modules.utils.build.SdkLevel.isAtLeastV;
 
@@ -1472,8 +1473,7 @@ public class RemoteDevices {
         mAdapterService.sendBroadcast(
                 intent, BLUETOOTH_CONNECT, Utils.getTempBroadcastOptions().toBundle());
 
-        Utils.RemoteExceptionIgnoringConsumer<IBluetoothConnectionCallback>
-                connectionChangeConsumer;
+        RemoteExceptionIgnoringConsumer<IBluetoothConnectionCallback> connectionChangeConsumer;
         if (connectionState == BluetoothAdapter.STATE_CONNECTED) {
             connectionChangeConsumer = cb -> cb.onDeviceConnected(device);
         } else {

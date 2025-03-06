@@ -36,6 +36,7 @@ import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 import static android.bluetooth.BluetoothProfile.getProfileName;
+import static android.bluetooth.BluetoothUtils.RemoteExceptionIgnoringConsumer;
 import static android.bluetooth.IBluetoothLeAudio.LE_AUDIO_GROUP_ID_INVALID;
 import static android.text.format.DateUtils.MINUTE_IN_MILLIS;
 import static android.text.format.DateUtils.SECOND_IN_MILLIS;
@@ -209,7 +210,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
@@ -5896,7 +5896,8 @@ public class AdapterService extends Service {
         return mRemoteDevices.getUuids(device);
     }
 
-    void aclStateChangeBroadcastCallback(Consumer<IBluetoothConnectionCallback> cb) {
+    void aclStateChangeBroadcastCallback(
+            RemoteExceptionIgnoringConsumer<IBluetoothConnectionCallback> cb) {
         int n = mBluetoothConnectionCallbacks.beginBroadcast();
         Log.d(TAG, "aclStateChangeBroadcastCallback() - Broadcasting to " + n + " receivers.");
         for (int i = 0; i < n; i++) {

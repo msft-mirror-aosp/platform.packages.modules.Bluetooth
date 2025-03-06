@@ -16,7 +16,7 @@
 
 package com.android.bluetooth.vc;
 
-import static com.android.bluetooth.Utils.RemoteExceptionIgnoringConsumer;
+import static android.bluetooth.BluetoothUtils.RemoteExceptionIgnoringConsumer;
 
 import static java.util.Objects.requireNonNull;
 
