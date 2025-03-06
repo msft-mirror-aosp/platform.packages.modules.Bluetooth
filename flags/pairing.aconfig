@@ -250,3 +250,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "non_zero_local_irk"
+    namespace: "bluetooth"
+    description: "Ensure that the local IRK is not zero before sending it to the controller"
+    bug: "401126556"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
