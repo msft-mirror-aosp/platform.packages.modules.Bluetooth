@@ -104,7 +104,7 @@ public class A2dpServiceTest {
 
     private TestLooper mLooper;
     private A2dpService mA2dpService;
-    private CompanionDeviceManager mCompanionDeviceManager =
+    private final CompanionDeviceManager mCompanionDeviceManager =
             InstrumentationRegistry.getInstrumentation()
                     .getContext()
                     .getSystemService(CompanionDeviceManager.class);

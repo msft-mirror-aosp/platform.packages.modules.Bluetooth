@@ -39,8 +39,6 @@ import com.android.obex.Operation;
 import com.android.obex.ResponseCodes;
 import com.android.obex.ServerRequestHandler;
 
-import com.google.common.base.Ascii;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
@@ -50,6 +48,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 
 // Next tag value for ContentProfileErrorReportUtils.report(): 34
 public class BluetoothPbapObexServer extends ServerRequestHandler {
@@ -187,9 +186,8 @@ public class BluetoothPbapObexServer extends ServerRequestHandler {
 
     private Handler mCallback = null;
 
-    private Context mContext;
-
-    private BluetoothPbapVcardManager mVcardManager;
+    private final Context mContext;
+    private final BluetoothPbapVcardManager mVcardManager;
 
     BluetoothPbapSimVcardManager mVcardSimManager;
 
@@ -207,15 +205,13 @@ public class BluetoothPbapObexServer extends ServerRequestHandler {
 
     private long mDatabaseIdentifierHigh = INVALID_VALUE_PARAMETER;
 
-    private long mFolderVersionCounterbitMask = 0x0008;
-
-    private long mDatabaseIdentifierBitMask = 0x0004;
+    private static final long FOLDER_VERSION_COUNTER_BIT_MASK = 0x0008;
+    private static final long DATABASE_IDENTIFIER_BIT_MASK = 0x0004;
 
     private AppParamValue mConnAppParamValue;
 
-    private PbapStateMachine mStateMachine;
-
-    private BluetoothMethodProxy mPbapMethodProxy;
+    private final PbapStateMachine mStateMachine;
+    private final BluetoothMethodProxy mPbapMethodProxy;
 
     private enum ContactsType {
         TYPE_PHONEBOOK,
@@ -1009,7 +1005,7 @@ public class BluetoothPbapObexServer extends ServerRequestHandler {
             List<Integer> savedPosList = new ArrayList<>();
             List<String> selectedNameList = new ArrayList<String>();
             if (appParamValue.searchValue != null) {
-                compareValue = Ascii.toLowerCase(appParamValue.searchValue.trim());
+                compareValue = appParamValue.searchValue.trim().toLowerCase(Locale.ROOT);
             }
 
             for (int pos = 0; pos < listSize; pos++) {
@@ -1021,8 +1017,9 @@ public class BluetoothPbapObexServer extends ServerRequestHandler {
 
                 if (appParamValue.searchValue != null) {
                     if (appParamValue.searchValue.isEmpty()
-                            || Ascii.toLowerCase(currentValue)
-                                    .startsWith(Ascii.toLowerCase(compareValue))) {
+                            || currentValue
+                                    .toLowerCase(Locale.ROOT)
+                                    .startsWith(compareValue.toLowerCase(Locale.ROOT))) {
                         selectedNameList.add(currentValue);
                         savedPosList.add(pos);
                     }
@@ -1108,12 +1105,12 @@ public class BluetoothPbapObexServer extends ServerRequestHandler {
                 || isNameMatchTarget(name, OCH)
                 || isNameMatchTarget(name, CCH)) {
             needSendCallHistoryVersionCounters =
-                    checkPbapFeatureSupport(mFolderVersionCounterbitMask);
+                    checkPbapFeatureSupport(FOLDER_VERSION_COUNTER_BIT_MASK);
         }
         boolean needSendPhonebookVersionCounters = false;
         if (isNameMatchTarget(name, PB) || isNameMatchTarget(name, FAV)) {
             needSendPhonebookVersionCounters =
-                    checkPbapFeatureSupport(mFolderVersionCounterbitMask);
+                    checkPbapFeatureSupport(FOLDER_VERSION_COUNTER_BIT_MASK);
         }
 
         // In such case, PCE only want the number of index.
@@ -1166,7 +1163,7 @@ public class BluetoothPbapObexServer extends ServerRequestHandler {
                         "handleAppParaForResponse(): mNeedNewMissedCallsNum=true,  num= " + nmnum);
             }
 
-            if (checkPbapFeatureSupport(mDatabaseIdentifierBitMask)) {
+            if (checkPbapFeatureSupport(DATABASE_IDENTIFIER_BIT_MASK)) {
                 setDbCounters(ap);
             }
             if (needSendPhonebookVersionCounters) {
@@ -1236,7 +1233,7 @@ public class BluetoothPbapObexServer extends ServerRequestHandler {
             }
         }
 
-        if (checkPbapFeatureSupport(mDatabaseIdentifierBitMask)) {
+        if (checkPbapFeatureSupport(DATABASE_IDENTIFIER_BIT_MASK)) {
             setDbCounters(ap);
             reply.setHeader(HeaderSet.APPLICATION_PARAMETER, ap.getHeader());
             try {

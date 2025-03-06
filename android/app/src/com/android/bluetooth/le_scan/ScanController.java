@@ -71,7 +71,6 @@ import com.android.internal.annotations.VisibleForTesting;
 
 import libcore.util.HexEncoding;
 
-import com.google.common.primitives.Bytes;
 import com.google.protobuf.ByteString;
 
 import java.util.ArrayDeque;
@@ -874,7 +873,7 @@ public class ScanController {
             byte[] record =
                     extractBytes(batchRecord, i * TRUNCATED_RESULT_SIZE, TRUNCATED_RESULT_SIZE);
             byte[] address = extractBytes(record, 0, 6);
-            Bytes.reverse(address);
+            Utils.reverse(address);
             BluetoothDevice device = mAdapter.getRemoteDevice(address);
             int rssi = record[8];
             long timestampNanos = now - parseTimestampNanos(extractBytes(record, 9, 2));
@@ -900,7 +899,7 @@ public class ScanController {
         while (position < batchRecord.length) {
             byte[] address = extractBytes(batchRecord, position, 6);
             // TODO: remove temp hack.
-            Bytes.reverse(address);
+            Utils.reverse(address);
             BluetoothDevice device = mAdapter.getRemoteDevice(address);
             position += 6;
             // Skip address type.
@@ -1103,9 +1102,9 @@ public class ScanController {
 
     @RequiresPermission(BLUETOOTH_SCAN)
     void registerScanner(
-            IScannerCallback callback, WorkSource workSource, AttributionSource attributionSource) {
+            IScannerCallback callback, WorkSource workSource, AttributionSource source) {
         if (!Utils.checkScanPermissionForDataDelivery(
-                mAdapterService, attributionSource, "ScanHelper registerScanner")) {
+                mAdapterService, source, "ScanHelper registerScanner")) {
             return;
         }
 
@@ -1123,7 +1122,7 @@ public class ScanController {
             }
             return;
         }
-        registerScannerInternal(callback, attributionSource, workSource);
+        registerScannerInternal(callback, source, workSource);
     }
 
     /** Intended for internal use within the Bluetooth app. Bypass permission check */
@@ -1137,9 +1136,9 @@ public class ScanController {
     }
 
     @RequiresPermission(BLUETOOTH_SCAN)
-    void unregisterScanner(int scannerId, AttributionSource attributionSource) {
+    void unregisterScanner(int scannerId, AttributionSource source) {
         if (!Utils.checkScanPermissionForDataDelivery(
-                mAdapterService, attributionSource, "ScanHelper unregisterScanner")) {
+                mAdapterService, source, "ScanHelper unregisterScanner")) {
             return;
         }
 
@@ -1183,16 +1182,16 @@ public class ScanController {
             int scannerId,
             ScanSettings settings,
             List<ScanFilter> filters,
-            AttributionSource attributionSource) {
+            AttributionSource source) {
         Log.d(TAG, "start scan with filters");
 
         if (!Utils.checkScanPermissionForDataDelivery(
-                mAdapterService, attributionSource, "Starting GATT scan.")) {
+                mAdapterService, source, "Starting GATT scan.")) {
             return;
         }
 
         enforcePrivilegedPermissionIfNeeded(settings);
-        String callingPackage = attributionSource.getPackageName();
+        String callingPackage = source.getPackageName();
         settings = enforceReportDelayFloor(settings);
         enforcePrivilegedPermissionIfNeeded(filters);
         final ScanClient scanClient = new ScanClient(scannerId, settings, filters);
@@ -1202,8 +1201,7 @@ public class ScanController {
                 callingPackage.equals(mExposureNotificationPackage);
 
         scanClient.mHasDisavowedLocation =
-                Utils.hasDisavowedLocationForScan(
-                        mAdapterService, attributionSource, mTestModeEnabled);
+                Utils.hasDisavowedLocationForScan(mAdapterService, source, mTestModeEnabled);
 
         scanClient.mIsQApp =
                 checkCallerTargetSdk(mAdapterService, callingPackage, Build.VERSION_CODES.Q);
@@ -1211,11 +1209,11 @@ public class ScanController {
             if (scanClient.mIsQApp) {
                 scanClient.mHasLocationPermission =
                         Utils.checkCallerHasFineLocation(
-                                mAdapterService, attributionSource, scanClient.mUserHandle);
+                                mAdapterService, source, scanClient.mUserHandle);
             } else {
                 scanClient.mHasLocationPermission =
                         Utils.checkCallerHasCoarseOrFineLocation(
-                                mAdapterService, attributionSource, scanClient.mUserHandle);
+                                mAdapterService, source, scanClient.mUserHandle);
             }
         }
         scanClient.mHasNetworkSettingsPermission =
@@ -1277,19 +1275,19 @@ public class ScanController {
             PendingIntent pendingIntent,
             ScanSettings settings,
             List<ScanFilter> filters,
-            AttributionSource attributionSource) {
+            AttributionSource source) {
         Log.d(TAG, "start scan with filters, for PendingIntent");
 
         if (!Utils.checkScanPermissionForDataDelivery(
-                mAdapterService, attributionSource, "Starting GATT scan.")) {
+                mAdapterService, source, "Starting GATT scan.")) {
             return;
         }
         enforcePrivilegedPermissionIfNeeded(settings);
         settings = enforceReportDelayFloor(settings);
         enforcePrivilegedPermissionIfNeeded(filters);
         UUID uuid = UUID.randomUUID();
-        String callingPackage = attributionSource.getPackageName();
-        int callingUid = attributionSource.getUid();
+        String callingPackage = source.getPackageName();
+        int callingUid = source.getUid();
         PendingIntentInfo piInfo =
                 new PendingIntentInfo(pendingIntent, settings, filters, callingPackage, callingUid);
         Log.d(
@@ -1305,8 +1303,7 @@ public class ScanController {
             return;
         }
 
-        ScannerMap.ScannerApp app =
-                mScannerMap.add(uuid, attributionSource, piInfo, mAdapterService, this);
+        ScannerMap.ScannerApp app = mScannerMap.add(uuid, source, piInfo, mAdapterService, this);
 
         app.mUserHandle = UserHandle.getUserHandleForUid(Binder.getCallingUid());
         mAppOps.checkPackage(Binder.getCallingUid(), callingPackage);
@@ -1314,19 +1311,18 @@ public class ScanController {
                 callingPackage.equals(mExposureNotificationPackage);
 
         app.mHasDisavowedLocation =
-                Utils.hasDisavowedLocationForScan(
-                        mAdapterService, attributionSource, mTestModeEnabled);
+                Utils.hasDisavowedLocationForScan(mAdapterService, source, mTestModeEnabled);
 
         if (!app.mHasDisavowedLocation) {
             try {
                 if (checkCallerTargetSdk(mAdapterService, callingPackage, Build.VERSION_CODES.Q)) {
                     app.mHasLocationPermission =
                             Utils.checkCallerHasFineLocation(
-                                    mAdapterService, attributionSource, app.mUserHandle);
+                                    mAdapterService, source, app.mUserHandle);
                 } else {
                     app.mHasLocationPermission =
                             Utils.checkCallerHasCoarseOrFineLocation(
-                                    mAdapterService, attributionSource, app.mUserHandle);
+                                    mAdapterService, source, app.mUserHandle);
                 }
             } catch (SecurityException se) {
                 // No need to throw here. Just mark as not granted.
@@ -1345,7 +1341,7 @@ public class ScanController {
         // If this fails, we should stop the scan immediately.
         if (!pendingIntent.addCancelListener(Runnable::run, mScanIntentCancelListener)) {
             Log.d(TAG, "scanning PendingIntent is already cancelled, stopping scan.");
-            stopScan(pendingIntent, attributionSource);
+            stopScan(pendingIntent, source);
         }
     }
 
@@ -1384,9 +1380,9 @@ public class ScanController {
     }
 
     @RequiresPermission(BLUETOOTH_SCAN)
-    void flushPendingBatchResults(int scannerId, AttributionSource attributionSource) {
+    void flushPendingBatchResults(int scannerId, AttributionSource source) {
         if (!Utils.checkScanPermissionForDataDelivery(
-                mAdapterService, attributionSource, "ScanHelper flushPendingBatchResults")) {
+                mAdapterService, source, "ScanHelper flushPendingBatchResults")) {
             return;
         }
         flushPendingBatchResultsInternal(scannerId);
@@ -1398,9 +1394,9 @@ public class ScanController {
     }
 
     @RequiresPermission(BLUETOOTH_SCAN)
-    void stopScan(int scannerId, AttributionSource attributionSource) {
+    void stopScan(int scannerId, AttributionSource source) {
         if (!Utils.checkScanPermissionForDataDelivery(
-                mAdapterService, attributionSource, "ScanHelper stopScan")) {
+                mAdapterService, source, "ScanHelper stopScan")) {
             return;
         }
         stopScanInternal(scannerId);
@@ -1421,9 +1417,9 @@ public class ScanController {
     }
 
     @RequiresPermission(BLUETOOTH_SCAN)
-    void stopScan(PendingIntent intent, AttributionSource attributionSource) {
+    void stopScan(PendingIntent intent, AttributionSource source) {
         if (!Utils.checkScanPermissionForDataDelivery(
-                mAdapterService, attributionSource, "ScanHelper stopScan")) {
+                mAdapterService, source, "ScanHelper stopScan")) {
             return;
         }
         stopScanInternal(intent);
@@ -1451,19 +1447,18 @@ public class ScanController {
             int skip,
             int timeout,
             IPeriodicAdvertisingCallback callback,
-            AttributionSource attributionSource) {
+            AttributionSource source) {
         if (!Utils.checkScanPermissionForDataDelivery(
-                mAdapterService, attributionSource, "ScanHelper registerSync")) {
+                mAdapterService, source, "ScanHelper registerSync")) {
             return;
         }
         mPeriodicScanManager.startSync(scanResult, skip, timeout, callback);
     }
 
     @RequiresPermission(BLUETOOTH_SCAN)
-    void unregisterSync(
-            IPeriodicAdvertisingCallback callback, AttributionSource attributionSource) {
+    void unregisterSync(IPeriodicAdvertisingCallback callback, AttributionSource source) {
         if (!Utils.checkScanPermissionForDataDelivery(
-                mAdapterService, attributionSource, "ScanHelper unregisterSync")) {
+                mAdapterService, source, "ScanHelper unregisterSync")) {
             return;
         }
         mPeriodicScanManager.stopSync(callback);
@@ -1471,12 +1466,9 @@ public class ScanController {
 
     @RequiresPermission(BLUETOOTH_SCAN)
     void transferSync(
-            BluetoothDevice bda,
-            int serviceData,
-            int syncHandle,
-            AttributionSource attributionSource) {
+            BluetoothDevice bda, int serviceData, int syncHandle, AttributionSource source) {
         if (!Utils.checkScanPermissionForDataDelivery(
-                mAdapterService, attributionSource, "ScanHelper transferSync")) {
+                mAdapterService, source, "ScanHelper transferSync")) {
             return;
         }
         mPeriodicScanManager.transferSync(bda, serviceData, syncHandle);
@@ -1488,18 +1480,18 @@ public class ScanController {
             int serviceData,
             int advHandle,
             IPeriodicAdvertisingCallback callback,
-            AttributionSource attributionSource) {
+            AttributionSource source) {
         if (!Utils.checkScanPermissionForDataDelivery(
-                mAdapterService, attributionSource, "ScanHelper transferSetInfo")) {
+                mAdapterService, source, "ScanHelper transferSetInfo")) {
             return;
         }
         mPeriodicScanManager.transferSetInfo(bda, serviceData, advHandle, callback);
     }
 
     @RequiresPermission(BLUETOOTH_SCAN)
-    int numHwTrackFiltersAvailable(AttributionSource attributionSource) {
+    int numHwTrackFiltersAvailable(AttributionSource source) {
         if (!Utils.checkScanPermissionForDataDelivery(
-                mAdapterService, attributionSource, "ScanHelper numHwTrackFiltersAvailable")) {
+                mAdapterService, source, "ScanHelper numHwTrackFiltersAvailable")) {
             return 0;
         }
         return (mAdapterService.getTotalNumOfTrackableAdvertisements()
@@ -1512,7 +1504,7 @@ public class ScanController {
      */
     class ScannerDeathRecipient implements IBinder.DeathRecipient {
         int mScannerId;
-        private String mPackageName;
+        private final String mPackageName;
 
         ScannerDeathRecipient(int scannerId, String packageName) {
             mScannerId = scannerId;

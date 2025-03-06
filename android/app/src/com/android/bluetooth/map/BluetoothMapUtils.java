@@ -26,8 +26,6 @@ import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
 import com.android.bluetooth.mapapi.BluetoothMapContract;
 
-import com.google.common.base.Ascii;
-
 import java.io.ByteArrayOutputStream;
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
@@ -43,6 +41,7 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Calendar;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -120,7 +119,7 @@ public class BluetoothMapUtils {
         SMS_CDMA,
         MMS,
         IM;
-        private static TYPE[] sAllValues = values();
+        private static final TYPE[] sAllValues = values();
 
         public static TYPE fromOrdinal(int n) {
             if (n < sAllValues.length) {
@@ -640,7 +639,7 @@ public class BluetoothMapUtils {
         if (charset == null) {
             charset = "UTF-8";
         } else {
-            charset = Ascii.toUpperCase(charset);
+            charset = charset.toUpperCase(Locale.ROOT);
             try {
                 if (!Charset.isSupported(charset)) {
                     charset = "UTF-8";

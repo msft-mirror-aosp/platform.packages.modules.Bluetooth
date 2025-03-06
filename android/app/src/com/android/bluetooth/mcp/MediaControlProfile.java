@@ -85,7 +85,7 @@ public class MediaControlProfile implements MediaControlServiceCallbacks {
     // MCP Service requests for state fields needed to fill the characteristic values
     private List<PlayerStateField> mPendingStateRequest;
 
-    private MediaPlayerWrapper mLastActivePlayer = null;
+    private final MediaPlayerWrapper mLastActivePlayer = null;
 
     // Same base feature set as the player item features defined in `avrcp/get_foder_items.cc`
     private static final long BASE_PLAYER_ACTION_SET =

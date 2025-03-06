@@ -54,34 +54,27 @@ public class ScannerMap {
     /** Add an entry to the application context list with a callback. */
     ScannerApp add(
             UUID uuid,
-            AttributionSource attributionSource,
+            AttributionSource source,
             WorkSource workSource,
             IScannerCallback callback,
             AdapterService adapterService,
             ScanController scanController) {
-        return add(
-                uuid,
-                attributionSource,
-                workSource,
-                callback,
-                null,
-                adapterService,
-                scanController);
+        return add(uuid, source, workSource, callback, null, adapterService, scanController);
     }
 
     /** Add an entry to the application context list with a pending intent. */
     ScannerApp add(
             UUID uuid,
-            AttributionSource attributionSource,
+            AttributionSource source,
             ScanController.PendingIntentInfo piInfo,
             AdapterService adapterService,
             ScanController scanController) {
-        return add(uuid, attributionSource, null, null, piInfo, adapterService, scanController);
+        return add(uuid, source, null, null, piInfo, adapterService, scanController);
     }
 
     private ScannerApp add(
             UUID uuid,
-            AttributionSource attributionSource,
+            AttributionSource source,
             @Nullable WorkSource workSource,
             @Nullable IScannerCallback callback,
             @Nullable ScanController.PendingIntentInfo piInfo,
@@ -115,7 +108,7 @@ public class ScannerMap {
         ScannerApp app =
                 new ScannerApp(
                         uuid,
-                        getLastAttributionTag(attributionSource),
+                        getLastAttributionTag(source),
                         callback,
                         piInfo,
                         appName,

@@ -43,7 +43,7 @@ public class HeadsetNativeInterface {
 
     private static final Object INSTANCE_LOCK = new Object();
 
-    private AdapterService mAdapterService;
+    private final AdapterService mAdapterService;
 
     private HeadsetNativeInterface() {
         mAdapterService = requireNonNull(AdapterService.getAdapterService());

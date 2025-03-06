@@ -81,8 +81,8 @@ public class MediaPlayerList {
     // string.
     private static final String BROWSE_ID_PATTERN = "\\d\\d.*";
 
-    private Context mContext;
-    private Looper mLooper; // Thread all media player callbacks and timeouts happen on
+    private final Context mContext;
+    private final Looper mLooper; // Thread all media player callbacks and timeouts happen on
     private MediaSessionManager mMediaSessionManager;
     private MediaData mCurrMediaData = null;
     private final AudioManager mAudioManager;
@@ -93,13 +93,13 @@ public class MediaPlayerList {
             new BluetoothEventLogger(
                     AUDIO_PLAYBACK_STATE_LOGGER_SIZE, AUDIO_PLAYBACK_STATE_LOGGER_TITLE);
 
-    private Map<Integer, MediaPlayerWrapper> mMediaPlayers =
+    private final Map<Integer, MediaPlayerWrapper> mMediaPlayers =
             Collections.synchronizedMap(new HashMap<Integer, MediaPlayerWrapper>());
-    private Map<String, Integer> mMediaPlayerIds =
+    private final Map<String, Integer> mMediaPlayerIds =
             Collections.synchronizedMap(new HashMap<String, Integer>());
-    private Map<Integer, BrowsedPlayerWrapper> mBrowsablePlayers =
+    private final Map<Integer, BrowsedPlayerWrapper> mBrowsablePlayers =
             Collections.synchronizedMap(new HashMap<Integer, BrowsedPlayerWrapper>());
-    private Map<Integer, MediaBrowserWrapper> mMediaBrowserWrappers =
+    private final Map<Integer, MediaBrowserWrapper> mMediaBrowserWrappers =
             Collections.synchronizedMap(new HashMap<Integer, MediaBrowserWrapper>());
     private int mActivePlayerId = NO_ACTIVE_PLAYER;
     private int mBrowsingPlayerId = NO_ACTIVE_PLAYER;
@@ -329,9 +329,9 @@ public class MediaPlayerList {
 
     /** returns the current player ID. */
     public int getCurrentPlayerId() {
-        if (Flags.setAddressedPlayer()) {
+        if (Flags.setAddressedPlayer() && Util.areMultiplePlayersSupported()) {
             return mAddressedPlayerId;
-        } else if (Flags.browsingRefactor()) {
+        } else if (Flags.browsingRefactor() && Util.areMultiplePlayersSupported()) {
             return mBrowsingPlayerId;
         } else {
             return BLUETOOTH_PLAYER_ID;
@@ -375,6 +375,14 @@ public class MediaPlayerList {
     /** Sets the {@link #mBrowsingPlayerId} and returns the number of items in current path */
     public void setBrowsedPlayer(int playerId, String currentPath, SetBrowsedPlayerCallback cb) {
         if (Flags.browsingRefactor()) {
+            if (!Util.areMultiplePlayersSupported()) {
+                cb.run(
+                        playerId,
+                        playerId == BLUETOOTH_PLAYER_ID,
+                        currentPath,
+                        mMediaBrowserWrappers.size());
+                return;
+            }
             if (!haveMediaBrowser(playerId)) {
                 cb.run(playerId, false, "", 0);
                 return;
@@ -422,7 +430,7 @@ public class MediaPlayerList {
 
     /** Sets which player the AV/C commands should be addressed to. */
     public int setAddressedPlayer(int playerId) {
-        if (!Flags.setAddressedPlayer()) {
+        if (!Flags.setAddressedPlayer() || !Util.areMultiplePlayersSupported()) {
             return BLUETOOTH_PLAYER_ID;
         }
         if (mMediaPlayerIds.containsValue(playerId)) {
@@ -439,6 +447,14 @@ public class MediaPlayerList {
     public List<PlayerInfo> getMediaPlayerList() {
         List<PlayerInfo> ret = new ArrayList<PlayerInfo>();
         if (Flags.browsingRefactor()) {
+            if (!Util.areMultiplePlayersSupported()) {
+                PlayerInfo info = new PlayerInfo();
+                info.id = BLUETOOTH_PLAYER_ID;
+                info.name = BLUETOOTH_PLAYER_NAME;
+                info.browsable = mMediaBrowserWrappers.size() > 0;
+                ret.add(info);
+                return ret;
+            }
             // Add actual browsable players
             for (MediaBrowserWrapper browser : mMediaBrowserWrappers.values()) {
                 Log.i(
@@ -603,7 +619,7 @@ public class MediaPlayerList {
         long queueItemId = Long.parseLong(m.group(1));
 
         MediaPlayerWrapper player;
-        if (Flags.setAddressedPlayer()) {
+        if (Flags.setAddressedPlayer() && Util.areMultiplePlayersSupported()) {
             player = getAddressedPlayer();
         } else {
             player = getActivePlayer();
@@ -622,6 +638,10 @@ public class MediaPlayerList {
         Log.d(TAG, "playFolderItem: mediaId=" + mediaId);
 
         if (Flags.browsingRefactor()) {
+            if (!Util.areMultiplePlayersSupported()) {
+                mBrowsingPlayerId = Integer.parseInt(mediaId.substring(0, 2));
+                mediaId = mediaId.substring(2);
+            }
             if (!haveMediaBrowser(mBrowsingPlayerId)) {
                 Log.e(
                         TAG,
@@ -732,11 +752,34 @@ public class MediaPlayerList {
         }
 
         if (Flags.browsingRefactor()) {
-            if (mMediaBrowserWrappers.containsKey(playerId)) {
-                MediaBrowserWrapper wrapper = mMediaBrowserWrappers.get(playerId);
+            int playerIndex = playerId;
+            String itemId = mediaId;
+            if (!Util.areMultiplePlayersSupported()) {
+                playerIndex = Integer.parseInt(mediaId.substring(0, 2));
+                itemId = mediaId.substring(2);
+            }
+
+            if (mMediaBrowserWrappers.containsKey(playerIndex)) {
+                MediaBrowserWrapper wrapper = mMediaBrowserWrappers.get(playerIndex);
+                // Player ID needs to be added back to path if we use the Bluetooth player wrapper.
+                final String playerPrefix = Utils.formatSimple("%02d", playerIndex);
+                // If we use the Bluetooth player wrapper, the mediaId will be empty and the root id
+                // items will be fetched instead.
                 wrapper.getFolderItems(
-                        mediaId,
+                        itemId,
                         (id, results) -> {
+                            // If we use the Bluetooth player wrapper, we need to add back the
+                            // playerId to the item path.
+                            if (!Util.areMultiplePlayersSupported()) {
+                                for (ListItem item : results) {
+                                    if (item.isFolder) {
+                                        item.folder.mediaId =
+                                                playerPrefix.concat(item.folder.mediaId);
+                                    } else {
+                                        item.song.mediaId = playerPrefix.concat(item.song.mediaId);
+                                    }
+                                }
+                            }
                             cb.run(mediaId, results);
                         });
             } else {
@@ -992,7 +1035,9 @@ public class MediaPlayerList {
 
         if (Utils.isPtsTestMode()) {
             sendFolderUpdate(true, true, false);
-        } else if (Flags.setAddressedPlayer() && Flags.browsingRefactor()) {
+        } else if (Flags.setAddressedPlayer()
+                && Flags.browsingRefactor()
+                && Util.areMultiplePlayersSupported()) {
             // If the browsing refactor flag is not active, addressed player should always be 0.
             // If the new active player has been set by Addressed player key event
             // We don't send an addressed player update.
@@ -1158,7 +1203,9 @@ public class MediaPlayerList {
                                 Log.i(TAG, "package removed from browsable list: " + packageName);
                                 mMediaBrowserWrappers.get(playerId).disconnect();
                                 mMediaBrowserWrappers.remove(playerId);
-                                sendFolderUpdate(true, false, false);
+                                if (Util.areMultiplePlayersSupported()) {
+                                    sendFolderUpdate(true, false, false);
+                                }
                             }
                         }
                     } else if (action.equals(Intent.ACTION_PACKAGE_ADDED)
@@ -1187,7 +1234,9 @@ public class MediaPlayerList {
                             int mediaId = getFreeMediaPlayerId();
                             mMediaPlayerIds.put(packageName, mediaId);
                             mMediaBrowserWrappers.put(mediaId, wrapper);
-                            sendFolderUpdate(true, false, false);
+                            if (Util.areMultiplePlayersSupported()) {
+                                sendFolderUpdate(true, false, false);
+                            }
                         }
                     }
                 }

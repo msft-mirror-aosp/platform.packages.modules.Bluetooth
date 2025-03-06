@@ -67,6 +67,7 @@ import com.android.bluetooth.btservice.InteropUtil;
 import com.android.bluetooth.btservice.ProfileService;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
 import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
+import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.sdp.SdpManagerNativeInterface;
 import com.android.bluetooth.util.DevicePolicyUtils;
 import com.android.internal.annotations.VisibleForTesting;
@@ -123,6 +124,7 @@ public class BluetoothPbapService extends ProfileService implements IObexConnect
     static final int ROLLOVER_COUNTERS = 7;
     private static final int GET_LOCAL_TELEPHONY_DETAILS = 8;
     private static final int HANDLE_VERSION_UPDATE_NOTIFICATION = 9;
+    private static final int HANDLE_ACCEPT_FAILED = 10;
 
     static final int USER_CONFIRM_TIMEOUT_VALUE = 30000;
     private static final int RELEASE_WAKE_LOCK_DELAY_MS = 10000;
@@ -611,6 +613,9 @@ public class BluetoothPbapService extends ProfileService implements IObexConnect
 
                     handleNotificationTask(remoteDev);
                     break;
+                case HANDLE_ACCEPT_FAILED:
+                    handleAcceptFailed();
+                    break;
                 default:
                     break;
             }
@@ -957,6 +962,14 @@ public class BluetoothPbapService extends ProfileService implements IObexConnect
                 BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
                 11);
 
+        if (Flags.pbapCleanupUseHandler()) {
+            mSessionStatusHandler.sendEmptyMessage(HANDLE_ACCEPT_FAILED);
+        } else {
+            handleAcceptFailed();
+        }
+    }
+
+    private void handleAcceptFailed() {
         if (mWakeLock != null) {
             mWakeLock.release();
             mWakeLock = null;
