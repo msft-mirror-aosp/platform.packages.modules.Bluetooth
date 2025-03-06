@@ -1244,6 +1244,19 @@ public final class Utils {
                 || pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK);
     }
 
+    /**
+     * Reverses the elements of {@code array}. This is equivalent to {@code
+     * Collections.reverse(Bytes.asList(array))}, but is likely to be more efficient.
+     */
+    public static void reverse(byte[] array) {
+        requireNonNull(array);
+        for (int i = 0, j = array.length - 1; i < j; i++, j--) {
+            byte tmp = array[i];
+            array[i] = array[j];
+            array[j] = tmp;
+        }
+    }
+
     /** A {@link Consumer} that automatically ignores any {@link RemoteException}s. */
     @FunctionalInterface
     @SuppressWarnings("FunctionalInterfaceMethodChanged")
