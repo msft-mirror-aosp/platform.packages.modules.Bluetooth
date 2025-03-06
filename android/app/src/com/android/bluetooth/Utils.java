@@ -1329,4 +1329,23 @@ public final class Utils {
     public static void callbackToApp(RemoteExceptionIgnoringRunnable callback) {
         callback.run();
     }
+
+    /** Invokes {@code toJoin.}{@link Thread#join() join()} uninterruptibly. */
+    public static void joinUninterruptibly(Thread toJoin) {
+        boolean interrupted = false;
+        try {
+            while (true) {
+                try {
+                    toJoin.join();
+                    return;
+                } catch (InterruptedException e) {
+                    interrupted = true;
+                }
+            }
+        } finally {
+            if (interrupted) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
 }

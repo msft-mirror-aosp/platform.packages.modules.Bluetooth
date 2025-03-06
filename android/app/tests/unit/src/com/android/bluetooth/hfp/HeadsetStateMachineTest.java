@@ -27,6 +27,7 @@ import static android.media.audio.Flags.FLAG_DEPRECATE_STREAM_BT_SCO;
 
 import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
+import static com.android.bluetooth.Utils.joinUninterruptibly;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -72,8 +73,6 @@ import com.android.bluetooth.btservice.RemoteDevices;
 import com.android.bluetooth.btservice.SilenceDeviceManager;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
 import com.android.bluetooth.flags.Flags;
-
-import com.google.common.util.concurrent.Uninterruptibles;
 
 import org.junit.After;
 import org.junit.Before;
@@ -182,7 +181,7 @@ public class HeadsetStateMachineTest {
     public void tearDown() throws Exception {
         HeadsetObjectsFactory.getInstance().destroyStateMachine(mHeadsetStateMachine);
         mHandlerThread.quit();
-        Uninterruptibles.joinUninterruptibly(mHandlerThread);
+        joinUninterruptibly(mHandlerThread);
         InstrumentationRegistry.getInstrumentation()
                 .getUiAutomation()
                 .dropShellPermissionIdentity();
