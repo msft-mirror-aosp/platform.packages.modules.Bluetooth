@@ -141,7 +141,6 @@ static jmethodID method_onDisconnected;
 static jmethodID method_onReadCharacteristic;
 static jmethodID method_onWriteCharacteristic;
 static jmethodID method_onExecuteCompleted;
-static jmethodID method_onSearchCompleted;
 static jmethodID method_onReadDescriptor;
 static jmethodID method_onWriteDescriptor;
 static jmethodID method_onNotify;
@@ -277,16 +276,6 @@ static void btgattc_close_cb(int conn_id, int status, int clientIf, const RawAdd
   ScopedLocalRef<jstring> address(sCallbackEnv.get(), bdaddr2newjstr(sCallbackEnv.get(), &bda));
   sCallbackEnv->CallVoidMethod(mCallbacksObj, method_onDisconnected, clientIf, conn_id, status,
                                address.get());
-}
-
-static void btgattc_search_complete_cb(int conn_id, int status) {
-  std::shared_lock<std::shared_mutex> lock(callbacks_mutex);
-  CallbackEnv sCallbackEnv(__func__);
-  if (!sCallbackEnv.valid() || !mCallbacksObj) {
-    return;
-  }
-
-  sCallbackEnv->CallVoidMethod(mCallbacksObj, method_onSearchCompleted, conn_id, status);
 }
 
 static void btgattc_register_for_notification_cb(int conn_id, int registered, int status,
@@ -562,7 +551,6 @@ static const btgatt_client_callbacks_t sGattClientCallbacks = {
         btgattc_register_app_cb,
         btgattc_open_cb,
         btgattc_close_cb,
-        btgattc_search_complete_cb,
         btgattc_register_for_notification_cb,
         btgattc_notify_cb,
         btgattc_read_characteristic_cb,
@@ -1413,14 +1401,6 @@ static void gattClientDiscoverServiceByUuidNative(JNIEnv* /* env */, jobject /* 
 
   Uuid uuid = from_java_uuid(service_uuid_msb, service_uuid_lsb);
   sGattIf->client->btif_gattc_discover_service_by_uuid(conn_id, uuid);
-}
-
-static void gattClientGetGattDbNative(JNIEnv* /* env */, jobject /* object */, jint conn_id) {
-  if (!sGattIf) {
-    return;
-  }
-
-  sGattIf->client->get_gatt_db(conn_id);
 }
 
 static void gattClientReadCharacteristicNative(JNIEnv* /* env */, jobject /* object */,
@@ -2958,7 +2938,6 @@ static int register_com_android_bluetooth_gatt_(JNIEnv* env) {
           {"gattClientSearchServiceNative", "(IZJJ)V", (void*)gattClientSearchServiceNative},
           {"gattClientDiscoverServiceByUuidNative", "(IJJ)V",
            (void*)gattClientDiscoverServiceByUuidNative},
-          {"gattClientGetGattDbNative", "(I)V", (void*)gattClientGetGattDbNative},
           {"gattClientReadCharacteristicNative", "(III)V",
            (void*)gattClientReadCharacteristicNative},
           {"gattClientReadUsingCharacteristicUuidNative", "(IJJIII)V",
@@ -3008,7 +2987,6 @@ static int register_com_android_bluetooth_gatt_(JNIEnv* env) {
           {"onReadCharacteristic", "(III[B)V", &method_onReadCharacteristic},
           {"onWriteCharacteristic", "(III[B)V", &method_onWriteCharacteristic},
           {"onExecuteCompleted", "(II)V", &method_onExecuteCompleted},
-          {"onSearchCompleted", "(II)V", &method_onSearchCompleted},
           {"onReadDescriptor", "(III[B)V", &method_onReadDescriptor},
           {"onWriteDescriptor", "(III[B)V", &method_onWriteDescriptor},
           {"onNotify", "(ILjava/lang/String;IZ[B)V", &method_onNotify},
