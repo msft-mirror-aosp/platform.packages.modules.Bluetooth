@@ -259,7 +259,6 @@ public class BluetoothPbapService extends ProfileService implements IObexConnect
         }
     }
 
-
     private void parseIntent(final Intent intent) {
         String action = intent.getAction();
         Log.d(TAG, "action: " + action);
@@ -988,32 +987,26 @@ public class BluetoothPbapService extends ProfileService implements IObexConnect
 
     private void loadAllContacts() {
         if (mThreadLoadContacts == null) {
-            Runnable r =
-                    new Runnable() {
-                        @Override
-                        public void run() {
-                            BluetoothPbapUtils.loadAllContacts(
-                                    BluetoothPbapService.this, mSessionStatusHandler);
-                            mThreadLoadContacts = null;
-                        }
-                    };
-            mThreadLoadContacts = new Thread(r);
+            mThreadLoadContacts =
+                    new Thread(
+                            () -> {
+                                BluetoothPbapUtils.loadAllContacts(
+                                        BluetoothPbapService.this, mSessionStatusHandler);
+                                mThreadLoadContacts = null;
+                            });
             mThreadLoadContacts.start();
         }
     }
 
     private void updateSecondaryVersion() {
         if (mThreadUpdateSecVersionCounter == null) {
-            Runnable r =
-                    new Runnable() {
-                        @Override
-                        public void run() {
-                            BluetoothPbapUtils.updateSecondaryVersionCounter(
-                                    BluetoothPbapService.this, mSessionStatusHandler);
-                            mThreadUpdateSecVersionCounter = null;
-                        }
-                    };
-            mThreadUpdateSecVersionCounter = new Thread(r);
+            mThreadUpdateSecVersionCounter =
+                    new Thread(
+                            () -> {
+                                BluetoothPbapUtils.updateSecondaryVersionCounter(
+                                        BluetoothPbapService.this, mSessionStatusHandler);
+                                mThreadUpdateSecVersionCounter = null;
+                            });
             mThreadUpdateSecVersionCounter.start();
         }
     }
