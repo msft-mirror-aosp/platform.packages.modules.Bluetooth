@@ -30,6 +30,7 @@ import static androidx.test.espresso.intent.matcher.IntentMatchers.hasFlag;
 
 import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
+import static com.android.bluetooth.Utils.joinUninterruptibly;
 import static com.android.bluetooth.bass_client.BassClientStateMachine.ADD_BCAST_SOURCE;
 import static com.android.bluetooth.bass_client.BassClientStateMachine.CANCEL_PENDING_SOURCE_OPERATION;
 import static com.android.bluetooth.bass_client.BassClientStateMachine.CONNECT;
@@ -108,7 +109,6 @@ import com.android.bluetooth.btservice.MetricsLogger;
 import com.android.bluetooth.flags.Flags;
 
 import com.google.common.primitives.Bytes;
-import com.google.common.util.concurrent.Uninterruptibles;
 
 import org.hamcrest.Matcher;
 import org.hamcrest.core.AllOf;
@@ -218,7 +218,7 @@ public class BassClientStateMachineTest {
         MetricsLogger.setInstanceForTesting(null);
         mBassClientStateMachine.doQuit();
         mHandlerThread.quit();
-        Uninterruptibles.joinUninterruptibly(mHandlerThread);
+        joinUninterruptibly(mHandlerThread);
         TestUtils.clearAdapterService(mAdapterService);
     }
 

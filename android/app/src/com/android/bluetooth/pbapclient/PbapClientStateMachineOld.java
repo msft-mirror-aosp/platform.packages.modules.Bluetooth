@@ -48,6 +48,8 @@ import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTING;
 
+import static com.android.bluetooth.Utils.joinUninterruptibly;
+
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothPbapClient;
 import android.bluetooth.BluetoothProfile;
@@ -71,8 +73,6 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.IState;
 import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
-
-import com.google.common.util.concurrent.Uninterruptibles;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -442,11 +442,11 @@ class PbapClientStateMachineOld extends StateMachine {
         HandlerThread handlerThread = mHandlerThread;
         if (handlerThread != null) {
             handlerThread.quitSafely();
-            Uninterruptibles.joinUninterruptibly(handlerThread);
+            joinUninterruptibly(handlerThread);
             mHandlerThread = null;
         }
         mSmHandlerThread.quitSafely();
-        Uninterruptibles.joinUninterruptibly(mSmHandlerThread);
+        joinUninterruptibly(mSmHandlerThread);
         quitNow();
     }
 
