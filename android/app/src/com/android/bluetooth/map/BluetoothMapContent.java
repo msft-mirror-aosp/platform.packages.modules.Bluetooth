@@ -2004,7 +2004,7 @@ public class BluetoothMapContent {
             // Filter ConvoId
             long convoId = -1;
             if (ap.getFilterConvoId() != null) {
-                convoId = ap.getFilterConvoId().getLeastSignificantBits();
+                convoId = ap.getFilterConvoId().leastSignificantBits();
             }
             if (convoId > 0) {
                 selection
@@ -3413,7 +3413,7 @@ public class BluetoothMapContent {
         }
         long convoId = -1;
         if (ap.getFilterConvoId() != null) {
-            convoId = ap.getFilterConvoId().getLeastSignificantBits();
+            convoId = ap.getFilterConvoId().leastSignificantBits();
         }
         if (convoId > 0) {
             newUri.appendQueryParameter(
