@@ -581,6 +581,9 @@ static void bond_state_changed(bt_status_t status, const RawAddress& bd_addr,
   if (state == BT_BOND_STATE_NONE) {
     forget_device_from_metric_id_allocator(bd_addr);
     btif_config_remove_device(bd_addr.ToString());
+    if (com::android::bluetooth::flags::reset_security_flags_on_pairing_failure()) {
+      get_security_client_interface().BTM_SecClearSecurityFlags(bd_addr);
+    }
   } else if (state == BT_BOND_STATE_BONDED) {
     allocate_metric_id_from_metric_id_allocator(bd_addr);
     if (!save_metric_id_from_metric_id_allocator(bd_addr)) {
