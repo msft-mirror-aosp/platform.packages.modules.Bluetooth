@@ -63,7 +63,6 @@ import android.os.Build;
 import android.os.ParcelUuid;
 import android.os.PowerExemptionManager;
 import android.os.Process;
-import android.os.RemoteException;
 import android.os.SystemProperties;
 import android.os.UserHandle;
 import android.os.UserManager;
@@ -96,7 +95,6 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 
 public final class Utils {
     public static final String TAG_PREFIX_BLUETOOTH = "Bluetooth";
@@ -1255,23 +1253,6 @@ public final class Utils {
             byte tmp = array[i];
             array[i] = array[j];
             array[j] = tmp;
-        }
-    }
-
-    /** A {@link Consumer} that automatically ignores any {@link RemoteException}s. */
-    @FunctionalInterface
-    @SuppressWarnings("FunctionalInterfaceMethodChanged")
-    public interface RemoteExceptionIgnoringConsumer<T> extends Consumer<T> {
-        /** Called by {@code accept}. */
-        void acceptOrThrow(T t) throws RemoteException;
-
-        @Override
-        default void accept(T t) {
-            try {
-                acceptOrThrow(t);
-            } catch (RemoteException ex) {
-                // Ignore RemoteException
-            }
         }
     }
 
