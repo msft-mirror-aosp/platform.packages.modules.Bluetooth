@@ -1565,40 +1565,40 @@ static void gattClientScanFilterParamAddNative(JNIEnv* env, jobject /* object */
   jmethodID methodId = 0;
   ScopedLocalRef<jclass> filtparam(env, env->GetObjectClass(params));
 
-  methodId = env->GetMethodID(filtparam.get(), "getClientIf", "()I");
+  methodId = env->GetMethodID(filtparam.get(), "clientInterface", "()I");
   uint8_t client_if = env->CallIntMethod(params, methodId);
 
-  methodId = env->GetMethodID(filtparam.get(), "getFiltIndex", "()I");
+  methodId = env->GetMethodID(filtparam.get(), "filterIndex", "()I");
   uint8_t filt_index = env->CallIntMethod(params, methodId);
 
-  methodId = env->GetMethodID(filtparam.get(), "getFeatSeln", "()I");
+  methodId = env->GetMethodID(filtparam.get(), "featureSelection", "()I");
   filt_params->feat_seln = env->CallIntMethod(params, methodId);
 
-  methodId = env->GetMethodID(filtparam.get(), "getListLogicType", "()I");
+  methodId = env->GetMethodID(filtparam.get(), "listLogicType", "()I");
   filt_params->list_logic_type = env->CallIntMethod(params, methodId);
 
-  methodId = env->GetMethodID(filtparam.get(), "getFiltLogicType", "()I");
+  methodId = env->GetMethodID(filtparam.get(), "filterLogicType", "()I");
   filt_params->filt_logic_type = env->CallIntMethod(params, methodId);
 
-  methodId = env->GetMethodID(filtparam.get(), "getDelyMode", "()I");
+  methodId = env->GetMethodID(filtparam.get(), "delayMode", "()I");
   filt_params->dely_mode = env->CallIntMethod(params, methodId);
 
-  methodId = env->GetMethodID(filtparam.get(), "getFoundTimeout", "()I");
+  methodId = env->GetMethodID(filtparam.get(), "foundTimeout", "()I");
   filt_params->found_timeout = env->CallIntMethod(params, methodId);
 
-  methodId = env->GetMethodID(filtparam.get(), "getLostTimeout", "()I");
+  methodId = env->GetMethodID(filtparam.get(), "lostTimeout", "()I");
   filt_params->lost_timeout = env->CallIntMethod(params, methodId);
 
-  methodId = env->GetMethodID(filtparam.get(), "getFoundTimeOutCnt", "()I");
+  methodId = env->GetMethodID(filtparam.get(), "foundTimeoutCount", "()I");
   filt_params->found_timeout_cnt = env->CallIntMethod(params, methodId);
 
-  methodId = env->GetMethodID(filtparam.get(), "getNumOfTrackEntries", "()I");
+  methodId = env->GetMethodID(filtparam.get(), "numberOfTrackEntries", "()I");
   filt_params->num_of_tracking_entries = env->CallIntMethod(params, methodId);
 
-  methodId = env->GetMethodID(filtparam.get(), "getRSSIHighValue", "()I");
+  methodId = env->GetMethodID(filtparam.get(), "rssiHighValue", "()I");
   filt_params->rssi_high_thres = env->CallIntMethod(params, methodId);
 
-  methodId = env->GetMethodID(filtparam.get(), "getRSSILowValue", "()I");
+  methodId = env->GetMethodID(filtparam.get(), "rssiLowValue", "()I");
   filt_params->rssi_low_thres = env->CallIntMethod(params, methodId);
 
   sScanner->ScanFilterParamSetup(client_if, add_scan_filter_params_action, filt_index,
