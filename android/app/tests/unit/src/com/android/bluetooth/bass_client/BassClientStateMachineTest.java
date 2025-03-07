@@ -533,7 +533,6 @@ public class BassClientStateMachineTest {
         assertThat(mBassClientStateMachine.isPendingRemove(invalidSourceId)).isFalse();
     }
 
-
     @Test
     public void gattCallbackOnConnectionStateChange_changedToConnected()
             throws InterruptedException {
@@ -1717,9 +1716,29 @@ public class BassClientStateMachineTest {
         mBassClientStateMachine.sendMessage(UPDATE_BCAST_SOURCE, sourceId, paSync, metadata);
         TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
 
-        BaseData data = Mockito.mock(BaseData.class);
+        byte[] serviceData =
+                new byte[] {
+                    // LEVEL 1
+                    (byte) 0x01,
+                    (byte) 0x02,
+                    (byte) 0x03, // mPresentationDelay
+                    (byte) 0x01, // mNumSubGroups
+                    // LEVEL 2
+                    (byte) 0x01, // numBIS
+                    (byte) 0xFF, // VENDOR_CODEC
+                    (byte) 0x0A,
+                    (byte) 0xAB,
+                    (byte) 0xBC,
+                    (byte) 0xCD,
+                    (byte) 0x00, // mCodecConfigLength
+                    (byte) 0x00, // mMetaDataLength
+                    // LEVEL 3
+                    (byte) 0x04, // mIndex
+                    (byte) 0x00, // mCodecConfigLength
+                };
+
+        BaseData data = BaseData.parseBaseData(serviceData);
         when(mBassClientService.getBase(anyInt())).thenReturn(data);
-        when(data.getNumberOfSubGroupsOfBIG()).thenReturn((byte) 1);
         Mockito.clearInvocations(callbacks);
 
         mBassClientStateMachine.sendMessage(UPDATE_BCAST_SOURCE, sourceId, paSync, metadata);

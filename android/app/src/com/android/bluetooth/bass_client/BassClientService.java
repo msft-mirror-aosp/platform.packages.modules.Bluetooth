@@ -1053,8 +1053,7 @@ public class BassClientService extends ProfileService {
         /* Don't bother active group (external broadcaster scenario) with SOUND EFFECTS */
         if (!mIsAllowedContextOfActiveGroupModified && isDevicePartOfActiveUnicastGroup(sink)) {
             leAudioService.setActiveGroupAllowedContextMask(
-                    BluetoothLeAudio.CONTEXTS_ALL
-                            & ~BluetoothLeAudio.CONTEXT_TYPE_SOUND_EFFECTS,
+                    BluetoothLeAudio.CONTEXTS_ALL & ~BluetoothLeAudio.CONTEXT_TYPE_SOUND_EFFECTS,
                     BluetoothLeAudio.CONTEXTS_ALL);
             mIsAllowedContextOfActiveGroupModified = true;
         }
@@ -2610,19 +2609,19 @@ public class BassClientService extends ProfileService {
             BaseData baseData, BluetoothDevice device, int syncHandle, boolean encrypted) {
         BluetoothLeBroadcastMetadata.Builder metaData = new BluetoothLeBroadcastMetadata.Builder();
         int index = 0;
-        for (BaseData.BaseInformation baseLevel2 : baseData.getLevelTwo()) {
+        for (BaseData.BaseInformation baseLevel2 : baseData.levelTwo()) {
             BluetoothLeBroadcastSubgroup.Builder subGroup =
                     new BluetoothLeBroadcastSubgroup.Builder();
-            for (int j = 0; j < baseLevel2.numSubGroups; j++) {
-                BaseData.BaseInformation baseLevel3 = baseData.getLevelThree().get(index++);
+            for (int j = 0; j < baseLevel2.mNumSubGroups; j++) {
+                BaseData.BaseInformation baseLevel3 = baseData.levelThree().get(index++);
                 BluetoothLeBroadcastChannel.Builder channel =
                         new BluetoothLeBroadcastChannel.Builder();
-                channel.setChannelIndex(baseLevel3.index);
+                channel.setChannelIndex(baseLevel3.mIndex);
                 channel.setSelected(false);
                 try {
                     channel.setCodecMetadata(
                             BluetoothLeAudioCodecConfigMetadata.fromRawBytes(
-                                    baseLevel3.codecConfigInfo));
+                                    baseLevel3.mCodecConfigInfo));
                 } catch (IllegalArgumentException e) {
                     Log.w(TAG, "Invalid metadata, adding empty data. Error: " + e);
                     channel.setCodecMetadata(
@@ -2630,7 +2629,7 @@ public class BassClientService extends ProfileService {
                 }
                 subGroup.addChannel(channel.build());
             }
-            byte[] arrayCodecId = baseLevel2.codecId;
+            byte[] arrayCodecId = baseLevel2.mCodecId;
             long codeId =
                     ((long) (arrayCodecId[4] & 0xff)) << 32
                             | (arrayCodecId[3] & 0xff) << 24
@@ -2641,7 +2640,7 @@ public class BassClientService extends ProfileService {
             try {
                 subGroup.setCodecSpecificConfig(
                         BluetoothLeAudioCodecConfigMetadata.fromRawBytes(
-                                baseLevel2.codecConfigInfo));
+                                baseLevel2.mCodecConfigInfo));
             } catch (IllegalArgumentException e) {
                 Log.w(TAG, "Invalid config, adding empty one. Error: " + e);
                 subGroup.setCodecSpecificConfig(
@@ -2650,7 +2649,7 @@ public class BassClientService extends ProfileService {
 
             try {
                 subGroup.setContentMetadata(
-                        BluetoothLeAudioContentMetadata.fromRawBytes(baseLevel2.metaData));
+                        BluetoothLeAudioContentMetadata.fromRawBytes(baseLevel2.mMetaData));
             } catch (IllegalArgumentException e) {
                 Log.w(TAG, "Invalid metadata, adding empty one. Error: " + e);
                 subGroup.setContentMetadata(
@@ -2660,7 +2659,7 @@ public class BassClientService extends ProfileService {
             metaData.addSubgroup(subGroup.build());
         }
         metaData.setSourceDevice(device, device.getAddressType());
-        byte[] arrayPresentationDelay = baseData.getLevelOne().presentationDelay;
+        byte[] arrayPresentationDelay = baseData.levelOne().mPresentationDelay;
         int presentationDelay =
                 (int)
                         ((arrayPresentationDelay[2] & 0xff) << 16
@@ -4231,12 +4230,11 @@ public class BassClientService extends ProfileService {
             if ((leaudioMonitorUnicastSourceWhenManagedByBroadcastDelegator()
                             && hasPrimaryDeviceManagedExternalBroadcast())
                     || (!leaudioMonitorUnicastSourceWhenManagedByBroadcastDelegator()
-                        && areReceiversReceivingOnlyExternalBroadcast(getConnectedDevices()))) {
+                            && areReceiversReceivingOnlyExternalBroadcast(getConnectedDevices()))) {
                 cacheSuspendingSources(BassConstants.INVALID_BROADCAST_ID);
                 List<Pair<BluetoothLeBroadcastReceiveState, BluetoothDevice>> sourcesToStop =
                         getReceiveStateDevicePairs(BassConstants.INVALID_BROADCAST_ID);
-                for (Pair<BluetoothLeBroadcastReceiveState, BluetoothDevice> pair :
-                        sourcesToStop) {
+                for (Pair<BluetoothLeBroadcastReceiveState, BluetoothDevice> pair : sourcesToStop) {
                     stopBigMonitoring(pair.first.getBroadcastId(), /* hostInitiated */ true);
                 }
             }
