@@ -406,13 +406,13 @@ public class MediaControlProfile implements MediaControlServiceCallbacks {
         mEventLogger.logd(
                 TAG,
                 "GMCS onMediaControlRequest: opcode= "
-                        + Request.Opcodes.toString(request.getOpcode()));
+                        + Request.Opcodes.toString(request.opcode()));
         Request.Results status = Request.Results.COMMAND_CANNOT_BE_COMPLETED;
 
         if (Flags.mcpAllowPlayWithoutActivePlayer()
                 && !Utils.isPtsTestMode()
                 && mMediaPlayerList.getActivePlayer() == null
-                && request.getOpcode() == Request.Opcodes.PLAY) {
+                && request.opcode() == Request.Opcodes.PLAY) {
             Log.d(TAG, "Player is not active. GMCS send media key for PLAY");
             mMediaPlayerList.sendMediaKeyEvent(BluetoothAvrcp.PASSTHROUGH_ID_PLAY, true);
             mMediaPlayerList.sendMediaKeyEvent(BluetoothAvrcp.PASSTHROUGH_ID_PLAY, false);
@@ -430,7 +430,7 @@ public class MediaControlProfile implements MediaControlServiceCallbacks {
         }
 
         long actions = getCurrentPlayerSupportedActions();
-        switch (request.getOpcode()) {
+        switch (request.opcode()) {
             case Request.Opcodes.PLAY:
                 if ((actions & PlaybackState.ACTION_PLAY) != 0
                         || (actions & PlaybackState.ACTION_PLAY_PAUSE) != 0) {
@@ -482,7 +482,7 @@ public class MediaControlProfile implements MediaControlServiceCallbacks {
                 break;
             case Request.Opcodes.MOVE_RELATIVE:
                 if ((actions & PlaybackState.ACTION_SEEK_TO) != 0) {
-                    long requested_offset_ms = request.getIntArg();
+                    long requested_offset_ms = request.arg();
                     long current_pos_ms = getLatestTrackPosition();
                     long track_duration_ms = getCurrentTrackDuration();
 
