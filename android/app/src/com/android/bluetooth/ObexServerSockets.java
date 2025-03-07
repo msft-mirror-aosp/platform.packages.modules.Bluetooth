@@ -29,7 +29,7 @@ import java.io.IOException;
 /**
  * Wraps multiple BluetoothServerSocket objects to make it possible to accept connections on both a
  * RFCOMM and L2CAP channel in parallel.<br>
- * Create an instance using {@link #create()}, which will block until the sockets have been created
+ * Create an instance using {@link #create}, which will block until the sockets have been created
  * and channel numbers have been assigned.<br>
  * Use {@link #getRfcommChannel()} and {@link #getL2capPsm()} to get the channel numbers to put into
  * the SDP record.<br>
