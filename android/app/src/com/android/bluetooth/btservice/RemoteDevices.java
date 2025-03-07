@@ -1264,12 +1264,12 @@ public class RemoteDevices {
                     }
                 }
 
-                intent.setPackage(pkg.getPackageName());
+                intent.setPackage(pkg.packageName());
 
-                if (pkg.getPermission() != null) {
+                if (pkg.permission() != null) {
                     mAdapterService.sendBroadcastMultiplePermissions(
                             intent,
-                            new String[] {BLUETOOTH_SCAN, pkg.getPermission()},
+                            new String[] {BLUETOOTH_SCAN, pkg.permission()},
                             Utils.getTempBroadcastOptions());
                 } else {
                     mAdapterService.sendBroadcastMultiplePermissions(
