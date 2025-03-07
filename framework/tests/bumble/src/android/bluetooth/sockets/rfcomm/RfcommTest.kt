@@ -13,11 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package android.bluetooth
+package android.bluetooth.sockets.rfcomm
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.bluetooth.BluetoothA2dp
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothHeadset
+import android.bluetooth.BluetoothHidHost
+import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
 import android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN
+import android.bluetooth.BluetoothServerSocket
+import android.bluetooth.BluetoothSocket
+import android.bluetooth.BluetoothSocketSettings
+import android.bluetooth.Host
+import android.bluetooth.PandoraDevice
 import android.bluetooth.test_utils.EnableBluetoothRule
 import android.content.BroadcastReceiver
 import android.content.Context
