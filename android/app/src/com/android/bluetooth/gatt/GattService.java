@@ -75,6 +75,8 @@ import com.android.bluetooth.hid.HidHostService;
 import com.android.bluetooth.le_scan.ScanController;
 import com.android.internal.annotations.VisibleForTesting;
 
+import com.google.protobuf.ByteString;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -1296,11 +1298,8 @@ public class GattService extends ProfileService {
             if (queuedStatus == BluetoothGatt.GATT_CONNECTION_CONGESTED) {
                 queuedStatus = BluetoothGatt.GATT_SUCCESS;
             }
-            CallbackInfo callbackInfo =
-                    new CallbackInfo.Builder(address, queuedStatus)
-                            .setHandle(handle)
-                            .setValue(data)
-                            .build();
+            final ByteString value = ByteString.copyFrom(data);
+            CallbackInfo callbackInfo = new CallbackInfo(address, queuedStatus, handle, value);
             app.queueCallback(callbackInfo);
         }
     }
@@ -1405,20 +1404,20 @@ public class GattService extends ProfileService {
         if (app == null) {
             return;
         }
-            app.isCongested = congested;
-            while (!app.isCongested) {
-                CallbackInfo callbackInfo = app.popQueuedCallback();
-                if (callbackInfo == null) {
-                    return;
-                }
+        app.isCongested = congested;
+        while (!app.isCongested) {
+            CallbackInfo callbackInfo = app.popQueuedCallback();
+            if (callbackInfo == null) {
+                return;
+            }
             callbackToApp(
                     () ->
                             app.callback.onCharacteristicWrite(
-                                    callbackInfo.address,
-                                    callbackInfo.status,
-                                    callbackInfo.handle,
-                                    callbackInfo.value));
-            }
+                                    callbackInfo.address(),
+                                    callbackInfo.status(),
+                                    callbackInfo.handle(),
+                                    callbackInfo.valueByteArray()));
+        }
     }
 
     /**************************************************************************
@@ -2563,7 +2562,7 @@ public class GattService extends ProfileService {
             if (queuedStatus == BluetoothGatt.GATT_CONNECTION_CONGESTED) {
                 queuedStatus = BluetoothGatt.GATT_SUCCESS;
             }
-            app.queueCallback(new CallbackInfo.Builder(address, queuedStatus).build());
+            app.queueCallback(new CallbackInfo(address, queuedStatus));
         }
     }
 
@@ -2584,7 +2583,7 @@ public class GattService extends ProfileService {
             callbackToApp(
                     () ->
                             app.callback.onNotificationSent(
-                                    callbackInfo.address, callbackInfo.status));
+                                    callbackInfo.address(), callbackInfo.status()));
         }
     }
 
