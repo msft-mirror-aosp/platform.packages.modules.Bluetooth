@@ -188,14 +188,14 @@ public class BluetoothMapAppParams {
 
     /**
      * Creates an application parameter object based on a application parameter OBEX header. The
-     * content of the {@link appParam} byte array will be parsed, and its content will be stored in
+     * content of the {@code appParams} byte array will be parsed, and its content will be stored in
      * the member variables. {@link INVALID_VALUE_PARAMETER} can be used to determine if a value is
-     * set or not, where strings will be empty, if {@link appParam} did not contain the parameter.
+     * set or not, where strings will be empty, if {@code appParams} did not contain the parameter.
      *
      * @param appParams the byte array containing the application parameters OBEX header
      * @throws IllegalArgumentException when a parameter does not respect the valid ranges specified
      *     in the MAP spec.
-     * @throws ParseException if a parameter string if formated incorrectly.
+     * @throws ParseException if a parameter string if formatted incorrectly.
      */
     public BluetoothMapAppParams(final byte[] appParams)
             throws IllegalArgumentException, ParseException {
@@ -208,7 +208,7 @@ public class BluetoothMapAppParams {
      * @param appParams the byte array containing the application parameters OBEX header
      * @throws IllegalArgumentException when a parameter does not respect the valid ranges specified
      *     in the MAP spec.
-     * @throws ParseException if a parameter string if formated incorrectly.
+     * @throws ParseException if a parameter string if formatted incorrectly.
      */
     private void parseParams(final byte[] appParams)
             throws ParseException, IllegalArgumentException {
