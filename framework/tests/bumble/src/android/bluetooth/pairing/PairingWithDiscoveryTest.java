@@ -94,11 +94,14 @@ public class PairingWithDiscoveryTest {
     private static final Duration BOND_INTENT_TIMEOUT = Duration.ofSeconds(10);
     private static final int DISCOVERY_TIMEOUT = 2000; // 2 seconds
     private static final int LE_GENERAL_DISCOVERABLE = 2;
-    private CompletableFuture<BluetoothDevice> mDeviceFound;
 
     private final Context mContext = ApplicationProvider.getApplicationContext();
     private final BluetoothManager mManager = mContext.getSystemService(BluetoothManager.class);
     private final BluetoothAdapter mAdapter = mManager.getAdapter();
+
+    private final Map<String, Integer> mActionRegistrationCounts = new HashMap<>();
+    private final StreamObserverSpliterator<PairingEvent> mPairingEventStreamObserver =
+            new StreamObserverSpliterator<>();
 
     @Rule(order = 0)
     public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
@@ -110,13 +113,9 @@ public class PairingWithDiscoveryTest {
     public final PandoraDevice mBumble = new PandoraDevice();
 
     private BluetoothDevice mBumbleDevice;
-    private BluetoothDevice mRemoteLeDevice;
     private InOrder mInOrder = null;
+    private CompletableFuture<BluetoothDevice> mDeviceFound;
     @Mock private BroadcastReceiver mReceiver;
-    private final Map<String, Integer> mActionRegistrationCounts = new HashMap<>();
-
-    private final StreamObserverSpliterator<PairingEvent> mPairingEventStreamObserver =
-            new StreamObserverSpliterator<>();
 
     @SuppressLint("MissingPermission")
     private final Answer<Void> mIntentHandler =
@@ -159,9 +158,6 @@ public class PairingWithDiscoveryTest {
         mInOrder = inOrder(mReceiver);
 
         mBumbleDevice = mBumble.getRemoteDevice();
-        mRemoteLeDevice =
-                mAdapter.getRemoteLeDevice(
-                        Utils.BUMBLE_RANDOM_ADDRESS, BluetoothDevice.ADDRESS_TYPE_RANDOM);
 
         for (BluetoothDevice device : mAdapter.getBondedDevices()) {
             removeBond(device);
@@ -174,7 +170,6 @@ public class PairingWithDiscoveryTest {
             removeBond(device);
         }
         mBumbleDevice = null;
-        mRemoteLeDevice = null;
         if (getTotalActionRegistrationCounts() > 0) {
             mContext.unregisterReceiver(mReceiver);
             mActionRegistrationCounts.clear();
