@@ -1251,6 +1251,7 @@ public class ScanController {
         AppScanStats app = mScannerMap.getAppScanStatsById(scannerId);
         if (app != null) {
             scanClient.mStats = app;
+            mScanManager.fetchAppForegroundState(scanClient);
             boolean isFilteredScan = (filters != null) && !filters.isEmpty();
             boolean isCallbackScan = false;
 
@@ -1366,6 +1367,7 @@ public class ScanController {
         AppScanStats scanStats = mScannerMap.getAppScanStatsById(scannerId);
         if (scanStats != null) {
             scanClient.mStats = scanStats;
+            mScanManager.fetchAppForegroundState(scanClient);
             boolean isFilteredScan = (piInfo.filters != null) && !piInfo.filters.isEmpty();
             scanStats.recordScanStart(
                     piInfo.settings,

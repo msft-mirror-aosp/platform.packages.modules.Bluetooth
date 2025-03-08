@@ -16,6 +16,9 @@
 
 package com.android.bluetooth.le_scan;
 
+import static android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_CACHED;
+import static android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE;
+
 import static java.util.Objects.requireNonNull;
 import static java.util.Objects.requireNonNullElseGet;
 
@@ -71,6 +74,7 @@ class AppScanStats {
     static int sRadioScanIntervalMs;
     static boolean sIsRadioStarted = false;
     static boolean sIsScreenOn = false;
+    static int sRadioScanAppImportance = IMPORTANCE_CACHED;
 
     @GuardedBy("sLock")
     static long sRadioStartTime = 0;
@@ -98,6 +102,7 @@ class AppScanStats {
         public final int scanCallbackType;
         public final StringBuilder filterString;
         @Nullable public final String attributionTag;
+        public final int appImportanceOnStart;
 
         LastScan(
                 long timestamp,
@@ -107,7 +112,8 @@ class AppScanStats {
                 int scannerId,
                 int scanMode,
                 int scanCallbackType,
-                @Nullable String attributionTag) {
+                @Nullable String attributionTag,
+                int appImportanceOnStart) {
             this.duration = 0;
             this.timestamp = timestamp;
             this.reportDelayMillis = reportDelayMillis;
@@ -127,6 +133,7 @@ class AppScanStats {
             this.suspendDuration = 0;
             this.suspendStartTime = 0;
             this.isSuspended = false;
+            this.appImportanceOnStart = appImportanceOnStart;
             this.filterString = new StringBuilder();
         }
     }
@@ -162,6 +169,7 @@ class AppScanStats {
     private int mBalancedScan = 0;
     private int mLowLatencyScan = 0;
     private int mAmbientDiscoveryScan = 0;
+    private int mAppImportance = IMPORTANCE_CACHED;
     private long startTime = 0;
     private int results = 0;
 
@@ -247,6 +255,10 @@ class AppScanStats {
         return scan.isAutoBatchScan;
     }
 
+    synchronized void setAppImportance(int importance) {
+        mAppImportance = importance;
+    }
+
     synchronized void recordScanStart(
             ScanSettings settings,
             List<ScanFilter> filters,
@@ -270,7 +282,8 @@ class AppScanStats {
                         scannerId,
                         settings.getScanMode(),
                         settings.getCallbackType(),
-                        attributionTag);
+                        attributionTag,
+                        mAppImportance);
         if (settings != null) {
             scan.isOpportunisticScan = scan.scanMode == ScanSettings.SCAN_MODE_OPPORTUNISTIC;
             scan.isBackgroundScan =
@@ -414,7 +427,8 @@ class AppScanStats {
                     0 /* app_scan_duration_ms */,
                     mOngoingScans.size(),
                     sIsScreenOn,
-                    isAppDead);
+                    isAppDead,
+                    mAppImportance);
         }
         if (scan.isAutoBatchScan) {
             logger.cacheCount(BluetoothProtoEnums.LE_SCAN_COUNT_AUTO_BATCH_ENABLE, 1);
@@ -446,7 +460,8 @@ class AppScanStats {
                     scan.duration,
                     mOngoingScans.size(),
                     sIsScreenOn,
-                    isAppDead);
+                    isAppDead,
+                    mAppImportance);
         }
         if (scan.isAutoBatchScan) {
             logger.cacheCount(BluetoothProtoEnums.LE_SCAN_COUNT_AUTO_BATCH_DISABLE, 1);
@@ -594,6 +609,7 @@ class AppScanStats {
             sRadioScanWindowMs = scanWindowMs;
             sRadioScanIntervalMs = scanIntervalMs;
             sIsRadioStarted = true;
+            sRadioScanAppImportance = stats.mAppImportance;
         }
         return true;
     }
@@ -632,7 +648,8 @@ class AppScanStats {
                     sRadioScanIntervalMs,
                     sRadioScanWindowMs,
                     sIsScreenOn,
-                    radioScanDuration);
+                    radioScanDuration,
+                    sRadioScanAppImportance);
             sRadioStartTime = 0;
             sIsRadioStarted = false;
         }
@@ -1083,6 +1100,14 @@ class AppScanStats {
                     sb.append("Auto Batch Scan");
                 } else {
                     sb.append("Regular Scan");
+                }
+                if (scan.appImportanceOnStart < IMPORTANCE_FOREGROUND_SERVICE) {
+                    sb.append("\n      └ ")
+                            .append("App Importance: higher than Foreground Service");
+                } else if (scan.appImportanceOnStart > IMPORTANCE_FOREGROUND_SERVICE) {
+                    sb.append("\n      └ ").append("App Importance: lower than Foreground Service");
+                } else {
+                    sb.append("\n      └ ").append("App Importance: Foreground Service");
                 }
                 if (scan.suspendDuration != 0) {
                     activeDuration = scan.duration - scan.suspendDuration;
