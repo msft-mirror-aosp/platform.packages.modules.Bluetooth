@@ -1183,8 +1183,7 @@ public class DatabaseManager {
     /** Clear all persistence data in database */
     public void factoryReset() {
         Log.w(TAG, "factoryReset");
-        Message message = mHandler.obtainMessage(MSG_CLEAR_DATABASE);
-        mHandler.sendMessage(message);
+        mHandler.sendEmptyMessage(MSG_CLEAR_DATABASE);
     }
 
     /** Close and de-init the DatabaseManager */
@@ -1459,8 +1458,7 @@ public class DatabaseManager {
 
     private void loadDatabase() {
         Log.d(TAG, "Load Database");
-        Message message = mHandler.obtainMessage(MSG_LOAD_DATABASE);
-        mHandler.sendMessage(message);
+        mHandler.sendEmptyMessage(MSG_LOAD_DATABASE);
         try {
             // Lock the thread until handler thread finish loading database.
             mSemaphore.tryAcquire(LOAD_DATABASE_TIMEOUT_MS, TimeUnit.MILLISECONDS);
@@ -1475,9 +1473,7 @@ public class DatabaseManager {
             return;
         }
         Log.d(TAG, "updateDatabase " + data.getAnonymizedAddress());
-        Message message = mHandler.obtainMessage(MSG_UPDATE_DATABASE);
-        message.obj = data;
-        mHandler.sendMessage(message);
+        mHandler.obtainMessage(MSG_UPDATE_DATABASE, data).sendToTarget();
     }
 
     @VisibleForTesting
@@ -1488,9 +1484,7 @@ public class DatabaseManager {
             return;
         }
         logMetadataChange(data, "Metadata deleted");
-        Message message = mHandler.obtainMessage(MSG_DELETE_DATABASE);
-        message.obj = data.getAddress();
-        mHandler.sendMessage(message);
+        mHandler.obtainMessage(MSG_DELETE_DATABASE, data.getAddress()).sendToTarget();
     }
 
     private void logManufacturerInfo(BluetoothDevice device, int key, byte[] bytesValue) {
