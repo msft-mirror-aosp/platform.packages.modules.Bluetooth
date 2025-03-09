@@ -84,7 +84,7 @@ void BTM_SecAddDevice(const RawAddress& bd_addr, DEV_CLASS dev_class, LinkKey li
                       uint8_t key_type, uint8_t pin_length) {
   tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bd_addr);
 
-  if (!p_dev_rec) {
+  if (p_dev_rec == nullptr) {
     p_dev_rec = btm_sec_allocate_dev_rec();
 
     if (p_dev_rec == nullptr) {
@@ -105,8 +105,7 @@ void BTM_SecAddDevice(const RawAddress& bd_addr, DEV_CLASS dev_class, LinkKey li
     /* update conn params, use default value for background connection params */
     memset(&p_dev_rec->conn_params, 0xff, sizeof(tBTM_LE_CONN_PRAMS));
 
-    if (com::android::bluetooth::flags::name_discovery_for_le_pairing() &&
-        btif_storage_get_stored_remote_name(bd_addr,
+    if (btif_storage_get_stored_remote_name(bd_addr,
                                             reinterpret_cast<char*>(&p_dev_rec->sec_bd_name))) {
       p_dev_rec->sec_rec.sec_flags |= BTM_SEC_NAME_KNOWN;
     }
@@ -118,22 +117,10 @@ void BTM_SecAddDevice(const RawAddress& bd_addr, DEV_CLASS dev_class, LinkKey li
 
     /* "Bump" timestamp for existing record */
     p_dev_rec->timestamp = btm_sec_cb.dev_rec_count++;
-
-    /* TODO(eisenbach):
-     * Small refactor, but leaving original logic for now.
-     * On the surface, this does not make any sense at all. Why change the
-     * bond state for an existing device here? This logic should be verified
-     * as part of a larger refactor.
-     */
-    p_dev_rec->sec_rec.bond_type = BOND_TYPE_UNKNOWN;
   }
 
   if (dev_class != kDevClassEmpty) {
     p_dev_rec->dev_class = dev_class;
-  }
-
-  if (!com::android::bluetooth::flags::name_discovery_for_le_pairing()) {
-    bd_name_clear(p_dev_rec->sec_bd_name);
   }
 
   p_dev_rec->sec_rec.sec_flags |= BTM_SEC_LINK_KEY_KNOWN;

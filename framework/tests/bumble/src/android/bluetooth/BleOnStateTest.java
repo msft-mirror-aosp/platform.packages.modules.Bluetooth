@@ -109,7 +109,7 @@ public class BleOnStateTest {
     }
 
     @Test
-    public void whenScanManagerRefactorOffOrOn_scanWorks() {
+    public void whenOnlyStartScanDuringBleOnOffOrOn_scanWorks() {
         advertiseWithBumble(TEST_UUID_STRING, HostProto.OwnAddressType.PUBLIC);
 
         ScanFilter scanFilter =
@@ -129,8 +129,8 @@ public class BleOnStateTest {
     }
 
     @Test
-    @RequiresFlagsDisabled(Flags.FLAG_SCAN_MANAGER_REFACTOR)
-    public void whenScanManagerRefactorOff_canAdvertise() throws Exception {
+    @RequiresFlagsDisabled(Flags.FLAG_ONLY_START_SCAN_DURING_BLE_ON)
+    public void whenOnlyStartScanDuringBleOnOff_canAdvertise() throws Exception {
         final BluetoothLeAdvertiser bluetoothLeAdvertiser = mAdapter.getBluetoothLeAdvertiser();
 
         AdvertiseSettings settings = new AdvertiseSettings.Builder().build();
@@ -164,8 +164,8 @@ public class BleOnStateTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_SCAN_MANAGER_REFACTOR)
-    public void whenScanManagerRefactorOn_cantAdvertise() throws Exception {
+    @RequiresFlagsEnabled(Flags.FLAG_ONLY_START_SCAN_DURING_BLE_ON)
+    public void whenOnlyStartScanDuringBleOnOn_cantAdvertise() throws Exception {
         final BluetoothLeAdvertiser bluetoothLeAdvertiser = mAdapter.getBluetoothLeAdvertiser();
 
         AdvertiseSettings settings = new AdvertiseSettings.Builder().build();
@@ -200,8 +200,8 @@ public class BleOnStateTest {
     }
 
     @Test
-    @RequiresFlagsDisabled(Flags.FLAG_SCAN_MANAGER_REFACTOR)
-    public void whenScanManagerRefactorOff_gattCanConnect() {
+    @RequiresFlagsDisabled(Flags.FLAG_ONLY_START_SCAN_DURING_BLE_ON)
+    public void whenOnlyStartScanDuringBleOnOff_gattCanConnect() {
         advertiseWithBumble();
 
         BluetoothDevice device =
@@ -215,8 +215,8 @@ public class BleOnStateTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_SCAN_MANAGER_REFACTOR)
-    public void whenScanManagerRefactorOn_gattCantConnect() {
+    @RequiresFlagsEnabled(Flags.FLAG_ONLY_START_SCAN_DURING_BLE_ON)
+    public void whenOnlyStartScanDuringBleOnOn_gattCantConnect() {
         advertiseWithBumble();
 
         BluetoothDevice device =

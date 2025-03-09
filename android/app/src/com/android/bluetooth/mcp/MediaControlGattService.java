@@ -144,7 +144,7 @@ public class MediaControlGattService implements MediaControlGattServiceInterface
     private final int mCcid;
     private final Map<String, Map<UUID, Short>> mCccDescriptorValues = new HashMap<>();
     private long mFeatures;
-    private Context mContext;
+    private final Context mContext;
     private MediaControlServiceCallbacks mCallbacks;
     private BluetoothGattServerProxy mBluetoothGattServer;
     private BluetoothGattService mGattService = null;
@@ -155,7 +155,7 @@ public class MediaControlGattService implements MediaControlGattServiceInterface
             new HashMap<>();
     private McpService mMcpService;
     private LeAudioService mLeAudioService;
-    private AdapterService mAdapterService;
+    private final AdapterService mAdapterService;
 
     private static final int LOG_NB_EVENTS = 200;
     private final BluetoothEventLogger mEventLogger;
@@ -253,14 +253,14 @@ public class MediaControlGattService implements MediaControlGattServiceInterface
             mValue = null;
         }
 
-        public Operation mOperation;
-        public int mRequestId;
-        public BluetoothGattCharacteristic mCharacteristic;
-        public BluetoothGattDescriptor mDescriptor;
-        public boolean mPreparedWrite;
-        public boolean mResponseNeeded;
-        public int mOffset;
-        public byte[] mValue;
+        public final Operation mOperation;
+        public final int mRequestId;
+        public final BluetoothGattCharacteristic mCharacteristic;
+        public final BluetoothGattDescriptor mDescriptor;
+        public final boolean mPreparedWrite;
+        public final boolean mResponseNeeded;
+        public final int mOffset;
+        public final byte[] mValue;
     }
 
     private final Map<UUID, CharacteristicWriteHandler> mCharWriteCallback =
@@ -1222,8 +1222,8 @@ public class MediaControlGattService implements MediaControlGattServiceInterface
      */
     @SuppressLint("AndroidFrameworkRequiresPermission") // TODO: b/350563786
     public static class BluetoothGattServerProxy {
-        private BluetoothGattServer mBluetoothGattServer;
-        private BluetoothManager mBluetoothManager;
+        private final BluetoothGattServer mBluetoothGattServer;
+        private final BluetoothManager mBluetoothManager;
 
         public BluetoothGattServerProxy(BluetoothGattServer gatt, BluetoothManager manager) {
             mBluetoothManager = manager;
@@ -2098,7 +2098,7 @@ public class MediaControlGattService implements MediaControlGattServiceInterface
     public long byteArray2ObjId(byte[] buffer) {
         ByteBuffer bb = ByteBuffer.allocate(Long.BYTES).order(ByteOrder.LITTLE_ENDIAN);
         bb.put(buffer, 0, 6);
-        // Move position to beginnng after putting data to buffer
+        // Move position to beginning after putting data to buffer
         bb.position(0);
         return bb.getLong();
     }

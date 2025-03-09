@@ -77,9 +77,8 @@ import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.BtRestrictedStatsLog;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.bass_client.BassConstants;
+import com.android.internal.annotations.VisibleForTesting;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Ascii;
 import com.google.common.hash.BloomFilter;
 import com.google.common.hash.Funnels;
 
@@ -94,6 +93,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 
 /** Class of Bluetooth Metrics */
 public class MetricsLogger {
@@ -127,7 +127,7 @@ public class MetricsLogger {
 
     protected boolean mMedicalDeviceBloomFilterInitialized = false;
 
-    private AlarmManager.OnAlarmListener mOnAlarmListener =
+    private final AlarmManager.OnAlarmListener mOnAlarmListener =
             new AlarmManager.OnAlarmListener() {
                 @Override
                 public void onAlarm() {
@@ -569,31 +569,16 @@ public class MetricsLogger {
         }
         String deviceTypeMetaData = new String(deviceTypeMetaDataBytes, StandardCharsets.UTF_8);
 
-        switch (deviceTypeMetaData) {
-            case "Watch":
-                return BluetoothProtoEnums.WATCH;
-
-            case "Untethered Headset":
-                return BluetoothProtoEnums.UNTETHERED_HEADSET;
-
-            case "Stylus":
-                return BluetoothProtoEnums.STYLUS;
-
-            case "Speaker":
-                return BluetoothProtoEnums.SPEAKER;
-
-            case "Headset":
-                return BluetoothProtoEnums.HEADSET;
-
-            case "Carkit":
-                return BluetoothProtoEnums.CARKIT;
-
-            case "Default":
-                return BluetoothProtoEnums.DEFAULT;
-
-            default:
-                return BluetoothProtoEnums.NOT_AVAILABLE;
-        }
+        return switch (deviceTypeMetaData) {
+            case "Watch" -> BluetoothProtoEnums.WATCH;
+            case "Untethered Headset" -> BluetoothProtoEnums.UNTETHERED_HEADSET;
+            case "Stylus" -> BluetoothProtoEnums.STYLUS;
+            case "Speaker" -> BluetoothProtoEnums.SPEAKER;
+            case "Headset" -> BluetoothProtoEnums.HEADSET;
+            case "Carkit" -> BluetoothProtoEnums.CARKIT;
+            case "Default" -> BluetoothProtoEnums.DEFAULT;
+            default -> BluetoothProtoEnums.NOT_AVAILABLE;
+        };
     }
 
     private static int getOui(BluetoothDevice device) {
@@ -607,7 +592,11 @@ public class MetricsLogger {
         // remove more than one spaces in a row
         deviceName = deviceName.trim().replaceAll(" +", " ");
         // remove non alphanumeric characters and spaces, and transform to lower cases.
-        String[] words = Ascii.toLowerCase(deviceName.replaceAll("[^a-zA-Z0-9 ]", "")).split(" ");
+        String[] words =
+                deviceName
+                        .replaceAll("[^a-zA-Z0-9 ]", "")
+                        .toLowerCase(Locale.ROOT)
+                        .split(" ", MAX_WORDS_ALLOWED_IN_DEVICE_NAME + 1);
 
         if (words.length > MAX_WORDS_ALLOWED_IN_DEVICE_NAME) {
             // Validity checking here to avoid excessively long sequences
@@ -629,7 +618,7 @@ public class MetricsLogger {
     }
 
     @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
-    protected void uploadRestrictedBluetothDeviceName(List<String> wordBreakdownList) {
+    protected void uploadRestrictedBluetoothDeviceName(List<String> wordBreakdownList) {
         for (String word : wordBreakdownList) {
             BtRestrictedStatsLog.write(RESTRICTED_BLUETOOTH_DEVICE_NAME_REPORTED, word);
         }

@@ -212,7 +212,6 @@ public class BassClientService extends ProfileService {
     private static final int LOG_NB_EVENTS = 100;
     private static final BluetoothEventLogger sEventLogger =
             new BluetoothEventLogger(LOG_NB_EVENTS, TAG + " event log");
-    ;
 
     @VisibleForTesting ServiceFactory mServiceFactory = new ServiceFactory();
 
@@ -220,7 +219,7 @@ public class BassClientService extends ProfileService {
         private static final int SCANNER_ID_NOT_INITIALIZED = -2;
         private static final int SCANNER_ID_INITIALIZING = -1;
 
-        private List<ScanFilter> mBaasUuidFilters = new ArrayList<ScanFilter>();
+        private final List<ScanFilter> mBaasUuidFilters = new ArrayList<ScanFilter>();
         private int mScannerId = SCANNER_ID_NOT_INITIALIZED;
 
         void registerAndStartScan(List<ScanFilter> filters) {
@@ -582,9 +581,9 @@ public class BassClientService extends ProfileService {
             };
 
     private static class AddSourceData {
-        BluetoothDevice mSink;
-        BluetoothLeBroadcastMetadata mSourceMetadata;
-        boolean mIsGroupOp;
+        final BluetoothDevice mSink;
+        final BluetoothLeBroadcastMetadata mSourceMetadata;
+        final boolean mIsGroupOp;
 
         AddSourceData(
                 BluetoothDevice sink,
@@ -723,13 +722,13 @@ public class BassClientService extends ProfileService {
         }
     }
 
-    void updateBase(int syncHandlemap, BaseData base) {
+    void updateBase(int syncHandleMap, BaseData base) {
         log("updateBase : mSyncHandleToBaseDataMap>>");
-        mSyncHandleToBaseDataMap.put(syncHandlemap, base);
+        mSyncHandleToBaseDataMap.put(syncHandleMap, base);
     }
 
-    BaseData getBase(int syncHandlemap) {
-        BaseData base = mSyncHandleToBaseDataMap.get(syncHandlemap);
+    BaseData getBase(int syncHandleMap) {
+        BaseData base = mSyncHandleToBaseDataMap.get(syncHandleMap);
         log("getBase returns " + base);
         return base;
     }
@@ -1483,7 +1482,7 @@ public class BassClientService extends ProfileService {
                         && (devices.contains(device))) {
                     Log.i(
                             TAG,
-                            "connectionStateChanged: reconnected previousely synced device: "
+                            "connectionStateChanged: reconnected previously synced device: "
                                     + device);
                     mHandler.removeCallbacks(mDialingOutTimeoutEvent);
                     mDialingOutTimeoutEvent = null;
@@ -1716,7 +1715,7 @@ public class BassClientService extends ProfileService {
     }
 
     /**
-     * Disconnects Bassclient profile for the passed in device
+     * Disconnects BassClient profile for the passed in device
      *
      * @param device is the device with which we want to disconnected the BAss client profile
      * @return true if Bass client profile successfully disconnected, false otherwise
@@ -2026,7 +2025,7 @@ public class BassClientService extends ProfileService {
 
                     log("Broadcasts to sync on start: " + broadcastsToSync);
 
-                    // Add broadcsts to sync queue
+                    // Add broadcasts to sync queue
                     for (int broadcastId : broadcastsToSync) {
                         addSelectSourceRequest(broadcastId, /* hasPriority */ true);
                     }
@@ -2255,7 +2254,7 @@ public class BassClientService extends ProfileService {
         }
     }
 
-    /** Internal periodc Advertising manager callback */
+    /** Internal periodic Advertising manager callback */
     final class PACallback extends PeriodicAdvertisingCallback {
         @Override
         public void onSyncEstablished(
@@ -2902,11 +2901,11 @@ public class BassClientService extends ProfileService {
                 cancelActiveSync(syncHandle);
             } else {
                 Boolean canceledActiveSync = false;
-                int broadcstIdToLostMonitoring = BassConstants.INVALID_BROADCAST_ID;
+                int broadcastIdToLostMonitoring = BassConstants.INVALID_BROADCAST_ID;
                 for (int syncHandle : activeSyncedSrc) {
                     if (!isAnyReceiverSyncedToBroadcast(getBroadcastIdForSyncHandle(syncHandle))) {
                         canceledActiveSync = true;
-                        broadcstIdToLostMonitoring = getBroadcastIdForSyncHandle(syncHandle);
+                        broadcastIdToLostMonitoring = getBroadcastIdForSyncHandle(syncHandle);
                         cancelActiveSync(syncHandle);
                         break;
                     }
@@ -2914,11 +2913,11 @@ public class BassClientService extends ProfileService {
                 if (!canceledActiveSync) {
                     int syncHandle = activeSyncedSrc.get(0);
                     // removing the 1st synced source before proceeding to add new
-                    broadcstIdToLostMonitoring = getBroadcastIdForSyncHandle(syncHandle);
+                    broadcastIdToLostMonitoring = getBroadcastIdForSyncHandle(syncHandle);
                     cancelActiveSync(syncHandle);
                 }
                 mTimeoutHandler.start(
-                        broadcstIdToLostMonitoring, MESSAGE_SYNC_LOST_TIMEOUT, sSyncLostTimeout);
+                        broadcastIdToLostMonitoring, MESSAGE_SYNC_LOST_TIMEOUT, sSyncLostTimeout);
             }
         }
 
@@ -4604,8 +4603,8 @@ public class BassClientService extends ProfileService {
         }
 
         private static class ObjParams {
-            Object mObj1;
-            Object mObj2;
+            final Object mObj1;
+            final Object mObj2;
 
             ObjParams(Object o1, Object o2) {
                 mObj1 = o1;
