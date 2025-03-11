@@ -21,6 +21,7 @@ import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static android.Manifest.permission.BLUETOOTH_SCAN;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
+import static android.bluetooth.BluetoothUtils.RemoteExceptionIgnoringConsumer;
 
 import static com.android.modules.utils.build.SdkLevel.isAtLeastV;
 
@@ -1263,12 +1264,12 @@ public class RemoteDevices {
                     }
                 }
 
-                intent.setPackage(pkg.getPackageName());
+                intent.setPackage(pkg.packageName());
 
-                if (pkg.getPermission() != null) {
+                if (pkg.permission() != null) {
                     mAdapterService.sendBroadcastMultiplePermissions(
                             intent,
-                            new String[] {BLUETOOTH_SCAN, pkg.getPermission()},
+                            new String[] {BLUETOOTH_SCAN, pkg.permission()},
                             Utils.getTempBroadcastOptions());
                 } else {
                     mAdapterService.sendBroadcastMultiplePermissions(
@@ -1472,15 +1473,29 @@ public class RemoteDevices {
         mAdapterService.sendBroadcast(
                 intent, BLUETOOTH_CONNECT, Utils.getTempBroadcastOptions().toBundle());
 
-        Utils.RemoteExceptionIgnoringConsumer<IBluetoothConnectionCallback>
-                connectionChangeConsumer;
+        RemoteExceptionIgnoringConsumer<IBluetoothConnectionCallback> connectionChangeConsumer;
         if (connectionState == BluetoothAdapter.STATE_CONNECTED) {
             connectionChangeConsumer = cb -> cb.onDeviceConnected(device);
         } else {
+            final int disconnectReason;
+            if (hciReason == 0x16 /* HCI_ERR_CONN_CAUSE_LOCAL_HOST */
+                    && mAdapterService.getDatabase().getKeyMissingCount(device) > 0) {
+                // Native stack disconnects the link on detecting the bond loss. Native GATT would
+                // return HCI_ERR_CONN_CAUSE_LOCAL_HOST in such case, but the apps should see
+                // HCI_ERR_AUTH_FAILURE.
+                Log.d(
+                        TAG,
+                        "aclStateChangeCallback() - disconnected due to bond loss for device="
+                                + device);
+                disconnectReason = 0x05; /* HCI_ERR_AUTH_FAILURE */
+            } else {
+                disconnectReason = hciReason;
+            }
             connectionChangeConsumer =
                     cb ->
                             cb.onDeviceDisconnected(
-                                    device, AdapterService.hciToAndroidDisconnectReason(hciReason));
+                                    device,
+                                    AdapterService.hciToAndroidDisconnectReason(disconnectReason));
         }
 
         mAdapterService.aclStateChangeBroadcastCallback(connectionChangeConsumer);

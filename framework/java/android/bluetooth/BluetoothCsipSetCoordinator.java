@@ -86,7 +86,7 @@ public final class BluetoothCsipSetCoordinator implements BluetoothProfile, Auto
         @interface Status {}
 
         /**
-         * Callback is invoked as a result on {@link #groupLock()}.
+         * Callback is invoked as a result on {@link BluetoothCsipSetCoordinator#lockGroup()}.
          *
          * @param groupId group identifier
          * @param opStatus status of lock operation
@@ -115,7 +115,6 @@ public final class BluetoothCsipSetCoordinator implements BluetoothProfile, Auto
                     mExecutor, () -> mCallback.onGroupLockSet(groupId, opStatus, isLocked));
         }
     }
-    ;
 
     /**
      * Intent used to broadcast the change in connection state of the CSIS Client.

@@ -1347,28 +1347,28 @@ public class BassClientServiceTest {
             // LEVEL 1
             (byte) 0x01,
             (byte) 0x02,
-            (byte) 0x03, // presentationDelay
-            (byte) 0x01, // numSubGroups
+            (byte) 0x03, // mPresentationDelay
+            (byte) 0x01, // mNumSubGroups
             // LEVEL 2
-            (byte) 0x01, // numSubGroups
+            (byte) 0x01, // mNumSubGroups
             (byte) 0x00,
             (byte) 0x00,
             (byte) 0x00,
             (byte) 0x00,
             (byte) 0x00, // UNKNOWN_CODEC
-            (byte) 0x02, // codecConfigLength
+            (byte) 0x02, // mCodecConfigLength
             (byte) 0x01,
-            (byte) 'A', // codecConfigInfo
-            (byte) 0x03, // metaDataLength
+            (byte) 'A', // mCodecConfigInfo
+            (byte) 0x03, // mMetaDataLength
             (byte) 0x06,
             (byte) 0x07,
-            (byte) 0x08, // metaData
+            (byte) 0x08, // mMetaData
             // LEVEL 3
-            (byte) 0x04, // index
-            (byte) 0x03, // codecConfigLength
+            (byte) 0x04, // mIndex
+            (byte) 0x03, // mCodecConfigLength
             (byte) 0x02,
             (byte) 'B',
-            (byte) 'C', // codecConfigInfo
+            (byte) 'C', // mCodecConfigInfo
             (byte) 0x05,
             (byte) 0xff,
             (byte) 0xe0,
@@ -4312,9 +4312,7 @@ public class BassClientServiceTest {
     }
 
     @Test
-    @EnableFlags({
-        Flags.FLAG_LEAUDIO_BIG_DEPENDS_ON_AUDIO_STATE
-    })
+    @EnableFlags({Flags.FLAG_LEAUDIO_BIG_DEPENDS_ON_AUDIO_STATE})
     public void testLocalAddSourceWhenBroadcastIsPaused() throws RemoteException {
         doReturn(false).when(mLeAudioService).isPlaying(TEST_BROADCAST_ID);
         doReturn(true).when(mLeAudioService).isPaused(TEST_BROADCAST_ID);
@@ -4656,14 +4654,14 @@ public class BassClientServiceTest {
                     // LEVEL 1
                     (byte) 0x01,
                     (byte) 0x02,
-                    (byte) 0x03, // presentationDelay
-                    (byte) 0x01, // numSubGroups
+                    (byte) 0x03, // mPresentationDelay
+                    (byte) 0x01, // mNumSubGroups
                     // LEVEL 3
-                    (byte) 0x04, // index
-                    (byte) 0x03, // codecConfigLength
+                    (byte) 0x04, // mIndex
+                    (byte) 0x03, // mCodecConfigLength
                     (byte) 0x02,
                     (byte) 'B',
-                    (byte) 'C', // codecConfigInfo
+                    (byte) 'C', // mCodecConfigInfo
                     (byte) 0x05,
                     (byte) 0xff,
                     (byte) 0xe0,
@@ -4825,14 +4823,14 @@ public class BassClientServiceTest {
                     // LEVEL 1
                     (byte) 0x01,
                     (byte) 0x02,
-                    (byte) 0x03, // presentationDelay
-                    (byte) 0x01, // numSubGroups
+                    (byte) 0x03, // mPresentationDelay
+                    (byte) 0x01, // mNumSubGroups
                     // LEVEL 3
-                    (byte) 0x04, // index
-                    (byte) 0x03, // codecConfigLength
+                    (byte) 0x04, // mIndex
+                    (byte) 0x03, // mCodecConfigLength
                     (byte) 0x02,
                     (byte) 'B',
-                    (byte) 'C', // codecConfigInfo
+                    (byte) 'C', // mCodecConfigInfo
                     (byte) 0x05,
                     (byte) 0xff,
                     (byte) 0xe0,

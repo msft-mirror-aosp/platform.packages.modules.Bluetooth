@@ -348,7 +348,7 @@ public class LeAudioServiceTest {
         doReturn(bondState).when(mAdapterService).getBondState(device);
         when(mDatabaseManager.getProfileConnectionPolicy(device, BluetoothProfile.LE_AUDIO))
                 .thenReturn(priority);
-        assertThat(expected).isEqualTo(mService.okToConnect(device));
+        assertThat(mService.okToConnect(device)).isEqualTo(expected);
     }
 
     /** Test okToConnect method using various test cases */

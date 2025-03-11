@@ -240,3 +240,23 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "smp_connection_status_handling_when_no_acl"
+    namespace: "bluetooth"
+    description: "Fix SMP connection status sent from L2CAP when LE ACL is not connected"
+    bug: "401073843"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "non_zero_local_irk"
+    namespace: "bluetooth"
+    description: "Ensure that the local IRK is not zero before sending it to the controller"
+    bug: "401126556"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

@@ -290,7 +290,7 @@ public final class BluetoothUtils {
                             repl = Integer.toHexString(Byte.toUnsignedInt((byte) arg));
                         } else {
                             throw new IllegalArgumentException(
-                                    "Unsupported hex type " + arg.getClass());
+                                    "Unsupported hex type " + arg.getClass().getSimpleName());
                         }
                     }
                     case '%' -> {
@@ -343,6 +343,22 @@ public final class BluetoothUtils {
             executor.execute(() -> callback.run());
         } finally {
             Binder.restoreCallingIdentity(identity);
+        }
+    }
+
+    /** A {@link Runnable} that automatically logs {@link RemoteException} @hide */
+    @FunctionalInterface
+    public interface RemoteExceptionIgnoringRunnable {
+        /** Called by {@code accept}. */
+        void runOrThrow() throws RemoteException;
+
+        @RequiresNoPermission
+        default void run() {
+            try {
+                runOrThrow();
+            } catch (RemoteException ex) {
+                logRemoteException(TAG, ex);
+            }
         }
     }
 

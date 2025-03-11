@@ -1137,7 +1137,7 @@ public class BluetoothMapObexServer extends ServerRequestHandler {
                                     + ((tmpLongLong == null)
                                             ? ""
                                             : Long.toHexString(
-                                                    tmpLongLong.getLeastSignificantBits())));
+                                                    tmpLongLong.leastSignificantBits())));
                 }
                 if (!isUserUnlocked()) {
                     Log.e(TAG, "Storage locked, " + type + " failed");
