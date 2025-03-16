@@ -27,6 +27,7 @@ import static android.Manifest.permission.NETWORK_SETUP_WIZARD;
 import static android.Manifest.permission.RADIO_SCAN_WITHOUT_LOCATION;
 import static android.Manifest.permission.RENOUNCE_PERMISSIONS;
 import static android.Manifest.permission.WRITE_SMS;
+import static android.bluetooth.BluetoothUtils.RemoteExceptionIgnoringRunnable;
 import static android.bluetooth.BluetoothUtils.USER_HANDLE_NULL;
 import static android.content.pm.PackageManager.GET_PERMISSIONS;
 import static android.content.pm.PackageManager.MATCH_UNINSTALLED_PACKAGES;
@@ -62,7 +63,6 @@ import android.os.Build;
 import android.os.ParcelUuid;
 import android.os.PowerExemptionManager;
 import android.os.Process;
-import android.os.RemoteException;
 import android.os.SystemProperties;
 import android.os.UserHandle;
 import android.os.UserManager;
@@ -95,7 +95,6 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 
 public final class Utils {
     public static final String TAG_PREFIX_BLUETOOTH = "Bluetooth";
@@ -1257,23 +1256,6 @@ public final class Utils {
         }
     }
 
-    /** A {@link Consumer} that automatically ignores any {@link RemoteException}s. */
-    @FunctionalInterface
-    @SuppressWarnings("FunctionalInterfaceMethodChanged")
-    public interface RemoteExceptionIgnoringConsumer<T> extends Consumer<T> {
-        /** Called by {@code accept}. */
-        void acceptOrThrow(T t) throws RemoteException;
-
-        @Override
-        default void accept(T t) {
-            try {
-                acceptOrThrow(t);
-            } catch (RemoteException ex) {
-                // Ignore RemoteException
-            }
-        }
-    }
-
     /**
      * Returns the longest prefix of a string for which the UTF-8 encoding fits into the given
      * number of bytes, with the additional guarantee that the string is not truncated in the middle
@@ -1340,6 +1322,30 @@ public final class Utils {
         @Override
         public long elapsedRealtime() {
             return android.os.SystemClock.elapsedRealtime();
+        }
+    }
+
+    /** Execute a remote callback without propagating the RemoteException of a dead app */
+    public static void callbackToApp(RemoteExceptionIgnoringRunnable callback) {
+        callback.run();
+    }
+
+    /** Invokes {@code toJoin.}{@link Thread#join() join()} uninterruptibly. */
+    public static void joinUninterruptibly(Thread toJoin) {
+        boolean interrupted = false;
+        try {
+            while (true) {
+                try {
+                    toJoin.join();
+                    return;
+                } catch (InterruptedException e) {
+                    interrupted = true;
+                }
+            }
+        } finally {
+            if (interrupted) {
+                Thread.currentThread().interrupt();
+            }
         }
     }
 }

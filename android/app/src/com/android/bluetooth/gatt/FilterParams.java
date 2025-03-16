@@ -16,93 +16,17 @@
 
 package com.android.bluetooth.gatt;
 
-public class FilterParams {
-    private final int mClientIf;
-    private final int mFiltIndex;
-    private final int mFeatSeln;
-    private final int mListLogicType;
-    private final int mFiltLogicType;
-    private final int mRssiHighValue;
-    private final int mRssiLowValue;
-    private final int mDelyMode;
-    private final int mFoundTimeOut;
-    private final int mLostTimeOut;
-    private final int mFoundTimeOutCnt;
-    private final int mNumOfTrackEntries;
-
-    public FilterParams(
-            int clientIf,
-            int filtIndex,
-            int featSeln,
-            int listLogicType,
-            int filtLogicType,
-            int rssiHighThres,
-            int rssiLowThres,
-            int delyMode,
-            int foundTimeout,
-            int lostTimeout,
-            int foundTimeoutCnt,
-            int numOfTrackingEntries) {
-
-        mClientIf = clientIf;
-        mFiltIndex = filtIndex;
-        mFeatSeln = featSeln;
-        mListLogicType = listLogicType;
-        mFiltLogicType = filtLogicType;
-        mRssiHighValue = rssiHighThres;
-        mRssiLowValue = rssiLowThres;
-        mDelyMode = delyMode;
-        mFoundTimeOut = foundTimeout;
-        mLostTimeOut = lostTimeout;
-        mFoundTimeOutCnt = foundTimeoutCnt;
-        mNumOfTrackEntries = numOfTrackingEntries;
-    }
-
-    public int getClientIf() {
-        return mClientIf;
-    }
-
-    public int getFiltIndex() {
-        return mFiltIndex;
-    }
-
-    public int getFeatSeln() {
-        return mFeatSeln;
-    }
-
-    public int getDelyMode() {
-        return mDelyMode;
-    }
-
-    public int getListLogicType() {
-        return mListLogicType;
-    }
-
-    public int getFiltLogicType() {
-        return mFiltLogicType;
-    }
-
-    public int getRSSIHighValue() {
-        return mRssiHighValue;
-    }
-
-    public int getRSSILowValue() {
-        return mRssiLowValue;
-    }
-
-    public int getFoundTimeout() {
-        return mFoundTimeOut;
-    }
-
-    public int getFoundTimeOutCnt() {
-        return mFoundTimeOutCnt;
-    }
-
-    public int getLostTimeout() {
-        return mLostTimeOut;
-    }
-
-    public int getNumOfTrackEntries() {
-        return mNumOfTrackEntries;
-    }
-}
+// All values of this class are accessed from native; see com_android_bluetooth_gatt.cpp
+public record FilterParams(
+        int clientInterface,
+        int filterIndex,
+        int featureSelection,
+        int listLogicType,
+        int filterLogicType,
+        int rssiHighValue,
+        int rssiLowValue,
+        int delayMode,
+        int foundTimeout,
+        int lostTimeout,
+        int foundTimeoutCount,
+        int numberOfTrackEntries) {}

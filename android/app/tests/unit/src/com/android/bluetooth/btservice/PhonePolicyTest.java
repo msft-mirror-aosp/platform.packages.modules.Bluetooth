@@ -119,8 +119,6 @@ public class PhonePolicyTest {
         doReturn(BluetoothAdapter.STATE_ON).when(mAdapterService).getState();
         doReturn(MAX_CONNECTED_AUDIO_DEVICES).when(mAdapterService).getMaxConnectedAudioDevices();
         doReturn(mDatabaseManager).when(mAdapterService).getDatabase();
-        doReturn(mLooper.getLooper()).when(mAdapterService).getMainLooper();
-
         // Setup the mocked factory to return mocked services
         doReturn(mHeadsetService).when(mServiceFactory).getHeadsetService();
         doReturn(mA2dpService).when(mServiceFactory).getA2dpService();

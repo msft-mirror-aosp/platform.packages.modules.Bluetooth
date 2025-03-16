@@ -2004,7 +2004,7 @@ public class BluetoothMapContent {
             // Filter ConvoId
             long convoId = -1;
             if (ap.getFilterConvoId() != null) {
-                convoId = ap.getFilterConvoId().getLeastSignificantBits();
+                convoId = ap.getFilterConvoId().leastSignificantBits();
             }
             if (convoId > 0) {
                 selection
@@ -3413,7 +3413,7 @@ public class BluetoothMapContent {
         }
         long convoId = -1;
         if (ap.getFilterConvoId() != null) {
-            convoId = ap.getFilterConvoId().getLeastSignificantBits();
+            convoId = ap.getFilterConvoId().leastSignificantBits();
         }
         if (convoId > 0) {
             newUri.appendQueryParameter(
@@ -3818,7 +3818,7 @@ public class BluetoothMapContent {
     }
 
     /**
-     * Read out the mms parts and update the bMessage object provided i {@linkplain message}
+     * Read out the mms parts and update the bMessage object provided i {@code message}
      *
      * @param id the content provider ID of the message
      * @param message the bMessage object to add the information to

@@ -190,6 +190,28 @@ public class DckL2capTest() : Closeable {
     @VirtualOnly
     /**
      * Test:
+     * - Create L2CAP server on Bumble (DCK L2cap Server)
+     * - create insecure Client Bluetooth Socket & initiate connection on phone
+     * - Ensure socket is connected
+     * - Initiate disconnection from Bumble side
+     */
+    fun testConnectInsecureClientRemoteDisconnect() {
+        Log.d(TAG, "testConnectInsecureClientRemoteDisconnect")
+        val (bluetoothSocket, channel) = clientSocketConnectUtil(false)
+
+        assertThat((bluetoothSocket).isConnected()).isTrue()
+        Log.d(TAG, "testConnectInsecureClientRemoteDisconnect: close/disconnect")
+        disconnectSocketAndWaitForDisconnectUtil(bluetoothSocket, channel, true)
+
+        // Todo: b/401106684
+        // assertThat((bluetoothSocket).isConnected()).isFalse()
+        Log.d(TAG, "testConnectInsecureClientRemoteDisconnect: done")
+    }
+
+    @Test
+    @VirtualOnly
+    /**
+     * Test:
      * - Create insecure L2CAP Socket server on Phone
      * - Use Bumble as client and trigger connection to L2cap server on Phone
      * - Ensure connection is established
@@ -223,6 +245,30 @@ public class DckL2capTest() : Closeable {
         disconnectSocketAndWaitForDisconnectUtil(bluetoothSocket, channel)
         assertThat((bluetoothSocket)?.isConnected()).isFalse()
         Log.d(TAG, "testAcceptInsecureLocalDisconnect: done")
+    }
+
+    @Test
+    @VirtualOnly
+    /**
+     * Test:
+     * - Create insecure L2CAP Socket server on Phone
+     * - Use Bumble as client nd trigger connection to L2cap server on Phone
+     * - Ensure connection is established
+     * - trigger disconnection by closing the socket handle from Bumble/Remote side
+     * - Ensure L2cap connection is disconnected
+     */
+    fun testAcceptInsecureRemoteDisconnect() {
+        Log.d(TAG, "testAcceptInsecureRemoteDisconnect: Connect L2CAP")
+        val (l2capServer, bluetoothSocket, channel) =
+            l2capServerOnPhoneAndConnectionFromBumbleUtil(false)
+        Log.d(TAG, "testAcceptInsecureRemoteDisconnect: close/disconnect from remote")
+        disconnectSocketAndWaitForDisconnectUtil(bluetoothSocket, channel, true)
+
+        // Todo: b/401106684
+        // assertThat((bluetoothSocket)?.isConnected()).isFalse()
+
+        l2capServer.close()
+        Log.d(TAG, "testAcceptInsecureRemoteDisconnect: done")
     }
 
     @Test
@@ -417,6 +463,44 @@ public class DckL2capTest() : Closeable {
 
         host.removeBondAndVerify(remoteDevice)
         Log.d(TAG, "testSendOverEncryptedOnlySocket: done")
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_SOCKET_SETTINGS_API)
+    /**
+     * Test:
+     * - Create Bond between Phone and Bumble (Just works)
+     * - Create L2cap Server on Bumble side (DCK server) and wait for connection
+     * - Create Encrypt Only socket using BluetoothSocketSettings interface
+     * - trigger connection from client socket on phone to l2cap server on Bumble
+     * - Ensure connection is established
+     * - Send sample data from Bumble to phone & ensure It is received on bumble side as expected
+     * - close the connection
+     * - Ensure L2cap connection is disconnected and Socket state is disconnected
+     * - remote bonding
+     */
+    fun testReceiveOverEncryptedOnlySocketAsClient() {
+        Log.d(TAG, "testReceiveOverEncryptedOnlySocketAsClient")
+        val remoteDevice =
+            bluetoothAdapter.getRemoteLeDevice(
+                Utils.BUMBLE_RANDOM_ADDRESS,
+                BluetoothDevice.ADDRESS_TYPE_RANDOM,
+            )
+
+        host.createBondAndVerify(remoteDevice)
+
+        Log.d(TAG, "testReceiveOverEncryptedOnlySocketAsClient: Connect L2CAP")
+        val (bluetoothSocket, channel) = clientSocketConnectUtilUsingSocketSettings(false, true)
+
+        Log.d(TAG, "testReceiveOverEncryptedOnlySocketAsClient: send data from phone to bumble")
+        sendDataFromBumbleToPhoneAndVerifyUtil(bluetoothSocket, channel)
+
+        // disconnect from local
+        disconnectSocketAndWaitForDisconnectUtil(bluetoothSocket, channel)
+        assertThat((bluetoothSocket).isConnected()).isFalse()
+
+        host.removeBondAndVerify(remoteDevice)
+        Log.d(TAG, "testReceiveOverEncryptedOnlySocketAsClient: done")
     }
 
     // Utility functions
