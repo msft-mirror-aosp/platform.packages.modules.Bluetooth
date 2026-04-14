@@ -19,6 +19,7 @@ package com.android.bluetooth.btservice;
 
 import static android.bluetooth.BluetoothDevice.BATTERY_LEVEL_UNKNOWN;
 import static android.bluetooth.BluetoothDevice.BOND_BONDED;
+import static android.bluetooth.BluetoothDevice.BOND_BONDING;
 import static android.bluetooth.BluetoothDevice.BOND_NONE;
 import static android.bluetooth.BluetoothDevice.TRANSPORT_AUTO;
 import static android.bluetooth.IBluetoothLeAudio.LE_AUDIO_GROUP_ID_INVALID;
@@ -6096,6 +6097,13 @@ public class AdapterService extends Service {
             setMessageAccessPermission(device, BluetoothDevice.ACCESS_UNKNOWN);
             setPhonebookAccessPermission(device, BluetoothDevice.ACCESS_UNKNOWN);
             setSimAccessPermission(device, BluetoothDevice.ACCESS_UNKNOWN);
+        }
+
+      if (toState != BOND_BONDING) {
+            CallerInfo callerInfo = mBondAttemptCallerInfo.remove(device.getAddress());
+            if (callerInfo != null) {
+                Log.d(TAG, "Removed bond caller info for device: " + device);
+            }
         }
     }
 
