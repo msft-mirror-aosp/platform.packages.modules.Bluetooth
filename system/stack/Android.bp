@@ -951,6 +951,7 @@ cc_test {
         "libgmock",
         "liblog",
         "libosi",
+        "libprotobuf-cpp-lite",
         "libstatslog_bt",
     ],
     target: {
@@ -1088,6 +1089,7 @@ cc_test {
         "libgmock",
         "liblog",
         "libosi",
+        "libprotobuf-cpp-lite",
         "libstatslog_bt",
     ],
     target: {
@@ -1387,6 +1389,7 @@ cc_test {
         "libgmock",
         "liblog",
         "libosi",
+        "libprotobuf-cpp-lite",
         "libstatslog_bt",
     ],
     target: {
@@ -1706,6 +1709,7 @@ cc_test {
         "libgmock",
         "liblog",
         "libosi",
+        "libprotobuf-cpp-lite",
     ],
     shared_libs: [
         "libcrypto",
@@ -1847,6 +1851,7 @@ cc_test {
         "libgmock",
         "liblog",
         "libosi",
+        "libprotobuf-cpp-lite",
     ],
     shared_libs: [
         "libbinder_ndk",
@@ -2124,6 +2129,7 @@ cc_test {
         "libgmock",
         "liblog",
         "libosi",
+        "libprotobuf-cpp-lite",
         "libstatslog_bt",
     ],
     shared_libs: [
@@ -2197,6 +2203,7 @@ cc_test {
         "libflagtest",
         "libgmock",
         "liblog",
+        "libprotobuf-cpp-lite",
     ],
     shared_libs: [
         "libaconfig_storage_read_api_cc",
