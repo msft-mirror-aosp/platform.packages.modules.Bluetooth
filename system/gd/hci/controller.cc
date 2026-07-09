@@ -31,7 +31,7 @@
 namespace bluetooth {
 namespace hci {
 
-constexpr uint8_t kMinEncryptionKeySize = 7;  // #define MIN_ENCRYPTION_KEY_SIZE 7
+constexpr uint8_t kMinEncryptionKeySize = 7;
 
 constexpr bool kDefaultVendorCapabilitiesEnabled = true;
 static const std::string kPropertyVendorCapabilitiesEnabled =
@@ -80,9 +80,13 @@ struct Controller::impl {
                          handler->BindOnceOn(this, &Controller::impl::read_buffer_size_complete_handler));
 
     if (common::init_flags::set_min_encryption_is_enabled() && is_supported(OpCode::SET_MIN_ENCRYPTION_KEY_SIZE)) {
+      uint8_t min_key_size;
+
+      min_key_size = kMinEncryptionKeySize;
+
       hci_->EnqueueCommand(
-          SetMinEncryptionKeySizeBuilder::Create(kMinEncryptionKeySize),
-          handler->BindOnceOn(this, &Controller::impl::set_min_encryption_key_size_handler));
+              SetMinEncryptionKeySizeBuilder::Create(min_key_size),
+              handler->BindOnceOn(this, &Controller::impl::set_min_encryption_key_size_handler));
     }
 
     if (is_supported(OpCode::LE_READ_BUFFER_SIZE_V2)) {
